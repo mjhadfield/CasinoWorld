@@ -14,6 +14,9 @@ server/lpc_cache/
 
 # Raw 1024px FLUX outputs, kept on disk in the main checkout only (60 MB of PNGs).
 docs/slots/flux_raw/
+# Star Trek candidates: sheet crops and raw FLUX edits, both rebuilt from source/sheet.png by the scripts.
+docs/slots/startrek/ref/
+docs/slots/startrek/raw/
 
 # Per-worktree scratch from tools/dev.sh: its port, database and logs.
 .dev/
