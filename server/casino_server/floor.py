@@ -27,8 +27,8 @@ SLOTS_FOR_HUMANS = 2   # NPCs leave at least this many cabinets of a bank free
 
 ENTRANCE = "entrance"
 
-# Places NPCs wander to between games: for now, spots in the aisles of a compact
-# test room that holds only the tables (the floor gets redesigned later).
+# Places NPCs wander to between games: spots in the aisles between the tables (the
+# floor has no decor to visit yet).
 WANDER_POINTS = ["aisle_w", "aisle_mid", "aisle_e", "corner_w", "corner_e"]
 
 ALL_POINTS = [ENTRANCE] + WANDER_POINTS

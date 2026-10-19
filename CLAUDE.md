@@ -27,6 +27,22 @@ Match the check to the change, and stop once it passes.
 - **Client visuals:** take one `tools/shot.py` screenshot of the result, clipped to what changed (`shot:name@x,y,w,h`), timed with `until:` on the event you're checking rather than `wait:`. Don't loop on screenshots for small tweaks: if a shot doesn't settle it, say what to look at and ask Mike, who usually has the game open.
 - **Server logic** the tests cover doesn't need a browser at all.
 
+## Keeping the docs current
+
+The docs drifted badly once (the README missed two games, architecture.md was still the first plan), so they're part of finishing a change, not a separate job. Before committing, update whichever of these the change touches, in the same commit:
+
+| If you changed | Update |
+|---|---|
+| A game's rules, bets, payouts, timings or NPC play | its file in `docs/games/` |
+| A new game or table | a new `docs/games/<game>.md`, the table in `docs/games/README.md`, the floor rows there, and the README code map |
+| A WebSocket message or event | `server/protocol.md` |
+| How a table is drawn, a shared table piece, the layout rules | `docs/tables.md` |
+| Something structural (a new module, autoload or background task, how state or money flows) | `docs/architecture.md`, and its "Not done yet" list when something on it lands |
+| Setup, `tools/dev.sh`, env vars, the admin page, tests, art scripts, or where code lives | `README.md` |
+| How sessions should work | this file |
+
+Write each doc as how things are now: rewrite the section in place rather than adding a dated "Update" note on top, and delete what's no longer true. Git keeps the history. If you notice something stale in passing, fix it or mention it to Mike.
+
 ## Git
 
 - Work on `main`. Commit each finished, working change with a plain message saying what changed and why. There's no remote, so nothing to push.

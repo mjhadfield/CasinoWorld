@@ -112,5 +112,5 @@ A Godot 4.7 project exported to the web.
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Customising your own look, chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.
-- A floor redesign with decor: the room is still just the tables (the NPCs' wander points in `floor.py` say
-  so too).
+- A floor redesign with decor (a bar, a cashier's cage, plants): the room is still just the tables, so NPCs
+  wander between aisle points.
