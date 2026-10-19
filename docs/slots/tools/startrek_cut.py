@@ -14,7 +14,7 @@ def cutout(src: Path) -> Image.Image:
     border = np.concatenate([rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)])
     key = np.median(border, axis=0)
     dist = np.linalg.norm(rgb - key, axis=2)
-    alpha = np.clip((dist - 60) / 90, 0, 1)  # <60 from the key = background, >150 = solid
+    alpha = np.clip((dist - 30) / 50, 0, 1)  # <30 from the key = background, >80 = solid (pink skin sits ~140 away)
     # FLUX paints soft shadows onto the background: darker key colour, far from the key by distance.
     # Key those by how much a pixel leans towards the key hue instead (magenta: R,B over G; green: G over R,B).
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]

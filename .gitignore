@@ -14,9 +14,12 @@ server/lpc_cache/
 
 # Raw 1024px FLUX outputs, kept on disk in the main checkout only (60 MB of PNGs).
 docs/slots/flux_raw/
-# Star Trek candidates: sheet crops and raw FLUX edits, both rebuilt from source/sheet.png by the scripts.
+# Star Trek candidates: sheet crops, raw FLUX edits and the framed character renders (6 colours each) are
+# rebuilt by the scripts. The raw character busts are kept: the framed tiles are made from them.
 docs/slots/startrek/ref/
-docs/slots/startrek/raw/
+docs/slots/startrek/raw/*
+!docs/slots/startrek/raw/bust_*.png
+docs/slots/startrek/chars/
 
 # Per-worktree scratch from tools/dev.sh: its port, database and logs.
 .dev/
