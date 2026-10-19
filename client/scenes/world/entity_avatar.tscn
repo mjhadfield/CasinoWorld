@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="1_avatar"]
+[ext_resource type="Script" path="res://scenes/world/entity_avatar.gd" id="2_entity"]
+
+[node name="EntityAvatar" instance=ExtResource("1_avatar")]
+script = ExtResource("2_entity")
+
+[node name="Agent" type="NavigationAgent2D" parent="."]
+path_desired_distance = 6.0
+target_desired_distance = 4.0
+radius = 7.0
+avoidance_enabled = false

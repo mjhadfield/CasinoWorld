@@ -1,0 +1,411 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scenes/ui/card_view.gd" id="2_card"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar"]
+bg_color = Color(0.06, 0.04, 0.05, 0.88)
+border_width_top = 2
+border_color = Color(0.79, 0.64, 0.29, 1)
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_box"]
+bg_color = Color(0.06, 0.04, 0.05, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.79, 0.64, 0.29, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="TopBar" type="PanelContainer" parent="."]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 600.0
+offset_bottom = 52.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+
+[node name="Row" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PlayerName" type="Label" parent="TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = ""
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+[node name="Balance" type="Label" parent="TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "£—"
+
+[node name="Jackpot" type="Label" parent="TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = ""
+theme_override_colors/font_color = Color(1, 0.84, 0.3, 1)
+[node name="Status" type="Label" parent="TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Connecting..."
+
+[node name="TopUpButton" type="Button" parent="TopBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Top up £1,000"
+
+[node name="InteractButton" type="Button" parent="."]
+unique_name_in_owner = true
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -88.0
+offset_right = 200.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 0
+focus_mode = 0
+theme_override_font_sizes/font_size = 22
+text = "Take a seat"
+
+[node name="Toast" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -320.0
+offset_top = 70.0
+offset_right = 320.0
+offset_bottom = 110.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Banner" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -120.0
+offset_right = 400.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.84, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0.2, 0.05, 0, 1)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 44
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ChooseBar" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -330.0
+offset_top = -84.0
+offset_right = 330.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+[node name="Row" type="HBoxContainer" parent="ChooseBar"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ChooseHint" type="Label" parent="ChooseBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "Choose a seat: click a glowing chair, or A / D then E"
+size_flags_horizontal = 3\nvertical_alignment = 1
+[node name="CancelChooseButton" type="Button" parent="ChooseBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 40)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Cancel  [Esc]"
+
+
+[node name="SeatedBar" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -76.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+[node name="Row" type="HBoxContainer" parent="SeatedBar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChipTray" type="HBoxContainer" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="RebetButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(92, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Rebet"
+
+[node name="AutoRebetCheck" type="CheckBox" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 16
+text = "Auto rebet"
+
+[node name="UndoButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Undo"
+
+[node name="ClearButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Clear"
+
+[node name="ReadyButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Ready"
+
+[node name="Actions" type="HBoxContainer" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Info" type="Label" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = ""
+size_flags_horizontal = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="PaytableButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Paytable"
+toggle_mode = true
+[node name="StandButton" type="Button" parent="SeatedBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 50)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Stand up"
+
+
+[node name="MyHand" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -250.0
+offset_right = -12.0
+offset_bottom = -88.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+[node name="Box" type="VBoxContainer" parent="MyHand"]
+layout_mode = 2
+alignment = 1
+
+[node name="Cards" type="HBoxContainer" parent="MyHand/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="Card0" type="Control" parent="MyHand/Box/Cards"]
+layout_mode = 2
+script = ExtResource("2_card")
+
+[node name="Card1" type="Control" parent="MyHand/Box/Cards"]
+layout_mode = 2
+script = ExtResource("2_card")
+
+[node name="Card2" type="Control" parent="MyHand/Box/Cards"]
+layout_mode = 2
+script = ExtResource("2_card")
+
+[node name="HandName" type="Label" parent="MyHand/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = ""
+horizontal_alignment = 1
+
+[node name="Paytable" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -270.0
+offset_top = 64.0
+offset_right = -12.0
+offset_bottom = -260.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+[node name="Text" type="RichTextLabel" parent="Paytable"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 14
+theme_override_font_sizes/bold_font_size = 14
+theme_override_font_sizes/italics_font_size = 13
+bbcode_enabled = true
+scroll_active = false
+
+[node name="NamePrompt" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -110.0
+offset_right = 260.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+[node name="Box" type="VBoxContainer" parent="NamePrompt"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="NameTitle" type="Label" parent="NamePrompt/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Welcome to the Hadfield Casino!"
+horizontal_alignment = 1
+[node name="NameAsk" type="Label" parent="NamePrompt/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "What should everyone call you?"
+horizontal_alignment = 1
+[node name="NameEdit" type="LineEdit" parent="NamePrompt/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+placeholder_text = "Your name"
+max_length = 16
+
+[node name="NameOk" type="Button" parent="NamePrompt/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Let's play"
+
+
+[node name="ConfirmStand" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -230.0
+offset_top = -80.0
+offset_right = 230.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+[node name="Box" type="VBoxContainer" parent="ConfirmStand"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ConfirmText" type="Label" parent="ConfirmStand/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "You're in this hand -- standing up folds it. Stand up anyway?"
+horizontal_alignment = 1\nautowrap_mode = 3
+[node name="Buttons" type="HBoxContainer" parent="ConfirmStand/Box"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="ConfirmYes" type="Button" parent="ConfirmStand/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 44)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Stand up"
+
+[node name="ConfirmNo" type="Button" parent="ConfirmStand/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 44)
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 18
+text = "Stay"

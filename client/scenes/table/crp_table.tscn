@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/table/crp_table.gd" id="1_table"]
+[ext_resource type="Script" path="res://scenes/table/crp_felt.gd" id="2_felt"]
+[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="3_avatar"]
+[ext_resource type="Script" path="res://scenes/table/craps_dice.gd" id="4_dice"]
+[ext_resource type="Script" path="res://scenes/table/craps_sign.gd" id="5_sign"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sign"]
+radius = 9.0
+
+[node name="CrapsTable" type="Node2D" groups=["tables"]]
+y_sort_enabled = true
+script = ExtResource("1_table")
+table_id = "crp_1"
+seats = 8
+game_label = "Craps"
+
+[node name="Dealer" parent="." instance=ExtResource("3_avatar")]
+position = Vector2(0, 44)
+look = "dealer"
+display_name = "Stickman"
+facing = "up"
+bubble_side = "right"
+bubble_y = -51.5
+
+[node name="Boxman" parent="." instance=ExtResource("3_avatar")]
+position = Vector2(0, -128)
+look = "dealer"
+
+
+[node name="Felt" type="Node2D" parent="."]
+texture_filter = 2
+texture_repeat = 2
+position = Vector2(0, -126)
+script = ExtResource("2_felt")
+
+[node name="Dynamic" type="Node2D" parent="Felt"]
+position = Vector2(0, 126)
+
+[node name="Dice" type="Node2D" parent="Felt"]
+position = Vector2(0, 126)
+script = ExtResource("4_dice")
+
+[node name="Sign" type="Node2D" parent="."]
+position = Vector2(222, 23)
+script = ExtResource("5_sign")
+
+[node name="Seat0" type="Marker2D" parent="."]
+position = Vector2(164, 44)
+
+[node name="Seat1" type="Marker2D" parent="."]
+position = Vector2(128, 44)
+
+[node name="Seat2" type="Marker2D" parent="."]
+position = Vector2(92, 44)
+
+[node name="Seat3" type="Marker2D" parent="."]
+position = Vector2(56, 44)
+
+[node name="Seat4" type="Marker2D" parent="."]
+position = Vector2(-56, 44)
+
+[node name="Seat5" type="Marker2D" parent="."]
+position = Vector2(-92, 44)
+
+[node name="Seat6" type="Marker2D" parent="."]
+position = Vector2(-128, 44)
+
+[node name="Seat7" type="Marker2D" parent="."]
+position = Vector2(-164, 44)
+
+[node name="Body" type="StaticBody2D" parent="."]
+
+[node name="Shape" type="CollisionPolygon2D" parent="Body"]
+
+[node name="SignBase" type="CollisionShape2D" parent="Body"]
+position = Vector2(222, 21)
+shape = SubResource("CircleShape2D_sign")

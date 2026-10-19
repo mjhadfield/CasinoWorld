@@ -1,0 +1,87 @@
+"""
+TableRunner: drives one table machine in real time and publishes its events.
+
+Every player action goes through act(), which runs the machine method with the
+current time, publishes the resulting events and wakes the loop. run() sleeps
+until the machine's next deadline (or an action), then tick()s it. One runner
+task per table, owned by the Casino's lifespan.
+
+Every joined session gets every table's events, so tables are live to watch
+from the floor. Keys starting "_" never leave the server: card faces a seat
+may keep private ("_private") only go to the session in that seat, and "_paid"
+lists participants whose balance the event changed (they get a wallet update
+straight after it).
+"""
+import asyncio
+import copy
+import time
+
+
+class TableRunner:
+    def __init__(self, table_id: str, casino, machine, clock=time.monotonic):
+        self.table_id = table_id
+        self.casino = casino
+        self.machine = machine
+        self.clock = clock
+        self._wake = asyncio.Event()
+
+    def act(self, method: str, *args, **kwargs):
+        """Run a machine action now; raises TableError for a rejected one."""
+        events = getattr(self.machine, method)(*args, now=self.clock(), **kwargs)
+        self.publish(events)
+        self._wake.set()
+        return events
+
+    async def run(self):
+        while True:
+            deadline = self.machine.next_deadline
+            timeout = None if deadline is None else max(0.0, deadline - self.clock())
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout)
+            except TimeoutError:
+                pass
+            self._wake.clear()
+            self.publish(self.machine.tick(self.clock()))
+
+    # ------------------------------------------------------------------ publishing
+    def viewer_seat(self, session) -> int | None:
+        for i, seat in enumerate(self.machine.seats):
+            p = seat.participant
+            if p is not None and p.is_human and p.session is session:
+                return i
+        return None
+
+    def snapshot_for(self, session) -> dict:
+        dealers = getattr(self.casino, "dealers", None)
+        return {"type": "table_state", "table": self.table_id,
+                **self.machine.snapshot(self.viewer_seat(session), self.clock()),
+                "on_duty": dealers.on_table(self.table_id) if dealers and getattr(self.machine, "DEALER", True) else None}
+
+    def publish(self, events: list):
+        for event in events:
+            self._side_effects(event)
+            private = event.get("_private")
+            public = {k: v for k, v in event.items() if not k.startswith("_")}
+            for session in self.casino.joined_sessions():
+                body = public
+                if private:
+                    seat = self.viewer_seat(session)
+                    if seat in private:
+                        body = {**copy.deepcopy(public), "mine": private[seat]}
+                session.push({"type": "table_event", "table": self.table_id, "event": body})
+            # Money moved by this event: new balances follow the event that explains them.
+            for participant in event.get("_paid", []):
+                if participant.is_human and participant.session in self.casino.sessions:
+                    self.casino.send_wallet(participant.session)
+
+    def _side_effects(self, event: dict):
+        kind = event["kind"]
+        if kind == "seated":
+            self.casino.world.set_seat(event["entity"], self.table_id, event["seat"])
+        elif kind == "stood":
+            self.casino.world.set_seat(event["entity"], None, None)
+            self.casino.on_stood(event["entity"], self.table_id, event.get("reason", ""))
+        elif kind == "jackpot_won":
+            self.casino.broadcast_all(self.casino.jackpot.snapshot())
+        elif kind == "slot_jackpot_won":
+            self.casino.broadcast_all(self.casino.slot_jackpots.snapshot())

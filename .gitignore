@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+server/data/
+build/
+client/.godot/
+client/*.translation
+tools/.lpc_cache/
+
+# LPC downloads, pinned to one upstream commit (art.py): a cache, rebuilt on demand.
+# Worktrees symlink the main checkout's copy (tools/dev.sh setup).
+server/lpc_cache/
+
+# Raw 1024px FLUX outputs, kept on disk in the main checkout only (60 MB of PNGs).
+docs/slots/flux_raw/
+
+# Per-worktree scratch from tools/dev.sh: its port, database and logs.
+.dev/
+
+# Worktrees Claude Code creates inside the repo, and per-machine Claude settings.
+.claude/worktrees/
+.claude/settings.local.json

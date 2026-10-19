@@ -1,0 +1,20 @@
+# Sound library
+
+The sounds the maintenance page (`/maintenance`) offers for each game moment. Every file
+here is public domain (CC0 1.0): no attribution is required, but credit where it's due.
+Files you upload on the page go in `<data dir>/sounds/uploads/`, not here.
+
+| Folder | Source | Notes |
+|---|---|---|
+| `kenney-casino/` | Kenney, [Casino Audio](https://kenney.nl/assets/casino-audio) | Cards, chips and dice (the dice added for Craps) |
+| `kenney-interface/` | Kenney, [Interface Sounds](https://kenney.nl/assets/interface-sounds) | All 100 |
+| `kenney-ui-audio/` | Kenney, [UI Audio](https://kenney.nl/assets/ui-audio) | 51: clicks, a mouse click and release, rollovers and switches. As released |
+| `owlish-clicks/` | OwlishMedia, [87 Clickety Clips](https://opengameart.org/content/87-clickety-clips) (OpenGameArt) | 87 clicks, snaps, switches and button pushes. Converted from WAV, silence trimmed, peaks at -3 dB |
+| `lokif-gui/` | Lokif, [GUI Sound Effects](https://opengameart.org/content/gui-sound-effects) (OpenGameArt) | 13 menu sounds: clicks, positive and negative chimes, save and load. Converted, silence trimmed, peaks at -3 dB |
+| `qubodup-clicks/` | qubodup, [16 button clicks](https://opengameart.org/content/16-button-clicks) and [7 mechanical clicks and buzzes](https://opengameart.org/content/7-mechanical-clicks-and-buzzes) (OpenGameArt) | 23 button and mechanical clicks and a buzzer. Converted from FLAC, silence trimmed, peaks at -3 dB |
+| `clocks/` | antumdeluge, [Ticking Clock](https://opengameart.org/content/ticking-clock-0) (OpenGameArt) | A 4-second ticking clock |
+| `pops/` | cogitollc, [Pop sounds](https://opengameart.org/content/pop-sounds); wubitog, [3 pop sounds](https://opengameart.org/content/3-pop-sounds) (OpenGameArt) | |
+| `sparkles/` | Freesound: [LilMati](https://freesound.org/people/LilMati/sounds/462093/), [nomiqbomi](https://freesound.org/people/nomiqbomi/sounds/578800/), [Mr._Fritz_](https://freesound.org/people/Mr._Fritz_/sounds/545238/), [MLaudio](https://freesound.org/people/MLaudio/sounds/511485/), [LaurenPonder](https://freesound.org/people/LaurenPonder/sounds/639429/), [Fupicat](https://freesound.org/people/Fupicat/sounds/538147/), [Kriptonauta001](https://freesound.org/people/Kriptonauta001/sounds/473762/), [mushusito](https://freesound.org/people/mushusito/sounds/472463/) | Freesound previews; file names end in the sound's id |
+| `rooms/` | Freesound casino-floor recordings by craigsmith, getwecked, Andre_Desartistes, elliotgoldner, fkunze, f_ilippo, DylanTheFish, felix.blume, kb7clx and mhtaylor67 | 60-second clips of the previews, levelled to -26 LUFS. File names end in the Freesound id (`freesound.org/s/<id>`). `mhtaylor67_277444-loop` is crossfaded into a 90-second loop |
+| `roulette/` | Freesound: [f_ilippo, roulette_casino_evian](https://freesound.org/people/f_ilippo/sounds/59194/); [poenia, Casino_RouletteSound_wheel](https://freesound.org/people/poenia/sounds/709624/); marble drops by [gamer500](https://freesound.org/people/gamer500/sounds/682661/), [deraj](https://freesound.org/people/deraj/sounds/202546/), [Ryanz-Official](https://freesound.org/people/Ryanz-Official/sounds/639754/), [D.S.G.](https://freesound.org/people/D.S.G./sounds/240313/) | f_ilippo: a croupier's spin at the Évian casino (from the preview). `-spin` (the roll, with voices in it, so no longer the default), `-drop` (the drop off the track), `-rattle` (the clatter in the pockets, cut before the croupier speaks) and `-hop-1`…`-5` (single clicks from the rattle). These are high-passed, de-hissed and levelled. poenia: the ball rolling round the track, with no voices (`-spin`, the first 6.3 s before a click). The marble drops are short drops and bounces on wood or a desk, offered for "Roulette ball drops" (gamer500's is the default). Peaks are levelled to -4 dB |
+| `edited/` | Kenney Casino Audio `card-slide-2` … `-6` | Hiss cut and tails trimmed. `clean` is -4 dB, `soft` -10 dB, `tight` shorter and brighter at -7 dB |

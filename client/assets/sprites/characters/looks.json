@@ -1,0 +1,27 @@
+{
+  "frame": 64,
+  "walk_frames": 9,
+  "idle_frames": 2,
+  "looks": [
+    "player_default",
+    "dealer",
+    "npc_1",
+    "npc_2",
+    "npc_3",
+    "npc_4",
+    "npc_5",
+    "npc_6",
+    "npc_7",
+    "npc_8"
+  ],
+  "npc_looks": [
+    "npc_1",
+    "npc_2",
+    "npc_3",
+    "npc_4",
+    "npc_5",
+    "npc_6",
+    "npc_7",
+    "npc_8"
+  ]
+}

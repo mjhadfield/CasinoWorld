@@ -1,0 +1,554 @@
+"""
+FastAPI app: serves the Godot web export from build/web, runs the /ws socket,
+and serves the sound maintenance page (/maintenance) and its API (sounds.py).
+
+The Casino (casino.py) holds every table, the store and the jackpot, and lives
+on app.state for the app's lifespan. Each socket gets a Session; handlers push
+messages onto session queues and a per-connection sender task delivers them.
+The client never decides a hand -- it sends intents and renders what this sends.
+
+Message shape both ways: a JSON object with a "type" field. See protocol.md.
+"""
+
+import asyncio
+import mimetypes
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+
+from casino_server.art import LookCache
+from casino_server.casino import Casino
+from casino_server.session import Session
+from casino_server.slot_art import ArtError, SlotArtBoard
+from casino_server.slots import jackpots as slot_jackpots
+from casino_server.sounds import SoundBoard, SoundError
+from casino_server.store import Store
+
+# Godot's web export ships .wasm and .pck files -- make sure they're served with
+# the types browsers expect (WebAssembly streaming compile requires application/wasm).
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("application/octet-stream", ".pck")
+
+# CASINO_WEB_DIR serves another export (a scratch build under test, leaving the live one alone).
+WEB_EXPORT_DIR = Path(os.environ.get("CASINO_WEB_DIR") or Path(__file__).resolve().parents[2] / "build" / "web")
+DEFAULT_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+NOT_EXPORTED_PAGE = """<!doctype html><meta charset="utf-8"><title>Casino World</title>
+<body style="font-family:sans-serif;background:#111;color:#eee;padding:2rem">
+<h1>Casino World server is running</h1>
+<p>No web export found yet. In Godot: <b>Project &rsaquo; Export &rsaquo; Web &rsaquo; Export Project</b>
+(the preset already points at <code>build/web/index.html</code>), then reload this page.
+Installing the export templates alone isn't enough -- the export step writes the files.</p></body>"""
+
+
+
+def _build_roster_looks(store: Store, looks: LookCache):
+    for npc in store.npcs():
+        try:
+            looks.ensure(npc["look"])
+        except Exception as e:
+            print(f"couldn't build {npc['name']}'s look: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    data_dir = Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR))
+    store = Store(data_dir / "casino.sqlite")
+    for p in store.players():
+        if p["stored_as"] != "integer":
+            print(f"WARNING: {p['name']}'s balance is {p['balance']!r}, which isn't a number of pence; "
+                  f"they'll be disconnected when they bet. Fix it with: "
+                  f".venv/bin/python -m casino_server.admin set-balance {p['id']} <pounds>")
+    # CASINO_SPEED < 1 speeds every table timer and NPC up (handy for demos/tests);
+    # CASINO_NPCS sets how many NPCs roam the floor.
+    speed = float(os.environ.get("CASINO_SPEED", "1"))
+    npcs = os.environ.get("CASINO_NPCS")   # unset: the admin page's floor population
+    looks = LookCache(data_dir)
+    casino = Casino(store, speed=speed, npc_population=int(npcs) if npcs else None, npc_pace=speed, looks=looks)
+    app.state.casino = casino
+    app.state.sounds = SoundBoard(data_dir)
+    app.state.slot_art = SlotArtBoard(data_dir)
+    app.state.looks = looks
+    await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
+    await casino.start()
+    try:
+        yield
+    finally:
+        await casino.stop()
+        store.close()
+
+
+app = FastAPI(title="Casino World", lifespan=lifespan)
+
+
+async def _sender(ws: WebSocket, session: Session):
+    while True:
+        await ws.send_json(await session.queue.get())
+
+
+@app.websocket("/ws")
+async def ws_endpoint(ws: WebSocket):
+    await ws.accept()
+    casino: Casino = ws.app.state.casino
+    session = Session()
+    sender = asyncio.create_task(_sender(ws, session))
+    casino.connect(session)
+    try:
+        while True:
+            try:
+                msg = await ws.receive_json()
+            except ValueError:
+                session.error("Expected a JSON object")
+                continue
+            if not isinstance(msg, dict):
+                session.error("Expected a JSON object")
+                continue
+            casino.handle(session, msg)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        casino.disconnect(session)
+        sender.cancel()
+
+
+# Checked per request, so a fresh Godot export is picked up without restarting the server.
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    # Godot's web build won't start over plain HTTP except on localhost, so send other
+    # browsers to the HTTPS port (set by __main__ when it has a certificate).
+    https_port = getattr(app.state, "https_port", None)
+    host = request.url.hostname or ""
+    if request.url.scheme == "http" and https_port and host not in LOCAL_HOSTS:
+        return RedirectResponse(f"https://{host}:{https_port}/")
+    index_html = WEB_EXPORT_DIR / "index.html"
+    if index_html.exists():
+        return FileResponse(index_html)
+    return NOT_EXPORTED_PAGE
+
+
+# ------------------------------------------------------------------ sounds
+# The maintenance page picks the sound for each game moment; games fetch the
+# manifest at start and again whenever they're sent "sounds_changed".
+MAINTENANCE_PAGE = Path(__file__).resolve().parent / "maintenance.html"
+NO_STORE = {"Cache-Control": "no-store"}
+
+
+def _sounds_changed(request: Request):
+    board: SoundBoard = request.app.state.sounds
+    request.app.state.casino.broadcast_all({"type": "sounds_changed", "version": board.version})
+
+
+def _sound_call(fn, *args):
+    try:
+        return fn(*args)
+    except SoundError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/maintenance", response_class=HTMLResponse)
+def maintenance_page():
+    return FileResponse(MAINTENANCE_PAGE, headers=NO_STORE)
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page():
+    return FileResponse(MAINTENANCE_PAGE, headers=NO_STORE)
+
+
+@app.get("/api/sounds")
+def sounds_overview(request: Request):
+    return JSONResponse(request.app.state.sounds.overview(), headers=NO_STORE)
+
+
+@app.get("/api/sounds/manifest")
+def sounds_manifest(request: Request):
+    return JSONResponse(request.app.state.sounds.manifest(), headers=NO_STORE)
+
+
+@app.put("/api/sounds/{key}")
+async def sounds_set(key: str, request: Request):
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Expected JSON: {files: [...], gain_db: 0}")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Expected JSON: {files: [...], gain_db: 0}")
+    choice = _sound_call(request.app.state.sounds.set_choice, key, body.get("files"), body.get("gain_db", 0))
+    _sounds_changed(request)
+    return choice
+
+
+@app.delete("/api/sounds/{key}")
+def sounds_reset_one(key: str, request: Request):
+    _sound_call(request.app.state.sounds.reset, key)
+    _sounds_changed(request)
+    return request.app.state.sounds.choice(key)
+
+
+@app.post("/api/sounds-reset")
+def sounds_reset_all(request: Request):
+    request.app.state.sounds.reset()
+    _sounds_changed(request)
+    return {"ok": True}
+
+
+@app.put("/api/sound-uploads/{filename}")
+async def sounds_upload(filename: str, request: Request):
+    data = await request.body()
+    return _sound_call(request.app.state.sounds.upload, filename, data)
+
+
+@app.delete("/api/sound-uploads/{filename}")
+def sounds_delete_upload(filename: str, request: Request):
+    _sound_call(request.app.state.sounds.delete_upload, "uploads/" + filename)
+    return {"ok": True}
+
+
+@app.get("/sound-files/{sound_id:path}")
+def sound_file(sound_id: str, request: Request):
+    path = request.app.state.sounds.file_path(sound_id)
+    if path is None:
+        raise HTTPException(404, "No such sound")
+    # The game asks with ?v=<file's change time>, so those can be cached for good; the page asks without.
+    cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
+    return FileResponse(path, headers={"Cache-Control": cache})
+
+
+
+
+# ------------------------------------------------------------------ slots (the admin page's Slots tab)
+@app.get("/api/slots")
+def slots_overview(request: Request):
+    """The shared meters, each cabinet (who's on it, what it's doing) and what slots have returned."""
+    casino = request.app.state.casino
+    cabinets = []
+    for table_id, runner in casino.tables.items():
+        m = runner.machine
+        if m.game != "slots":
+            continue
+        p = m.seats[0].participant
+        cabinets.append({"table": table_id, "variant": m.variant.id, "name": m.variant.name, "phase": m.phase,
+                         "player": p.name if p else None, "human": bool(p and p.is_human), "bet": m.bet,
+                         "pending": [f[0] for f in m.pending]})
+    wagered = returned = 0
+    for player in casino.store.player_stats():
+        g = player["games"].get("slots")
+        if g:
+            wagered, returned = wagered + g["wagered"], returned + g["returned"]
+    pg = casino.slot_jackpots
+    tiers = [{**t, **pg.settings[t["id"]], "amount": pg.amount(t["id"])} for t in slot_jackpots.TIERS]
+    return JSONResponse({"tiers": tiers, "cabinets": cabinets, "players": {"wagered": wagered, "returned": returned},
+                         "jackpot_rtp": 100 * pg.rtp()}, headers=NO_STORE)
+
+
+@app.put("/api/slots/jackpot-settings")
+async def slots_jackpot_settings(request: Request):
+    """Each meter's share of every bet and how much it grows by a second on its own."""
+    try:
+        changes = slot_jackpots.clean_settings(await request.json())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    casino = request.app.state.casino
+    settings = casino.slot_jackpots.configure(changes)
+    casino.broadcast_all(casino.slot_jackpots.snapshot())   # the games' meters pick up the new speed
+    return {"settings": settings, "jackpot_rtp": 100 * casino.slot_jackpots.rtp()}
+
+
+@app.post("/api/slots/reset-meter/{tier}")
+def slots_reset_meter(tier: str, request: Request):
+    casino = request.app.state.casino
+    if tier not in slot_jackpots.TIER_IDS:
+        raise HTTPException(400, f"There's no {tier!r} meter.")
+    casino.slot_jackpots.reset(tier)
+    casino.broadcast_all(casino.slot_jackpots.snapshot())
+    return {"ok": True, "amount": casino.slot_jackpots.amount(tier)}
+
+
+def _art_call(fn, *args):
+    try:
+        return fn(*args)
+    except ArtError as e:
+        raise HTTPException(400, str(e))
+
+
+def _art_changed(request: Request):
+    request.app.state.casino.broadcast_all({"type": "slot_art_changed", "version": request.app.state.slot_art.version})
+
+
+@app.get("/api/slots/art")
+def slot_art_overview(request: Request):
+    return JSONResponse(request.app.state.slot_art.overview(), headers=NO_STORE)
+
+
+@app.get("/api/slots/art/manifest")
+def slot_art_manifest(request: Request):
+    return JSONResponse(request.app.state.slot_art.manifest(), headers=NO_STORE)
+
+
+@app.put("/api/slots/art/{variant}/{asset}")
+async def slot_art_set(variant: str, asset: str, request: Request):
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Expected JSON: {source: 'flux2/H1.png'}")
+    source = body.get("source") if isinstance(body, dict) else None
+    chosen = _art_call(request.app.state.slot_art.set_choice, variant, asset, source)
+    _art_changed(request)
+    return {"choice": chosen}
+
+
+@app.delete("/api/slots/art/{variant}/{asset}")
+def slot_art_reset(variant: str, asset: str, request: Request):
+    _art_call(request.app.state.slot_art.reset, variant, asset)
+    _art_changed(request)
+    return {"choice": request.app.state.slot_art.choice(variant, asset)}
+
+
+@app.put("/api/slot-art-uploads/{variant}/{filename}")
+async def slot_art_upload(variant: str, filename: str, request: Request):
+    data = await request.body()
+    return {"source": _art_call(request.app.state.slot_art.upload, variant, filename, data)}
+
+
+@app.delete("/api/slot-art-uploads/{variant}/{filename}")
+def slot_art_delete_upload(variant: str, filename: str, request: Request):
+    _art_call(request.app.state.slot_art.delete_upload, variant, "uploads/" + filename)
+    _art_changed(request)
+    return {"ok": True}
+
+
+@app.get("/slot-art/{variant}/{source:path}")
+def slot_art_file(variant: str, source: str, request: Request):
+    path = request.app.state.slot_art.file_path(variant, source)
+    if path is None:
+        raise HTTPException(404, "No such image")
+    cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": cache})
+
+
+# ------------------------------------------------------------------ NPCs (the admin page)
+# Anything touching the casino or the store runs here on the event loop; only
+# building a sprite sheet (pure image work) goes to a worker thread.
+from fastapi.concurrency import run_in_threadpool  # noqa: E402
+
+from casino_server import art, floor, roster  # noqa: E402
+
+
+def _npc_view(request: Request, rec: dict) -> dict:
+    casino = request.app.state.casino
+    looks: LookCache = request.app.state.looks
+    lid = art.look_id(rec["look"])
+    status = casino.npcs.status().get(rec["id"])
+    dealing = casino.dealers.status().get(rec["id"])
+    return {**rec, "look_id": lid, "look_url": f"/looks/{lid}.png" if looks.path(lid) else None,
+            "on_floor": status, "dealing": dealing}
+
+
+async def _body(request: Request) -> dict:
+    try:
+        data = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Expected JSON.")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Expected a JSON object.")
+    return data
+
+
+@app.get("/api/npc-options")
+def npc_options():
+    return {**art.catalogue(), "roles": roster.ROLES, "on_the_floor": list(roster.ON_THE_FLOOR),
+            "archetypes": roster.ARCHETYPES, "modifiers": roster.MODIFIERS, "games": roster.GAMES,
+            "tables": {tid: cfg["name"] for tid, cfg in floor.TABLES.items()}}
+
+
+@app.post("/api/looks/preview")
+async def look_preview(request: Request):
+    data = await _body(request)
+    looks: LookCache = request.app.state.looks
+    try:
+        lid = await run_in_threadpool(looks.ensure, data.get("look") or {})
+    except art.ArtError as e:
+        raise HTTPException(400, str(e))
+    return {"id": lid, "url": f"/looks/{lid}.png"}
+
+
+@app.get("/looks/{look}.png")
+def look_sheet(look: str, request: Request):
+    looks: LookCache = request.app.state.looks
+    path = looks.path(look) if look.startswith("x_") and look[2:].isalnum() else None
+    if path is None:
+        raise HTTPException(404, "No such look.")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+@app.get("/api/npcs")
+async def npcs_list(request: Request):
+    store = request.app.state.casino.store
+    return {"npcs": [_npc_view(request, r) for r in store.npcs()], "settings": roster.settings(store)}
+
+
+@app.post("/api/npcs")
+async def npcs_create(request: Request):
+    data = await _body(request)
+    try:
+        rec = roster.clean(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await run_in_threadpool(request.app.state.looks.ensure, rec["look"])
+    store = request.app.state.casino.store
+    return _npc_view(request, store.npc(store.create_npc(rec)))
+
+
+def _ensure_looks(looks: LookCache, recs: list[dict]) -> list[str]:
+    return [looks.ensure(r["look"]) for r in recs]
+
+
+@app.post("/api/npcs/generate")
+async def npcs_generate(request: Request):
+    """Bulk creation, step one: random drafts to review (nothing's saved). `taken` is the
+    names already in the review, so a second batch doesn't repeat them."""
+    data = await _body(request)
+    store = request.app.state.casino.store
+    taken = {n["name"] for n in store.npcs()} | {str(n) for n in data.get("taken") or []}
+    try:
+        drafts = roster.generate(int(data.get("count") or 0), data.get("role") or "punter",
+                                 data.get("archetype") or "mix", data.get("body") or "", data.get("traits") or [],
+                                 taken, bool(data.get("enabled", True)))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
+    ids = await run_in_threadpool(_ensure_looks, request.app.state.looks, drafts)
+    return {"drafts": [{**d, "look_url": f"/looks/{lid}.png"} for d, lid in zip(drafts, ids)]}
+
+
+@app.post("/api/npcs/bulk")
+async def npcs_bulk(request: Request):
+    """Bulk creation, step two: the reviewed drafts, all or nothing."""
+    data = await _body(request)
+    items = data.get("npcs")
+    if not isinstance(items, list) or not 1 <= len(items) <= roster.MAX_BULK:
+        raise HTTPException(400, f"Send 1-{roster.MAX_BULK} NPCs.")
+    store = request.app.state.casino.store
+    seen = {n["name"].lower() for n in store.npcs()}
+    recs = []
+    for i, item in enumerate(items, 1):
+        try:
+            rec = roster.clean(item if isinstance(item, dict) else {})
+        except ValueError as e:
+            raise HTTPException(400, f"#{i} {item.get('name') or '(no name)' if isinstance(item, dict) else ''}: {e}")
+        if rec["name"].lower() in seen:
+            raise HTTPException(400, f"#{i}: there's already someone called {rec['name']}.")
+        seen.add(rec["name"].lower())
+        recs.append(rec)
+    await run_in_threadpool(_ensure_looks, request.app.state.looks, recs)
+    return {"npcs": [_npc_view(request, store.npc(store.create_npc(r))) for r in recs]}
+
+
+def _get_npc(request: Request, npc_id: int) -> dict:
+    rec = request.app.state.casino.store.npc(npc_id)
+    if rec is None:
+        raise HTTPException(404, "No such NPC.")
+    return rec
+
+
+@app.get("/api/npcs/{npc_id}")
+async def npcs_get(npc_id: int, request: Request):
+    rec = _get_npc(request, npc_id)
+    store = request.app.state.casino.store
+    return {**_npc_view(request, rec), "visits": store.npc_visits(npc_id, 25)}
+
+
+@app.put("/api/npcs/{npc_id}")
+async def npcs_update(npc_id: int, request: Request):
+    old = _get_npc(request, npc_id)
+    data = await _body(request)
+    try:
+        rec = roster.clean(data, existing=old)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await run_in_threadpool(request.app.state.looks.ensure, rec["look"])
+    casino = request.app.state.casino
+    casino.store.update_npc(npc_id, rec)
+    new = casino.store.npc(npc_id)
+    if new["look"] != old["look"] or new["name"] != old["name"]:   # on the floor now: they change in front of you
+        casino.npcs.restyle(npc_id, new)
+        casino.dealers.restyle(new)
+    return _npc_view(request, new)
+
+
+@app.delete("/api/npcs/{npc_id}")
+async def npcs_delete(npc_id: int, request: Request):
+    _get_npc(request, npc_id)
+    casino = request.app.state.casino
+    casino.npcs.send_home(npc_id, casino.clock())
+    casino.store.delete_npc(npc_id)
+    return {"deleted": npc_id}
+
+
+@app.post("/api/npcs/{npc_id}/bring-in")
+async def npcs_bring_in(npc_id: int, request: Request):
+    _get_npc(request, npc_id)
+    casino = request.app.state.casino
+    try:
+        casino.npcs.bring_in(npc_id, casino.clock())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _npc_view(request, _get_npc(request, npc_id))
+
+
+@app.post("/api/npcs/{npc_id}/send-home")
+async def npcs_send_home(npc_id: int, request: Request):
+    _get_npc(request, npc_id)
+    casino = request.app.state.casino
+    if not casino.npcs.send_home(npc_id, casino.clock()):
+        raise HTTPException(400, "They're not in the casino.")
+    return _npc_view(request, _get_npc(request, npc_id))
+
+
+@app.post("/api/npcs/{npc_id}/reset-stats")
+async def npcs_reset(npc_id: int, request: Request):
+    _get_npc(request, npc_id)
+    request.app.state.casino.store.reset_npc_stats(npc_id)
+    return _npc_view(request, _get_npc(request, npc_id))
+
+
+@app.get("/api/npc-settings")
+async def npc_settings_get(request: Request):
+    return roster.settings(request.app.state.casino.store)
+
+
+@app.put("/api/npc-settings")
+async def npc_settings_put(request: Request):
+    data = await _body(request)
+    store = request.app.state.casino.store
+    try:
+        new = roster.clean_settings(data)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e) or "Those settings don't make sense.")
+    store.set_json("npc_settings", {**store.get_json("npc_settings", {}), **new})
+    return roster.settings(store)
+
+
+@app.get("/api/players")
+async def players_stats(request: Request):
+    return {"players": request.app.state.casino.store.player_stats(), "games": roster.GAMES}
+
+
+@app.get("/credits", response_class=HTMLResponse)
+def credits_page():
+    rows = "".join(
+        f"<li><b>{c['name']}</b> <code>{c['file']}</code> — {', '.join(c['authors'])} "
+        f"({', '.join(c['licenses'])})</li>" for c in art.credits())
+    return (f"<!doctype html><meta charset='utf-8'><title>Casino World credits</title>"
+            f"<body style='font:15px system-ui;max-width:900px;margin:2rem auto;padding:0 1rem'>"
+            f"<h1>Character art credits</h1><p>Built from the Universal LPC Spritesheet Character Generator "
+            f"(commit {art.COMMIT[:10]}). Licences as listed; derived sprite sheets carry the same licences.</p>"
+            f"<ul>{rows}</ul></body>")
+
+
+WEB_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/", StaticFiles(directory=WEB_EXPORT_DIR, check_dir=False), name="web")

@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/local_player.gd" id="1_local"]
+[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="2_avatar"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
+radius = 7.0
+
+[node name="LocalPlayer" type="CharacterBody2D" groups=["player"]]
+motion_mode = 1
+script = ExtResource("1_local")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_feet")
+
+[node name="Avatar" parent="." instance=ExtResource("2_avatar")]

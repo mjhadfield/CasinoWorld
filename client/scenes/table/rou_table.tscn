@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/table/rou_table.gd" id="1_table"]
+[ext_resource type="Script" path="res://scenes/table/rou_felt.gd" id="2_felt"]
+[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="3_avatar"]
+[ext_resource type="Script" path="res://scenes/table/roulette_wheel.gd" id="4_wheel"]
+[ext_resource type="Script" path="res://scenes/table/roulette_sign.gd" id="5_sign"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sign"]
+radius = 9.0
+
+[node name="RouTable" type="Node2D" groups=["tables"]]
+y_sort_enabled = true
+script = ExtResource("1_table")
+table_id = "rou_1"
+game_label = "Roulette"
+
+[node name="Dealer" parent="." instance=ExtResource("3_avatar")]
+position = Vector2(-56, -95)
+look = "dealer"
+display_name = "Dealer"
+bubble_side = "right"
+
+[node name="Felt" type="Node2D" parent="."]
+texture_filter = 2
+texture_repeat = 2
+position = Vector2(0, -92)
+script = ExtResource("2_felt")
+
+[node name="Wheel" type="Node2D" parent="Felt"]
+position = Vector2(-118, 40)
+script = ExtResource("4_wheel")
+
+[node name="Dynamic" type="Node2D" parent="Felt"]
+position = Vector2(0, 92)
+
+[node name="Sign" type="Node2D" parent="."]
+position = Vector2(204, 24)
+script = ExtResource("5_sign")
+
+[node name="Seat0" type="Marker2D" parent="."]
+position = Vector2(140, 40)
+
+[node name="Seat1" type="Marker2D" parent="."]
+position = Vector2(84, 40)
+
+[node name="Seat2" type="Marker2D" parent="."]
+position = Vector2(28, 40)
+
+[node name="Seat3" type="Marker2D" parent="."]
+position = Vector2(-28, 40)
+
+[node name="Seat4" type="Marker2D" parent="."]
+position = Vector2(-84, 40)
+
+[node name="Seat5" type="Marker2D" parent="."]
+position = Vector2(-140, 40)
+
+[node name="Body" type="StaticBody2D" parent="."]
+
+[node name="Shape" type="CollisionPolygon2D" parent="Body"]
+
+[node name="SignBase" type="CollisionShape2D" parent="Body"]
+position = Vector2(204, 22)
+shape = SubResource("CircleShape2D_sign")

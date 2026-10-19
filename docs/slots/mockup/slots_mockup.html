@@ -1,0 +1,194 @@
+<title>Casino World Slots</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Rye&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: the game screen first, as the player sees it full-screen; dev rigs under it; then the floor bank,
+   the art comparison, the tuner and the sign-off notes. One deliberate look: the casino floor at night,
+   shared with the Roulette and Craps mockups. The game screen itself carries the western theme. */
+:root {
+  --night: #120b09;      /* the casino floor at night */
+  --panel: #1d120d;      /* mahogany shadow */
+  --line: #3a2619;
+  --cream: #f1e4c4;
+  --muted: #b9a888;
+  --brass: #c9a24a;
+  --brass-hi: #e6c46d;
+  --err: #ff8a80;
+  --ok: #8fd18a;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--night); color: var(--cream); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 26px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 4vw, 38px); letter-spacing: 0.06em; margin: 0; color: var(--brass-hi); text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; max-width: 72ch; }
+h2 { font-family: var(--display); font-size: 17px; letter-spacing: 0.08em; color: var(--brass-hi); margin: 0 0 10px; text-wrap: balance; }
+.stage { background: #0b0605; border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: grid; gap: 10px; }
+canvas { display: block; width: 100%; height: auto; border-radius: 4px; touch-action: manipulation; }
+#game { cursor: pointer; aspect-ratio: 16 / 9; max-width: 100%; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; padding: 4px 4px 2px; }
+.group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: 4px; }
+button { font: 600 13px var(--body); color: var(--cream); background: #2a1a12; border: 1px solid #5a3d27; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--brass); }
+button:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+button[aria-pressed="true"] { background: #4a3214; border-color: var(--brass-hi); color: #fff3d4; }
+button.primary { background: var(--brass); color: #1a0f08; border-color: var(--brass-hi); }
+button:disabled { opacity: 0.4; cursor: default; }
+.dev { border-top: 1px dashed var(--line); padding-top: 10px; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; min-width: 0; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+.notes p { margin: 0 0 8px; color: var(--muted); max-width: 70ch; }
+ol, ul { margin: 0; padding-left: 1.2em; display: grid; gap: 7px; }
+li { max-width: 70ch; }
+li b { color: var(--cream); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+td, th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+td.num, th.num { font-family: var(--mono); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+td img { width: 34px; height: 34px; vertical-align: middle; }
+/* the art comparison */
+.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.asset { background: #2a1a12; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 10px; display: grid; gap: 6px; }
+.asset h3 { margin: 0; font: 600 13px var(--body); color: var(--cream); display: flex; justify-content: space-between; gap: 8px; }
+.asset h3 span { color: var(--muted); font-weight: 500; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.trio figure { margin: 0; display: grid; gap: 2px; justify-items: center; }
+.trio img { width: 100%; aspect-ratio: 1; object-fit: contain; background: radial-gradient(circle at 50% 40%, #6b3f22, #3a2112); border-radius: 4px; }
+.trio figcaption { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+/* the lines chart */
+.lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.line { display: grid; gap: 3px; font: 500 12px var(--mono); color: var(--muted); }
+.line .g { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+.line .g i { aspect-ratio: 1.25; background: #2c1d14; border-radius: 1px; }
+.line .g i.on { background: var(--brass); }
+/* the tuner */
+.tuner-out { display: grid; gap: 10px; }
+.bar { height: 10px; background: #2c1d14; border-radius: 5px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--brass); width: 0; transition: width 0.2s; }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.kpi { display: grid; }
+.kpi b { font: 600 22px var(--mono); color: var(--brass-hi); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Casino World &#183; Slots mockup &#183; version 1</div>
+    <h1>Armadillo Goes West</h1>
+    <p class="sub">The first slot cabinet, as the full-screen game you'll see when you sit down. Everything here runs on the real maths: the 25 lines, the random features, the Trail Bonus, the Combo Free Games, Buy Bonus and the shared Jackpot Pick. Click the screen or press Space to spin.</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="game" width="1280" height="720" tabindex="0" aria-label="The Armadillo Goes West game screen: jackpot meters and the logo at the top, five reels of four symbols in a wooden frame, and the button deck along the bottom"></canvas>
+    <div class="controls">
+      <div class="group" role="group" aria-label="Art set">
+        <span class="label">Art</span>
+        <button id="art-svg" aria-pressed="true">Hand-drawn vector</button>
+        <button id="art-flux" aria-pressed="false">FLUX.2 painted</button>
+      </div>
+      <div class="group" role="group" aria-label="Speed">
+        <span class="label">Speed</span>
+        <button id="speed1" aria-pressed="true">1&#215;</button>
+        <button id="speed3" aria-pressed="false">3&#215;</button>
+      </div>
+      <div class="group"><span class="label">Balance</span><button id="topup">Top up to &#163;1,000</button></div>
+    </div>
+    <div class="controls dev">
+      <div class="group" role="group" aria-label="Force features on the next spin">
+        <span class="label">Next spin</span>
+        <button data-rig="wilds" aria-pressed="false">Random Wilds</button>
+        <button data-rig="wildReels" aria-pressed="false">Wild Reels</button>
+        <button data-rig="colossal" aria-pressed="false">Colossal</button>
+        <button data-rig="multiplier" aria-pressed="false">Multiplier</button>
+        <button data-rig="upgrade" aria-pressed="false">Upgrade</button>
+        <button data-rig="repeat" aria-pressed="false">Repeat Win</button>
+        <button data-rig="instant" aria-pressed="false">Instant Win</button>
+      </div>
+      <div class="group" role="group" aria-label="Force a bonus on the next spin">
+        <span class="label">Bonus</span>
+        <button data-trig="trail" aria-pressed="false">Trail</button>
+        <button data-trig="free" aria-pressed="false">Free Games</button>
+        <button data-jp="mini" aria-pressed="false">Mini</button>
+        <button data-jp="minor" aria-pressed="false">Minor</button>
+        <button data-jp="major" aria-pressed="false">Major</button>
+        <button data-jp="grand" aria-pressed="false">Grand</button>
+      </div>
+      <p class="hint" id="rig-hint">Pick anything above, then click the screen: it happens on that spin. Space also spins, and stops the reels early.</p>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>On the floor</h2>
+    <p class="hint">The proposed bank of ten cabinets at in-game scale (zoomed in 3&#215;): two back-to-back rows of four, facing up and down, and an end cap on each side, facing left and right. Seated players and NPCs face their screen. Each cabinet's little screen plays whatever its player spins, so the floor shows who's winning. The gold ring is a free stool.</p>
+    <canvas id="floor" width="1290" height="560" aria-label="Top-down view of a bank of ten slot cabinets in four orientations on the casino carpet, some with seated players"></canvas>
+  </section>
+
+  <section class="card">
+    <h2>The art: pick a set</h2>
+    <p class="hint">Every symbol and trail item, in both styles. The vector set is drawn by hand and scales crisply to any size. The painted set was generated on your own GPU with FLUX.2-klein and cut out of its background; two candidates are shown for each. The game above switches between them with the Art buttons, using the first candidate.</p>
+    <div class="sheet" id="sheet"></div>
+  </section>
+
+  <section class="card">
+    <h2>Tuner</h2>
+    <p class="hint">Simulates a million &#163;1 spins with everything included, plus 200,000 bought bonuses, in the background. The figures below are what the build will be checked against.</p>
+    <div class="controls"><button class="primary" id="tune">Run a million spins</button><div class="bar" style="flex:1;min-width:160px"><i id="tune-bar"></i></div></div>
+    <div class="tuner-out" id="tune-out"></div>
+  </section>
+
+  <div class="two notes">
+    <section class="card">
+      <h2>To sign off</h2>
+      <ol>
+        <li><b>Art set:</b> hand-drawn vector or FLUX painted (and, for FLUX, which candidate for any symbol you'd rather swap).</li>
+        <li><b>Stakes:</b> one ladder: 25p, 50p, 75p, &#163;1, &#163;1.50, &#163;2.50, &#163;5, &#163;10, &#163;25. Buy Bonus costs 45&#215; the bet (&#163;11.25 to &#163;1,125).</li>
+        <li><b>Return:</b> the game about 91.5%, the progressives 3.75% more, for about 95% in total (the real game is 94.47%). The Buy Bonus returns 93.7%, as on the real game.</li>
+        <li><b>Jackpot Pick:</b> seeds Mini &#163;10, Minor &#163;50, Major &#163;500, Grand &#163;5,000. Each bet puts 0.25%, 0.25%, 0.5% and 1% into them. Won about once per &#163;1,500, &#163;10,000, &#163;150,000 and &#163;2,000,000 staked. The trigger chance scales with the bet, so every stake gets the same return.</li>
+        <li><b>Rule readings</b> where the rules sheet is silent: Boots pays like Whiskey; Repeat Win pays the same win 2 to 5 times; at most one Double per trail; a Lightning Roll passes over signposts.</li>
+        <li><b>The trail:</b> 120 spaces with 20 snakes, 2 hearts, 3 each of forward, back and crates, 2 lightnings, and a 20% chance of a Spin Upgrade and 40% of a Double. About 6 shots a bonus; about 1 in 250 trails reach the prizepot.</li>
+        <li><b>Big wins:</b> BIG at 10&#215; the bet, MEGA at 25&#215;, EPIC at 50&#215;. Autoplay runs 10, 25, 50 or 100 spins and stops on any bonus or a win of 25&#215; or more.</li>
+        <li><b>The cabinet:</b> its look, the 4 orientations and the 10-cabinet bank in the south-east corner. A player sitting at a cabinet whose screen faces away from the camera would be hidden behind it, so that cabinet fades while someone sits there (as on the floor view). Keep that, or leave them hidden?</li>
+        <li><b>Sounds</b> aren't in this mockup. They'll be picked on the admin page's Sounds tab, as for the other games.</li>
+      </ol>
+    </section>
+    <section class="card">
+      <h2>Pay table</h2>
+      <p>Pays for 3, 4 and 5 in a row from the left, at your current bet. Wild stands in for everything except the Wagon and the Pistols.</p>
+      <div class="tablewrap"><table id="paytable"></table></div>
+    </section>
+  </div>
+
+  <div class="two notes">
+    <section class="card">
+      <h2>The 25 lines</h2>
+      <div class="lines" id="lines"></div>
+    </section>
+    <section class="card">
+      <h2>How it plays</h2>
+      <ul>
+        <li><b>Random features</b> can hit any spin. Before the reels stop: Random Wilds (1 to 4 shot onto the reels), Wild Reels (1 to 3 whole reels), Colossal Reels (2&#215;2, 3&#215;3 or 4&#215;4 symbols) and a Multiplier (2&#215; to 5&#215; on line wins). After they stop: Symbol Upgrade (one symbol moves up the chain), Repeat Win and Instant Win (1&#215; to 200&#215; the bet from the barrel).</li>
+        <li><b>Trail Bonus:</b> 3 or more Wagons. Fire the pistol and the armadillo moves 1 to 6 spaces along the trail, collecting what it lands on. A Snake ends it unless you hold a Heart. Reach the end for the 2,000&#215; prizepot.</li>
+        <li><b>Combo Free Games:</b> 3 or more Pistols. Three free games where a random feature is guaranteed every spin, often several at once.</li>
+        <li><b>Jackpot Pick:</b> can start on any paid spin. Pick coins until three match; that jackpot is yours. The meters are shared by every slot in the casino.</li>
+        <li><b>Leaving mid-feature:</b> in the game, a bonus you walk away from is played out for you and paid. The next player finds a fresh cabinet.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script src="slots_math.js"></script>
+<script src="game.js"></script>
+<script src="floor.js"></script>
+<script src="page.js"></script>

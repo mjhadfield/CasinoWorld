@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casino World Admin</title>
+<style>
+/* Tabs across the top; each section lays out its own panes (two columns, stacked on a phone). */
+:root {
+  --bg: #f4efe4; --panel: #fffaf0; --ink: #23191a; --muted: #6b5d55; --line: #e0d4bd;
+  --felt: #8f1d22; --gold: #9c7420; --ok: #1f6b45; --warn: #a3261e; --target: #fbeec6; --stage: #23403e;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif; --mono: ui-monospace, "Cascadia Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #11201f; --panel: #182a29; --ink: #f0e5cd; --muted: #a2ad9f; --line: #2a3f3d;
+          --felt: #e0575c; --gold: #d9b45a; --ok: #6fd39b; --warn: #ff8a7a; --target: #33402a; --stage: #0d1817; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); }
+header { padding: 16px max(16px, 3vw) 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+h1 { margin: 0; font-size: 24px; color: var(--felt); letter-spacing: .02em; }
+#status { font: 13px var(--mono); color: var(--muted); flex: 1 1 300px; }
+#status.ok { color: var(--ok); } #status.warn { color: var(--warn); }
+nav.tabs { display: flex; gap: 4px; padding: 10px max(16px, 3vw) 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav.tabs a { padding: 8px 16px; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; color: var(--muted); text-decoration: none; font-weight: 600; white-space: nowrap; }
+nav.tabs a[aria-current="page"] { background: var(--panel); border-color: var(--line); color: var(--felt); margin-bottom: -1px; }
+section.tab { display: none; padding: 14px max(16px, 3vw) 40px; }
+section.tab.on { display: block; }
+.lead { margin: 0 0 12px; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+.pane { display: grid; gap: 10px; min-width: 0; }
+.pane h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+.card.target { outline: 2px solid var(--gold); background: var(--target); }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.card-head h3 { margin: 0; font-size: 16px; }
+.tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; white-space: nowrap; }
+.tag.gold { color: var(--gold); border-color: var(--gold); }
+.tag.ok { color: var(--ok); border-color: var(--ok); }
+.tag.warn { color: var(--warn); border-color: var(--warn); }
+.when { margin: 0; color: var(--muted); font-size: 13px; }
+.chosen { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 2px; font: 12px var(--mono); max-width: 100%; }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.gain { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.gain input { width: 150px; }
+.gain output { font: 13px var(--mono); color: var(--ink); min-width: 56px; }
+button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: var(--gold); }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--felt); border-color: var(--felt); color: var(--panel); }
+button.icon { width: 26px; height: 26px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; line-height: 1; }
+button.on, .seg button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--panel); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; }
+input, select { font: inherit; font-size: 14px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); min-width: 0; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.lib { position: sticky; top: 8px; max-height: calc(100vh - 16px); display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 8px; }
+@media (max-width: 900px) { .lib { position: static; max-height: none; } }
+.lib-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.lib-tools input[type=search] { flex: 1 1 180px; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.hint b { color: var(--ink); }
+.list { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-height: 200px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row .name { font: 13px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .name small { color: var(--muted); font: 11px var(--font); margin-left: 6px; }
+.row.used .name { color: var(--ok); }
+.drop { border: 2px dashed var(--line); border-radius: 10px; padding: 10px; text-align: center; font-size: 13px; color: var(--muted); }
+.drop.over { border-color: var(--gold); color: var(--ink); }
+.confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+/* NPCs */
+.roster { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.npc { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.npc:last-child { border-bottom: 0; }
+.npc:hover { background: var(--target); }
+.npc.sel { background: var(--target); box-shadow: inset 3px 0 0 var(--gold); }
+.npc.off { opacity: .55; }
+.npc canvas { width: 48px; height: 48px; image-rendering: pixelated; background: var(--stage); border-radius: 6px; }
+.npc .who { display: grid; gap: 2px; min-width: 0; }
+.npc .who b { font-size: 15px; }
+.npc .badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.npc .money { text-align: right; font: 13px var(--mono); }
+.npc .money small { display: block; color: var(--muted); font: 11px var(--font); }
+.pos { color: var(--ok); } .neg { color: var(--warn); }
+/* bulk create: a setup card, then the batch to review (click a row's Tweak to open it in the editor) */
+.bulk { display: grid; gap: 10px; }
+.bulk[hidden], .roster[hidden] { display: none; }
+.bulk .npc { cursor: default; grid-template-columns: 48px minmax(0, 1fr) auto; }
+.bulk .npc .who input { font-weight: 600; width: min(100%, 16em); }
+.bulk .npc .badges select { font-size: 12px; padding: 1px 4px; }
+.bulk .npc .tag button { border: 0; padding: 0 0 0 4px; font-size: 11px; color: inherit; line-height: 1; }
+.bulk .row-acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; max-width: 150px; }
+.bulk .row-acts button { padding: 2px 7px; font-size: 12px; }
+@media (max-width: 560px) { .bulk .npc { grid-template-columns: 48px minmax(0, 1fr); } .bulk .row-acts { grid-column: 1 / -1; justify-content: start; max-width: none; } }
+.editor { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow: auto; }
+@media (max-width: 900px) { .editor { position: static; max-height: none; } }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.field > span { font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 12px; }
+.stage { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; background: var(--stage); border-radius: 10px; padding: 10px; color: #cfd8d2; font-size: 12px; }
+.stage figure { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.stage canvas { image-rendering: pixelated; }
+.slot { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: center; font-size: 13px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+.sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.sw[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--gold); }
+.traits { display: grid; gap: 6px; }
+.trait { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 13px; }
+.trait input { margin-top: 3px; }
+.trait small { display: block; color: var(--muted); }
+.trait:has(input:checked) { border-color: var(--gold); background: var(--target); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.stat small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.stat b { font: 15px var(--mono); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+details summary { cursor: pointer; }
+.art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.art-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.art-opts button { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: #3a2414; display: grid; justify-items: center; gap: 1px; color: #f0e5cd; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.art-opts button[aria-pressed="true"] { border-color: var(--gold); background: #5a3a1a; }
+.art-opts img { width: 64px; height: 64px; display: block; }
+.meters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.meter b { font: 600 20px var(--mono); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Casino World Admin</h1>
+  <div id="status" role="status">Loading…</div>
+  <a href="/credits" class="hint">Art credits</a>
+</header>
+<nav class="tabs" aria-label="Sections">
+  <a href="#sounds" data-tab="sounds">Sounds</a>
+  <a href="#npcs" data-tab="npcs">NPCs</a>
+  <a href="#players" data-tab="players">Players</a>
+  <a href="#slots" data-tab="slots">Slots</a>
+  <a href="#settings" data-tab="settings">Settings</a>
+</nav>
+
+<!-- ============================================================ sounds -->
+<section class="tab" id="tab-sounds" aria-label="Sounds">
+  <p class="lead">Pick the sounds for each moment. Changes save straight away and every game that's open reloads its sounds within a second, so you can sit at a table and listen while you swap.</p>
+  <div class="filters">
+    <div class="seg" id="sound-cats" role="group" aria-label="Show sounds for"></div>
+    <select id="sound-game" aria-label="Game" hidden></select>
+  </div>
+  <div class="two">
+    <div class="pane" aria-labelledby="moments-h">
+      <h2 id="moments-h"><span>Game moments</span> <span id="reset-all-box"></span></h2>
+      <div id="moments"></div>
+    </div>
+    <div class="pane lib" aria-labelledby="lib-h">
+      <h2 id="lib-h"><span>Sound library</span> <span id="lib-count" class="tag"></span></h2>
+      <p class="hint" id="lib-hint">Choose <b>Add sounds</b> on a moment, then add sounds to it from here.</p>
+      <div class="lib-tools">
+        <input type="search" id="search" placeholder="Search, e.g. chip, card, pop" aria-label="Search the library">
+        <select id="group" aria-label="Folder"><option value="">All folders</option></select>
+      </div>
+      <div class="list" id="list"></div>
+      <label class="drop" id="drop">Drop sound files here, or <u>choose files</u> (.ogg, .mp3, .wav, .flac, .m4a)
+        <input type="file" id="file" accept=".ogg,.mp3,.wav,.flac,.m4a,.opus,audio/*" multiple hidden></label>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ NPCs -->
+<section class="tab" id="tab-npcs" aria-label="NPCs">
+  <p class="lead">The casino's regulars and staff. Design how they look and how they play; punters come and go on their own (each brings a budget they're willing to lose, and takes a break after a visit), dealers work shifts at the tables.</p>
+  <div class="two">
+    <div class="pane">
+      <div class="filters">
+        <select id="npc-role" aria-label="Show">
+          <option value="">Everyone</option><option value="punter">Punters</option><option value="dealer">Dealers</option><option value="staff">Other staff</option>
+        </select>
+        <input type="search" id="npc-search" placeholder="Search names or traits" aria-label="Search NPCs">
+        <button type="button" class="primary" id="npc-new">New NPC</button>
+        <button type="button" id="npc-bulk">Bulk create</button>
+        <span class="hint" id="npc-count"></span>
+      </div>
+      <div class="roster" id="roster"></div>
+      <div class="bulk" id="bulk" hidden></div>
+    </div>
+    <div class="pane editor" id="editor"></div>
+  </div>
+</section>
+
+<!-- ============================================================ players -->
+<section class="tab" id="tab-players" aria-label="Players">
+  <p class="lead">Everyone who's played, from the ledger: what they've staked, what's come back, and how they stand. Open a row for their games.</p>
+  <div class="card scroll" id="players"></div>
+</section>
+
+<!-- ============================================================ slots -->
+<section class="tab" id="tab-slots" aria-label="Slots">
+  <p class="lead">The slot bank: the shared Mini, Minor, Major and Grand meters, what each cabinet is doing, and the art each slot shows. Art changes reach every open game straight away.</p>
+  <div class="two">
+    <div class="pane">
+      <h2><span>Jackpot meters</span> <button type="button" id="slots-refresh">Refresh</button></h2>
+      <div class="meters" id="slot-meters"></div>
+      <h2>Cabinets</h2>
+      <div class="card scroll" id="slot-cabs"></div>
+    </div>
+    <div class="pane">
+      <h2>Players' return on slots</h2>
+      <div class="card" id="slot-rtp"></div>
+    </div>
+  </div>
+  <div class="pane" style="margin-top:18px">
+    <h2><span>Art</span> <span class="hint">Vector is the signed-off set; FLUX 1 and 2 were painted with FLUX.2-klein</span></h2>
+    <div class="art-grid" id="slot-art"></div>
+    <label class="drop" id="art-drop">Drop images here to add them to the library, or <u>choose files</u> (PNG, JPEG or WebP; fitted into 512×512)
+      <input type="file" id="art-file" accept="image/png,image/jpeg,image/webp" multiple hidden></label>
+  </div>
+</section>
+
+<!-- ============================================================ settings -->
+<section class="tab" id="tab-settings" aria-label="Settings">
+  <p class="lead">How the floor runs. Changes apply straight away (cooldowns from the next visit that ends).</p>
+  <form class="card" id="settings-form" style="max-width: 620px">
+    <div class="grid2">
+      <label class="field"><span>Punters on the floor</span><input type="number" id="s-population" min="0" max="30" step="1"></label>
+      <label class="field"><span>Regulars' cooldown (× normal)</span><input type="number" id="s-regular" min="0.05" max="1" step="0.05"></label>
+      <label class="field"><span>Cooldown after a visit (minutes)</span><span class="controls"><input type="number" id="s-cool-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-cool-hi" min="0" step="1" style="width:6em"></span></label>
+      <label class="field"><span>Cooldown after going bust (minutes)</span><span class="controls"><input type="number" id="s-bust-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-bust-hi" min="0" step="1" style="width:6em"></span></label>
+      <label class="field"><span>Dealer shift (minutes)</span><input type="number" id="s-shift" min="0.5" max="240" step="0.5"></label>
+      <label class="field"><span>Between tables' reliefs (minutes)</span><input type="number" id="s-stagger" min="0.5" max="240" step="0.5"></label>
+    </div>
+    <div class="controls"><button type="submit" class="primary">Save settings</button></div>
+  </form>
+</section>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids.filter(k => k !== null && k !== undefined)); return e; };
+function status(text, kind = "") { const s = $("#status"); s.textContent = text; s.className = kind; }
+const money = p => (p < 0 ? "−" : "") + "£" + (Math.abs(p) / 100).toLocaleString("en-GB", {minimumFractionDigits: Math.abs(p) % 100 ? 2 : 0, maximumFractionDigits: 2});
+const signed = p => (p > 0 ? "+" : "") + money(p);
+async function api(method, url, body, raw) {
+  const r = await fetch(url, {method, body: raw ? body : body === undefined ? undefined : JSON.stringify(body),
+                              headers: raw ? {} : {"Content-Type": "application/json"}});
+  const text = await r.text();
+  let json = null; try { json = JSON.parse(text); } catch (e) {}
+  if (!r.ok) throw new Error((json && json.detail) || text || r.statusText);
+  return json;
+}
+
+// ---------------------------------------------------------------- tabs
+const TABS = ["sounds", "npcs", "players", "slots", "settings"];
+const loaded = {};
+function showTab() {
+  const tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "sounds";
+  for (const t of TABS) {
+    $("#tab-" + t).classList.toggle("on", t === tab);
+    const a = document.querySelector(`nav a[data-tab="${t}"]`);
+    if (t === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  }
+  if (!loaded[tab]) { loaded[tab] = true; ({sounds: Sounds.load, npcs: Npcs.load, players: Players.load, slots: Slots.load, settings: Settings.load})[tab](); }
+  Npcs.polling(tab === "npcs");
+}
+window.addEventListener("hashchange", showTab);
+
+// ================================================================ SOUNDS
+const Sounds = (() => {
+  let data = null, target = null, cat = "all";
+  const saveTimers = {};
+  const nameOf = id => id.split("/").pop().replace(/\.(ogg|mp3|wav)$/, "");
+  let ctx = null, playing = null;
+  const buffers = {};
+  function stopPlaying() {
+    if (playing) { try { playing.src.stop(); } catch (e) {} playing.btn && playing.btn.classList.remove("on"); playing = null; }
+  }
+  async function play(id, gainDb, btn) {
+    const again = playing && playing.btn === btn && btn;
+    stopPlaying();
+    if (again) return;
+    ctx = ctx || new AudioContext();
+    if (ctx.state === "suspended") await ctx.resume();
+    btn && btn.classList.add("on");
+    try {
+      buffers[id] = buffers[id] || fetch("/sound-files/" + id).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
+      const buffer = await buffers[id];
+      const src = ctx.createBufferSource(), gain = ctx.createGain();
+      src.buffer = buffer; gain.gain.value = Math.pow(10, (gainDb || 0) / 20);
+      src.connect(gain).connect(ctx.destination);
+      const me = {src, btn}; playing = me;
+      src.onended = () => { if (playing === me) stopPlaying(); };
+      src.start();
+    } catch (e) {
+      delete buffers[id]; btn && btn.classList.remove("on");
+      status("Couldn't play " + nameOf(id) + ": " + e.message, "warn");
+    }
+  }
+  const playButton = (id, gain, label = "Play") => {
+    const b = el("button", {className: "icon", type: "button", textContent: "▶", title: label});
+    b.setAttribute("aria-label", label + " " + nameOf(id));
+    b.addEventListener("click", () => play(id, typeof gain === "function" ? gain() : gain, b));
+    return b;
+  };
+  // Which category filter matches: "all", "ui", "global", "game" (any game, or one), "uploads".
+  function inCat(c) {
+    if (cat === "all") return true;
+    if (cat === "game") { const g = $("#sound-game").value; return c.startsWith("game:") && (!g || c === "game:" + g); }
+    return c === cat;
+  }
+  function renderCats() {
+    const box = $("#sound-cats"); box.replaceChildren();
+    for (const [key, label] of [["all", "All"], ["ui", "UI"], ["global", "Global"], ["game", "Game"], ["uploads", "Uploads"]]) {
+      const b = el("button", {type: "button", textContent: label});
+      b.setAttribute("aria-pressed", String(cat === key));
+      b.addEventListener("click", () => { cat = key; renderCats(); render(); });
+      box.append(b);
+    }
+    const sel = $("#sound-game");
+    sel.hidden = cat !== "game";
+    if (!sel.options.length) {
+      sel.append(el("option", {value: "", textContent: "Every game"}), ...Object.entries(data.games).map(([k, v]) => el("option", {value: k, textContent: v})));
+    }
+  }
+  function render() { renderMoments(); renderLibrary(); }
+  function renderMoments() {
+    const box = $("#moments");
+    box.replaceChildren();
+    const shown = data.moments.filter(m => inCat(m.category));
+    if (!shown.length) box.append(el("p", {className: "hint", textContent: cat === "uploads" ? "Uploads are in the library on the right; add them to any moment." : "No moments in this group."}));
+    for (const m of shown) {
+      const card = el("div", {className: "card" + (target === m.key ? " target" : ""), id: "m-" + m.key});
+      const catLabel = m.category === "ui" ? "UI" : m.category === "global" ? "Global" : (data.games[m.category.slice(5)] || "Game");
+      const head = el("div", {className: "card-head"}, el("h3", {textContent: m.title}), el("span", {className: "tag", textContent: catLabel}));
+      if (m.files.length > 1) head.append(el("span", {className: "tag", textContent: m.files.length + " variants, picked at random"}));
+      if (!m.is_default) head.append(el("span", {className: "tag gold", textContent: "changed"}));
+      const chosen = el("div", {className: "chosen"});
+      for (const f of m.files) {
+        const rm = el("button", {className: "icon", type: "button", textContent: "✕", title: "Remove", disabled: m.files.length === 1});
+        rm.setAttribute("aria-label", "Remove " + nameOf(f) + " from " + m.title);
+        rm.addEventListener("click", () => save(m, m.files.filter(x => x !== f), m.gain_db));
+        chosen.append(el("span", {className: "chip", title: f}, playButton(f, () => m.gain_db), el("span", {textContent: nameOf(f)}), rm));
+      }
+      const out = el("output", {textContent: fmtDb(m.gain_db)});
+      const slider = el("input", {type: "range", min: -30, max: 12, step: 0.5, value: m.gain_db, id: "gain-" + m.key});
+      slider.setAttribute("aria-label", m.title + " volume trim");
+      slider.addEventListener("input", () => {
+        m.gain_db = +slider.value; out.textContent = fmtDb(m.gain_db);
+        clearTimeout(saveTimers[m.key]);
+        saveTimers[m.key] = setTimeout(() => save(m, m.files, m.gain_db, true), 450);
+      });
+      const tryBtn = el("button", {type: "button", textContent: "▶ Try one"});
+      tryBtn.addEventListener("click", () => play(m.files[Math.floor(Math.random() * m.files.length)], m.gain_db, tryBtn));
+      const add = el("button", {type: "button", textContent: target === m.key ? "Done adding" : "Add sounds…", className: target === m.key ? "primary" : ""});
+      add.addEventListener("click", () => { target = target === m.key ? null : m.key; render(); if (target) $("#search").focus(); });
+      const controls = el("div", {className: "controls"}, tryBtn, add, el("label", {className: "gain", htmlFor: "gain-" + m.key}, "Volume", slider, out));
+      if (!m.is_default) {
+        const reset = el("button", {type: "button", textContent: "Back to default"});
+        reset.addEventListener("click", async () => {
+          try { const c = await api("DELETE", "/api/sounds/" + m.key); Object.assign(m, c, {is_default: true}); render(); status(m.title + " is back to its default. Games updated.", "ok"); }
+          catch (e) { status(e.message, "warn"); }
+        });
+        controls.append(reset);
+      }
+      card.append(head, el("p", {className: "when", textContent: m.when}), chosen, controls);
+      box.append(card);
+    }
+    const rbox = $("#reset-all-box"); rbox.replaceChildren();
+    if (data.moments.some(m => !m.is_default)) {
+      const b = el("button", {type: "button", textContent: "Reset all"});
+      b.addEventListener("click", () => {
+        const yes = el("button", {type: "button", className: "primary", textContent: "Reset every moment"});
+        const no = el("button", {type: "button", textContent: "Keep"});
+        yes.addEventListener("click", async () => { try { await api("POST", "/api/sounds-reset"); await load("Every moment is back to its default. Games updated."); } catch (e) { status(e.message, "warn"); } });
+        no.addEventListener("click", renderMoments);
+        rbox.replaceChildren(el("span", {className: "confirm"}, yes, no));
+      });
+      rbox.append(b);
+    }
+  }
+  const fmtDb = v => (v > 0 ? "+" : "") + (+v).toFixed(1) + " dB";
+  async function save(m, files, gain, quiet) {
+    try {
+      const c = await api("PUT", "/api/sounds/" + m.key, {files, gain_db: gain});
+      Object.assign(m, c, {is_default: false});
+      if (!quiet) render();
+      status("Saved " + m.title + ". Games updated.", "ok");
+    } catch (e) { status(e.message, "warn"); }
+  }
+  function renderLibrary() {
+    const q = $("#search").value.trim().toLowerCase(), g = $("#group").value;
+    const tm = target && data.moments.find(m => m.key === target);
+    $("#lib-hint").replaceChildren(...(tm ? ["Adding to ", el("b", {textContent: tm.title}), ". Press + to add a sound, Done adding when finished."]
+                                            : ["Choose ", el("b", {textContent: "Add sounds…"}), " on a moment, then add sounds to it from here."]));
+    const used = new Set(data.moments.flatMap(m => m.files));
+    const items = data.library.filter(s => inCat(s.category) && (!g || s.group === g) && (!q || s.id.toLowerCase().includes(q)));
+    $("#lib-count").textContent = items.length + " of " + data.library.length;
+    const list = $("#list"); list.replaceChildren();
+    for (const s of items.slice(0, 400)) {
+      const add = el("button", {className: "icon", type: "button", textContent: "+", title: tm ? "Add to " + tm.title : "Pick a moment first", disabled: !tm || tm.files.includes(s.id)});
+      add.setAttribute("aria-label", "Add " + s.name + (tm ? " to " + tm.title : ""));
+      add.addEventListener("click", () => save(tm, [...tm.files, s.id], tm.gain_db));
+      const extra = el("span");
+      if (s.group === "uploads") {
+        const del = el("button", {type: "button", textContent: "Delete", title: "Delete this upload"});
+        del.addEventListener("click", async () => {
+          try { await api("DELETE", "/api/sound-uploads/" + encodeURIComponent(s.id.slice(8))); await load("Deleted " + s.name + "."); }
+          catch (e) { status(e.message, "warn"); }
+        });
+        extra.append(del);
+      }
+      list.append(el("div", {className: "row" + (used.has(s.id) ? " used" : "")},
+        playButton(s.id, tm ? tm.gain_db : 0),
+        el("div", {className: "name", title: s.id}, s.name, el("small", {textContent: s.group + " · " + Math.max(1, Math.round(s.bytes / 1024)) + " KB" + (used.has(s.id) ? " · in use" : "")})),
+        extra, add));
+    }
+    if (!items.length) list.append(el("p", {className: "hint", style: "padding:12px", textContent: "Nothing matches. Try another word or group, or upload a file below."}));
+  }
+  function fillGroups() {
+    const sel = $("#group"), keep = sel.value;
+    const groups = [...new Set(data.library.map(s => s.group))];
+    sel.replaceChildren(el("option", {value: "", textContent: "All folders"}), ...groups.map(g => el("option", {value: g, textContent: g})));
+    sel.value = groups.includes(keep) ? keep : "";
+  }
+  async function upload(files) {
+    for (const f of files) {
+      status("Uploading " + f.name + "…");
+      try {
+        const s = await api("PUT", "/api/sound-uploads/" + encodeURIComponent(f.name), f, true);
+        await load("Uploaded " + s.name + ". It's in the uploads folder" + (target ? "; press + to add it." : "."));
+        $("#group").value = "uploads"; renderLibrary();
+      } catch (e) { status("Couldn't upload " + f.name + ": " + e.message, "warn"); }
+    }
+  }
+  async function load(message) {
+    try {
+      data = await api("GET", "/api/sounds");
+      fillGroups(); renderCats(); render();
+      status(message || "Ready. " + data.library.length + " sounds in the library.", message ? "ok" : "");
+    } catch (e) { status("Couldn't reach the server: " + e.message, "warn"); }
+  }
+  $("#search").addEventListener("input", renderLibrary);
+  $("#group").addEventListener("change", renderLibrary);
+  $("#sound-game").addEventListener("change", render);
+  $("#file").addEventListener("change", e => { upload([...e.target.files]); e.target.value = ""; });
+  const drop = $("#drop");
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { stopPlaying(); if (target) { target = null; render(); } } });
+  return {load};
+})();
+
+// ================================================================ sprite drawing
+// A look's sheet: 64x64 frames; rows walk (0-3), idle (4-7), sit (8-11), in up/left/down/right order.
+const Sheets = (() => {
+  const images = {}, waiting = {};
+  function get(url) {
+    if (!url) return null;
+    if (!images[url]) {
+      const img = new Image();
+      waiting[url] = [];
+      img.onload = () => { const w = waiting[url]; waiting[url] = []; w.forEach(f => f()); };
+      img.src = url; images[url] = img;
+    }
+    return images[url].complete && images[url].naturalWidth ? images[url] : null;
+  }
+  function frame(canvas, url, col, row, scale = 1) {
+    const g = canvas.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    const img = get(url);
+    if (!img) { if (url) waiting[url].push(() => frame(canvas, url, col, row, scale)); return; }
+    const s = 64 * scale;
+    g.drawImage(img, col * 64, row * 64, 64, 64, (canvas.width - s) / 2, canvas.height - s, s, s);
+  }
+  return {frame, get};
+})();
+
+// ================================================================ NPCs
+const Npcs = (() => {
+  let opts = null, list = [], settings = null, selected = null, draft = null, pollTimer = null, previewTimer = null;
+  let previewUrl = null, animStart = performance.now();
+  const STAFF = ["cocktail_waiter", "pit_boss", "cashier", "bartender"];
+
+  async function load() {
+    try {
+      opts = await api("GET", "/api/npc-options");
+      await refresh();
+      if (!selected && list.length) select(list.find(n => n.role === "punter") || list[0]);
+      requestAnimationFrame(animate);
+    } catch (e) { status("Couldn't load NPCs: " + e.message, "warn"); }
+  }
+  async function refresh() {
+    const data = await api("GET", "/api/npcs");
+    list = data.npcs; settings = data.settings;
+    renderList();
+    if (selected) {   // keep the editor's live status in step (not the draft)
+      const fresh = list.find(n => n.id === selected.id);
+      if (fresh) { selected = fresh; renderStatus(); }
+    }
+  }
+  function polling(on) {
+    clearInterval(pollTimer);
+    if (on && opts) pollTimer = setInterval(() => refresh().catch(() => {}), 5000);
+  }
+
+  // ------------------------------------------------------------ the roster list
+  function statusOf(n) {
+    if (!n.enabled) return ["Off", "warn"];
+    if (n.dealing) return ["Dealing · " + (opts.tables[n.dealing] || n.dealing), "ok"];
+    if (n.on_floor) {
+      const f = n.on_floor, where = f.table ? opts.tables[f.table] || f.table : null;
+      const doing = f.state === "leaving" ? "Leaving" : where ? (f.state === "seated" ? "At " : "Heading to ") + where : "On the floor";
+      return [doing + " · " + money(f.bankroll), "ok"];
+    }
+    if (n.cooldown_until && n.cooldown_until * 1000 > Date.now()) return ["Away till " + new Date(n.cooldown_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}), ""];
+    if (n.role === "punter") return ["Free to visit", ""];
+    if (STAFF.includes(n.role)) return ["Not on the floor yet", ""];
+    return ["Off duty", ""];
+  }
+  function badges(n) {
+    const out = [el("span", {className: "tag", textContent: opts.roles[n.role] || n.role})];
+    if (n.archetype) out.push(el("span", {className: "tag gold", textContent: opts.archetypes[n.archetype].label}));
+    for (const t of n.traits) out.push(el("span", {className: "tag", textContent: opts.modifiers[t].label}));
+    return out;
+  }
+  function renderList() {
+    const role = $("#npc-role").value, q = $("#npc-search").value.trim().toLowerCase();
+    const shown = list.filter(n => (!role || n.role === role || (role === "staff" && STAFF.includes(n.role)))
+      && (!q || (n.name + " " + n.traits.join(" ") + " " + n.archetype).toLowerCase().includes(q)));
+    $("#npc-count").textContent = shown.length + " of " + list.length;
+    const box = $("#roster"); box.replaceChildren();
+    for (const n of shown) {
+      const cv = el("canvas", {width: 64, height: 64});
+      Sheets.frame(cv, n.look_url, 0, 6, 1);
+      const [st, kind] = statusOf(n);
+      const row = el("div", {className: "npc" + (selected && n.id === selected.id ? " sel" : "") + (n.enabled ? "" : " off"), tabIndex: 0},
+        cv,
+        el("div", {className: "who"}, el("b", {textContent: n.name}), el("div", {className: "badges"}, ...badges(n)),
+           el("span", {className: "hint " + (kind === "ok" ? "pos" : kind === "warn" ? "neg" : ""), textContent: st})),
+        n.role === "punter" ? el("div", {className: "money"}, el("span", {className: n.net > 0 ? "pos" : n.net < 0 ? "neg" : "", textContent: signed(n.net)}),
+                                 el("small", {textContent: n.visits + (n.visits === 1 ? " visit" : " visits")})) : el("span"));
+      row.setAttribute("role", "button");
+      row.setAttribute("aria-label", "Edit " + n.name);
+      row.addEventListener("click", () => select(n));
+      row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(n); } });
+      box.append(row);
+    }
+    if (!shown.length) box.append(el("p", {className: "hint", style: "padding:12px", textContent: "Nobody matches."}));
+  }
+
+  // ------------------------------------------------------------ the editor
+  function select(n) {
+    selected = n;
+    draft = n ? JSON.parse(JSON.stringify({name: n.name, role: n.role, look: n.look, archetype: n.archetype || "casual",
+                                            traits: n.traits, settings: n.settings, enabled: n.enabled})) : null;
+    previewUrl = n ? n.look_url : null;
+    renderList(); renderEditor();
+  }
+  function newNpc() {
+    selected = null;
+    draft = {name: "", role: "punter", archetype: "casual", traits: [], settings: {}, enabled: true,
+             look: {body: "female", skin: "light", hair: ["bob", "chestnut"], top: ["tshirt", "teal"], bottom: ["pants", "navy"], shoes: ["shoes", "black"]}};
+    previewUrl = null;
+    renderList(); renderEditor(); updatePreview();
+    $("#npc-name").focus();
+  }
+  const slotOf = s => opts.slots.find(x => x.slot === s);
+  function renderEditor() {
+    const box = $("#editor"); box.replaceChildren();
+    if (!draft) { box.append(el("p", {className: "hint", textContent: bulkOn ? "Generate a batch, then Tweak anyone to change their look or how they play." : "Pick someone on the left, or make a new NPC."})); return; }
+    const d = draft;
+    const card = el("div", {className: "card"});
+    // name and role
+    const name = el("input", {id: "npc-name", value: d.name, maxLength: 24, placeholder: "Name"});
+    name.addEventListener("input", () => { d.name = name.value; });
+    if (bulkOn) name.addEventListener("change", renderBulkList);
+    const role = el("select", {id: "npc-role-sel"}, ...Object.entries(opts.roles).map(([k, v]) => el("option", {value: k, textContent: v + (opts.on_the_floor.includes(k) ? "" : " (not on the floor yet)"), selected: k === d.role})));
+    role.addEventListener("change", () => { d.role = role.value; renderEditor(); });
+    const enabled = el("input", {type: "checkbox", id: "npc-enabled", checked: d.enabled});
+    enabled.addEventListener("change", () => { d.enabled = enabled.checked; });
+    card.append(el("div", {className: "card-head"}, el("h3", {textContent: selected ? "Edit " + selected.name : bulkOn ? "Reviewing " + (d.name || "(no name)") : "New NPC"})),
+      el("div", {className: "grid2"}, el("label", {className: "field"}, el("span", {textContent: "Name"}), name),
+         el("label", {className: "field"}, el("span", {textContent: "Role"}), role)),
+      el("label", {className: "controls hint"}, enabled, "In service (", d.role === "punter" ? "visits the casino" : "works shifts", ")"));
+    // the look
+    card.append(el("h3", {textContent: "Look", style: "margin:6px 0 0;font-size:15px"}), lookDesigner(d));
+    // how they play
+    if (d.role === "punter") card.append(el("h3", {textContent: "How they play", style: "margin:6px 0 0;font-size:15px"}), traitsEditor(d));
+    // actions
+    if (bulkOn) {   // a draft in the batch: changes stay in the batch until it's created
+      const done = el("button", {type: "button", className: "primary", textContent: "Done"});
+      done.addEventListener("click", () => { draft = null; renderEditor(); renderBulkList(); });
+      const drop = el("button", {type: "button", textContent: "Remove from batch"});
+      drop.addEventListener("click", () => removeDraft(d));
+      card.append(el("div", {className: "controls"}, done, drop, el("span", {className: "hint", textContent: "Nothing's saved till you create the batch."})));
+      box.append(card);
+      renderBulkList();
+      return;
+    }
+    const save = el("button", {type: "button", className: "primary", textContent: selected ? "Save changes" : "Create"});
+    save.addEventListener("click", saveDraft);
+    const actions = el("div", {className: "controls"}, save);
+    if (selected) {
+      if (selected.role === "punter") {
+        const bring = el("button", {type: "button", id: "npc-bring", textContent: "Bring in now"});
+        bring.addEventListener("click", () => act("bring-in", "Here they come."));
+        const home = el("button", {type: "button", id: "npc-home", textContent: "Send home"});
+        home.addEventListener("click", () => act("send-home", "Off they go."));
+        actions.append(bring, home);
+      }
+      const reset = el("button", {type: "button", textContent: "Reset stats"});
+      reset.addEventListener("click", () => confirmIn(reset, "Clear their lifetime figures?", () => act("reset-stats", "Stats cleared.")));
+      const del = el("button", {type: "button", textContent: "Delete"});
+      del.addEventListener("click", () => confirmIn(del, "Delete " + selected.name + " for good?", deleteNpc));
+      actions.append(reset, del);
+    }
+    card.append(actions);
+    box.append(card);
+    if (selected) box.append(el("div", {className: "card", id: "npc-status"}));
+    renderStatus();
+  }
+  function confirmIn(btn, question, yes) {
+    const y = el("button", {type: "button", className: "primary", textContent: "Yes"}), n = el("button", {type: "button", textContent: "No"});
+    const span = el("span", {className: "confirm"}, question, y, n);
+    btn.replaceWith(span);
+    y.addEventListener("click", yes); n.addEventListener("click", renderEditor);
+  }
+
+  function lookDesigner(d) {
+    const L = d.look;
+    const wrap = el("div", {className: "grid2", style: "grid-template-columns: 1fr"});
+    // the preview stage
+    const walk = el("canvas", {width: 128, height: 128, id: "pv-walk"}), idle = el("canvas", {width: 128, height: 128, id: "pv-idle"}), sit = el("canvas", {width: 128, height: 128, id: "pv-sit"});
+    const stage = el("div", {className: "stage"}, el("figure", {}, walk, el("figcaption", {textContent: "Walking"})),
+      el("figure", {}, idle, el("figcaption", {textContent: "Standing"})), el("figure", {}, sit, el("figcaption", {textContent: "Seated (from behind)"})),
+      el("span", {id: "pv-note", textContent: ""}));
+    wrap.append(stage);
+    // body and skin
+    const body = el("div", {className: "seg"}, ...opts.bodies.map(b => {
+      const btn = el("button", {type: "button", textContent: b === "male" ? "Male" : "Female"});
+      btn.setAttribute("aria-pressed", String(L.body === b));
+      btn.addEventListener("click", () => { L.body = b; fixFits(L); renderEditor(); updatePreview(); });
+      return btn;
+    }));
+    const SKIN = {light: "#f3cfb3", amber: "#e3a978", olive: "#c99a6b", taupe: "#b08668", bronze: "#9a6646", brown: "#7a4c32", black: "#4a2e22"};
+    const skins = el("div", {className: "swatches"}, ...opts.skins.map(s => {
+      const b = el("button", {type: "button", className: "sw", title: s, style: "background:" + (SKIN[s] || "#ccc")});
+      b.setAttribute("aria-pressed", String(L.skin === s)); b.setAttribute("aria-label", "Skin " + s);
+      b.addEventListener("click", () => { L.skin = s; renderEditor(); updatePreview(); });
+      return b;
+    }));
+    wrap.append(el("div", {className: "slot"}, el("span", {textContent: "Body"}), body, skins));
+    // each slot: option, colour
+    for (const slot of opts.slots) {
+      const choice = L[slot.slot];
+      const fits = slot.options.filter(o => o.bodies.includes(L.body));
+      const optSel = el("select", {id: "slot-" + slot.slot},
+        ...(slot.required ? [] : [el("option", {value: "", textContent: "None"})]),
+        ...fits.map(o => el("option", {value: o.id, textContent: o.label, selected: choice && choice[0] === o.id})));
+      if (!choice) optSel.value = "";
+      const current = choice && slot.options.find(o => o.id === choice[0]);
+      const colSel = el("select", {id: "colour-" + slot.slot, disabled: !current},
+        ...(current ? current.colours.map(c => el("option", {value: c, textContent: c.replace(/_/g, " "), selected: choice[1] === c})) : [el("option", {textContent: "—"})]));
+      optSel.addEventListener("change", () => {
+        if (!optSel.value) { L[slot.slot] = null; }
+        else {
+          const o = slot.options.find(x => x.id === optSel.value);
+          const keep = choice && o.colours.includes(choice[1]) ? choice[1] : o.colours[0];
+          L[slot.slot] = [o.id, keep];
+        }
+        renderEditor(); updatePreview();
+      });
+      colSel.addEventListener("change", () => { L[slot.slot] = [L[slot.slot][0], colSel.value]; updatePreview(); });
+      wrap.append(el("label", {className: "slot"}, el("span", {textContent: slot.label}), optSel, colSel));
+    }
+    // quick starts
+    const rnd = el("button", {type: "button", textContent: "Randomise"});
+    rnd.addEventListener("click", () => { randomise(L); renderEditor(); updatePreview(); });
+    const uni = el("select", {"aria-label": "Uniform"}, el("option", {value: "", textContent: "Put on a uniform…"}),
+      ...Object.keys(opts.uniforms).map(k => el("option", {value: k, textContent: opts.roles[k] || k})));
+    uni.addEventListener("change", () => {
+      if (!uni.value) return;
+      for (const slot of opts.slots) if (!["hair", "beard", "glasses"].includes(slot.slot)) L[slot.slot] = null;
+      Object.assign(L, JSON.parse(JSON.stringify(opts.uniforms[uni.value][L.body])));
+      renderEditor(); updatePreview();
+    });
+    wrap.append(el("div", {className: "controls"}, rnd, uni));
+    return wrap;
+  }
+  function fixFits(L) {   // after a body change: anything that doesn't come in that fit comes off (or the first that does)
+    for (const slot of opts.slots) {
+      const c = L[slot.slot];
+      if (!c) continue;
+      const o = slot.options.find(x => x.id === c[0]);
+      if (o && o.bodies.includes(L.body)) continue;
+      if (slot.required) {
+        const alt = slot.options.find(x => x.bodies.includes(L.body));
+        L[slot.slot] = [alt.id, alt.colours.includes(c[1]) ? c[1] : alt.colours[0]];
+      } else L[slot.slot] = null;
+    }
+  }
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  function randomise(L) {
+    L.body = pick(opts.bodies); L.skin = pick(opts.skins);
+    for (const slot of opts.slots) {
+      const fits = slot.options.filter(o => o.bodies.includes(L.body));
+      const odds = {hair: 1, beard: L.body === "male" ? 0.3 : 0, top: 1, over: 0.15, bottom: 1, shoes: 1, neck: 0.1, glasses: 0.2, hat: 0.05}[slot.slot];
+      if (Math.random() < odds && fits.length) { const o = pick(fits); L[slot.slot] = [o.id, pick(o.colours)]; }
+      else L[slot.slot] = slot.required ? (() => { const o = pick(fits); return [o.id, pick(o.colours)]; })() : null;
+    }
+  }
+  function updatePreview() {
+    clearTimeout(previewTimer);
+    $("#pv-note") && ($("#pv-note").textContent = "Building…");
+    previewTimer = setTimeout(async () => {
+      try {
+        const d = draft, r = await api("POST", "/api/looks/preview", {look: d.look});
+        previewUrl = r.url;
+        if (bulkOn) { d.look_url = r.url; renderBulkList(); }   // the batch's thumbnail follows
+        $("#pv-note") && ($("#pv-note").textContent = "");
+      } catch (e) { $("#pv-note") && ($("#pv-note").textContent = e.message); }
+    }, 250);
+  }
+  function animate(now) {   // the preview: walking round in a circle, standing, seated
+    if ($("#pv-walk") && previewUrl) {
+      const t = (now - animStart) / 1000;
+      const dir = [2, 3, 0, 1][Math.floor(t / 1.6) % 4];   // down, right, up, left
+      Sheets.frame($("#pv-walk"), previewUrl, 1 + Math.floor(t * 10) % 8, dir, 2);
+      Sheets.frame($("#pv-idle"), previewUrl, Math.floor(t * 1.5) % 2, 6, 2);
+      Sheets.frame($("#pv-sit"), previewUrl, 0, 8, 2);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function traitsEditor(d) {
+    const s = d.settings;
+    const box = el("div", {className: "traits"});
+    box.append(el("span", {className: "hint", textContent: "Style (pick one)"}));
+    for (const [k, a] of Object.entries(opts.archetypes)) {
+      const input = el("input", {type: "radio", name: "arch", value: k, checked: d.archetype === k});
+      input.addEventListener("change", () => { d.archetype = k; renderEditor(); });
+      box.append(el("label", {className: "trait"}, input, el("span", {}, el("b", {textContent: a.label}), el("small", {textContent: a.about}))));
+    }
+    box.append(el("span", {className: "hint", textContent: "Traits (any)"}));
+    for (const [k, m] of Object.entries(opts.modifiers)) {
+      const input = el("input", {type: "checkbox", value: k, checked: d.traits.includes(k)});
+      input.addEventListener("change", () => { d.traits = input.checked ? [...d.traits, k] : d.traits.filter(t => t !== k); renderEditor(); });
+      box.append(el("label", {className: "trait"}, input, el("span", {}, el("b", {textContent: m.label}), el("small", {textContent: m.about}))));
+    }
+    const pounds = (key, label, placeholder) => {
+      const i = el("input", {type: "number", min: 5, step: 5, value: s[key] ? s[key] / 100 : "", placeholder});
+      i.addEventListener("input", () => { s[key] = i.value ? Math.round(+i.value * 100) : undefined; });
+      return el("label", {className: "field"}, el("span", {textContent: label}), i);
+    };
+    box.append(el("span", {className: "hint", textContent: "Budget for a visit (what they're willing to lose; blank for their style's usual)"}),
+      el("div", {className: "grid2"}, pounds("budget_min", "Least (£)", "usual"), pounds("budget_max", "Most (£)", "usual")));
+    if (d.traits.includes("hit_and_run")) {
+      const i = el("input", {type: "number", min: 5, max: 500, step: 5, value: s.hit_and_run_pct || 50});
+      i.addEventListener("input", () => { s.hit_and_run_pct = +i.value; });
+      box.append(el("label", {className: "field"}, el("span", {textContent: "Hit-and-run: leave once up (% of budget)"}), i));
+    }
+    if (d.traits.includes("superstitious")) {
+      const i = el("input", {value: (s.lucky_numbers || []).join(", "), placeholder: "e.g. 7, 17, 23"});
+      i.addEventListener("input", () => { s.lucky_numbers = i.value.split(/[ ,]+/).filter(Boolean).map(Number).filter(n => Number.isInteger(n)); });
+      box.append(el("label", {className: "field"}, el("span", {textContent: "Lucky numbers (Roulette, 0-36)"}), i));
+    }
+    const games = el("div", {className: "seg"}, ...Object.entries(opts.games).map(([k, v]) => {
+      const b = el("button", {type: "button", textContent: v});
+      const on = (s.favourite_games || []).includes(k);
+      b.setAttribute("aria-pressed", String(on));
+      b.addEventListener("click", () => { const g = new Set(s.favourite_games || []); on ? g.delete(k) : g.add(k); s.favourite_games = [...g]; renderEditor(); });
+      return b;
+    }));
+    box.append(el("span", {className: "hint", textContent: "Favourite games (they head for these first)"}), games);
+    return box;
+  }
+
+  function renderStatus() {
+    const box = $("#npc-status");
+    if (!box || !selected) return;
+    const n = selected;
+    const [st] = statusOf(n);
+    box.replaceChildren(el("div", {className: "card-head"}, el("h3", {textContent: "Now and lifetime"}), el("span", {className: "tag", textContent: st})));
+    if (n.role !== "punter") { box.append(el("p", {className: "hint", textContent: n.dealing ? "Dealing at " + (opts.tables[n.dealing] || n.dealing) + "." : "Not on a table right now."})); return; }
+    const stat = (label, value, cls = "") => el("div", {className: "stat"}, el("small", {textContent: label}), el("b", {className: cls, textContent: value}));
+    if (n.on_floor) box.append(el("div", {className: "stats"}, stat("This visit", money(n.on_floor.bankroll) + " of " + money(n.on_floor.budget)),
+      stat("Rounds so far", n.on_floor.rounds)));
+    box.append(el("div", {className: "stats"},
+      stat("Visits", n.visits), stat("Rounds", n.rounds), stat("Staked", money(n.wagered)), stat("Returned", money(n.returned)),
+      stat("Net", signed(n.net), n.net > 0 ? "pos" : n.net < 0 ? "neg" : ""), stat("Best visit", money(n.biggest_win)), stat("Busts", n.busts),
+      stat("Last seen", n.last_seen ? new Date(n.last_seen * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"}) : "—")));
+    const visitsBox = el("div", {className: "scroll"}, el("p", {className: "hint", textContent: "Loading visits…"}));
+    box.append(visitsBox);
+    api("GET", "/api/npcs/" + n.id).then(full => {
+      if (!full.visits.length) { visitsBox.replaceChildren(el("p", {className: "hint", textContent: "No visits yet."})); return; }
+      const REASONS = {bust: "went bust", done: "done for the day", hit_and_run: "left while ahead", riches: "doubled up", admin: "sent home", shutdown: "closing time"};
+      visitsBox.replaceChildren(el("table", {}, el("thead", {}, el("tr", {}, ...["When", "Stayed", "Budget", "Left with", "Net", "Rounds", "Why"].map((h, i) => el("th", {className: i >= 2 && i <= 5 ? "num" : "", textContent: h})))),
+        el("tbody", {}, ...full.visits.map(v => el("tr", {},
+          el("td", {textContent: new Date(v.arrived * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"})}),
+          el("td", {textContent: Math.max(1, Math.round((v.left_at - v.arrived) / 60)) + " min"}),
+          el("td", {className: "num", textContent: money(v.budget)}), el("td", {className: "num", textContent: money(v.end_bankroll)}),
+          el("td", {className: "num " + (v.net > 0 ? "pos" : v.net < 0 ? "neg" : ""), textContent: signed(v.net)}),
+          el("td", {className: "num", textContent: v.rounds}), el("td", {textContent: REASONS[v.reason] || v.reason}))))));
+    }).catch(() => {});
+  }
+
+  // ------------------------------------------------------------ bulk create
+  // Generate a batch of random drafts (names, looks; a style and traits if seeded), review and
+  // tweak them here, then create them all at once. The batch survives a trip back to the roster.
+  let bulkOn = false, batch = [], bulkKey = 0;
+  const setup = {count: 10, role: "punter", archetype: "mix", body: "", traits: [], enabled: true};
+  function bulkMode(on) {
+    bulkOn = on; selected = null; draft = null;
+    $("#roster").hidden = on; $("#bulk").hidden = !on;
+    for (const id of ["#npc-role", "#npc-search", "#npc-new", "#npc-count"]) $(id).hidden = on;
+    $("#npc-bulk").textContent = on ? "Back to the roster" : "Bulk create";
+    if (on) renderBulk();
+    else if (list.length) { select(list.find(n => n.role === "punter") || list[0]); return; }
+    renderEditor();
+  }
+  const roleLabel = (role, n) => { const l = (opts.roles[role] || role).toLowerCase(); return n === 1 ? l : l.endsWith("s") ? l + "es" : l + "s"; };
+  function genLabel() {
+    const s = setup, who = (s.role === "punter" && s.archetype !== "mix" ? opts.archetypes[s.archetype].label.toLowerCase() + " " : "") + roleLabel(s.role, s.count);
+    return (batch.length ? "Add " : "Generate ") + s.count + " " + who;
+  }
+  function toggles(entries, isOn, flip) {   // a row of pressable buttons
+    return el("div", {className: "seg"}, ...entries.map(([k, label, about]) => {
+      const b = el("button", {type: "button", textContent: label, title: about || ""});
+      b.setAttribute("aria-pressed", String(isOn(k)));
+      b.addEventListener("click", () => flip(k));
+      return b;
+    }));
+  }
+  function renderBulk() {
+    const box = $("#bulk"), s = setup, punter = s.role === "punter";
+    const field = (label, input) => el("label", {className: "field"}, el("span", {textContent: label}), input);
+    const gen = el("button", {type: "button", className: "primary", id: "bulk-generate", textContent: genLabel()});
+    gen.addEventListener("click", () => generate(gen));
+    const count = el("input", {type: "number", id: "bulk-count", min: 1, max: 30, step: 1, value: s.count});
+    count.addEventListener("input", () => { s.count = Math.max(1, Math.min(30, Math.round(+count.value || 1))); gen.textContent = genLabel(); });
+    const role = el("select", {id: "bulk-role"}, ...Object.entries(opts.roles).map(([k, v]) => el("option", {value: k, textContent: v + (opts.on_the_floor.includes(k) ? "" : " (not on the floor yet)"), selected: k === s.role})));
+    role.addEventListener("change", () => { s.role = role.value; renderBulk(); });
+    const style = el("select", {id: "bulk-style"}, el("option", {value: "mix", textContent: "A mix"}),
+      ...Object.entries(opts.archetypes).map(([k, a]) => el("option", {value: k, textContent: a.label, selected: k === s.archetype})));
+    style.addEventListener("change", () => { s.archetype = style.value; gen.textContent = genLabel(); });
+    const enabled = el("input", {type: "checkbox", id: "bulk-enabled", checked: s.enabled});
+    enabled.addEventListener("change", () => { s.enabled = enabled.checked; });
+    const card = el("div", {className: "card"},
+      el("div", {className: "card-head"}, el("h3", {textContent: "Bulk create"}),
+         el("span", {className: "hint", textContent: "Random names and looks. Pick a style or traits to seed them, or leave them to chance."})),
+      el("div", {className: "grid2"}, field("How many (1-30)", count), field("Role", role), punter ? field("Style", style) : null),
+      el("div", {className: "field"}, el("span", {textContent: "Body"}),
+         toggles([["", "Mixed"], ["female", "Female"], ["male", "Male"]], k => s.body === k, k => { s.body = k; renderBulk(); })),
+      punter ? el("div", {className: "field"}, el("span", {textContent: "Traits for everyone (none unless you pick some; add them per person below too)"}),
+         toggles(Object.entries(opts.modifiers).map(([k, m]) => [k, m.label, m.about]), k => s.traits.includes(k),
+                 k => { s.traits = s.traits.includes(k) ? s.traits.filter(t => t !== k) : [...s.traits, k]; renderBulk(); })) : null,
+      el("label", {className: "controls hint"}, enabled, "In service (", punter ? "visits the casino" : "works shifts", ")"),
+      el("div", {className: "controls"}, gen));
+    box.replaceChildren(card, el("div", {id: "bulk-review"}));
+    renderBulkList();
+  }
+  async function generate(btn) {
+    btn.disabled = true; status("Generating…");
+    try {
+      const r = await api("POST", "/api/npcs/generate", {...setup, taken: batch.map(d => d.name)});
+      for (const d of r.drafts) batch.push({...d, archetype: d.archetype || "casual", key: ++bulkKey});
+      status(`Added ${r.drafts.length} to the batch. Nothing's saved till you create them.`, "ok");
+    } catch (e) {
+      status(/not found|method not allowed/i.test(e.message) ? "Bulk create needs the server restarted (it's a new API)." : e.message, "warn");
+    }
+    btn.disabled = false; renderBulk();
+  }
+  const luckyNumbers = () => { const s = new Set(); const n = 2 + Math.floor(Math.random() * 3); while (s.size < n) s.add(Math.floor(Math.random() * 37)); return [...s].sort((a, b) => a - b); };
+  function addTrait(d, t) {
+    if (d.role !== "punter" || d.traits.includes(t)) return;
+    d.traits = [...d.traits, t];
+    if (t === "superstitious" && !(d.settings.lucky_numbers || []).length) d.settings.lucky_numbers = luckyNumbers();
+  }
+  function changed(d) { if (draft === d) renderEditor(); else renderBulkList(); }   // renderEditor redraws the list too
+  async function reroll(d, what) {
+    try {
+      const r = await api("POST", "/api/npcs/generate", {count: 1, role: d.role, body: d.look.body, taken: batch.map(x => x.name)});
+      const fresh = r.drafts[0];
+      if (what === "name") d.name = fresh.name;
+      else { d.look = fresh.look; d.look_url = fresh.look_url; if (draft === d) previewUrl = d.look_url; }
+      changed(d);
+    } catch (e) { status(e.message, "warn"); }
+  }
+  function removeDraft(d) {
+    batch = batch.filter(x => x !== d);
+    if (draft === d) { draft = null; renderEditor(); }
+    renderBulk();
+  }
+  function tweak(d) {
+    draft = d; previewUrl = d.look_url;
+    renderEditor();
+    if (matchMedia("(max-width: 900px)").matches) $("#editor").scrollIntoView({behavior: "smooth", block: "start"});
+  }
+  function bulkRow(d) {
+    const cv = el("canvas", {width: 64, height: 64});
+    Sheets.frame(cv, d.look_url, 0, 6, 1);
+    const name = el("input", {value: d.name, maxLength: 24, placeholder: "Name"});
+    name.setAttribute("aria-label", "Name");
+    name.addEventListener("input", () => { d.name = name.value; });
+    name.addEventListener("change", () => { if (draft === d) renderEditor(); });
+    const tags = [el("span", {className: "tag", textContent: opts.roles[d.role] || d.role})];
+    if (d.role === "punter") {
+      const style = el("select", {}, ...Object.entries(opts.archetypes).map(([k, a]) => el("option", {value: k, textContent: a.label, selected: k === d.archetype})));
+      style.setAttribute("aria-label", "Style for " + d.name);
+      style.addEventListener("change", () => { d.archetype = style.value; changed(d); });
+      tags.push(style);
+      for (const t of d.traits) {
+        const x = el("button", {type: "button", textContent: "✕", title: "Drop " + opts.modifiers[t].label});
+        x.setAttribute("aria-label", "Drop " + opts.modifiers[t].label + " from " + d.name);
+        x.addEventListener("click", () => { d.traits = d.traits.filter(y => y !== t); changed(d); });
+        tags.push(el("span", {className: "tag gold"}, opts.modifiers[t].label, x));
+      }
+      const add = el("select", {}, el("option", {value: "", textContent: "+ trait"}),
+        ...Object.entries(opts.modifiers).filter(([k]) => !d.traits.includes(k)).map(([k, m]) => el("option", {value: k, textContent: m.label})));
+      add.setAttribute("aria-label", "Add a trait to " + d.name);
+      add.addEventListener("change", () => { if (add.value) { addTrait(d, add.value); changed(d); } });
+      tags.push(add);
+    }
+    const btn = (label, title, fn) => { const b = el("button", {type: "button", textContent: label, title}); b.addEventListener("click", fn); return b; };
+    return el("div", {className: "npc" + (draft === d ? " sel" : "") + (d.enabled ? "" : " off")},
+      cv,
+      el("div", {className: "who"}, name, el("div", {className: "badges"}, ...tags)),
+      el("div", {className: "row-acts"},
+        btn("↻ Name", "A different random name", () => reroll(d, "name")),
+        btn("↻ Look", "A different random look", () => reroll(d, "look")),
+        btn("Tweak", "Open in the designer", () => tweak(d)),
+        btn("✕", "Remove from the batch", () => removeDraft(d))));
+  }
+  function renderBulkList() {
+    const box = $("#bulk-review");
+    if (!box) return;
+    if (!batch.length) { box.replaceChildren(el("p", {className: "hint", textContent: "The batch is empty: generate some above (you can add several batches, e.g. 10 casual punters, then 5 dealers)."})); return; }
+    const punters = batch.filter(d => d.role === "punter");
+    const card = el("div", {className: "card"},
+      el("div", {className: "card-head"}, el("h3", {textContent: "Review · " + batch.length}),
+         el("span", {className: "hint", textContent: "Edit names in place, ✕ a trait to drop it, Tweak for the full designer."})));
+    if (punters.length) {
+      const trait = el("select", {id: "bulk-all-trait"}, ...Object.entries(opts.modifiers).map(([k, m]) => el("option", {value: k, textContent: m.label})));
+      trait.setAttribute("aria-label", "Trait");
+      const addAll = el("button", {type: "button", textContent: "Add to every punter"});
+      addAll.addEventListener("click", () => { punters.forEach(d => addTrait(d, trait.value)); draft ? renderEditor() : renderBulkList(); });
+      const dropAll = el("button", {type: "button", textContent: "Drop from all"});
+      dropAll.addEventListener("click", () => { punters.forEach(d => { d.traits = d.traits.filter(t => t !== trait.value); }); draft ? renderEditor() : renderBulkList(); });
+      const style = el("select", {}, el("option", {value: "", textContent: "Set every punter's style…"}),
+        ...Object.entries(opts.archetypes).map(([k, a]) => el("option", {value: k, textContent: a.label})));
+      style.setAttribute("aria-label", "Style for every punter");
+      style.addEventListener("change", () => { if (style.value) { punters.forEach(d => { d.archetype = style.value; }); draft ? renderEditor() : renderBulkList(); } });
+      card.append(el("div", {className: "controls"}, trait, addAll, dropAll, style));
+    }
+    card.append(el("div", {className: "roster"}, ...batch.map(bulkRow)));
+    const create = el("button", {type: "button", className: "primary", id: "bulk-create", textContent: `Create ${batch.length === 1 ? "1 NPC" : batch.length + " NPCs"}`});
+    create.addEventListener("click", () => createAll(create));
+    const discard = el("button", {type: "button", textContent: "Discard batch"});
+    discard.addEventListener("click", () => {
+      const y = el("button", {type: "button", className: "primary", textContent: "Yes"}), n = el("button", {type: "button", textContent: "No"});
+      discard.replaceWith(el("span", {className: "confirm"}, "Throw away all " + batch.length + "?", y, n));
+      y.addEventListener("click", () => { batch = []; draft = null; renderEditor(); renderBulk(); });
+      n.addEventListener("click", renderBulkList);
+    });
+    card.append(el("div", {className: "controls"}, create, discard));
+    box.replaceChildren(card);
+  }
+  async function createAll(btn) {
+    btn.disabled = true;
+    try {
+      const npcs = batch.map(({key, look_url, ...d}) => ({...d, settings: Object.fromEntries(Object.entries(d.settings || {}).filter(([, v]) => v !== undefined && v !== ""))}));
+      const r = await api("POST", "/api/npcs/bulk", {npcs});
+      batch = [];
+      await refresh();
+      bulkMode(false);
+      status(`Created ${r.npcs.length === 1 ? "1 NPC" : r.npcs.length + " NPCs"}: ${r.npcs.map(n => n.name).join(", ")}.`, "ok");
+    } catch (e) { btn.disabled = false; status(e.message, "warn"); }
+  }
+
+  async function saveDraft() {
+    try {
+      const body = {...draft, settings: Object.fromEntries(Object.entries(draft.settings).filter(([, v]) => v !== undefined && v !== ""))};
+      const saved = selected ? await api("PUT", "/api/npcs/" + selected.id, body) : await api("POST", "/api/npcs", body);
+      status((selected ? "Saved " : "Created ") + saved.name + ".", "ok");
+      await refresh();
+      select(list.find(n => n.id === saved.id));
+    } catch (e) { status(e.message, "warn"); }
+  }
+  async function act(what, message) {
+    try { await api("POST", `/api/npcs/${selected.id}/${what}`); status(message, "ok"); await refresh(); renderEditor(); }
+    catch (e) { status(e.message, "warn"); }
+  }
+  async function deleteNpc() {
+    try { await api("DELETE", "/api/npcs/" + selected.id); status("Deleted " + selected.name + ".", "ok"); selected = null; draft = null; await refresh(); renderEditor(); }
+    catch (e) { status(e.message, "warn"); }
+  }
+  $("#npc-role").addEventListener("change", renderList);
+  $("#npc-search").addEventListener("input", renderList);
+  $("#npc-new").addEventListener("click", newNpc);
+  $("#npc-bulk").addEventListener("click", () => bulkMode(!bulkOn));
+  return {load, polling};
+})();
+
+// ================================================================ players
+const Players = (() => {
+  async function load() {
+    try {
+      const data = await api("GET", "/api/players");
+      const box = $("#players"); box.replaceChildren();
+      if (!data.players.length) { box.append(el("p", {className: "hint", textContent: "Nobody's played yet."})); return; }
+      const rows = [];
+      for (const p of data.players.sort((a, b) => b.wagered - a.wagered)) {
+        const games = Object.entries(p.games);
+        const tr = el("tr", {},
+          el("td", {}, games.length ? el("details", {}, el("summary", {textContent: p.name}),
+            el("table", {style: "margin:6px 0"}, el("tbody", {}, ...games.map(([g, s]) => el("tr", {},
+              el("td", {textContent: data.games[g] || g}), el("td", {className: "num", textContent: s.bets + " bets"}),
+              el("td", {className: "num", textContent: money(s.wagered)}),
+              el("td", {className: "num " + (s.net > 0 ? "pos" : s.net < 0 ? "neg" : ""), textContent: signed(s.net)})))))) : p.name),
+          el("td", {className: "num", textContent: money(p.balance)}), el("td", {className: "num", textContent: money(p.wagered)}),
+          el("td", {className: "num", textContent: money(p.returned)}),
+          el("td", {className: "num " + (p.net > 0 ? "pos" : p.net < 0 ? "neg" : ""), textContent: signed(p.net)}),
+          el("td", {className: "num", textContent: p.bets}),
+          el("td", {textContent: p.last_at ? new Date(p.last_at).toLocaleString([], {dateStyle: "short", timeStyle: "short"}) : "—"}));
+        rows.push(tr);
+      }
+      box.append(el("table", {}, el("thead", {}, el("tr", {}, ...["Player", "Balance", "Staked", "Returned", "Net", "Bets", "Last played"].map((h, i) => el("th", {className: i >= 1 && i <= 5 ? "num" : "", textContent: h})))),
+        el("tbody", {}, ...rows)));
+      status("Players loaded.", "");
+    } catch (e) { status("Couldn't load players: " + e.message, "warn"); }
+  }
+  return {load};
+})();
+
+// ================================================================ settings
+const Settings = (() => {
+  async function load() {
+    try {
+      const s = await api("GET", "/api/npc-settings");
+      $("#s-population").value = s.population; $("#s-regular").value = s.regular_cooldown;
+      $("#s-cool-lo").value = s.cooldown_min[0]; $("#s-cool-hi").value = s.cooldown_min[1];
+      $("#s-bust-lo").value = s.bust_cooldown_min[0]; $("#s-bust-hi").value = s.bust_cooldown_min[1];
+      $("#s-shift").value = s.dealer_shift_min; $("#s-stagger").value = s.dealer_stagger_min;
+    } catch (e) { status("Couldn't load settings: " + e.message, "warn"); }
+  }
+  $("#settings-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    try {
+      await api("PUT", "/api/npc-settings", {population: +$("#s-population").value, regular_cooldown: +$("#s-regular").value,
+        cooldown_min: [+$("#s-cool-lo").value, +$("#s-cool-hi").value], bust_cooldown_min: [+$("#s-bust-lo").value, +$("#s-bust-hi").value],
+        dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value});
+      status("Settings saved.", "ok");
+    } catch (err) { status(err.message, "warn"); }
+  });
+  return {load};
+})();
+
+// ================================================================ SLOTS
+const Slots = (() => {
+  let art = null;
+  const label = src => src.startsWith("uploads/") ? "upload" : src.split("/")[0].replace("flux", "flux ");
+  const imgUrl = (variant, src) => `/slot-art/${variant}/${src}`;
+  async function load() {
+    try {
+      const o = await api("GET", "/api/slots");
+      $("#slot-meters").replaceChildren(...o.tiers.map(t => {
+        const rate = el("input", {type: "number", id: `jp-rate-${t.id}`, min: 0, max: 5, step: 0.05, value: +(t.rate * 100).toFixed(3)});
+        const pps = el("input", {type: "number", id: `jp-pps-${t.id}`, min: 0, max: 10, step: 0.001, value: +(t.per_second / 100).toFixed(4)});
+        const hour = el("span", {className: "hint"});
+        const showHour = () => { hour.textContent = +pps.value > 0 ? `${money(Math.round(+pps.value * 100 * 3600))} an hour` : "off"; };
+        pps.addEventListener("input", showHour); showHour();
+        return el("div", {className: "card meter"},
+          el("span", {className: "tag gold", textContent: t.name}), el("b", {textContent: money(t.amount)}),
+          el("span", {className: "hint", textContent: `seed ${money(t.seed)}`}),
+          el("label", {className: "field"}, el("span", {textContent: "% of every bet"}), rate),
+          el("label", {className: "field"}, el("span", {textContent: "Plus £ a second"}), pps), hour,
+          el("div", {className: "controls"},
+            el("button", {type: "button", className: "primary", textContent: "Save", onclick: async () => {
+              try {
+                const r = await api("PUT", "/api/slots/jackpot-settings", {[t.id]: {rate: +rate.value / 100, per_second: Math.round(+pps.value * 100 * 1000) / 1000}});
+                status(`${t.name} saved. The jackpots now return ${r.jackpot_rtp.toFixed(2)}% of bets, plus the growth a second.`, "ok"); load();
+              } catch (e) { status(e.message, "warn"); }
+            }}),
+            el("button", {type: "button", textContent: "Reset to seed", onclick: async () => {
+              await api("POST", `/api/slots/reset-meter/${t.id}`); status(`${t.name} reset to ${money(t.seed)}.`, "ok"); load(); }})));
+      }));
+      const head = el("tr", {}, ...["Cabinet", "Player", "Doing", "Bet"].map(h => el("th", {textContent: h})));
+      $("#slot-cabs").replaceChildren(el("table", {}, el("thead", {}, head), el("tbody", {}, ...o.cabinets.map(c => el("tr", {},
+        el("td", {textContent: c.table}), el("td", {textContent: c.player ? c.player + (c.human ? "" : " (NPC)") : "—"}),
+        el("td", {textContent: c.player ? c.phase + (c.pending.length ? " → " + c.pending.join(", ") : "") : ""}),
+        el("td", {textContent: c.player ? money(c.bet) : ""}))))));
+      const w = o.players.wagered, r = o.players.returned;
+      $("#slot-rtp").replaceChildren(
+        el("p", {className: "hint", innerHTML: `Players have staked <b>${money(w)}</b> and been paid <b>${money(r)}</b>` +
+          (w ? `: a return of <b>${(100 * r / w).toFixed(2)}%</b>` : "") + "."}),
+        el("p", {className: "hint", textContent: `The game is tuned to about 91.5%, plus ${o.jackpot_rtp.toFixed(2)}% from the shared jackpots' share of bets (${(91.5 + o.jackpot_rtp).toFixed(1)}% in all). Growth a second comes on top: it's the casino's money, and how much it adds depends on how busy the slots are. Short runs swing a long way: the trail's 2,000× prizepot is rare.`}));
+      art = await api("GET", "/api/slots/art");
+      drawArt();
+    } catch (e) { status("Couldn't load slots: " + e.message, "warn"); }
+  }
+  function drawArt() {
+    const cards = [];
+    for (const v of art.variants) for (const a of v.assets) {
+      const opts = [...a.candidates, ...v.uploads];
+      cards.push(el("div", {className: "card"},
+        el("div", {className: "card-head"}, el("h3", {textContent: a.name}), el("span", {className: "tag", textContent: a.asset}),
+          a.is_default ? null : el("button", {type: "button", textContent: "Back to vector", onclick: () => pick(v.variant, a.asset, null)})),
+        el("div", {className: "art-opts"}, ...opts.map(src => el("button", {type: "button", title: src,
+          ariaPressed: String(src === a.choice), onclick: () => pick(v.variant, a.asset, src)},
+          el("img", {src: imgUrl(v.variant, src), alt: `${a.name}: ${label(src)}`, loading: "lazy"}), label(src))))));
+    }
+    $("#slot-art").replaceChildren(...cards);
+  }
+  async function pick(variant, asset, src) {
+    try {
+      if (src === null) await api("DELETE", `/api/slots/art/${variant}/${asset}`);
+      else await api("PUT", `/api/slots/art/${variant}/${asset}`, {source: src});
+      art = await api("GET", "/api/slots/art"); drawArt();
+      status("Art saved: the games pick it up now.", "ok");
+    } catch (e) { status(e.message, "warn"); }
+  }
+  async function upload(files) {
+    for (const f of files) {
+      try { await api("PUT", `/api/slot-art-uploads/armadillo/${encodeURIComponent(f.name)}`, await f.arrayBuffer(), true); }
+      catch (e) { status(`${f.name}: ${e.message}`, "warn"); return; }
+    }
+    status(`Added ${files.length} image${files.length > 1 ? "s" : ""}: pick them on any asset below.`, "ok");
+    art = await api("GET", "/api/slots/art"); drawArt();
+  }
+  $("#slots-refresh").addEventListener("click", load);
+  $("#art-file").addEventListener("change", e => upload([...e.target.files]));
+  const drop = $("#art-drop");
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); });
+  return {load};
+})();
+
+showTab();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+const M = require("../mockup/slots_math.js");
+const V = M.ARMADILLO;
+const n = +(process.argv[2] || 300000);
+console.log("strip lengths", V.strips.map((s) => s.length).join(","), "exact plain line RTP %", (100 * M.exactLineRtp(V.strips)).toFixed(2));
+const t = Date.now();
+const r = M.simulate(V, n, 100, 7);
+const f = (x) => x.toFixed(2);
+console.log(`spins ${n} in ${(Date.now() - t) / 1000}s`);
+console.log("RTP %", Object.entries(r.rtp).map(([k, v]) => `${k} ${f(v)}`).join("  "));
+console.log(`hit 1 in ${f(n / r.hits)}  feature spins 1 in ${f(n / r.featureSpins)}  trail 1 in ${f(n / r.trails)}  free 1 in ${f(n / r.frees)}  max ${f(r.max / 100)}x  sd ${f(r.sd)}  prizepots ${r.prizepots}`);
+console.log("features per 1000:", Object.entries(r.featureCounts).map(([k, v]) => `${k} ${f(1000 * v / n)}`).join("  "));
+const b = M.simulateBuy(V, 100000, 100, 9);
+console.log(`buy: rtp ${f(b.rtp)}%  mean ${f(b.mean)}x  max ${b.max}x  prizepots ${b.prizepots}/100000  rolls ${f(b.rolls)}`);

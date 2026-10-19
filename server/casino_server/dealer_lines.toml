@@ -1,0 +1,139 @@
+# What the dealer says. Edit freely -- the server picks up changes on the next
+# line it says, no restart needed.
+#
+# Each entry is a list; the dealer picks one at random. Placeholders:
+#   {hand}    the player's hand, e.g. "Pair of Kings", "Queen high", "Straight"
+#   {name}    the player's name
+#   {dealer}  the dealer's hand
+#   {colour}  "All red" / "All black" (for a Prime held on a fold)
+# A placeholder that doesn't apply is left out of that line's choices.
+
+# ---------------------------------------------------------------- table calls
+[table]
+place_bets = ["Place your bets.", "Place your bets, please.", "New hand -- place your bets."]
+no_more_bets = ["No more bets.", "No more bets, please.", "Bets are closed."]
+
+# ---------------------------------------------------------------- dealer's own hand
+[dealer]
+qualifies = ["Dealer has {dealer}.", "Dealer shows {dealer}."]
+no_qualify = ["Dealer has {dealer} -- doesn't qualify.", "{dealer} -- dealer doesn't qualify."]
+
+# ---------------------------------------------------------------- each player's hand
+# The announcement, said as their cards are turned over.
+[announce]
+win = ["{hand}, wins.", "{hand} -- winner."]
+lose = ["{hand}, loses.", "{hand} -- loses."]
+push = ["{hand}, push.", "{hand} -- it's a push."]
+no_qualify = ["{hand} -- the Ante pays.", "{hand} -- Ante pays, Play pushes."]
+prime = ["{colour} -- the Prime pays.", "{colour} -- Prime wins."]
+
+# Sometimes followed by a reaction, by how strong the hand was.
+# Winning: monster = Three of a Kind or Straight Flush; strong = Straight or Flush.
+[win]
+ordinary = ["Nice.", "There you go.", "Well played.", "Winner, winner.", "Nicely done, {name}."]
+strong = ["Nice hand!", "Very nice!", "Now that's a hand.", "Lovely stuff, {name}.", "That'll do it!"]
+monster = ["Wow -- what a hand!", "Look at that!", "Get in!", "Incredible, {name}!", "Now we're talking!"]
+
+# Losing: strong = a Pair or better that still lost.
+[lose]
+ordinary = ["Not this time.", "Next time.", "Unlucky.", "Better luck next hand."]
+strong = ["Oof, unlucky.", "That's a shame -- good hand, too.", "Brutal.", "Ouch. Sorry, {name}."]
+
+# How often a reaction follows the announcement (0 = never, 1 = always).
+[chance]
+win_ordinary = 0.35
+win_strong = 0.8
+win_monster = 1.0
+lose_ordinary = 0.3
+lose_strong = 0.9
+
+# ---------------------------------------------------------------- blackjack
+# Placeholders: {name} the player, {total} the dealer's total, {hand} the
+# player's hand ("20", "Blackjack", "2 hands").
+[blackjack]
+insurance = ["Insurance, anyone?", "Ace showing -- insurance?", "Insurance is open."]
+no_blackjack = ["No Blackjack -- play on.", "Dealer doesn't have it.", "Nothing underneath -- let's play."]
+dealer_blackjack = ["Dealer has Blackjack.", "Blackjack for the house, sorry."]
+bust = ["Too many.", "Bust -- unlucky, {name}.", "Over -- sorry, {name}.", "Bust."]
+dealer_total = ["Dealer has {total}.", "Dealer stands on {total}."]
+dealer_bust = ["Dealer busts!", "Too many for the dealer -- everyone still in wins!", "Dealer's over."]
+settle_win = ["{hand}, winner.", "{hand} wins.", "Winner -- nicely done, {name}."]
+settle_blackjack = ["Blackjack! Pays three to two.", "Blackjack -- lovely, {name}!"]
+settle_push = ["Push.", "{hand}, push.", "Stand-off."]
+settle_lose = ["{hand}, loses.", "Not this time, {name}.", "Dealer takes it."]
+settle_mixed = ["Some good, some bad, {name}.", "Win some, lose some."]
+cut_card = ["There's the cut card -- last hand of this shoe.", "Cut card's out: last hand, then a shuffle."]
+shuffle = ["Shuffle time -- won't be a moment.", "New shoe coming up."]
+
+# ---------------------------------------------------------------- pai gow
+# Placeholders: {name} the player, {high}/{low} the dealer's hands
+# ("Two Pair", "King-Queen"), {tier} a Fortune hand ("Full House").
+[pai_gow]
+dealer_set = ["Dealer has {high} and {low}.", "Dealer sets {high} behind, {low} in front."]
+ace_high_push = ["Ace-high Pai Gow for the dealer -- every Ante pushes.", "Dealer's got nothing: Ace-high Pai Gow. Antes push."]
+settle_win = ["{high} and {low} -- wins both.", "{high} and {low} -- well set, {name}.", "Both hands win: {high}, {low}."]
+settle_lose = ["{high} and {low} -- dealer takes both.", "Not this time, {name}.", "{high}, {low} -- both to the house."]
+settle_push = ["{high} and {low} -- one each, push.", "A hand apiece -- push.", "{high}, {low}: split hands, push."]
+settle_fold = ["Folded.", "Better luck next hand, {name}."]
+settle_ace_high = ["Push.", "Ante's back to you, {name}."]
+
+[mississippi_stud]
+street = ["{street}.", "{street} -- fold or bet.", "{street}: one to three times your Ante."]
+win = ["{hand} -- pays {pays} on every bet.", "{hand}, {name}: {pays} on everything in play.", "{hand} -- well played, {name}."]
+push = ["{hand} -- a push.", "{hand}: your bets back, {name}.", "Push on {hand}."]
+lose = ["{hand} -- not enough, I'm afraid.", "{hand} -- house takes it.", "Not this time, {name}."]
+bonus_all_win = ["{bonus} on the board -- Bonus pays.", "Bonus pays on {bonus}."]
+bonus_all_lose = ["No Bonus this time.", "Nothing on the board for the Bonus."]
+
+[ultimate_texas_holdem]
+preflop = ["Check, or bet four or three times your Ante.", "Bets before the flop -- four or three times, or check."]
+flop = ["The flop. Check, or bet twice your Ante.", "Two times, or check."]
+river = ["River's out -- bet once, or fold.", "One times your Ante, or fold."]
+qualifies = ["Dealer has {dealer} -- qualifies.", "{dealer} for the dealer. Qualifies."]
+no_qualify = ["Dealer has {dealer} -- doesn't qualify. Antes push.", "{dealer}: no pair for the dealer, Antes push."]
+win = ["{hand} beats {dealer}.", "{hand} -- you win, {name}.", "{hand} takes it."]
+lose = ["{dealer} beats {hand}.", "Dealer's {dealer} wins, I'm afraid.", "Not this time, {name}."]
+push = ["{hand} each -- a push.", "Tie hands, {name} -- push."]
+
+[let_it_ride]
+decide = ["Let it ride, or pull back bet {bet}.", "Bet {bet}: ride it or pull it back."]
+win = ["{hand} -- pays {pays} on every bet up.", "{hand}, {name}: {pays}.", "{hand} -- well ridden, {name}."]
+lose = ["{hand} -- not enough, I'm afraid.", "{hand}. House takes it.", "Not this time, {name}."]
+
+[high_card_flush]
+decide = ["Fold, or raise.", "Raise or fold -- five-card flushes can go double, six or more triple."]
+qualifies = ["Dealer has a {dealer} -- qualifies.", "{dealer} for the dealer. Qualifies."]
+no_qualify = ["Dealer has {dealer} -- doesn't qualify. Antes pay.", "{dealer}: dealer doesn't qualify."]
+win = ["{hand} beats the dealer.", "{hand} -- you win, {name}.", "Longer and stronger: {hand}."]
+lose = ["Dealer's {dealer} wins.", "Not this time, {name}.", "{dealer} beats {hand}."]
+push = ["Exactly the same -- push.", "A dead heat, {name}. Push."]
+no_qualify_win = ["Dealer didn't qualify -- Ante pays.", "Ante pays, raise pushes, {name}."]
+side_bets = ["Side bets on {hand}.", "Your side bets, {name}: {hand}."]
+
+
+[roulette]
+spin = ["Final bets!", "Final bets, please.", "Final bets -- the ball's away."]
+result = ["{number}, {colour}.", "{number} {colour}.", "{number}, {colour}, {parity}.", "{number}, {colour}, {parity}, {half}."]
+zero = ["Zero. La Partage on the even chances.", "Zero -- half back on the even chances.", "Zero, green."]
+
+# The stickman at the craps table. {call} is how the roll is named ("Hard eight",
+# "Six, easy six", "Yo-leven"); {total} the number; {point} the point it was or is;
+# {name} the shooter.
+[craps]
+dice_out = ["Dice are out. No more bets.", "Dice are out!", "No more bets -- here come the dice."]
+seven_winner = ["Seven, winner! Pay the line.", "Seven -- front line winner!", "Seven, winner on the line."]
+yo_winner = ["Yo-leven, winner on the line!", "Yo! Eleven, pay the line.", "Eleven -- front line winner."]
+craps_line_away = ["{call}, craps! Line away.", "{call} -- craps.", "Craps, {call}. Take the line."]
+twelve_craps = ["Twelve, craps! Bar the don'ts.", "Boxcars -- craps, twelve.", "Twelve -- line away, don'ts push."]
+point_set = ["{call}. The point is {total}.", "{call} -- {total} is the point.", "Mark it: the point is {total}."]
+point_made = ["{call}! Winner, pay the line.", "{call} -- the point! Winner!", "{total}, winner! Pay the line."]
+seven_out = ["Seven out, line away!", "Seven out. Take the line, pay the don'ts.", "Seven out -- new shooter coming out."]
+yo = ["Yo-leven!", "Yo! Eleven.", "Eleven, yo."]
+craps_roll = ["{call}, craps.", "Craps, {call}."]
+roll = ["{call}.", "{call}, no decision.", "{call} -- the point is {point}."]
+new_shooter = ["New shooter: {name}. Coming out!", "{name} has the dice. Coming out!", "Dice to {name}. Coming out."]
+takes_dice = ["{name} takes the dice. The point is {point}.", "Dice to {name} -- the point is still {point}."]
+
+# A VIP sits down: the dealer knows them.
+[vip]
+greet = ["Welcome back, {name}.", "Good to see you, {name}.", "{name}! Your usual?", "Evening, {name}. Good luck."]

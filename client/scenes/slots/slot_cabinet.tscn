@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/slots/slot_cabinet.gd" id="1_cab"]
+[ext_resource type="Script" path="res://scenes/slots/cabinet_part.gd" id="2_part"]
+
+[sub_resource type="RectangleShape2D" id="Rect_body"]
+size = Vector2(32, 14)
+
+[node name="SlotCabinet" type="Node2D" groups=["slot_cabinets"]]
+y_sort_enabled = true
+script = ExtResource("1_cab")
+table_id = "slot_1"
+seats = 1
+
+[node name="Art" type="Node2D" parent="."]
+texture_filter = 4
+script = ExtResource("2_part")
+
+[node name="Stool" type="Node2D" parent="."]
+position = Vector2(0, 17)
+script = ExtResource("2_part")
+part = "stool"
+
+[node name="Body" type="StaticBody2D" parent="."]
+
+[node name="Shape" type="CollisionShape2D" parent="Body"]
+position = Vector2(0, -6)
+shape = SubResource("Rect_body")
