@@ -117,6 +117,9 @@ func stand_at(pos: Vector2) -> void:
 func _report() -> void:
 	var msg := {"x": snappedf(global_position.x, 0.1), "y": snappedf(global_position.y, 0.1),
 		"dir": avatar.facing, "anim": avatar.action if avatar.action != "sit" else "idle"}
-	if msg != _last_sent and Net.is_open():
+	if not (Session.on_floor and Net.is_open()):
+		_last_sent = {}  # say where we are once we've joined: a fresh join puts us at the entrance
+		return
+	if msg != _last_sent:
 		_last_sent = msg
 		Net.send("move", msg)

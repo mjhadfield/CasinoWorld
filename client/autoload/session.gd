@@ -15,6 +15,7 @@ var player := {}
 var entity_id := ""
 var look := "player_default"
 var needs_name := false
+var on_floor := false     # welcomed on this connection: until then the server refuses everything but join
 var balance := 0          # latest from the server
 var shown_balance := 0    # what the HUD shows: held back while a payout is still animating
 var _held := false
@@ -28,6 +29,7 @@ var _jackpot_received_at := 0.0
 
 func _ready() -> void:
 	Net.message_received.connect(_on_message)
+	Net.disconnected.connect(func(): on_floor = false)
 	Net.resynced.connect(func(_msg): _held = false)  # the payout it waited on was dropped; a fresh wallet follows
 
 
@@ -42,6 +44,7 @@ func _on_message(msg: Dictionary) -> void:
 			entity_id = str(msg.get("entity_id", ""))
 			look = str(msg.get("look", look))
 			needs_name = bool(msg.get("needs_name", false))
+			on_floor = true
 			_save_token(str(msg.get("token", "")))
 			joined.emit(player)
 		"wallet":
