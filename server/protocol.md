@@ -280,7 +280,7 @@ change sends `sounds_changed` to every joined player.
 |---|---|
 | `GET /api/sounds` | `sections` (page order); `moments` (`{key: {title, when, section, home, loop}}`; `home` is the set it's defined in); `sets` (each `key`, `name`, `parent`, `group`, and its `moments`: rows of `key`, `own`, `from` (the set whose sounds it plays), `files`, `gain_db`, `changed`, `can_inherit`); `folders` (`{folder: {label, sections}}`); the whole `library` (`id`, `group`, `name`, `bytes`). |
 | `GET /api/sounds/manifest` | What the game loads: `{version, sets: {set: {parent, moments: {key: {files: [url], gain_db}}}}, tables: {table id: set}}`. A set lists only its own moments; the rest come from the nearest set above. Each URL ends in `?v=<change time>`, so it can be cached for good. |
-| `PUT /api/sounds/{set}/{key}` | JSON `{files: [sound id], gain_db}`. Gives the moment its own sounds in that set (deduplicated; gain clamped to -30..+12 dB). Returns its row. |
+| `PUT /api/sounds/{set}/{key}` | JSON `{files: [sound id], gain_db}`. Gives the moment its own sounds in that set (deduplicated; gain clamped to -30..+12 dB); `files: []` silences it there, without the set above filling in. Returns its row. |
 | `POST /api/sounds/{set}/{key}/inherit` | The moment plays the set above's sounds. Refused in its home set. |
 | `DELETE /api/sounds/{set}/{key}` | Puts one moment in one set back to how it came. `POST /api/sounds-reset` with `{set}` resets that set, with `{}` everything. |
 | `PUT /api/sound-uploads/{filename}` | The raw file as the body. Saved under `uploads/`; .flac/.m4a/.opus are converted to .ogg with ffmpeg. |

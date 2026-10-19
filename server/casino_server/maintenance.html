@@ -442,9 +442,10 @@ const Sounds = (() => {
     if (m.loop) title.append(el("span", {className: "tag", textContent: "loops"}));
     if (r.files.length > 1) title.append(el("span", {className: "tag", textContent: r.files.length + " variants"}));
     if (r.changed) title.append(el("span", {className: "tag gold", textContent: "changed"}));
+    if (!r.files.length) title.append(el("span", {className: "tag warn", textContent: "silent"}));
     const chosen = el("div", {className: "chosen"},
       ...r.files.map(f => el("span", {className: "chip", title: f}, playButton(f, () => r.gain_db, m.loop), el("span", {textContent: nameOf(f)}))));
-    if (!r.files.length) chosen.append(el("span", {className: "hint", textContent: "Nothing chosen: silent."}));
+    if (!r.files.length) chosen.append(el("span", {className: "hint", textContent: "No sound" + (r.own ? " here." : ": " + setName(r.from) + " is silent for this.")}));
     // the volume trim (moving it on a borrowed moment gives this set its own copy)
     const out = el("output", {textContent: fmtDb(r.gain_db)});
     const slider = el("input", {type: "range", min: -30, max: 12, step: 0.5, value: r.gain_db, id: "gain-" + r.key});
@@ -454,11 +455,12 @@ const Sounds = (() => {
       clearTimeout(saveTimers[r.key]);
       saveTimers[r.key] = setTimeout(() => save(r.key, r.files, r.gain_db, r.own), 450);
     });
-    const tryBtn = el("button", {type: "button", textContent: "▶ Try"});
+    const tryBtn = el("button", {type: "button", textContent: "▶ Try", disabled: !r.files.length});
     tryBtn.addEventListener("click", () => r.files.length && play(r.files[Math.floor(Math.random() * r.files.length)], r.gain_db, tryBtn, m.loop));
     const edit = el("button", {type: "button", className: editing === r.key ? "primary" : "", textContent: r.own ? "Change…" : "Give it its own…"});
     edit.addEventListener("click", () => editing === r.key ? closePicker() : openPicker(r.key));
     const btns = el("div", {className: "btns"}, tryBtn, edit);
+    if (r.files.length) btns.append(silenceButton(r.key, r.gain_db));
     if (r.own && r.can_inherit) {
       const up = el("button", {type: "button", textContent: "Same as " + setName(s.parent), title: "Play " + setName(s.parent) + "'s sounds for this"});
       up.addEventListener("click", () => mutate(api("POST", path(r.key) + "/inherit"), m.title + " now plays " + setName(s.parent) + "'s."));
@@ -472,6 +474,13 @@ const Sounds = (() => {
     row.append(title, el("div", {className: "acts"}, btns, el("label", {className: "gain", htmlFor: "gain-" + r.key}, "Volume", slider, out)),
                el("p", {className: "when", textContent: m.when}), chosen);
     return row;
+  }
+
+  // Nothing plays for this moment in this set (the set above doesn't fill in).
+  function silenceButton(key, gain) {
+    const b = el("button", {type: "button", textContent: "No sound", title: "Play nothing for this in " + setName(setKey)});
+    b.addEventListener("click", () => mutate(api("PUT", path(key), {files: [], gain_db: gain}), data.moments[key].title + " is silent in " + setName(setKey) + "."));
+    return b;
   }
 
   // ---------------------------------------------------------------- changing
@@ -519,6 +528,8 @@ const Sounds = (() => {
       ? m.when + " One is picked at random each time it plays."
       : m.when + " It plays " + setName(r.from) + "'s sounds now: adding, using or removing one gives " + setName(setKey) + " its own.";
     const chosen = $("#picker-chosen"); chosen.replaceChildren();
+    if (!r.files.length) chosen.append(el("span", {className: "hint", textContent: "No sound. Use or Add one below to give it a sound."}));
+    else chosen.append(silenceButton(editing, r.gain_db));
     for (const f of r.files) {
       const rm = el("button", {className: "icon", type: "button", textContent: "✕", title: "Remove", disabled: r.files.length === 1});
       rm.setAttribute("aria-label", "Remove " + nameOf(f));

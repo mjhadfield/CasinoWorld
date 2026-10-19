@@ -58,7 +58,8 @@ and Tailscale. It has five tabs:
   own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
   moments are listed by section, marked own or borrowed; **Change…** opens the library beside them (the
   folders suited to that section first) to play, **Use** or **Add** a variant, or upload your own. **Same as …**
-  hands a moment back to the set above, **Reset** puts it back to how it came. Moments that loop (the reels
+  hands a moment back to the set above, **No sound** makes it silent in that set (the set above doesn't fill in),
+  and **Reset** puts it back to how it came. Moments that loop (the reels
   spinning, the win meter) preview on a loop. Changes save at once and every open game picks them up within a
   second.
   - The library is `server/sound_library/`, CC0 (credits in its `LIBRARY.md`); uploads go to

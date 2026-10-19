@@ -23,7 +23,8 @@ FACTORY is what each set starts with. Changes made on the page go in
     {"version": 7, "sets": {"casino": {"deal": {"files": [...], "gain_db": 0.0}},
                             "slots.armadillo": {"reel_stop": {"inherit": true}}}}
 
-`{"inherit": true}` hands a moment the factory gave a set back to its parent. A moment
+`{"inherit": true}` hands a moment the factory gave a set back to its parent, and
+`"files": []` silences it there (and below, unless a set below gives it a sound). A moment
 with several files picks one at random each time it plays; `gain_db` trims its volume.
 
 The library is the CC0 collection in server/sound_library/ (read-only, see its
@@ -304,7 +305,11 @@ class SoundBoard:
             e = FACTORY.get(set_key, {}).get(key)
         if e is None or e.get("inherit"):
             return None
-        return {"files": [f for f in e.get("files", []) if self.file_path(f)], "gain_db": float(e.get("gain_db", 0.0))}
+        files = e.get("files", [])
+        kept = [f for f in files if self.file_path(f)]
+        if files and not kept:
+            return None   # its files have gone from the library: the set above plays, rather than silence
+        return {"files": kept, "gain_db": float(e.get("gain_db", 0.0))}   # [] is chosen silence
 
     def resolve(self, set_key: str, key: str) -> tuple[dict, str | None]:
         """What a moment plays in a set, and the set that decides it."""
@@ -380,8 +385,8 @@ class SoundBoard:
 
     def set_choice(self, set_key: str, key: str, files, gain_db) -> dict:
         self._check(set_key, key)
-        if not isinstance(files, list) or not files:
-            raise SoundError("Pick at least one sound (to use the sounds above, choose Same as above instead).")
+        if not isinstance(files, list):
+            raise SoundError("Expected a list of sounds (an empty one for silence).")
         missing = [f for f in files if not self.file_path(f)]
         if missing:
             raise SoundError(f"Not in the library: {', '.join(map(str, missing))}")

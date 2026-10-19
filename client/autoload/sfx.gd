@@ -10,7 +10,7 @@ extends Node
 ## Sounds come in sets (server/casino_server/sounds.py): the whole casino, each
 ## table game, every slot machine, and each machine. Each table plays from its
 ## game's set, and a set without its own sound for a moment plays the one
-## above's -- so Armadillo Goes West has its own reel stop, and its buttons
+## above's (a set can also choose silence, which stops there) -- so Armadillo Goes West has its own reel stop, and its buttons
 ## click like everything else's. `focus` is the table you're at: `play()` and
 ## `start_loop()` use its set unless told another.
 ##
@@ -237,7 +237,8 @@ func reload() -> void:
 			for url in info.moments[key].get("files", []):
 				if _downloaded.has(url):
 					streams.append(_downloaded[url])
-			if not streams.is_empty():   # nothing usable: the set above (or the built-in) plays
+			var silent: bool = (info.moments[key].get("files", []) as Array).is_empty()
+			if silent or not streams.is_empty():   # silent on purpose stops here; nothing downloaded lets the set above play
 				moments[key] = {"streams": streams, "gain_db": float(info.moments[key].get("gain_db", 0.0))}
 		sets[s] = {"parent": info.get("parent"), "moments": moments}
 	_sets = sets

@@ -82,6 +82,17 @@ def test_a_set_can_have_its_own_sound_or_use_the_one_above(client, tmp_path):
     assert sounds.SoundBoard(tmp_path).saved == {}
 
 
+def test_a_moment_can_be_silenced_without_the_set_above_filling_in(client, tmp_path):
+    row = client.put(f"/api/sounds/{ARM}/reel_spin", json={"files": [], "gain_db": 0}).json()
+    assert row["own"] and row["files"] == [] and row["changed"]
+    assert client.get("/api/sounds/manifest").json()["sets"][ARM]["moments"]["reel_spin"]["files"] == []
+    assert sounds.SoundBoard(tmp_path).resolve(ARM, "reel_spin") == ({"files": [], "gain_db": 0.0}, ARM)
+    # ...but a choice whose files have all left the library falls back to the set above.
+    board = sounds.SoundBoard(tmp_path)
+    board.saved[ARM]["reel_spin"] = {"files": ["gone/nowhere.ogg"], "gain_db": 0.0}
+    assert board.resolve(ARM, "reel_spin")[1] == "slots"
+
+
 def test_setting_a_moment_back_to_the_factory_choice_clears_the_change(client):
     factory = sounds.FACTORY["casino"]["bet"]
     client.put("/api/sounds/casino/bet", json={"files": ["pops/cogitollc-pop3.ogg"], "gain_db": 0})
@@ -98,7 +109,6 @@ def test_bad_requests_are_refused_with_a_reason(client):
     assert r.status_code == 400 and "nothing above" in r.json()["detail"]
     r = client.put("/api/sounds/casino/bet", json={"files": ["../../casino_server/app.py"]})
     assert r.status_code == 400 and "Not in the library" in r.json()["detail"]
-    assert client.put("/api/sounds/casino/bet", json={"files": []}).status_code == 400
     assert client.put("/api/sounds/casino/bet", json=["not", "a", "dict"]).status_code == 400
     assert client.get("/sound-files/../casino_server/app.py").status_code == 404
     assert client.get("/sound-files/%2e%2e/casino_server/app.py").status_code == 404
