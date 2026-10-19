@@ -228,6 +228,11 @@ func _reset_state() -> void:
 	win_shown = 0.0
 	win_target = 0.0
 	_credit_adj = 0
+	for x in reels:
+		x.spinning = false
+		x.stopping = false
+		x.v = 0.0
+		x.glow = 0.0
 	Session.hold_balance(false)
 
 
@@ -301,7 +306,10 @@ func _run_queue() -> void:
 	_running = false
 
 
+## Every await below can come back to a reset screen (a resync's snapshot, or closing it):
+## then stop, rather than write this event's leftovers into the new state.
 func _handle(ev: Dictionary) -> void:
+	var ep := _epoch
 	match ev.kind:
 		"spin":
 			await _on_spin(ev)
@@ -320,6 +328,8 @@ func _handle(ev: Dictionary) -> void:
 			_sfx("bonus_trigger")
 			await _banner("TRAIL BONUS", "bought for %s" % Money.format(int(ev.trail.bet) * int(rules.get("buy_cost", 45)))
 				if ev.get("bought", false) else "fire the pistol to move the armadillo", 2.2)
+			if ep != _epoch:
+				return
 			trail.waiting = true
 			trail.auto_at = _now + 6.0
 			message = "FIRE THE PISTOL  ·  SPACE OR CLICK FIRE"
@@ -327,17 +337,25 @@ func _handle(ev: Dictionary) -> void:
 			if not trail.is_empty():
 				trail.waiting = false
 				await _animate_roll(ev.roll)
+				if ep != _epoch:
+					return
 				trail.total = int(ev.total)
 				if not ev.roll.done:
 					trail.waiting = true
 					trail.auto_at = _now + 6.0
 		"trail_end":
 			await _wait(0.6)
+			if ep != _epoch:
+				return
 			_credit_adj += int(ev.total)
 			await _summary("PRIZEPOT!" if ev.get("prizepot", false) else "TRAIL BONUS",
 				"%d shots at %s" % [int(ev.rolls), Money.format(int(trail.get("bet", 100)))], int(ev.total))
+			if ep != _epoch:
+				return
 			if int(ev.total) >= 10 * int(trail.get("bet", 100)):
 				await _big_win(int(ev.total), int(trail.get("bet", 100)))
+			if ep != _epoch:
+				return
 			trail = {}
 			_clear_wins()
 			win_shown = float(ev.total)
@@ -352,13 +370,19 @@ func _handle(ev: Dictionary) -> void:
 			_sfx("free_spin")
 			message = "FREE GAME %d OF %d" % [int(ev.n), int(ev.of)]
 			await _play_spin(ev.outcome, float(free.total))
+			if ep != _epoch:
+				return
 			free.total = int(ev.total)
 			await _wait(0.6)
 		"free_end":
 			_credit_adj += int(ev.total)
 			await _summary("FREE GAMES", "%d combo free games at %s" % [int(free.get("of", 3)), Money.format(int(free.get("bet", 100)))], int(ev.total))
+			if ep != _epoch:
+				return
 			if int(ev.total) >= 10 * int(free.get("bet", 100)):
 				await _big_win(int(ev.total), int(free.get("bet", 100)))
+			if ep != _epoch:
+				return
 			free = {}
 			message = "FREE GAMES PAID %s" % Money.format(int(ev.total))
 		"features_done":
@@ -367,11 +391,16 @@ func _handle(ev: Dictionary) -> void:
 
 func _on_spin(ev: Dictionary) -> void:
 	var o: Dictionary = ev.outcome
+	var ep := _epoch
 	_hurry = false
 	message = "GOOD LUCK!"
 	await _play_spin(o)
+	if ep != _epoch:
+		return
 	if int(o.total) >= 10 * int(o.bet):
 		await _big_win(int(o.total), int(o.bet))
+		if ep != _epoch:
+			return
 	message = "YOU WON %s" % Money.format(int(o.total)) if int(o.total) > 0 else "25 LINES  ·  GOOD LUCK, PARTNER"
 	_credit_adj += int(o.total)
 	var next: Array = ev.get("features_next", [])
@@ -386,7 +415,7 @@ func _on_spin(ev: Dictionary) -> void:
 			auto -= 1
 			if auto > 0:
 				await _wait(0.45)
-				if auto > 0 and visible and not _closing:
+				if auto > 0 and visible and not _closing and ep == _epoch:
 					_send_spin()
 
 
@@ -1133,7 +1162,10 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 
 func _start_reel(x: Dictionary, v: float, i: int) -> void:
 	x.stopping = false
+	var ep := _epoch
 	await get_tree().create_timer(i * 0.04).timeout
+	if ep != _epoch:
+		return   # reset before this reel got going: leave it at rest
 	x.spinning = true
 	x.v = 0.0
 	_tw(x, {"v": v}, 0.25, "lin")
@@ -1149,8 +1181,11 @@ func _stop_reel(x: Dictionary, stop: float, n: int) -> void:
 	while target > x.pos - 3.0:
 		target -= n
 	x.v = 0.0
+	var ep := _epoch
 	await _tw(x, {"pos": target - 0.18}, 0.12 if _hurry else 0.34)
 	await _tw(x, {"pos": target}, 0.14)
+	if ep != _epoch:
+		return
 	x.pos = fposmod(target, n)
 	x.stopping = false
 
@@ -1357,9 +1392,12 @@ func _reveal_coin(index: int, tier: String) -> void:
 		return
 	var coin: Dictionary = pick.coins[index]
 	_sfx("pick_reveal", 1.0 + 0.1 * int(pick.tally.get(tier, 0)))   # a second of a kind rings higher
+	var ep := _epoch
 	await _tw(coin, {"flip": 0.5}, 0.16, "lin")
 	coin.tier = tier
 	await _tw(coin, {"flip": 1.0}, 0.16, "lin")
+	if ep != _epoch:
+		return
 	pick.tally[tier] = int(pick.tally.get(tier, 0)) + 1
 
 
@@ -1373,7 +1411,10 @@ func _jackpot_won(ev: Dictionary) -> void:
 		if c.tier == tier:
 			_tw(c, {"s": 1.2}, 0.4, "back")
 	_sfx("jackpot_win")
+	var ep := _epoch
 	await _wait(1.0)
+	if ep != _epoch:
+		return
 	var all: Array = ev.get("coins", [])
 	for i in pick.coins.size():
 		var c: Dictionary = pick.coins[i]
@@ -1382,6 +1423,8 @@ func _jackpot_won(ev: Dictionary) -> void:
 			c.dim = true
 			c.flip = 1.0
 	await _wait(0.8)
+	if ep != _epoch:
+		return
 	_coin_rain(90)
 	_credit_adj += int(ev.amount)
 	await _summary("%s JACKPOT" % TIER_NAMES.get(tier, tier.to_upper()), "shared by every slot on the floor", int(ev.amount), "")
@@ -1446,27 +1489,32 @@ func _begin_trail(t: Dictionary) -> void:
 
 func _animate_roll(roll: Dictionary) -> void:
 	var tr := trail
+	var ep := _epoch
 	tr.bullets = 0
 	_sfx("trail_fire")
 	for i in int(roll.bullets):
 		tr.bullets = i + 1
 		await _wait(0.09)
 	await _tw(tr, {"cyl": float(tr.cyl) + TAU * (2.0 + int(roll.bullets) / 6.0)}, 0.6)
+	if ep != _epoch:
+		return
 	var label := "%d" % int(roll.bullets)
 	if int(roll.move) != int(roll.bullets):
 		label = "%d × 2 = %d" % [int(roll.bullets), int(roll.move)]
 	var f := _flyer({"text": label, "x": 1150, "y": 250, "text_size": 64, "s": 0.3})
 	_tw(f, {"s": 1.0}, 0.25, "back")
 	var evs: Array = (roll.events as Array).duplicate()
-	while not evs.is_empty() and int(evs[0].pos) == int(roll.from):
+	while not evs.is_empty() and int(evs[0].pos) == int(roll.from) and ep == _epoch:
 		await _trail_event(evs.pop_front())
 	var at := int(roll.from)
 	for p in roll.path:
+		if ep != _epoch:
+			return
 		await _move_token(int(p), "slide" if absi(int(p) - at) > 1 else "hop")
 		at = int(p)
-		while not evs.is_empty() and int(evs[0].pos) == at:
+		while not evs.is_empty() and int(evs[0].pos) == at and ep == _epoch:
 			await _trail_event(evs.pop_front())
-	while not evs.is_empty():
+	while not evs.is_empty() and ep == _epoch:
 		await _trail_event(evs.pop_front())
 	f.dead = true
 	tr.bullets = 0
@@ -1475,6 +1523,7 @@ func _animate_roll(roll: Dictionary) -> void:
 func _move_token(i: int, how: String) -> void:
 	var tk: Dictionary = trail.token
 	var p := _trail_pos(i)
+	var ep := _epoch
 	if how == "hop":
 		tk.hop = 0.0
 		_sfx("trail_hop")
@@ -1484,6 +1533,8 @@ func _move_token(i: int, how: String) -> void:
 		_tw(tk, {"sq": 1.0}, 0.15, "back")
 	else:
 		await _tw(tk, {"x": p.x, "y": p.y}, 0.5, "inout")
+	if ep != _epoch:
+		return
 	tk.i = i
 	tk.hop = 0.0
 	trail.pos = i
