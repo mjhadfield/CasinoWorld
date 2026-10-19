@@ -21,7 +21,7 @@ Every slot shares the base: 5×4 reels, 25 lines, the pay table by tier, the sta
 2. **Bonus games.** If the new slot has different ones, add them to `slots/bonuses.py` (with `start`, `roll`/step, `play_out`, `view`), wire them into `tables/slot_machine.py` `_next_feature`, and play them in `client/scenes/slots/slot_screen.gd`.
 3. **Art.** Draw `tools/slot_art/<id>/*.svg` (or reuse `gen_svg.py`), add the logo's two lines to `LOGOS` in `tools/build_slot_art.py`, then run `tools/build_slot_art.py <id>`. Add the asset list to `slot_art.py` `ASSETS` and `autoload/slot_art.gd`.
 4. **Floor.** Add the cabinets to `floor.py` `SLOTS` (`"variant": "<id>"`) and add `SlotCabinet` instances with `variant = "<id>"` to `casino_floor.tscn`.
-5. **Sounds.** Use the `game:slots` moments, or add new ones in `sounds.py`.
+5. **Sounds.** The new variant gets its own sound set (`slots.<id>`) from `floor.py`, under **Every slot machine**, and plays that set's sounds until it's given its own: add the ones its theme needs to `FACTORY["slots.<id>"]` in `sounds.py` (as `slots.armadillo` does), or pick them on the admin Sounds tab. A sound for something new goes in `MOMENTS` with `home="slots"`, a `FACTORY["slots"]` default, and a `_sfx()` (or `_loop()`/`_unloop()` for one that repeats) where it happens in `slot_screen.gd`.
 
 ## The screen's layout rules
 

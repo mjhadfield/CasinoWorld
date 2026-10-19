@@ -93,7 +93,7 @@ func _ready() -> void:
 	dice.position = -_felt.position
 	dice.z_index = 2   # over the chips (which sit over cards at z 1)
 	dice.knock.connect(func(kind: String, strength: float):
-		Sfx.play_at("dice_land" if kind == "land" else "dice_bounce", to_global(Vector2(0, -60)), lerpf(-12.0, 0.0, strength)))
+		sfx_at("dice_land" if kind == "land" else "dice_bounce", to_global(Vector2(0, -60)), lerpf(-12.0, 0.0, strength)))
 	dealer.set_action("idle", "up")
 	dealer.name_below = true
 
@@ -609,7 +609,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 				_locked = {}
 				for spot in _chips_for(my_seat):
 					_locked[spot] = int(_chips_for(my_seat)[spot].amount)
-			Sfx.play_at("dice_out", to_global(_hand(shooter)))
+			sfx_at("dice_out", to_global(_hand(shooter)))
 			dice.throw(ev.plan, float(ev.out) * d, _hand(shooter))
 			return 0.0
 		"roll_result":

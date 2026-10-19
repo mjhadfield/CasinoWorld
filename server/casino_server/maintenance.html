@@ -56,18 +56,56 @@ button.on, .seg button[aria-pressed="true"] { background: var(--gold); border-co
 button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; }
 input, select { font: inherit; font-size: 14px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); min-width: 0; }
 .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.lib { position: sticky; top: 8px; max-height: calc(100vh - 16px); display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 8px; }
-@media (max-width: 900px) { .lib { position: static; max-height: none; } }
+/* Sounds: a rail of sound sets, the chosen set's moments, and the library in a drawer */
+.snd { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.set-select { display: none; width: 100%; }
+@media (max-width: 760px) { .set-select { display: block; } }
+.sets { position: sticky; top: 8px; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.sets h3 { margin: 10px 8px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); }
+.sets h3:first-child { margin-top: 2px; }
+.set-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 0; border-radius: 7px; padding: 5px 8px; font-size: 14px; }
+.set-item.child { padding-left: 22px; }
+.set-item .n { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
+.set-item .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); flex: none; }
+.set-item[aria-current="true"] { background: var(--target); box-shadow: inset 3px 0 0 var(--gold); font-weight: 600; }
+.sets .reset-all { margin: 10px 8px 4px; justify-self: start; }
+@media (max-width: 760px) { .snd { grid-template-columns: 1fr; } .sets { display: none; } }
+.set-head { display: grid; gap: 6px; margin-bottom: 10px; }
+.set-head h2 { margin: 0; font-size: 22px; color: var(--felt); text-transform: none; letter-spacing: .01em; }
+.set-head .controls input[type=search] { flex: 1 1 200px; max-width: 320px; }
+.sec { margin: 16px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); }
+.sec:first-child { margin-top: 0; }
+.mrows { display: grid; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.mrow:last-child { border-bottom: 0; }
+.mrow.inherited { background: color-mix(in srgb, var(--panel) 80%, var(--bg)); }
+.mrow.inherited .chip { border-style: dashed; color: var(--muted); }
+.mrow.editing { outline: 2px solid var(--gold); outline-offset: -2px; background: var(--target); }
+.mrow .mt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.mrow .mt b { font-size: 15px; }
+.mrow .when { grid-column: 1; }
+.mrow .chosen { grid-column: 1; }
+.mrow .acts { grid-column: 2; grid-row: 1 / span 3; display: flex; flex-direction: column; align-items: end; gap: 6px; }
+.mrow .acts .btns { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; }
+@media (max-width: 620px) { .mrow { grid-template-columns: 1fr; } .mrow .acts { grid-column: 1; grid-row: auto; align-items: start; } .mrow .acts .btns { justify-content: start; } }
+.gain input { width: 120px; }
+/* the picker */
+.drawer { position: fixed; inset: 0 0 0 auto; width: min(560px, 100vw); background: var(--bg); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgb(0 0 0 / .25);
+  display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; gap: 8px; padding: 14px 16px; z-index: 10; }
+.drawer[hidden] { display: none; }
+.drawer-head { display: flex; align-items: center; gap: 10px; }
+.drawer-head h2 { margin: 0; font-size: 17px; flex: 1; min-width: 0; }
 .lib-tools { display: flex; flex-wrap: wrap; gap: 8px; }
 .lib-tools input[type=search] { flex: 1 1 180px; }
-.hint { font-size: 13px; color: var(--muted); margin: 0; }
-.hint b { color: var(--ink); }
-.list { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-height: 200px; }
-.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.lib-tools select { flex: 1 1 200px; }
+.list { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-height: 160px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
 .row:last-child { border-bottom: 0; }
 .row .name { font: 13px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .name small { color: var(--muted); font: 11px var(--font); margin-left: 6px; }
+.row .name small { display: block; color: var(--muted); font: 11px var(--font); }
 .row.used .name { color: var(--ok); }
+.row .btns { display: flex; gap: 4px; }
+.row .btns button { padding: 2px 8px; font-size: 12px; }
 .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 10px; text-align: center; font-size: 13px; color: var(--muted); }
 .drop.over { border-color: var(--gold); color: var(--ink); }
 .confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
@@ -149,28 +187,37 @@ details summary { cursor: pointer; }
 
 <!-- ============================================================ sounds -->
 <section class="tab" id="tab-sounds" aria-label="Sounds">
-  <p class="lead">Pick the sounds for each moment. Changes save straight away and every game that's open reloads its sounds within a second, so you can sit at a table and listen while you swap.</p>
-  <div class="filters">
-    <div class="seg" id="sound-cats" role="group" aria-label="Show sounds for"></div>
-    <select id="sound-game" aria-label="Game" hidden></select>
-  </div>
-  <div class="two">
-    <div class="pane" aria-labelledby="moments-h">
-      <h2 id="moments-h"><span>Game moments</span> <span id="reset-all-box"></span></h2>
+  <p class="lead">Every table and slot machine plays from its own sound set. A set plays the sounds of the one above it
+    (Whole casino, then each game; Every slot machine, then each machine) unless you give a moment its own.
+    Changes save at once and every open game picks them up within a second, so you can sit at a table and listen while you swap.</p>
+  <select id="set-select" class="set-select" aria-label="Sound set"></select>
+  <div class="snd">
+    <nav class="sets" id="sets" aria-label="Sound sets"></nav>
+    <div class="pane">
+      <div class="set-head">
+        <h2 id="set-title"></h2>
+        <p class="hint" id="set-sub"></p>
+        <div class="controls">
+          <input type="search" id="moment-search" placeholder="Find a moment, e.g. reel, win" aria-label="Find a moment">
+          <label class="hint"><input type="checkbox" id="only-own"> Only its own sounds</label>
+          <span id="set-reset"></span>
+        </div>
+      </div>
       <div id="moments"></div>
     </div>
-    <div class="pane lib" aria-labelledby="lib-h">
-      <h2 id="lib-h"><span>Sound library</span> <span id="lib-count" class="tag"></span></h2>
-      <p class="hint" id="lib-hint">Choose <b>Add sounds</b> on a moment, then add sounds to it from here.</p>
-      <div class="lib-tools">
-        <input type="search" id="search" placeholder="Search, e.g. chip, card, pop" aria-label="Search the library">
-        <select id="group" aria-label="Folder"><option value="">All folders</option></select>
-      </div>
-      <div class="list" id="list"></div>
-      <label class="drop" id="drop">Drop sound files here, or <u>choose files</u> (.ogg, .mp3, .wav, .flac, .m4a)
-        <input type="file" id="file" accept=".ogg,.mp3,.wav,.flac,.m4a,.opus,audio/*" multiple hidden></label>
-    </div>
   </div>
+  <aside class="drawer" id="picker" hidden aria-labelledby="picker-h">
+    <div class="drawer-head"><h2 id="picker-h"></h2><button type="button" class="primary" id="picker-close">Done</button></div>
+    <p class="hint" id="picker-sub"></p>
+    <div class="chosen" id="picker-chosen"></div>
+    <div class="lib-tools">
+      <input type="search" id="search" placeholder="Search, e.g. coin, banjo, click" aria-label="Search the library">
+      <select id="group" aria-label="Folder"></select>
+    </div>
+    <div class="list" id="list"></div>
+    <label class="drop" id="drop">Drop sound files here, or <u>choose files</u> (.ogg, .mp3, .wav, .flac, .m4a)
+      <input type="file" id="file" accept=".ogg,.mp3,.wav,.flac,.m4a,.opus,audio/*" multiple hidden></label>
+  </aside>
 </section>
 
 <!-- ============================================================ NPCs -->
@@ -270,16 +317,27 @@ function showTab() {
 window.addEventListener("hashchange", showTab);
 
 // ================================================================ SOUNDS
+// The sound sets in a rail; the chosen set's moments by section; the library in a drawer.
 const Sounds = (() => {
-  let data = null, target = null, cat = "all";
+  let data = null, setKey = "casino", editing = null, group = "@suggested";
   const saveTimers = {};
+  const remember = {get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
   const nameOf = id => id.split("/").pop().replace(/\.(ogg|mp3|wav)$/, "");
+  const fmtDb = v => (v > 0 ? "+" : "") + (+v).toFixed(1) + " dB";
+  const setOf = k => data.sets.find(s => s.key === k);
+  const setName = k => (setOf(k) || {name: k}).name;
+  const rowOf = k => setOf(setKey).moments.find(r => r.key === k);
+  const path = k => "/api/sounds/" + encodeURIComponent(setKey) + "/" + k;
+
+  // ---------------------------------------------------------------- listening
   let ctx = null, playing = null;
   const buffers = {};
   function stopPlaying() {
     if (playing) { try { playing.src.stop(); } catch (e) {} playing.btn && playing.btn.classList.remove("on"); playing = null; }
   }
-  async function play(id, gainDb, btn) {
+  // Loops (the reels spinning, the win meter) play round until pressed again, so the join can be heard.
+  async function play(id, gainDb, btn, loop) {
     const again = playing && playing.btn === btn && btn;
     stopPlaying();
     if (again) return;
@@ -290,7 +348,7 @@ const Sounds = (() => {
       buffers[id] = buffers[id] || fetch("/sound-files/" + id).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
       const buffer = await buffers[id];
       const src = ctx.createBufferSource(), gain = ctx.createGain();
-      src.buffer = buffer; gain.gain.value = Math.pow(10, (gainDb || 0) / 20);
+      src.buffer = buffer; src.loop = !!loop; gain.gain.value = Math.pow(10, (gainDb || 0) / 20);
       src.connect(gain).connect(ctx.destination);
       const me = {src, btn}; playing = me;
       src.onended = () => { if (playing === me) stopPlaying(); };
@@ -300,158 +358,245 @@ const Sounds = (() => {
       status("Couldn't play " + nameOf(id) + ": " + e.message, "warn");
     }
   }
-  const playButton = (id, gain, label = "Play") => {
-    const b = el("button", {className: "icon", type: "button", textContent: "▶", title: label});
+  const playButton = (id, gain, loop, label = "Play") => {
+    const b = el("button", {className: "icon", type: "button", textContent: "▶", title: label + (loop ? " (loops until pressed again)" : "")});
     b.setAttribute("aria-label", label + " " + nameOf(id));
-    b.addEventListener("click", () => play(id, typeof gain === "function" ? gain() : gain, b));
+    b.addEventListener("click", () => play(id, typeof gain === "function" ? gain() : gain, b, loop));
     return b;
   };
-  // Which category filter matches: "all", "ui", "global", "game" (any game, or one), "uploads".
-  function inCat(c) {
-    if (cat === "all") return true;
-    if (cat === "game") { const g = $("#sound-game").value; return c.startsWith("game:") && (!g || c === "game:" + g); }
-    return c === cat;
-  }
-  function renderCats() {
-    const box = $("#sound-cats"); box.replaceChildren();
-    for (const [key, label] of [["all", "All"], ["ui", "UI"], ["global", "Global"], ["game", "Game"], ["uploads", "Uploads"]]) {
-      const b = el("button", {type: "button", textContent: label});
-      b.setAttribute("aria-pressed", String(cat === key));
-      b.addEventListener("click", () => { cat = key; renderCats(); render(); });
-      box.append(b);
+
+  // ---------------------------------------------------------------- the rail
+  function renderSets() {
+    const nav = $("#sets"), sel = $("#set-select");
+    nav.replaceChildren(); sel.replaceChildren();
+    let heading = null, optgroup = sel;
+    for (const s of data.sets) {
+      if (s.group !== heading) {
+        heading = s.group;
+        if (heading) { nav.append(el("h3", {textContent: heading})); optgroup = el("optgroup", {label: heading}); sel.append(optgroup); }
+      }
+      const own = s.moments.filter(r => r.own).length, changed = s.moments.some(r => r.changed);
+      const b = el("button", {type: "button", className: "set-item" + (s.parent && s.parent !== "casino" ? " child" : "")},
+        el("span", {textContent: s.name}), changed ? el("span", {className: "dot", title: "Changed here"}) : null,
+        el("span", {className: "n", textContent: own + "/" + s.moments.length, title: own + " of the " + s.moments.length + " moments it uses have their own sounds here"}));
+      b.setAttribute("aria-current", String(s.key === setKey));
+      b.addEventListener("click", () => choose(s.key));
+      nav.append(b);
+      optgroup.append(el("option", {value: s.key, textContent: s.name + (changed ? " •" : ""), selected: s.key === setKey}));
     }
-    const sel = $("#sound-game");
-    sel.hidden = cat !== "game";
-    if (!sel.options.length) {
-      sel.append(el("option", {value: "", textContent: "Every game"}), ...Object.entries(data.games).map(([k, v]) => el("option", {value: k, textContent: v})));
+    if (data.sets.some(s => s.moments.some(r => r.changed))) {
+      const all = el("button", {type: "button", className: "reset-all", textContent: "Reset every set…"});
+      all.addEventListener("click", () => confirmIn(all, "Reset every set", async () => {
+        await mutate(api("POST", "/api/sounds-reset", {}), "Every set is back to how it came.");
+      }));
+      nav.append(all);
     }
   }
-  function render() { renderMoments(); renderLibrary(); }
+  function choose(key) {
+    setKey = key; remember.set("cw.sounds.set", key);
+    closePicker(true);
+    renderSets(); renderMoments();
+    window.scrollTo({top: 0});
+  }
+  // Swap a button for "Sure? [yes] [keep]".
+  function confirmIn(btn, label, action) {
+    const yes = el("button", {type: "button", className: "primary", textContent: label});
+    const no = el("button", {type: "button", textContent: "Keep"});
+    const box = el("span", {className: "confirm"}, yes, no);
+    yes.addEventListener("click", action);
+    no.addEventListener("click", () => box.replaceWith(btn));
+    btn.replaceWith(box);
+  }
+
+  // ---------------------------------------------------------------- the moments
   function renderMoments() {
-    const box = $("#moments");
-    box.replaceChildren();
-    const shown = data.moments.filter(m => inCat(m.category));
-    if (!shown.length) box.append(el("p", {className: "hint", textContent: cat === "uploads" ? "Uploads are in the library on the right; add them to any moment." : "No moments in this group."}));
-    for (const m of shown) {
-      const card = el("div", {className: "card" + (target === m.key ? " target" : ""), id: "m-" + m.key});
-      const catLabel = m.category === "ui" ? "UI" : m.category === "global" ? "Global" : (data.games[m.category.slice(5)] || "Game");
-      const head = el("div", {className: "card-head"}, el("h3", {textContent: m.title}), el("span", {className: "tag", textContent: catLabel}));
-      if (m.files.length > 1) head.append(el("span", {className: "tag", textContent: m.files.length + " variants, picked at random"}));
-      if (!m.is_default) head.append(el("span", {className: "tag gold", textContent: "changed"}));
-      const chosen = el("div", {className: "chosen"});
-      for (const f of m.files) {
-        const rm = el("button", {className: "icon", type: "button", textContent: "✕", title: "Remove", disabled: m.files.length === 1});
-        rm.setAttribute("aria-label", "Remove " + nameOf(f) + " from " + m.title);
-        rm.addEventListener("click", () => save(m, m.files.filter(x => x !== f), m.gain_db));
-        chosen.append(el("span", {className: "chip", title: f}, playButton(f, () => m.gain_db), el("span", {textContent: nameOf(f)}), rm));
-      }
-      const out = el("output", {textContent: fmtDb(m.gain_db)});
-      const slider = el("input", {type: "range", min: -30, max: 12, step: 0.5, value: m.gain_db, id: "gain-" + m.key});
-      slider.setAttribute("aria-label", m.title + " volume trim");
-      slider.addEventListener("input", () => {
-        m.gain_db = +slider.value; out.textContent = fmtDb(m.gain_db);
-        clearTimeout(saveTimers[m.key]);
-        saveTimers[m.key] = setTimeout(() => save(m, m.files, m.gain_db, true), 450);
-      });
-      const tryBtn = el("button", {type: "button", textContent: "▶ Try one"});
-      tryBtn.addEventListener("click", () => play(m.files[Math.floor(Math.random() * m.files.length)], m.gain_db, tryBtn));
-      const add = el("button", {type: "button", textContent: target === m.key ? "Done adding" : "Add sounds…", className: target === m.key ? "primary" : ""});
-      add.addEventListener("click", () => { target = target === m.key ? null : m.key; render(); if (target) $("#search").focus(); });
-      const controls = el("div", {className: "controls"}, tryBtn, add, el("label", {className: "gain", htmlFor: "gain-" + m.key}, "Volume", slider, out));
-      if (!m.is_default) {
-        const reset = el("button", {type: "button", textContent: "Back to default"});
-        reset.addEventListener("click", async () => {
-          try { const c = await api("DELETE", "/api/sounds/" + m.key); Object.assign(m, c, {is_default: true}); render(); status(m.title + " is back to its default. Games updated.", "ok"); }
-          catch (e) { status(e.message, "warn"); }
-        });
-        controls.append(reset);
-      }
-      card.append(head, el("p", {className: "when", textContent: m.when}), chosen, controls);
-      box.append(card);
-    }
-    const rbox = $("#reset-all-box"); rbox.replaceChildren();
-    if (data.moments.some(m => !m.is_default)) {
-      const b = el("button", {type: "button", textContent: "Reset all"});
-      b.addEventListener("click", () => {
-        const yes = el("button", {type: "button", className: "primary", textContent: "Reset every moment"});
-        const no = el("button", {type: "button", textContent: "Keep"});
-        yes.addEventListener("click", async () => { try { await api("POST", "/api/sounds-reset"); await load("Every moment is back to its default. Games updated."); } catch (e) { status(e.message, "warn"); } });
-        no.addEventListener("click", renderMoments);
-        rbox.replaceChildren(el("span", {className: "confirm"}, yes, no));
-      });
+    const s = setOf(setKey);
+    $("#set-title").textContent = s.name;
+    $("#set-sub").textContent = s.parent
+      ? "Moments without their own sounds here play " + setName(s.parent) + "'s (shown dashed)."
+      : "The top of the tree: every game plays these unless its own set says otherwise.";
+    const rbox = $("#set-reset"); rbox.replaceChildren();
+    if (s.moments.some(r => r.changed)) {
+      const b = el("button", {type: "button", textContent: "Reset this set…"});
+      b.addEventListener("click", () => confirmIn(b, "Reset " + s.name, () => mutate(api("POST", "/api/sounds-reset", {set: setKey}), s.name + " is back to how it came.")));
       rbox.append(b);
     }
+    const q = $("#moment-search").value.trim().toLowerCase(), onlyOwn = $("#only-own").checked;
+    const box = $("#moments"); box.replaceChildren();
+    for (const sec of data.sections) {
+      const rows = s.moments.filter(r => {
+        const m = data.moments[r.key];
+        return m.section === sec && (!onlyOwn || r.own) && (!q || (m.title + " " + m.when + " " + r.key).toLowerCase().includes(q));
+      });
+      if (!rows.length) continue;
+      box.append(el("h3", {className: "sec", textContent: sec}), el("div", {className: "mrows"}, ...rows.map(momentRow)));
+    }
+    if (!box.children.length) box.append(el("p", {className: "hint", textContent: "No moments match."}));
   }
-  const fmtDb = v => (v > 0 ? "+" : "") + (+v).toFixed(1) + " dB";
-  async function save(m, files, gain, quiet) {
+  function momentRow(r) {
+    const m = data.moments[r.key], s = setOf(setKey);
+    const row = el("div", {className: "mrow" + (r.own ? "" : " inherited") + (editing === r.key ? " editing" : ""), id: "m-" + r.key});
+    const title = el("div", {className: "mt"}, el("b", {textContent: m.title}));
+    if (!r.own) title.append(el("span", {className: "tag", textContent: "from " + setName(r.from)}));
+    else if (r.can_inherit) title.append(el("span", {className: "tag ok", textContent: "own"}));
+    if (m.loop) title.append(el("span", {className: "tag", textContent: "loops"}));
+    if (r.files.length > 1) title.append(el("span", {className: "tag", textContent: r.files.length + " variants"}));
+    if (r.changed) title.append(el("span", {className: "tag gold", textContent: "changed"}));
+    const chosen = el("div", {className: "chosen"},
+      ...r.files.map(f => el("span", {className: "chip", title: f}, playButton(f, () => r.gain_db, m.loop), el("span", {textContent: nameOf(f)}))));
+    if (!r.files.length) chosen.append(el("span", {className: "hint", textContent: "Nothing chosen: silent."}));
+    // the volume trim (moving it on a borrowed moment gives this set its own copy)
+    const out = el("output", {textContent: fmtDb(r.gain_db)});
+    const slider = el("input", {type: "range", min: -30, max: 12, step: 0.5, value: r.gain_db, id: "gain-" + r.key});
+    slider.setAttribute("aria-label", m.title + " volume trim");
+    slider.addEventListener("input", () => {
+      r.gain_db = +slider.value; out.textContent = fmtDb(r.gain_db);
+      clearTimeout(saveTimers[r.key]);
+      saveTimers[r.key] = setTimeout(() => save(r.key, r.files, r.gain_db, r.own), 450);
+    });
+    const tryBtn = el("button", {type: "button", textContent: "▶ Try"});
+    tryBtn.addEventListener("click", () => r.files.length && play(r.files[Math.floor(Math.random() * r.files.length)], r.gain_db, tryBtn, m.loop));
+    const edit = el("button", {type: "button", className: editing === r.key ? "primary" : "", textContent: r.own ? "Change…" : "Give it its own…"});
+    edit.addEventListener("click", () => editing === r.key ? closePicker() : openPicker(r.key));
+    const btns = el("div", {className: "btns"}, tryBtn, edit);
+    if (r.own && r.can_inherit) {
+      const up = el("button", {type: "button", textContent: "Same as " + setName(s.parent), title: "Play " + setName(s.parent) + "'s sounds for this"});
+      up.addEventListener("click", () => mutate(api("POST", path(r.key) + "/inherit"), m.title + " now plays " + setName(s.parent) + "'s."));
+      btns.append(up);
+    }
+    if (r.changed) {
+      const reset = el("button", {type: "button", textContent: "Reset", title: "Back to how it came"});
+      reset.addEventListener("click", () => mutate(api("DELETE", path(r.key)), m.title + " is back to how it came."));
+      btns.append(reset);
+    }
+    row.append(title, el("div", {className: "acts"}, btns, el("label", {className: "gain", htmlFor: "gain-" + r.key}, "Volume", slider, out)),
+               el("p", {className: "when", textContent: m.when}), chosen);
+    return row;
+  }
+
+  // ---------------------------------------------------------------- changing
+  async function refresh() {
+    data = await api("GET", "/api/sounds");
+    if (!setOf(setKey)) setKey = "casino";
+  }
+  async function mutate(request, message) {
     try {
-      const c = await api("PUT", "/api/sounds/" + m.key, {files, gain_db: gain});
-      Object.assign(m, c, {is_default: false});
-      if (!quiet) render();
-      status("Saved " + m.title + ". Games updated.", "ok");
+      await request; await refresh();
+      renderSets(); renderMoments(); if (editing) renderPicker();
+      status(message + " Games updated.", "ok");
     } catch (e) { status(e.message, "warn"); }
   }
+  // `quiet` (the volume of a moment that already has its own sounds): nothing on screen needs redrawing.
+  async function save(key, files, gain, quiet) {
+    const title = data.moments[key].title;
+    if (!quiet) return mutate(api("PUT", path(key), {files, gain_db: gain}), "Saved " + title + ".");
+    try {
+      await api("PUT", path(key), {files, gain_db: gain});
+      await refresh(); renderSets();
+      status("Saved " + title + ". Games updated.", "ok");
+    } catch (e) { status(e.message, "warn"); }
+  }
+
+  // ---------------------------------------------------------------- the picker
+  function openPicker(key) {
+    const sameSection = editing && data.moments[editing].section === data.moments[key].section;
+    editing = key;
+    if (!sameSection) { group = "@suggested"; $("#search").value = ""; }
+    $("#picker").hidden = false;
+    renderPicker(); renderMoments();
+    $("#search").focus();
+  }
+  function closePicker(quiet) {
+    if (!editing) return;
+    editing = null; $("#picker").hidden = true; stopPlaying();
+    if (!quiet) renderMoments();
+  }
+  function renderPicker() {
+    const r = rowOf(editing), m = data.moments[editing];
+    if (!r) return closePicker();
+    $("#picker-h").textContent = m.title + " · " + setName(setKey);
+    $("#picker-sub").textContent = r.own
+      ? m.when + " One is picked at random each time it plays."
+      : m.when + " It plays " + setName(r.from) + "'s sounds now: adding, using or removing one gives " + setName(setKey) + " its own.";
+    const chosen = $("#picker-chosen"); chosen.replaceChildren();
+    for (const f of r.files) {
+      const rm = el("button", {className: "icon", type: "button", textContent: "✕", title: "Remove", disabled: r.files.length === 1});
+      rm.setAttribute("aria-label", "Remove " + nameOf(f));
+      rm.addEventListener("click", () => save(editing, r.files.filter(x => x !== f), r.gain_db));
+      chosen.append(el("span", {className: "chip", title: f}, playButton(f, r.gain_db, m.loop), el("span", {textContent: nameOf(f)}), rm));
+    }
+    // folders: the ones suited to this section first
+    const sel = $("#group"), folders = [...new Set(data.library.map(s => s.group))];
+    const label = f => (data.folders[f] || {label: ""}).label;
+    sel.replaceChildren(el("option", {value: "@suggested", textContent: "Suited to " + m.section}),
+                        el("option", {value: "", textContent: "Every folder"}),
+                        ...folders.map(f => el("option", {value: f, textContent: f + (label(f) ? " · " + label(f) : "")})));
+    sel.value = folders.includes(group) || group === "" ? group : "@suggested";
+    renderLibrary();
+  }
   function renderLibrary() {
+    const r = rowOf(editing), m = data.moments[editing];
     const q = $("#search").value.trim().toLowerCase(), g = $("#group").value;
-    const tm = target && data.moments.find(m => m.key === target);
-    $("#lib-hint").replaceChildren(...(tm ? ["Adding to ", el("b", {textContent: tm.title}), ". Press + to add a sound, Done adding when finished."]
-                                            : ["Choose ", el("b", {textContent: "Add sounds…"}), " on a moment, then add sounds to it from here."]));
-    const used = new Set(data.moments.flatMap(m => m.files));
-    const items = data.library.filter(s => inCat(s.category) && (!g || s.group === g) && (!q || s.id.toLowerCase().includes(q)));
-    $("#lib-count").textContent = items.length + " of " + data.library.length;
+    group = g;
+    const suits = f => ((data.folders[f] || {}).sections || []).includes(m.section);
+    const order = Object.keys(data.folders);   // the slot and western folders first, then the rest
+    const rank = s => { const i = order.indexOf(s.group); return i < 0 ? order.length : i; };
+    const items = data.library.filter(s => (g === "@suggested" ? suits(s.group) : !g || s.group === g) && (!q || s.id.toLowerCase().includes(q)))
+                              .sort((a, b) => rank(a) - rank(b));
     const list = $("#list"); list.replaceChildren();
-    for (const s of items.slice(0, 400)) {
-      const add = el("button", {className: "icon", type: "button", textContent: "+", title: tm ? "Add to " + tm.title : "Pick a moment first", disabled: !tm || tm.files.includes(s.id)});
-      add.setAttribute("aria-label", "Add " + s.name + (tm ? " to " + tm.title : ""));
-      add.addEventListener("click", () => save(tm, [...tm.files, s.id], tm.gain_db));
-      const extra = el("span");
+    for (const s of items.slice(0, 500)) {
+      const here = r.files.includes(s.id);
+      const use = el("button", {type: "button", textContent: "Use", title: "Use only this one"});
+      use.addEventListener("click", () => save(editing, [s.id], r.gain_db));
+      const add = el("button", {type: "button", textContent: here ? "Added" : "Add", disabled: here, title: "Add it as another variant"});
+      add.addEventListener("click", () => save(editing, [...r.files, s.id], r.gain_db));
+      const btns = el("span", {className: "btns"}, use, add);
       if (s.group === "uploads") {
         const del = el("button", {type: "button", textContent: "Delete", title: "Delete this upload"});
-        del.addEventListener("click", async () => {
-          try { await api("DELETE", "/api/sound-uploads/" + encodeURIComponent(s.id.slice(8))); await load("Deleted " + s.name + "."); }
-          catch (e) { status(e.message, "warn"); }
-        });
-        extra.append(del);
+        del.addEventListener("click", () => confirmIn(del, "Delete", () => mutate(api("DELETE", "/api/sound-uploads/" + encodeURIComponent(s.id.slice(8))), "Deleted " + s.name + ".")));
+        btns.prepend(del);
       }
-      list.append(el("div", {className: "row" + (used.has(s.id) ? " used" : "")},
-        playButton(s.id, tm ? tm.gain_db : 0),
-        el("div", {className: "name", title: s.id}, s.name, el("small", {textContent: s.group + " · " + Math.max(1, Math.round(s.bytes / 1024)) + " KB" + (used.has(s.id) ? " · in use" : "")})),
-        extra, add));
+      list.append(el("div", {className: "row" + (here ? " used" : "")},
+        playButton(s.id, r.gain_db, m.loop),
+        el("div", {className: "name", title: s.id}, s.name, el("small", {textContent: s.group + " · " + Math.max(1, Math.round(s.bytes / 1024)) + " KB" + (here ? " · chosen" : "")})),
+        btns));
     }
-    if (!items.length) list.append(el("p", {className: "hint", style: "padding:12px", textContent: "Nothing matches. Try another word or group, or upload a file below."}));
-  }
-  function fillGroups() {
-    const sel = $("#group"), keep = sel.value;
-    const groups = [...new Set(data.library.map(s => s.group))];
-    sel.replaceChildren(el("option", {value: "", textContent: "All folders"}), ...groups.map(g => el("option", {value: g, textContent: g})));
-    sel.value = groups.includes(keep) ? keep : "";
+    if (!items.length) list.append(el("p", {className: "hint", style: "padding:12px", textContent: "Nothing matches. Try another word or folder, or upload a file below."}));
+    if (items.length > 500) list.append(el("p", {className: "hint", style: "padding:12px", textContent: "And " + (items.length - 500) + " more: search to narrow it down."}));
   }
   async function upload(files) {
     for (const f of files) {
       status("Uploading " + f.name + "…");
       try {
         const s = await api("PUT", "/api/sound-uploads/" + encodeURIComponent(f.name), f, true);
-        await load("Uploaded " + s.name + ". It's in the uploads folder" + (target ? "; press + to add it." : "."));
-        $("#group").value = "uploads"; renderLibrary();
+        await refresh();
+        group = "uploads"; if (editing) renderPicker();
+        status("Uploaded " + s.name + ". It's in the uploads folder" + (editing ? ": press Use or Add." : "."), "ok");
       } catch (e) { status("Couldn't upload " + f.name + ": " + e.message, "warn"); }
     }
   }
-  async function load(message) {
+
+  async function load() {
     try {
-      data = await api("GET", "/api/sounds");
-      fillGroups(); renderCats(); render();
-      status(message || "Ready. " + data.library.length + " sounds in the library.", message ? "ok" : "");
+      await refresh();
+      const kept = remember.get("cw.sounds.set");
+      if (kept && setOf(kept)) setKey = kept;
+      renderSets(); renderMoments();
+      status("Ready. " + data.sets.length + " sound sets, " + data.library.length + " sounds in the library.");
     } catch (e) { status("Couldn't reach the server: " + e.message, "warn"); }
   }
+  $("#set-select").addEventListener("change", e => choose(e.target.value));
+  $("#moment-search").addEventListener("input", renderMoments);
+  $("#only-own").addEventListener("change", renderMoments);
   $("#search").addEventListener("input", renderLibrary);
   $("#group").addEventListener("change", renderLibrary);
-  $("#sound-game").addEventListener("change", render);
+  $("#picker-close").addEventListener("click", () => closePicker());
   $("#file").addEventListener("change", e => { upload([...e.target.files]); e.target.value = ""; });
   const drop = $("#drop");
   drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
   drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape") { stopPlaying(); if (target) { target = null; render(); } } });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { stopPlaying(); closePicker(); } });
   return {load};
 })();
 

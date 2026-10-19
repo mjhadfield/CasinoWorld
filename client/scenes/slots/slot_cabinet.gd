@@ -130,7 +130,7 @@ func handle_event(ev: Dictionary) -> void:
 			if float(o.total) >= 10.0 * float(o.bet) and not o.free:
 				_flash_until = _spin_until + 3.0
 				if int(ev.get("seat", 0)) != my_seat or mode == "":
-					_after(1.4).timeout.connect(func(): Sfx.play_at("big_win", global_position))
+					_after(1.4).timeout.connect(func(): sfx_at("big_win", global_position))
 		"trail_start", "free_start", "jackpot_start":
 			_bonus = true
 		"features_done":
@@ -139,7 +139,7 @@ func handle_event(ev: Dictionary) -> void:
 			_jackpot_until = now + 6.0
 			_flash_until = now + 6.0
 			if mode == "":
-				Sfx.play_at("jackpot_win", global_position)
+				sfx_at("jackpot_win", global_position)
 
 
 func _random_grid() -> Array:

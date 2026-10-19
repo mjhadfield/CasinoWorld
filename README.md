@@ -53,15 +53,19 @@ Environment knobs:
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
 no password: it's open to anyone who can reach the server, the same as the game, which is fine on the LAN
 and Tailscale. It has five tabs:
-- **Sounds:** pick the sound for each moment (the deal, chips, results, buttons, the room). Play anything in
-  the library, add or remove variants (a moment with several picks one at random), trim volumes, or upload
-  your own. Changes save at once and every open game reloads its sounds within a second. Filter by **UI**,
-  **Global**, **Game** and **Uploads**.
+- **Sounds:** the sound sets down the left: **Whole casino**, each table game, **Every slot machine** and each
+  machine. A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
+  own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
+  moments are listed by section, marked own or borrowed; **Change…** opens the library beside them (the
+  folders suited to that section first) to play, **Use** or **Add** a variant, or upload your own. **Same as …**
+  hands a moment back to the set above, **Reset** puts it back to how it came. Moments that loop (the reels
+  spinning, the win meter) preview on a loop. Changes save at once and every open game picks them up within a
+  second.
   - The library is `server/sound_library/`, CC0 (credits in its `LIBRARY.md`); uploads go to
-    `<data dir>/sounds/uploads/` and the choices to `<data dir>/sounds.json`. Unchanged moments use the
-    defaults in `casino_server/sounds.py`.
-  - The game's `Sfx` fetches the choices when it connects, and falls back to the sounds built into the
-    client (`client/assets/audio/`).
+    `<data dir>/sounds/uploads/` and the changes to `<data dir>/sounds.json`. Each set starts with the
+    `FACTORY` choices in `casino_server/sounds.py`, where the moments and sets are defined.
+  - The game's `Sfx` fetches every set when it connects, plays each table's sounds from its game's set, and
+    until then falls back to the sounds built into the client (`client/assets/audio/`).
 - **NPCs:** the roster, seeded on first run with 20 punters and 14 dealers (tables `npcs` and `npc_visits`).
   - **Looks:** body, hair, clothes and accessories in their colours, plus Randomise and uniforms, with a live
     preview. The server builds each sheet from the LPC generator's layers (`casino_server/art.py`; downloads
@@ -147,6 +151,7 @@ library for the admin page's Slots tab.
     autoload (saved to `user://settings.cfg`) and sets the Master, Effects and Ambience bus volumes. The buses
     are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
   - `autoload/`: `net` (the socket), `session` (who you are, your balance), `sfx` (`Sfx.play(key)` for your own
-    cues, `Sfx.play_at(key, position)` for table sounds that fade with distance), `settings`, `look_loader`
-    and `slot_art`.
+    cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
+    `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader` and
+    `slot_art`.
 - **tools/**: `dev.sh`, `shot.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`.

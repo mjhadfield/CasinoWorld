@@ -78,11 +78,11 @@ func _ready() -> void:
 func _ball_sound(kind: String, value: float) -> void:
 	var at := to_global(WHEEL_AT)
 	if kind == "hop":
-		Sfx.play_at("ball_hop", at, lerpf(-14.0, 0.0, value))
+		sfx_at("ball_hop", at, lerpf(-14.0, 0.0, value))
 		return
 	var t := 0.0
 	while t == 0.0 or t < value - 1.2:   # the clip is ~1.8s: again every 1.6s (a seamless clatter) while the skid lasts
-		_after(t).timeout.connect(func(): Sfx.play_at("ball_rattle", at))
+		_after(t).timeout.connect(func(): sfx_at("ball_rattle", at))
 		t += 1.6
 
 
@@ -464,7 +464,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			_after(0.45 * d).timeout.connect(func():
 				dolly = n
 				_dolly_drop = Time.get_ticks_msec() / 1000.0
-				Sfx.play_at("bet", to_global(chip_pos("n%d" % n))))
+				sfx_at("bet", to_global(chip_pos("n%d" % n))))
 			return 0.9 * d
 		"sweep":
 			return _sweep(ev, d)
@@ -486,9 +486,9 @@ func _spin(ev: Dictionary) -> float:
 	_start_timer(maxf(0.0, float(ev.open) - elapsed))
 	wheel.launch(track, elapsed, float(ev.get("ball", 0.0)))
 	var at := to_global(WHEEL_AT)
-	Sfx.play_at("ball_spin", at)
+	sfx_at("ball_spin", at)
 	var drop := (RouletteWheel.T_TRACK + 0.48 * (RouletteWheel.BALL_TRACK - RouletteWheel.T_TRACK)) * scale - elapsed
-	_after(maxf(0.0, drop)).timeout.connect(func(): Sfx.play_at("ball_drop", at))
+	_after(maxf(0.0, drop)).timeout.connect(func(): sfx_at("ball_drop", at))
 	return 0.0
 
 
@@ -520,7 +520,7 @@ func _sweep(ev: Dictionary, d: float) -> float:
 			_down_the_hole(going, k * 0.035 * d, d)
 			k += 1
 	if k > 0:
-		Sfx.play_at("sweep", to_global(HOLE_AT))
+		sfx_at("sweep", to_global(HOLE_AT))
 	for spot in touched:
 		_relayout(spot, d)
 	return (0.75 + k * 0.035) * d if k > 0 else 0.2 * d

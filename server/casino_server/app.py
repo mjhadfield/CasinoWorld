@@ -170,29 +170,47 @@ def sounds_manifest(request: Request):
     return JSONResponse(request.app.state.sounds.manifest(), headers=NO_STORE)
 
 
-@app.put("/api/sounds/{key}")
-async def sounds_set(key: str, request: Request):
+async def _json_body(request: Request, shape: str) -> dict:
     try:
         body = await request.json()
     except ValueError:
-        raise HTTPException(400, "Expected JSON: {files: [...], gain_db: 0}")
+        body = None
     if not isinstance(body, dict):
-        raise HTTPException(400, "Expected JSON: {files: [...], gain_db: 0}")
-    choice = _sound_call(request.app.state.sounds.set_choice, key, body.get("files"), body.get("gain_db", 0))
-    _sounds_changed(request)
-    return choice
+        raise HTTPException(400, f"Expected JSON: {shape}")
+    return body
 
 
-@app.delete("/api/sounds/{key}")
-def sounds_reset_one(key: str, request: Request):
-    _sound_call(request.app.state.sounds.reset, key)
+@app.put("/api/sounds/{set_key}/{key}")
+async def sounds_set(set_key: str, key: str, request: Request):
+    """Give a moment its own sounds in a set."""
+    body = await _json_body(request, "{files: [...], gain_db: 0}")
+    row = _sound_call(request.app.state.sounds.set_choice, set_key, key, body.get("files"), body.get("gain_db", 0))
     _sounds_changed(request)
-    return request.app.state.sounds.choice(key)
+    return row
+
+
+@app.post("/api/sounds/{set_key}/{key}/inherit")
+def sounds_inherit(set_key: str, key: str, request: Request):
+    """Play the set above's sounds for this moment."""
+    row = _sound_call(request.app.state.sounds.inherit, set_key, key)
+    _sounds_changed(request)
+    return row
+
+
+@app.delete("/api/sounds/{set_key}/{key}")
+def sounds_reset_one(set_key: str, key: str, request: Request):
+    """Put one moment in one set back to how it came."""
+    board: SoundBoard = request.app.state.sounds
+    _sound_call(board.reset, set_key, key)
+    _sounds_changed(request)
+    return board.row(set_key, key)
 
 
 @app.post("/api/sounds-reset")
-def sounds_reset_all(request: Request):
-    request.app.state.sounds.reset()
+async def sounds_reset(request: Request):
+    """Back to how it came: `{set}` for one set, `{}` for everything."""
+    body = await _json_body(request, "{set: key} or {}") if await request.body() else {}
+    _sound_call(request.app.state.sounds.reset, body.get("set"))
     _sounds_changed(request)
     return {"ok": True}
 

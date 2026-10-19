@@ -1,17 +1,34 @@
 """
-Which sound plays for each game moment -- edited on the maintenance page
-(/maintenance) and fetched by every client when it starts and whenever it
+Which sound plays for each game moment -- edited on the admin page's Sounds tab
+(/maintenance#sounds) and fetched by every client when it starts and whenever it
 changes, so trying a different sound needs no rebuild.
 
+Sound sets
+----------
+The sounds are a tree of sets, each inheriting from the one above:
+
+    casino                      the whole casino: the interface, the room, cards and chips
+      blackjack, roulette, ...  one per table game (from floor.TABLES)
+      slots                     every slot machine
+        slots.armadillo         one per slot machine (its variant)
+
+A moment (MOMENTS) is defined in one set, its `home`, and can be given its own sounds
+in any set below that whose game uses it: Blackjack can have its own card deal,
+Armadillo Goes West its own reel stop. A set that doesn't set a moment plays its
+parent's. Each table plays from its game's set (TABLE_SETS).
+
+FACTORY is what each set starts with. Changes made on the page go in
+<data dir>/sounds.json and win over it:
+
+    {"version": 7, "sets": {"casino": {"deal": {"files": [...], "gain_db": 0.0}},
+                            "slots.armadillo": {"reel_stop": {"inherit": true}}}}
+
+`{"inherit": true}` hands a moment the factory gave a set back to its parent. A moment
+with several files picks one at random each time it plays; `gain_db` trims its volume.
+
 The library is the CC0 collection in server/sound_library/ (read-only, see its
-LIBRARY.md) plus anything uploaded, kept in <data dir>/sounds/uploads/. A sound
-is named by its path in the library, e.g. "kenney-casino/card-fan-1.ogg" or
-"uploads/my-chip.ogg". The choices live in <data dir>/sounds.json:
-
-    {"version": 3, "moments": {"deal": {"files": [...], "gain_db": 0.0}, ...}}
-
-A moment with several files picks one at random each time it plays; `gain_db`
-trims its volume. Moments missing from the file use DEFAULTS.
+LIBRARY.md) plus uploads in <data dir>/sounds/uploads/. A sound is named by its path in
+the library, e.g. "kenney-casino/card-fan-1.ogg" or "uploads/my-chip.ogg".
 """
 
 import json
@@ -20,119 +37,237 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from casino_server import floor
+
 LIBRARY_DIR = Path(__file__).resolve().parents[1] / "sound_library"
 PLAYABLE = {".ogg", ".mp3", ".wav"}          # what the Godot client can load at runtime
 CONVERTIBLE = {".flac", ".m4a", ".aac", ".opus", ".webm", ".aiff", ".aif"}  # turned into .ogg on upload
 MAX_UPLOAD = 20 * 1024 * 1024
 GAIN_RANGE = (-30.0, 12.0)
 
-# The game's moments, in page order: key -> (title, when it plays).
+
+# ------------------------------------------------------------------ the sets
+def _sets() -> dict:
+    sets = {"casino": {"name": "Whole casino", "parent": None, "group": ""}}
+    games = [cfg for cfg in floor.TABLES.values()]
+    for cfg in games:
+        if cfg["game"] != "slots":
+            sets.setdefault(cfg["game"], {"name": cfg["name"], "parent": "casino", "group": "Table games"})
+    sets["slots"] = {"name": "Every slot machine", "parent": "casino", "group": "Slot machines"}
+    for cfg in games:
+        if cfg["game"] == "slots":
+            sets.setdefault("slots." + cfg["variant"], {"name": cfg["name"], "parent": "slots", "group": "Slot machines"})
+    return sets
+
+
+SETS = _sets()
+TABLE_SETS = {tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else cfg["game"])
+              for tid, cfg in floor.TABLES.items()}
+_TABLE_GAMES = {k for k, s in SETS.items() if s["group"] == "Table games"}
+_MACHINES = {k for k in SETS if k.startswith("slots.")}
+# Which sets a moment's `uses` names.
+USERS = {
+    "all": _TABLE_GAMES | _MACHINES | {"slots"},
+    "tables": _TABLE_GAMES,
+    "cards": _TABLE_GAMES - {"roulette", "craps"},
+    "pai_gow": {k for k in _TABLE_GAMES if k.startswith("pai_gow")},
+    "slots": _MACHINES,
+    "none": set(),
+}
+
+# ------------------------------------------------------------------ the moments
+# Page order. Each: title, when it plays, its section on the page, its home set, which
+# sets below home use it (a USERS key), and whether it loops while it lasts.
+SECTIONS = ["Interface", "Room", "Cards", "Chips", "Wheel", "Dice",
+            "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick"]
+
+
+def _m(title, when, section, home="casino", uses="none", loop=False):
+    return {"title": title, "when": when, "section": section, "home": home, "uses": uses, "loop": loop}
+
+
 MOMENTS = {
-    "deal": ("Card dealt", "Each batch of cards that leaves together: a 3-card packet at Three Card Poker, "
-                           "a 7-card hand at Pai Gow, every card at Blackjack."),
-    "flip": ("Card turned face up", "The dealer's reveal, hands at settlement, Blackjack cards."),
-    "shuffle": ("Shuffler fed", "Cards going back through the shuffler after a hand, and a new Blackjack shoe."),
-    "bet": ("Chip placed on a bet", "Anyone at the table putting chips on a spot."),
-    "payout": ("Winnings paid", "Chips from the tray placed beside a winning bet."),
-    "sweep": ("Losing bets swept", "The dealer taking chips back to the tray."),
-    "result": ("Result pop", "Each Pai Gow win or lose mark popping in."),
-    "turn": ("Your turn", "Your decision starts, or the Pai Gow sorter opens."),
-    "tick": ("Timer running out", "Each of the last five seconds of a timer you're up against."),
-    "click": ("Button press", "Every button in the game's bar and panels."),
-    "ball_spin": ("Roulette ball launched", "The dealer spins the ball: it rolls round the track, slowing (about 6 seconds)."),
-    "ball_drop": ("Roulette ball drops", "The ball leaves the track and clatters off a deflector."),
-    "ball_rattle": ("Roulette ball skids", "The ball clattering over the frets as it reaches the pockets (repeats while the skid lasts)."),
-    "ball_hop": ("Roulette ball hops", "Each hop landing as the ball bounces between pockets, and the last click as it settles."),
-    "dice_out": ("Dice pushed out", "The shooter picks up the dice the stickman pushed over."),
-    "dice_land": ("Dice land", "The dice coming down on the felt after the throw."),
-    "dice_bounce": ("Dice bounce", "Each knock of a die off the far wall's pyramids and the hops after (quieter for smaller ones)."),
-    "room": ("Background room", "A loop under everything, on its own volume slider in the game's Settings."),
-    # slots (placeholders from the library until Mike picks: see docs/slots/plan.md)
-    "reel_spin": ("Slot reels spinning", "Under the reels while they spin (repeats until the last one stops)."),
-    "reel_stop": ("Slot reel stops", "Each reel landing, left to right."),
-    "reel_tease": ("Slot bonus tease", "Two scatters are showing: the last reels spin on, glowing."),
-    "win_small": ("Slot line win", "A spin that wins: the lines light up."),
-    "win_bangup": ("Slot win counting up", "The win meter counting up (repeats while it counts)."),
-    "big_win": ("Slot big win", "BIG, MEGA or EPIC WIN fills the screen."),
-    "feature_wilds": ("Random Wilds shot", "Each wild shot onto the reels."),
-    "feature_reels": ("Wild Reels / Colossal", "The armadillo rolls down a reel, or reels fuse into a colossal one."),
-    "feature_multiplier": ("Multiplier shown", "The 2x to 5x multiplier badge at the start of a spin."),
-    "feature_upgrade": ("Symbol Upgrade", "Symbols flipping one step up the chain."),
-    "instant_win": ("Instant Win barrel", "The Random Prize barrel bursting."),
-    "bonus_trigger": ("Slot bonus starts", "The Trail Bonus, Combo Free Spins or the Jackpot Pick begins."),
-    "trail_fire": ("Trail pistol fired", "The cylinder loads and spins before the armadillo moves."),
-    "trail_hop": ("Trail hop", "Each space the armadillo hops."),
-    "trail_coin": ("Trail coins collected", "Coins collected on the trail."),
-    "trail_snake": ("Trail snake", "A snake strikes (a heart saves you, or the bonus ends)."),
-    "pick_reveal": ("Jackpot coin turned", "Each coin turned over in the Jackpot Pick."),
-    "jackpot_win": ("Slot jackpot won", "Three matching coins: a Mini, Minor, Major or Grand is won."),
-}
-
-_ks = "kenney-casino/"
-_ki = "kenney-interface/"
-DEFAULTS = {
-    "deal": {"files": [f"edited/card-slide-{n}-soft.ogg" for n in range(2, 7)], "gain_db": 0.0},
-    "flip": {"files": [_ks + "card-place-2.ogg"], "gain_db": -3.0},
-    "shuffle": {"files": [_ks + "card-fan-1.ogg", _ks + "card-fan-2.ogg"], "gain_db": 0.0},
-    "bet": {"files": [_ks + "chip-lay-1.ogg", _ks + "chip-lay-2.ogg"], "gain_db": 0.0},
-    "payout": {"files": [_ks + f"chips-stack-{n}.ogg" for n in (1, 4, 5, 6)], "gain_db": 0.0},
-    "sweep": {"files": [_ks + "chips-handle-1.ogg"], "gain_db": 0.0},
-    "result": {"files": [_ki + "bong_001.ogg"], "gain_db": 0.0},
-    "turn": {"files": [_ki + "confirmation_001.ogg"], "gain_db": 0.0},
-    "tick": {"files": [_ki + "tick_001.ogg"], "gain_db": -4.0},
-    "click": {"files": [_ki + "click_003.ogg"], "gain_db": -6.0},
-    "ball_spin": {"files": ["roulette/poenia_709624-spin.ogg"], "gain_db": 0.0},
-    "ball_drop": {"files": ["roulette/gamer500_682661-drop.ogg"], "gain_db": 0.0},
-    "ball_rattle": {"files": ["roulette/f_ilippo_59194-rattle.ogg"], "gain_db": 0.0},
-    "ball_hop": {"files": [f"roulette/f_ilippo_59194-hop-{n}.ogg" for n in range(1, 6)], "gain_db": 0.0},
-    "dice_out": {"files": [_ks + "dice-grab-1.ogg", _ks + "dice-grab-2.ogg"], "gain_db": 0.0},
-    "dice_land": {"files": [_ks + f"dice-throw-{n}.ogg" for n in (1, 2, 3)], "gain_db": 0.0},
-    "dice_bounce": {"files": [_ks + f"die-throw-{n}.ogg" for n in (1, 2, 3, 4)], "gain_db": -3.0},
-    "room": {"files": ["rooms/mhtaylor67_277444-loop.ogg"], "gain_db": 0.0},
-    "reel_spin": {"files": [_ks + "dice-shake-1.ogg"], "gain_db": -6.0},
-    "reel_stop": {"files": ["kenney-ui-audio/switch5.ogg", "kenney-ui-audio/switch6.ogg"], "gain_db": -3.0},
-    "reel_tease": {"files": [_ki + "maximize_004.ogg"], "gain_db": 0.0},
-    "win_small": {"files": [_ki + "confirmation_002.ogg"], "gain_db": 0.0},
-    "win_bangup": {"files": [_ks + "chips-stack-3.ogg"], "gain_db": -3.0},
-    "big_win": {"files": ["sparkles/LilMati_462093.ogg"], "gain_db": 0.0},
-    "feature_wilds": {"files": ["pops/cogitollc-pop3.ogg"], "gain_db": 0.0},
-    "feature_reels": {"files": [_ki + "maximize_008.ogg"], "gain_db": 0.0},
-    "feature_multiplier": {"files": [_ki + "select_006.ogg"], "gain_db": 0.0},
-    "feature_upgrade": {"files": ["sparkles/nomiqbomi_578800.ogg"], "gain_db": 0.0},
-    "instant_win": {"files": [_ks + "chips-collide-3.ogg"], "gain_db": 0.0},
-    "bonus_trigger": {"files": ["sparkles/MLaudio_511485.ogg"], "gain_db": 0.0},
-    "trail_fire": {"files": [_ks + "dice-shake-2.ogg"], "gain_db": 0.0},
-    "trail_hop": {"files": ["pops/wubitog-pop1.ogg"], "gain_db": -4.0},
-    "trail_coin": {"files": [_ks + "chip-lay-3.ogg"], "gain_db": 0.0},
-    "trail_snake": {"files": [_ki + "error_004.ogg"], "gain_db": 0.0},
-    "pick_reveal": {"files": [_ki + "glass_002.ogg"], "gain_db": 0.0},
-    "jackpot_win": {"files": ["sparkles/Fupicat_538147.ogg"], "gain_db": 0.0},
+    "click": _m("Button press", "Every button in the game's bar and panels, and a slot machine's buttons.", "Interface", uses="all"),
+    "turn": _m("Your turn", "Your decision starts, or the Pai Gow sorter opens.", "Interface", uses="tables"),
+    "tick": _m("Timer running out", "Each of the last five seconds of a timer you're up against.", "Interface", uses="tables"),
+    "room": _m("Background room", "A loop under everything, on its own volume slider in the game's Settings.", "Room", loop=True),
+    "deal": _m("Card dealt", "Each batch of cards that leaves together: a 3-card packet at Three Card Poker, "
+                             "a 7-card hand at Pai Gow, every card at Blackjack.", "Cards", uses="cards"),
+    "flip": _m("Card turned face up", "The dealer's reveal, hands at settlement, Blackjack cards.", "Cards", uses="cards"),
+    "shuffle": _m("Shuffler fed", "Cards going back through the shuffler after a hand, and a new Blackjack shoe.", "Cards", uses="cards"),
+    "result": _m("Pai Gow result mark", "Each Pai Gow win or lose mark popping in.", "Cards", uses="pai_gow"),
+    "bet": _m("Chip placed on a bet", "Anyone at the table putting chips on a spot.", "Chips", uses="tables"),
+    "payout": _m("Winnings paid", "Chips from the tray placed beside a winning bet.", "Chips", uses="tables"),
+    "sweep": _m("Losing bets swept", "The dealer taking chips back to the tray.", "Chips", uses="tables"),
+    # roulette
+    "ball_spin": _m("Ball launched", "The dealer spins the ball: it rolls round the track, slowing (about 6 seconds).", "Wheel", "roulette"),
+    "ball_drop": _m("Ball drops", "The ball leaves the track and clatters off a deflector.", "Wheel", "roulette"),
+    "ball_rattle": _m("Ball skids", "The ball clattering over the frets as it reaches the pockets (again every 1.6 s while the skid lasts).", "Wheel", "roulette"),
+    "ball_hop": _m("Ball hops", "Each hop landing as the ball bounces between pockets, and the last click as it settles.", "Wheel", "roulette"),
+    # craps
+    "dice_out": _m("Dice pushed out", "The shooter picks up the dice the stickman pushed over.", "Dice", "craps"),
+    "dice_land": _m("Dice land", "The dice coming down on the felt after the throw.", "Dice", "craps"),
+    "dice_bounce": _m("Dice bounce", "Each knock of a die off the far wall's pyramids and the hops after (quieter for smaller ones).", "Dice", "craps"),
+    # slot machines
+    "spin_press": _m("Spin pressed", "The Spin button (or Space, or an auto spin) starting a spin.", "Spin", "slots", "slots"),
+    "reel_spin": _m("Reels spinning", "Under the reels from the start of a spin until the last one stops.", "Spin", "slots", "slots", True),
+    "reel_stop": _m("Reel stops", "Each reel landing, left to right, each a step higher.", "Spin", "slots", "slots"),
+    "scatter_land": _m("Bonus symbol lands", "A reel stopping with a bonus wagon or free-spin pistols showing; the second and third ring higher.", "Spin", "slots", "slots"),
+    "reel_tease": _m("Bonus tease", "Two bonus symbols are showing: the next reel spins on, glowing (repeats while it does).", "Spin", "slots", "slots", True),
+    "win_small": _m("Line win", "A spin that wins: the lines light up.", "Wins", "slots", "slots"),
+    "win_repeat": _m("Repeat win", "The line wins paying again (Repeat Win).", "Wins", "slots", "slots"),
+    "win_bangup": _m("Win counting up", "Under the win meter while it counts up.", "Wins", "slots", "slots", True),
+    "win_end": _m("Win counted", "The win meter reaching the total.", "Wins", "slots", "slots"),
+    "big_win": _m("Big win", "BIG, MEGA or EPIC WIN fills the screen (and nearby, when someone else's machine does).", "Wins", "slots", "slots"),
+    "big_win_loop": _m("Big win coins", "Under the big win screen while its total counts up.", "Wins", "slots", "slots", True),
+    "cash_out": _m("Cash out", "Leaving the machine with your credit.", "Wins", "slots", "slots"),
+    "feature_banner": _m("Feature announced", "Each feature's banner as the reels start: Colossal Reels, Wild Reels, Random Wilds, Multiplier.", "Features", "slots", "slots"),
+    "feature_multiplier": _m("Multiplier", "The 2x to 5x multiplier badge lighting up.", "Features", "slots", "slots"),
+    "feature_reels": _m("Wild Reels / Colossal", "The armadillo rolling down a reel, or reels fusing into a colossal one.", "Features", "slots", "slots"),
+    "feature_wilds": _m("Random Wild shot", "Each wild shot onto the reels.", "Features", "slots", "slots"),
+    "feature_upgrade": _m("Symbol Upgrade", "Symbols flipping one step up the chain.", "Features", "slots", "slots"),
+    "instant_win": _m("Instant Win barrel", "The Random Prize barrel bursting.", "Features", "slots", "slots"),
+    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins.", "Bonuses", "slots", "slots"),
+    "free_spin": _m("Free game", "Each Combo Free Game starting.", "Bonuses", "slots", "slots"),
+    "bonus_end": _m("Bonus paid", "The total of a Trail Bonus or the free games coming up.", "Bonuses", "slots", "slots"),
+    "trail_fire": _m("Pistol loaded", "The cylinder loading and spinning before the armadillo moves.", "Trail Bonus", "slots", "slots"),
+    "trail_hop": _m("Hop", "Each space the armadillo hops.", "Trail Bonus", "slots", "slots"),
+    "trail_coin": _m("Coins collected", "Coins collected on the trail (a crate's too, and the prizepot).", "Trail Bonus", "slots", "slots"),
+    "trail_special": _m("Special space", "Landing on double, spin upgrade, lightning roll, forward or back.", "Trail Bonus", "slots", "slots"),
+    "trail_heart": _m("Heart", "A heart picked up, or one saving you from a snake.", "Trail Bonus", "slots", "slots"),
+    "trail_snake": _m("Snake", "A snake strikes (the bonus ends unless a heart saves you).", "Trail Bonus", "slots", "slots"),
+    "pick_reveal": _m("Coin turned", "Each coin turned over in the Jackpot Pick.", "Jackpot Pick", "slots", "slots"),
+    "jackpot_win": _m("Jackpot won", "Three matching coins: a Mini, Minor, Major or Grand (and nearby, when someone else wins one).", "Jackpot Pick", "slots", "slots"),
 }
 
 
-# Where each moment belongs on the maintenance page: "ui" (the game's own interface),
-# "global" (any table) or "game:<key>" (one game's).
-CATEGORIES = {
-    "click": "ui", "turn": "ui", "tick": "ui",
-    "deal": "global", "flip": "global", "shuffle": "global", "bet": "global", "payout": "global",
-    "sweep": "global", "room": "global",
-    "result": "game:pai_gow",
-    "ball_spin": "game:roulette", "ball_drop": "game:roulette", "ball_rattle": "game:roulette", "ball_hop": "game:roulette",
-    "dice_out": "game:craps", "dice_land": "game:craps", "dice_bounce": "game:craps",
-    **{k: "game:slots" for k in ("reel_spin", "reel_stop", "reel_tease", "win_small", "win_bangup", "big_win",
-                                 "feature_wilds", "feature_reels", "feature_multiplier", "feature_upgrade",
-                                 "instant_win", "bonus_trigger", "trail_fire", "trail_hop", "trail_coin",
-                                 "trail_snake", "pick_reveal", "jackpot_win")},
+# ------------------------------------------------------------------ factory settings
+def _c(*files, gain=0.0):
+    return {"files": list(files), "gain_db": gain}
+
+
+_ks, _ki, _sl, _w = "kenney-casino/", "kenney-interface/", "slots/", "western/"
+FACTORY = {
+    "casino": {
+        "click": _c(_ki + "click_003.ogg", gain=-6.0),
+        "turn": _c(_ki + "confirmation_001.ogg"),
+        "tick": _c(_ki + "tick_001.ogg", gain=-4.0),
+        "room": _c("rooms/mhtaylor67_277444-loop.ogg"),
+        "deal": _c(*[f"edited/card-slide-{n}-soft.ogg" for n in range(2, 7)]),
+        "flip": _c(_ks + "card-place-2.ogg", gain=-3.0),
+        "shuffle": _c(_ks + "card-fan-1.ogg", _ks + "card-fan-2.ogg"),
+        "result": _c(_ki + "bong_001.ogg"),
+        "bet": _c(_ks + "chip-lay-1.ogg", _ks + "chip-lay-2.ogg"),
+        "payout": _c(*[_ks + f"chips-stack-{n}.ogg" for n in (1, 4, 5, 6)]),
+        "sweep": _c(_ks + "chips-handle-1.ogg"),
+    },
+    "roulette": {
+        "ball_spin": _c("roulette/poenia_709624-spin.ogg"),
+        "ball_drop": _c("roulette/gamer500_682661-drop.ogg"),
+        "ball_rattle": _c("roulette/f_ilippo_59194-rattle.ogg"),
+        "ball_hop": _c(*[f"roulette/f_ilippo_59194-hop-{n}.ogg" for n in range(1, 6)]),
+    },
+    "craps": {
+        "dice_out": _c(_ks + "dice-grab-1.ogg", _ks + "dice-grab-2.ogg"),
+        "dice_land": _c(*[_ks + f"dice-throw-{n}.ogg" for n in (1, 2, 3)]),
+        "dice_bounce": _c(*[_ks + f"die-throw-{n}.ogg" for n in (1, 2, 3, 4)], gain=-3.0),
+    },
+    # Every slot machine: an electronic Vegas cabinet. A new machine starts with these.
+    "slots": {
+        "spin_press": _c(_sl + "David819_668435-reels-begin.ogg", gain=-9.5),
+        "reel_spin": _c(_sl + "Johnmode_860886-spin-loop.ogg", gain=-16.0),
+        "reel_stop": _c(_sl + "David819_668434-reel-stop.ogg", gain=1.0),
+        "scatter_land": _c(_sl + "chennes_376807-ding.ogg", gain=0.5),
+        "reel_tease": _c(_sl + "bigjoedrummer_77305-roll-loop.ogg", gain=-14.5),
+        "win_small": _c(_sl + "FunWithSound_456965-glockenspiel.ogg", gain=-6.5),
+        "win_repeat": _c(_sl + "steaq_387232-badge-coin.ogg", gain=-6.0),
+        "win_bangup": _c(_sl + "KerDwyn_839951-count-loop.ogg", gain=-15.5),
+        "win_end": _c(_sl + "MLaudio_511484-success-bell.ogg", gain=-10.5),
+        "big_win": _c(_sl + "Johnmode_860886-winner.ogg", gain=-9.0),
+        "big_win_loop": _c(_sl + "jack126guy_361346-coins-loop.ogg", gain=-8.5),
+        "cash_out": _c(_sl + "Zott820_209578-cash-register.ogg", gain=-6.5),
+        "feature_banner": _c(_sl + "qubodup_60013-whoosh.ogg", gain=-8.0),
+        "feature_multiplier": _c("kenney-digital/powerUp2.ogg", gain=-6.0),
+        "feature_reels": _c(_ki + "maximize_008.ogg", gain=-8.0),
+        "feature_wilds": _c("pops/cogitollc-pop3.ogg", gain=-7.0),
+        "feature_upgrade": _c("sparkles/nomiqbomi_578800.ogg", gain=1.0),
+        "instant_win": _c(_sl + "rolandseer_443334-money.ogg", gain=-6.0),
+        "bonus_trigger": _c(_sl + "IENBA_656643-reward.ogg", gain=-9.5),
+        "free_spin": _c(_sl + "GameAudio_220184-win-spacey.ogg", gain=-7.5),
+        "bonus_end": _c(_sl + "Kastenfrosch_162458-win.ogg", gain=-7.5),
+        "trail_fire": _c(_ks + "dice-shake-2.ogg", gain=-3.5),
+        "trail_hop": _c("pops/wubitog-pop1.ogg", gain=-0.5),
+        "trail_coin": _c(_sl + "Gerent_558991-coins.ogg", gain=2.0),
+        "trail_special": _c("kenney-digital/threeTone1.ogg", gain=-15.0),
+        "trail_heart": _c("sparkles/LilMati_462095.ogg", gain=-12.5),
+        "trail_snake": _c(_ki + "error_004.ogg", gain=-4.0),
+        "pick_reveal": _c(_ki + "glass_002.ogg", gain=-1.0),
+        "jackpot_win": _c(_sl + "univ_lyon3_367462-jackpot-bell.ogg", gain=-5.5),
+    },
+    # Armadillo Goes West: wooden reels, six-shooters, banjo and a rattlesnake.
+    "slots.armadillo": {
+        "spin_press": _c(_w + "Dredile_111676-revolver-cock.ogg", gain=-5.5),
+        "reel_spin": _c("edited/reel-ratchet-wood-loop.ogg", gain=-13.0),
+        "reel_stop": _c(*[f"kenney-impact/impactWood_medium_00{n}.ogg" for n in range(5)], gain=-6.5),
+        "scatter_land": _c(_w + "LilMati_481151-cowbells.ogg", gain=-3.5),
+        "win_small": _c(_w + "Fupicat_521640-win-banjo.ogg", gain=-6.0),
+        "win_repeat": _c(_w + "rentless_558140-banjo-plucks.ogg", gain=-5.0),
+        "win_bangup": _c(_sl + "euanmj_442876-coins-loop.ogg", gain=-14.0),
+        "win_end": _c(_w + "Neotone_75339-cowbell.ogg", gain=-8.0),
+        "big_win": _c(_w + "vdublin_428150-saloon-piano.ogg", gain=-4.5),
+        "feature_banner": _c(_w + "SciFiSounds_529925-whip.ogg", gain=-6.5),
+        "feature_multiplier": _c(_w + "wjb_88_828860-harmonica-trill.ogg", gain=-6.5),
+        "feature_reels": _c(_w + "martian_403002-slide-whistle.ogg", gain=-11.0),
+        "feature_wilds": _c(_w + "Diboz_213925-pistol-ricochet.ogg", _w + "Bird_man_275151-gunshot.ogg", gain=-12.5),
+        "instant_win": _c("kenney-impact/impactWood_heavy_002.ogg", gain=-5.0),
+        "bonus_trigger": _c(_w + "Dandertuts_845920-yeehaw.ogg", gain=-14.5),
+        "bonus_end": _c(_w + "Lynx_5969_404059-honky-tonk.ogg", gain=-8.0),
+        "trail_fire": _c(_w + "jhka_139001-revolver-ratchet.ogg", gain=-1.5),
+        "trail_hop": _c(_w + "wjb_88_828863-spur-step.ogg", gain=2.0),
+        "trail_special": _c(_w + "CaptainSiberia_82545-jaw-harp.ogg", gain=-6.0),
+        "trail_heart": _c(_w + "vacuumfan7072_505710-reed-pling.ogg", gain=2.0),
+        "trail_snake": _c(_w + "logee72_559759-rattlesnake.ogg", gain=2.0),
+    },
 }
-GAME_NAMES = {"pai_gow": "Pai Gow", "roulette": "Roulette", "craps": "Craps", "slots": "Slots"}
-# And each library folder, so the library can be filtered the same way.
-LIBRARY_GROUPS = {
-    "kenney-interface": "ui", "kenney-ui-audio": "ui", "owlish-clicks": "ui", "lokif-gui": "ui",
-    "qubodup-clicks": "ui", "clocks": "ui", "pops": "ui", "sparkles": "ui",
-    "kenney-casino": "global", "edited": "global", "rooms": "global",
-    "roulette": "game:roulette",
-    "uploads": "uploads",
+
+# Library folders: what's in each (the picker's folder list), and which sections it suits.
+FOLDERS = {
+    "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick"]),
+    "western": ("Wild West: guns, banjo, harmonica, snakes, horses", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus"]),
+    "kenney-jingles": ("Kenney music jingles", ["Wins", "Bonuses", "Jackpot Pick"]),
+    "kenney-impact": ("Kenney impacts: wood, metal, bells", ["Spin", "Features", "Trail Bonus", "Dice"]),
+    "kenney-rpg": ("Kenney coins, latches and creaks", ["Wins", "Chips", "Trail Bonus", "Features"]),
+    "kenney-digital": ("Kenney digital blips and power-ups", ["Spin", "Features", "Bonuses", "Trail Bonus", "Interface"]),
+    "kenney-casino": ("Kenney casino: cards, chips, dice", ["Cards", "Chips", "Dice", "Wins"]),
+    "edited": ("Edited card slides, and the wooden reel loop", ["Cards", "Spin"]),
+    "rooms": ("Casino floor recordings", ["Room"]),
+    "roulette": ("Roulette wheel and ball", ["Wheel"]),
+    "sparkles": ("Sparkles and chimes", ["Features", "Wins", "Bonuses", "Trail Bonus", "Jackpot Pick"]),
+    "pops": ("Pops", ["Interface", "Features", "Trail Bonus", "Cards"]),
+    "kenney-interface": ("Kenney interface", ["Interface", "Features", "Wins", "Trail Bonus", "Jackpot Pick"]),
+    "kenney-ui-audio": ("Kenney UI clicks and switches", ["Interface", "Spin"]),
+    "owlish-clicks": ("Clicks, snaps and switches", ["Interface", "Spin"]),
+    "lokif-gui": ("Menu chimes", ["Interface"]),
+    "qubodup-clicks": ("Button and mechanical clicks", ["Interface", "Spin"]),
+    "clocks": ("A ticking clock", ["Interface"]),
+    "uploads": ("Your uploads", SECTIONS),
 }
+
+
+def _ancestors(set_key: str) -> list[str]:
+    out, s = [], set_key
+    while s:
+        out.append(s)
+        s = SETS[s]["parent"]
+    return out
+
+
+def shows(set_key: str, key: str) -> bool:
+    """Whether a moment can be set in a set: its home, or a set below that whose game uses it."""
+    m = MOMENTS.get(key)
+    if m is None or set_key not in SETS:
+        return False
+    return set_key == m["home"] or (set_key in USERS[m["uses"]] and m["home"] in _ancestors(set_key))
 
 
 class SoundError(ValueError):
@@ -144,34 +279,73 @@ class SoundBoard:
         self.library_dir = library_dir
         self.uploads_dir = data_dir / "sounds" / "uploads"
         self.path = data_dir / "sounds.json"
-        self.version, self.moments = 0, {}
+        self.version, self.saved = 0, {}
         if self.path.exists():
             try:
                 saved = json.loads(self.path.read_text())
                 self.version = int(saved.get("version", 0))
-                self.moments = {k: v for k, v in saved.get("moments", {}).items() if k in MOMENTS}
-            except (ValueError, OSError):
+                if "sets" in saved:
+                    for s, moments in saved["sets"].items():
+                        for k, e in moments.items():
+                            if shows(s, k) and isinstance(e, dict):
+                                self.saved.setdefault(s, {})[k] = e
+                else:  # before sets: one choice per moment, which now belongs to its home set
+                    for k, e in saved.get("moments", {}).items():
+                        if k in MOMENTS and isinstance(e, dict):
+                            self.saved.setdefault(MOMENTS[k]["home"], {})[k] = e
+            except (ValueError, OSError, AttributeError):
                 pass
 
     # ------------------------------------------------------------- reading
-    def choice(self, key: str) -> dict:
-        chosen = self.moments.get(key) or DEFAULTS[key]
-        return {"files": [f for f in chosen["files"] if self.file_path(f)], "gain_db": float(chosen["gain_db"])}
+    def own(self, set_key: str, key: str) -> dict | None:
+        """The set's own choice for a moment (saved, else factory), or None if it plays its parent's."""
+        e = self.saved.get(set_key, {}).get(key)
+        if e is None:
+            e = FACTORY.get(set_key, {}).get(key)
+        if e is None or e.get("inherit"):
+            return None
+        return {"files": [f for f in e.get("files", []) if self.file_path(f)], "gain_db": float(e.get("gain_db", 0.0))}
+
+    def resolve(self, set_key: str, key: str) -> tuple[dict, str | None]:
+        """What a moment plays in a set, and the set that decides it."""
+        for s in _ancestors(set_key):
+            e = self.own(s, key)
+            if e is not None:
+                return e, s
+        return {"files": [], "gain_db": 0.0}, None
+
+    def row(self, set_key: str, key: str) -> dict:
+        """One moment as the page shows it in a set."""
+        chosen, source = self.resolve(set_key, key)
+        return {"key": key, "own": source == set_key, "from": source, **chosen,
+                "changed": key in self.saved.get(set_key, {}),
+                "can_inherit": set_key != MOMENTS[key]["home"]}
 
     def manifest(self) -> dict:
-        """What the game loads: each moment's files (as URLs) and volume trim."""
+        """What the game loads: each set's own moments (files as URLs, and the volume trim), each
+        set's parent, and which set each table plays from. A moment a set doesn't have comes from
+        the nearest set above it that does."""
         def url(f):  # the file's change time on the end, so a replaced upload isn't served stale
             return f"/sound-files/{f}?v={int(self.file_path(f).stat().st_mtime)}"
-        return {"version": self.version,
-                "moments": {k: {"files": [url(f) for f in self.choice(k)["files"]],
-                                "gain_db": self.choice(k)["gain_db"]} for k in MOMENTS}}
+        sets = {}
+        for s, info in SETS.items():
+            moments = {}
+            for k in MOMENTS:
+                e = self.own(s, k) if shows(s, k) else None
+                if e is not None:
+                    moments[k] = {"files": [url(f) for f in e["files"]], "gain_db": e["gain_db"]}
+            sets[s] = {"parent": info["parent"], "moments": moments}
+        return {"version": self.version, "sets": sets, "tables": TABLE_SETS}
 
     def overview(self) -> dict:
-        """Everything the maintenance page shows."""
-        return {"version": self.version,
-                "moments": [{"key": k, "title": t, "when": w, "category": CATEGORIES.get(k, "global"), **self.choice(k),
-                             "is_default": k not in self.moments} for k, (t, w) in MOMENTS.items()],
-                "library": self.library(), "games": GAME_NAMES}
+        """Everything the admin page shows."""
+        return {
+            "version": self.version, "sections": SECTIONS,
+            "moments": {k: {key: m[key] for key in ("title", "when", "section", "home", "loop")} for k, m in MOMENTS.items()},
+            "sets": [{"key": s, **info, "moments": [self.row(s, k) for k in MOMENTS if shows(s, k)]} for s, info in SETS.items()],
+            "folders": {f: {"label": label, "sections": secs} for f, (label, secs) in FOLDERS.items()},
+            "library": self.library(),
+        }
 
     def library(self) -> list[dict]:
         items = []
@@ -181,9 +355,7 @@ class SoundBoard:
             for f in sorted(root.rglob("*")):
                 if f.is_file() and f.suffix.lower() in PLAYABLE:
                     rel = prefix + f.relative_to(root).as_posix()
-                    group = rel.split("/")[0]
-                    items.append({"id": rel, "group": group, "category": LIBRARY_GROUPS.get(group, "global"),
-                                  "name": f.stem, "bytes": f.stat().st_size})
+                    items.append({"id": rel, "group": rel.split("/")[0], "name": f.stem, "bytes": f.stat().st_size})
         return items
 
     def file_path(self, sound_id: str) -> Path | None:
@@ -198,11 +370,18 @@ class SoundBoard:
         return path
 
     # ------------------------------------------------------------- changing
-    def set_choice(self, key: str, files, gain_db) -> dict:
+    def _check(self, set_key: str, key: str):
+        if set_key not in SETS:
+            raise SoundError(f"There's no sound set called {set_key!r}.")
         if key not in MOMENTS:
             raise SoundError(f"There's no moment called {key!r}.")
+        if not shows(set_key, key):
+            raise SoundError(f"{SETS[set_key]['name']} doesn't use {MOMENTS[key]['title']}.")
+
+    def set_choice(self, set_key: str, key: str, files, gain_db) -> dict:
+        self._check(set_key, key)
         if not isinstance(files, list) or not files:
-            raise SoundError("Pick at least one sound (remove the moment's sounds by resetting it instead).")
+            raise SoundError("Pick at least one sound (to use the sounds above, choose Same as above instead).")
         missing = [f for f in files if not self.file_path(f)]
         if missing:
             raise SoundError(f"Not in the library: {', '.join(map(str, missing))}")
@@ -210,17 +389,37 @@ class SoundBoard:
             gain = round(min(max(float(gain_db), GAIN_RANGE[0]), GAIN_RANGE[1]), 1)
         except (TypeError, ValueError):
             raise SoundError("The volume trim has to be a number of dB.")
-        self.moments[key] = {"files": list(dict.fromkeys(files)), "gain_db": gain}
-        self._save()
-        return self.choice(key)
-
-    def reset(self, key: str | None = None):
-        if key is None:
-            self.moments = {}
-        elif key in MOMENTS:
-            self.moments.pop(key, None)
+        choice = {"files": list(dict.fromkeys(files)), "gain_db": gain}
+        if FACTORY.get(set_key, {}).get(key) == choice:
+            self.saved.get(set_key, {}).pop(key, None)    # back to how it came
         else:
-            raise SoundError(f"There's no moment called {key!r}.")
+            self.saved.setdefault(set_key, {})[key] = choice
+        self._save()
+        return self.row(set_key, key)
+
+    def inherit(self, set_key: str, key: str) -> dict:
+        """Play the parent set's sounds for this moment."""
+        self._check(set_key, key)
+        if set_key == MOMENTS[key]["home"]:
+            raise SoundError(f"{MOMENTS[key]['title']} starts in {SETS[set_key]['name']}: there's nothing above it to use.")
+        if key in FACTORY.get(set_key, {}):
+            self.saved.setdefault(set_key, {})[key] = {"inherit": True}
+        else:
+            self.saved.get(set_key, {}).pop(key, None)
+        self._save()
+        return self.row(set_key, key)
+
+    def reset(self, set_key: str | None = None, key: str | None = None):
+        """Back to how it came: one moment in one set, a whole set, or everything."""
+        if set_key is None:
+            self.saved = {}
+        elif key is None:
+            if set_key not in SETS:
+                raise SoundError(f"There's no sound set called {set_key!r}.")
+            self.saved.pop(set_key, None)
+        else:
+            self._check(set_key, key)
+            self.saved.get(set_key, {}).pop(key, None)
         self._save()
 
     def upload(self, filename: str, data: bytes) -> dict:
@@ -258,14 +457,16 @@ class SoundBoard:
         path = self.file_path(sound_id) if sound_id.startswith("uploads/") else None
         if path is None:
             raise SoundError("Only uploaded sounds can be deleted.")
-        in_use = [k for k in MOMENTS if sound_id in self.choice(k)["files"]]
+        in_use = [f"{MOMENTS[k]['title']} ({SETS[s]['name']})" for s in SETS for k in MOMENTS
+                  if shows(s, k) and sound_id in (self.own(s, k) or {"files": []})["files"]]
         if in_use:
-            raise SoundError(f"Still used for: {', '.join(MOMENTS[k][0] for k in in_use)}. Swap it out first.")
+            raise SoundError(f"Still used for: {', '.join(in_use)}. Swap it out first.")
         path.unlink()
 
     def _save(self):
         self.version += 1
+        self.saved = {s: m for s, m in self.saved.items() if m}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"version": self.version, "moments": self.moments}, indent=1))
+        tmp.write_text(json.dumps({"version": self.version, "sets": self.saved}, indent=1))
         tmp.replace(self.path)

@@ -613,7 +613,7 @@ func _show_mark(seat: int, which: String, won: bool) -> void:
 		_results[seat] = {}
 	_results[seat][which] = [won, Time.get_ticks_msec() / 1000.0]
 	var at := Vector2(seat_x(seat) + 12.0, LOW_Y - 8.0) if which == "front" else Vector2(seat_x(seat) + 19.0, HIGH_Y - 8.0)
-	Sfx.play_at("result", to_global(at))
+	sfx_at("result", to_global(at))
 	_bump_until = Time.get_ticks_msec() / 1000.0 + MARK_BUMP
 
 

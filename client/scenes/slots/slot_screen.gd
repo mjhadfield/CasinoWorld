@@ -64,6 +64,8 @@ const LINE_COLOURS := ["ffd54a", "ff7a59", "5fd4ff", "9cff6b", "ff6bd5", "ffb347
 const FEATURE_ROWS := [["wilds", "RANDOM WILDS"], ["wildReels", "WILD REELS"], ["colossal", "COLOSSAL REELS"],
 	["multiplier", "MULTIPLIER"], ["upgrade", "SYMBOL UPGRADE"], ["repeat", "REPEAT WIN"], ["instant", "INSTANT WIN"]]
 const TILE := 86.0
+## Buttons that click (Spin has its own sound, and the Jackpot Pick coins theirs).
+const CLICKS := ["bet-", "bet+", "turbo", "settings", "auto", "info", "buy", "cashout", "buy-yes", "buy-no", "cash-no", "overlay"]
 const TRAIL_ICONS := {"coin": "t_coin", "snake": "t_snake", "heart": "t_heart", "forward": "t_forward", "back": "t_forward",
 	"lightning": "t_lightning", "crate": "t_crate", "upgrade": "t_upgrade", "double": "t_double", "prizepot": "t_gold"}
 
@@ -107,6 +109,7 @@ var _hits: Array = []
 var _hover := ""
 var _last_spin_sent := -10.0
 var _credit_adj := 0      # what the credit meter shows on top of the held balance: -stakes, +wins shown so far
+var _loops := {}          # name -> Sfx loop handle: the loops this screen has running ("spin", "meter", ...)
 
 # what's on screen
 var grid: Array = []
@@ -191,6 +194,7 @@ func close(to_rect: Rect2) -> void:
 	_from_rect = to_rect
 	_closing = true
 	_epoch += 1
+	_stop_loops()
 	_queue.clear()
 	_running = false
 	_credit_adj = 0
@@ -203,6 +207,7 @@ func close(to_rect: Rect2) -> void:
 
 func _reset_state() -> void:
 	_epoch += 1
+	_stop_loops()
 	_queue.clear()
 	_running = false
 	_tweens.clear()
@@ -304,7 +309,7 @@ func _handle(ev: Dictionary) -> void:
 			message = "BONUS BOUGHT: %s" % Money.format(int(ev.cost))
 		"jackpot_start":
 			_begin_pick()
-			Sfx.play("bonus_trigger")
+			_sfx("bonus_trigger")
 			await _banner("JACKPOT PICK", "pick coins until three match", 1.8)
 		"jackpot_reveal":
 			await _reveal_coin(int(ev.index), str(ev.tier))
@@ -312,7 +317,7 @@ func _handle(ev: Dictionary) -> void:
 			await _jackpot_won(ev)
 		"trail_start":
 			_begin_trail(ev.trail)
-			Sfx.play("bonus_trigger")
+			_sfx("bonus_trigger")
 			await _banner("TRAIL BONUS", "bought for %s" % Money.format(int(ev.trail.bet) * int(rules.get("buy_cost", 45)))
 				if ev.get("bought", false) else "fire the pistol to move the armadillo", 2.2)
 			trail.waiting = true
@@ -340,10 +345,11 @@ func _handle(ev: Dictionary) -> void:
 			message = "TRAIL BONUS PAID %s" % Money.format(int(ev.total))
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
-			Sfx.play("bonus_trigger")
+			_sfx("bonus_trigger")
 			await _banner("COMBO FREE GAMES", "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
 		"free_game":
 			free.n = int(ev.n)
+			_sfx("free_spin")
 			message = "FREE GAME %d OF %d" % [int(ev.n), int(ev.of)]
 			await _play_spin(ev.outcome, float(free.total))
 			free.total = int(ev.total)
@@ -391,6 +397,36 @@ func _round_over() -> void:
 		Session.hold_balance(false)
 
 
+# ------------------------------------------------------------------ sounds
+## A moment from this machine's sound set (Sfx.focus is the same cabinet, but say so).
+func _sfx(key: String, pitch := 1.0) -> void:
+	Sfx.play(key, pitch, cab.table_id if cab else "")
+
+
+func _after_sfx(sec: float, key: String) -> void:
+	var ep := _epoch
+	await get_tree().create_timer(sec).timeout
+	if ep == _epoch and visible:
+		_sfx(key)
+
+
+## Start a looping moment under a name, unless that name is already playing.
+func _loop(name: String, key: String) -> void:
+	if not _loops.has(name):
+		_loops[name] = Sfx.start_loop(key, cab.table_id if cab else "")
+
+
+func _unloop(name: String, fade := 0.15) -> void:
+	if _loops.has(name):
+		Sfx.stop_loop(int(_loops[name]), fade)
+		_loops.erase(name)
+
+
+func _stop_loops() -> void:
+	for name in _loops.keys():
+		_unloop(name)
+
+
 # ------------------------------------------------------------------ clock and tweens
 func _process(delta: float) -> void:
 	if not visible:
@@ -409,6 +445,11 @@ func _process(delta: float) -> void:
 			x.pos -= x.v * dt
 	if win_shown < win_target:
 		win_shown = minf(win_target, win_shown + maxf(1.0, roller) * dt)
+		if win_shown < win_target:
+			_loop("meter", "win_bangup")
+	if win_shown >= win_target and _loops.has("meter"):
+		_unloop("meter")
+		_sfx("win_end")
 	for p in particles:
 		p.vy += p.g * dt
 		p.x += p.vx * dt
@@ -942,7 +983,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		pre.append(["wildReels", "WILD REELS", "%d reel%s going wild" % [o.wild_reels.size(), "s" if o.wild_reels.size() > 1 else ""]])
 	if not o.wilds.is_empty():
 		pre.append(["wilds", "RANDOM WILDS", "%d shot%s fired" % [o.wilds.size(), "s" if o.wilds.size() > 1 else ""]])
-	Sfx.play("reel_spin")
+	_loop("spin", "reel_spin")
 	var i := 0
 	for x in reels:
 		if not colossal.is_empty() and x.r >= int(colossal.start) and x.r < int(colossal.start) + int(colossal.k):
@@ -954,7 +995,11 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		i += 1
 	for p in pre:
 		feature_lit[p[0]] = true
-		Sfx.play("feature_multiplier" if p[0] == "multiplier" else ("feature_reels" if p[0] in ["colossal", "wildReels"] else "bonus_trigger"))
+		_sfx("feature_banner")
+		if p[0] == "multiplier":
+			_sfx("feature_multiplier")
+		elif p[0] == "colossal":
+			_sfx("feature_reels")
 		await _banner(p[1], p[2], 1.25)
 		if ep != _epoch:
 			return
@@ -970,7 +1015,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 			x.glow = 1.0
 			x.v = 34.0
 			message = "ONE MORE…"
-			Sfx.play("reel_tease")
+			_loop("tease", "reel_tease")
 			await _wait(1.0)
 		if not colossal.is_empty() and r == int(colossal.start):
 			await _stop_reel(x, float(colossal.stop) + float(colossal.offset) / int(colossal.k), _big.size())
@@ -981,13 +1026,16 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 				var s: String = o.landed[r * 4 + row]
 				if seen.has(s):
 					seen[s] = int(seen[s]) + 1
+					_sfx("scatter_land", 1.0 + 0.12 * (int(seen[s]) - 1))   # the second and third ring higher
 		if ep != _epoch:
 			return
-		Sfx.play("reel_stop")
+		_sfx("reel_stop", 1.0 + 0.03 * r)
 		x.glow = 0.0
 		if not _hurry:
 			await _wait(0.12)
 		r += 1
+	_unloop("tease")
+	_unloop("spin", 0.25)
 	grid = (o.after_colossal as Array).duplicate()
 	landed = true
 	_hurry = false
@@ -995,6 +1043,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 	for wr in o.wild_reels:
 		var f := _flyer({"img": "armadillo", "x": REEL_X + int(wr) * CELL_W + CELL_W / 2.0, "y": REEL_Y - 40, "size": 130, "rot": 0.0})
 		_tw(f, {"y": REEL_Y + REEL_H + 40, "rot": PI * 6}, 0.9, "inout")
+		_sfx("feature_reels")
 		for row in 4:
 			await _wait(0.2)
 			var c: int = int(wr) * 4 + row
@@ -1010,7 +1059,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		var f := _flyer({"x": rect.get_center().x, "y": rect.get_center().y, "flash": true, "s": 1.4})
 		_tw(f, {"s": 0.2, "a": 0.0}, 0.3)
 		shake = 0.35
-		Sfx.play("feature_wilds")
+		_sfx("feature_wilds")
 		grid[int(c)] = "W"
 		cell_fx[int(c)] = {"scale": 1.7, "glow": 1.0}
 		_tw(cell_fx[int(c)], {"scale": 1.0, "glow": 0.0}, 0.35, "back")
@@ -1021,7 +1070,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		var names: Dictionary = rules.get("symbols", {})
 		for c in o.upgrade.cells:
 			cell_fx[int(c)] = {"glow": 1.0, "glow_colour": Color("7affd9")}
-		Sfx.play("feature_upgrade")
+		_sfx("feature_upgrade")
 		await _banner("SYMBOL UPGRADE", "%s → %s" % [names.get(str(o.upgrade.from), o.upgrade.from), names.get(str(o.upgrade.to), o.upgrade.to)], 1.2)
 		for c in o.upgrade.cells:
 			cell_fx[int(c)]["flip"] = 0.0
@@ -1049,7 +1098,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 				_tw(fx, {"scale": 1.0}, 0.5, "back")
 		roller = maxf(float(o.line_win) / 0.9, float(o.bet))
 		win_target += float(o.line_win)
-		Sfx.play("win_small")
+		_sfx("win_small")
 		message = ("LINE WINS %s (×%d)" % [Money.format(int(o.line_win)), multiplier]) if multiplier > 1 else "LINE WINS %s" % Money.format(int(o.line_win))
 		await _wait(1.1)
 		if int(o.repeat) > 0:
@@ -1057,7 +1106,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 			for k in range(2, int(o.repeat) + 1):
 				await _banner("REPEAT WIN", "pays again: %d of %d" % [k, int(o.repeat)], 1.0)
 				win_target += float(o.line_win)
-				Sfx.play("win_bangup")
+				_sfx("win_repeat")
 				for w in wins:
 					for c in w.cells:
 						cell_fx[int(c)] = {"scale": 1.15, "glow": 1.0}
@@ -1067,7 +1116,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		feature_lit.instant = true
 		var f := _flyer({"img": "barrel", "x": 640, "y": REEL_Y + REEL_H / 2.0, "size": 220, "s": 0.2})
 		await _tw(f, {"s": 1.0}, 0.45, "back")
-		Sfx.play("instant_win")
+		_sfx("instant_win")
 		_coin_burst(640, REEL_Y + REEL_H / 2.0 - 40, 40)
 		var t := _flyer({"text": "INSTANT WIN %s" % Money.format(int(o.instant)), "x": 640, "y": REEL_Y + REEL_H / 2.0 + 120, "text_size": 48, "s": 0.4})
 		_tw(t, {"s": 1.0}, 0.3, "back")
@@ -1078,6 +1127,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 		await _tw(t, {"a": 0.0}, 0.3)
 		f.dead = true
 		t.dead = true
+	_unloop("meter")   # caught up all at once: no "counted" ding over what comes next
 	win_shown = win_target
 
 
@@ -1183,7 +1233,8 @@ func _big_win(total: int, bet: int) -> void:
 	var x := float(total) / float(bet)
 	var title := "EPIC WIN" if x >= 50 else ("MEGA WIN" if x >= 25 else "BIG WIN")
 	overlay = {"kind": "bigwin", "title": title, "shown": 0.0, "t0": _now, "done": false}
-	Sfx.play("big_win")
+	_sfx("big_win")
+	_loop("bigwin", "big_win_loop")
 	_coin_rain(70)
 	var ov := overlay
 	var count := 5.0 if x >= 50 else (4.0 if x >= 25 else 3.0)
@@ -1195,13 +1246,18 @@ func _big_win(total: int, bet: int) -> void:
 		if _now > next_rain:
 			_coin_rain(18)
 			next_rain = _now + 0.6
+		if not ov.done and _now > float(ov.t0) + count:
+			_unloop("bigwin", 0.6)   # counted: the coins stop while the total stays up
 		await get_tree().process_frame
+	_unloop("bigwin", 0.6)
 	if overlay == ov:
 		overlay = {}
 
 
-func _summary(title: String, sub: String, amount: int) -> void:
+func _summary(title: String, sub: String, amount: int, sound := "bonus_end") -> void:
 	overlay = {"kind": "summary", "title": title, "sub": sub, "amount": amount, "t0": _now, "done": false}
+	if sound != "":
+		_sfx(sound)
 	_coin_burst(640, 380, 50, 1.4)
 	var ov := overlay
 	var ep := _epoch
@@ -1300,7 +1356,7 @@ func _reveal_coin(index: int, tier: String) -> void:
 	if pick.is_empty():
 		return
 	var coin: Dictionary = pick.coins[index]
-	Sfx.play("pick_reveal")
+	_sfx("pick_reveal", 1.0 + 0.1 * int(pick.tally.get(tier, 0)))   # a second of a kind rings higher
 	await _tw(coin, {"flip": 0.5}, 0.16, "lin")
 	coin.tier = tier
 	await _tw(coin, {"flip": 1.0}, 0.16, "lin")
@@ -1316,7 +1372,7 @@ func _jackpot_won(ev: Dictionary) -> void:
 	for c in pick.coins:
 		if c.tier == tier:
 			_tw(c, {"s": 1.2}, 0.4, "back")
-	Sfx.play("jackpot_win")
+	_sfx("jackpot_win")
 	await _wait(1.0)
 	var all: Array = ev.get("coins", [])
 	for i in pick.coins.size():
@@ -1328,7 +1384,7 @@ func _jackpot_won(ev: Dictionary) -> void:
 	await _wait(0.8)
 	_coin_rain(90)
 	_credit_adj += int(ev.amount)
-	await _summary("%s JACKPOT" % TIER_NAMES.get(tier, tier.to_upper()), "shared by every slot on the floor", int(ev.amount))
+	await _summary("%s JACKPOT" % TIER_NAMES.get(tier, tier.to_upper()), "shared by every slot on the floor", int(ev.amount), "")
 	pick = {}
 
 
@@ -1391,7 +1447,7 @@ func _begin_trail(t: Dictionary) -> void:
 func _animate_roll(roll: Dictionary) -> void:
 	var tr := trail
 	tr.bullets = 0
-	Sfx.play("trail_fire")
+	_sfx("trail_fire")
 	for i in int(roll.bullets):
 		tr.bullets = i + 1
 		await _wait(0.09)
@@ -1421,7 +1477,7 @@ func _move_token(i: int, how: String) -> void:
 	var p := _trail_pos(i)
 	if how == "hop":
 		tk.hop = 0.0
-		Sfx.play("trail_hop")
+		_sfx("trail_hop")
 		_tw(tk, {"hop": 1.0}, 0.2, "lin")
 		await _tw(tk, {"x": p.x, "y": p.y}, 0.2, "lin")
 		tk.sq = 0.7
@@ -1444,7 +1500,7 @@ func _trail_event(e: Dictionary) -> void:
 			_pop("%s" % Money.format(int(e.pence)), Color("ffe27a"), sx, sy)
 			if e.kind == "coin" and int(e.pos) < board.size():
 				board[int(e.pos)].taken = true
-			Sfx.play("trail_coin")
+			_sfx("trail_coin")
 			_coin_burst(sx, sy - 30, 80 if e.kind == "prizepot" else 12, 0.6)
 			tr.total = int(tr.total) + int(e.pence)
 			win_target = float(tr.total)
@@ -1452,6 +1508,7 @@ func _trail_event(e: Dictionary) -> void:
 			await _wait(1.6 if e.kind == "prizepot" else 0.55)
 		"heart":
 			_pop("+1 HEART", Color("ff8a80"), sx, sy)
+			_sfx("trail_heart")
 			board[int(e.pos)].taken = true
 			tr.hearts = int(tr.hearts) + 1
 			await _wait(0.6)
@@ -1460,16 +1517,18 @@ func _trail_event(e: Dictionary) -> void:
 			tr.snake = {"pos": int(e.pos), "t0": _now}
 			shake = 0.6
 			tr.hearts = int(tr.hearts) - 1
-			Sfx.play("trail_snake")
+			_sfx("trail_snake")
+			_after_sfx(0.45, "trail_heart")
 			await _wait(0.9)
 		"snake":
 			_pop("SNAKE BITE!", Color("ff5a48"), sx, sy)
 			tr.snake = {"pos": int(e.pos), "t0": _now}
 			shake = 1.0
-			Sfx.play("trail_snake")
+			_sfx("trail_snake")
 			await _wait(1.2)
 		"double":
 			_pop("DOUBLE! ALL COINS ×2", Color("ffb347"), sx, sy)
+			_sfx("trail_special")
 			tr.doubled = true
 			tr.double_at = _now
 			for sp in board:
@@ -1478,17 +1537,21 @@ func _trail_event(e: Dictionary) -> void:
 			await _wait(1.1)
 		"upgrade":
 			_pop("SPIN UPGRADE: MOVES ×2", Color("7affd9"), sx, sy)
+			_sfx("trail_special")
 			tr.upgraded = true
 			await _wait(1.0)
 		"lightning":
 			_pop("LIGHTNING ROLL NEXT", Color("ffe14a"), sx, sy)
+			_sfx("trail_special")
 			await _wait(0.9)
 		"lightning_roll":
 			_pop("LIGHTNING ROLL!", Color("ffe14a"), sx, sy)
+			_sfx("trail_special")
 			tr.lightning_at = _now
 			await _wait(0.6)
 		"crate":
 			_pop("CRATE: COINS WITHIN %d" % int(e.r), Color("ffb347"), sx, sy)
+			_sfx("trail_special")
 			tr.crate = {"pos": int(e.pos), "r": int(e.r), "t0": _now}
 			for j in range(maxi(1, int(e.pos) - int(e.r)), mini(board.size() - 1, int(e.pos) + int(e.r) + 1)):
 				if board[j].type == "coin":
@@ -1498,13 +1561,15 @@ func _trail_event(e: Dictionary) -> void:
 				win_target = float(tr.total)
 				roller = maxf(float(e.pence), float(_bet()))
 				_coin_burst(sx, sy - 30, 24, 0.8)
-				Sfx.play("trail_coin")
+				_sfx("trail_coin")
 			await _wait(1.0)
 		"forward":
 			_pop("FORWARD %d" % int(e.n), Color("9cff6b"), sx, sy)
+			_sfx("trail_special")
 			await _wait(0.6)
 		"back":
 			_pop("BACK %d" % int(e.n), Color("ff9e4a"), sx, sy)
+			_sfx("trail_special")
 			await _wait(0.6)
 
 
@@ -1660,6 +1725,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _act(id: String) -> void:
+	if id in CLICKS or id.begins_with("auto"):
+		_sfx("click")
 	if not overlay.is_empty():
 		match id:
 			"overlay":
@@ -1673,6 +1740,7 @@ func _act(id: String) -> void:
 				overlay = {}
 			"cash-yes":
 				overlay = {}
+				_sfx("cash_out")
 				stand_requested.emit()
 		return
 	if id.begins_with("coin"):
@@ -1733,6 +1801,7 @@ func _cash_out() -> void:
 	if not pick.is_empty() or not trail.is_empty() or not free.is_empty():
 		overlay = {"kind": "cashout"}
 	else:
+		_sfx("cash_out")
 		stand_requested.emit()
 
 
@@ -1762,6 +1831,7 @@ func _send_spin() -> void:
 	_last_spin_sent = t
 	if _running:
 		_hurry = true
+	_sfx("spin_press")
 	Net.send("spin", {"bet": _bet()})
 
 

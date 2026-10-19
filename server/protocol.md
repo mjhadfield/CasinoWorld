@@ -60,7 +60,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `notice` / `error` | `message` | Information, or a rejected action. |
 | `pong` | `t` | The reply to `ping`. |
 | `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `wallet`, `jackpot`, `world_snapshot` and one `table_state` per table, as on join. Before joining, it's followed by `hello` instead. |
-| `sounds_changed` | `version` | The sound choices changed on the maintenance page. The client refetches `GET /api/sounds/manifest`. |
+| `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
 
 An entity is {`id`, `kind` (`player`/`npc`), `name`, `look`, `x`, `y`, `dir`, `anim`, `seat`,
 `walk`}. Floor point names live in `casino_server/floor.py`, and each must exist as a
@@ -271,16 +271,18 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 | `GET /api/players` | Each player's lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
 | `GET /credits` | LPC art credits for every layer the designer can use. |
 
-## Sound HTTP API (the maintenance page)
-Plain HTTP on the same server, used by `/maintenance` and the game. See `casino_server/sounds.py`.
+## Sound HTTP API (the admin page's Sounds tab)
+Plain HTTP on the same server, used by the admin page and the game. See `casino_server/sounds.py`. A `set` is
+`casino`, a game key (`blackjack`, `roulette`, ...), `slots`, or `slots.<variant>` (`slots.armadillo`). Every
+change sends `sounds_changed` to every joined player.
 
 | method & path | does |
 |---|---|
-| `GET /maintenance` | The sound maintenance page. |
-| `GET /api/sounds` | Every moment (`key`, `title`, `when`, `category`, `files`, `gain_db`, `is_default`), the whole `library` (`id`, `group`, `category`, `name`, `bytes`) and `games`. A `category` is `ui`, `global`, `game:<key>` or `uploads`. |
-| `GET /api/sounds/manifest` | What the game loads: `{version, moments: {key: {files: [url], gain_db}}}`. Each URL ends in `?v=<change time>`, so it can be cached for good. |
-| `PUT /api/sounds/{key}` | JSON `{files: [sound id], gain_db}`. Sets a moment's sounds (deduplicated; gain clamped to -30..+12 dB). Sends `sounds_changed` to every joined player. |
-| `DELETE /api/sounds/{key}` | Puts one moment back to its default. `POST /api/sounds-reset` resets every moment. |
+| `GET /api/sounds` | `sections` (page order); `moments` (`{key: {title, when, section, home, loop}}`; `home` is the set it's defined in); `sets` (each `key`, `name`, `parent`, `group`, and its `moments`: rows of `key`, `own`, `from` (the set whose sounds it plays), `files`, `gain_db`, `changed`, `can_inherit`); `folders` (`{folder: {label, sections}}`); the whole `library` (`id`, `group`, `name`, `bytes`). |
+| `GET /api/sounds/manifest` | What the game loads: `{version, sets: {set: {parent, moments: {key: {files: [url], gain_db}}}}, tables: {table id: set}}`. A set lists only its own moments; the rest come from the nearest set above. Each URL ends in `?v=<change time>`, so it can be cached for good. |
+| `PUT /api/sounds/{set}/{key}` | JSON `{files: [sound id], gain_db}`. Gives the moment its own sounds in that set (deduplicated; gain clamped to -30..+12 dB). Returns its row. |
+| `POST /api/sounds/{set}/{key}/inherit` | The moment plays the set above's sounds. Refused in its home set. |
+| `DELETE /api/sounds/{set}/{key}` | Puts one moment in one set back to how it came. `POST /api/sounds-reset` with `{set}` resets that set, with `{}` everything. |
 | `PUT /api/sound-uploads/{filename}` | The raw file as the body. Saved under `uploads/`; .flac/.m4a/.opus are converted to .ogg with ffmpeg. |
 | `DELETE /api/sound-uploads/{filename}` | Deletes an upload, unless a moment still uses it. |
 | `GET /sound-files/{sound id}` | The file itself. Sound ids are library paths, e.g. `kenney-casino/chip-lay-1.ogg` or `uploads/my-chip.ogg`. |

@@ -241,6 +241,7 @@ func _sat_down(msg: Dictionary) -> void:
 	if t == null:
 		return
 	active_table = t
+	Sfx.focus = t.table_id
 	my_seat = int(msg.seat)
 	state = "seated"
 	_heading_for = {}
@@ -267,6 +268,7 @@ func _sat_down(msg: Dictionary) -> void:
 ## Sitting at a slot cabinet: the full-screen game grows out of its screen.
 func _sat_down_slot(c: SlotCabinet, msg: Dictionary) -> void:
 	active_slot = c
+	Sfx.focus = c.table_id
 	my_seat = int(msg.seat)
 	state = "slot"
 	_heading_for = {}
@@ -383,6 +385,7 @@ func _leave_table() -> void:
 	if active_slot:
 		return _leave_slot()
 	var t := active_table
+	Sfx.focus = ""
 	state = "walking"
 	if t:
 		t.mode = ""
@@ -401,6 +404,7 @@ func _leave_table() -> void:
 
 func _leave_slot() -> void:
 	var c := active_slot
+	Sfx.focus = ""
 	state = "walking"
 	c.mode = ""
 	c.my_seat = -1

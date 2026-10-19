@@ -441,7 +441,7 @@ func _animate(speed: float, ev: Dictionary) -> float:
 	_note_event(ev)
 	var sound := _sound_for(ev)
 	if sound != "":
-		Sfx.play_at(sound, to_global(shoe_pos()))
+		sfx_at(sound, to_global(shoe_pos()))
 	match ev.kind:
 		"seated":
 			occupants[int(ev.seat)] = {"entity": ev.entity, "name": ev.name, "human": ev.human}
@@ -527,7 +527,7 @@ func _sound_for(_ev: Dictionary) -> String:
 
 ## A swish as cards leave the shoe or shuffler, `delay` seconds from now.
 func _deal_sound(delay: float) -> void:
-	_after(maxf(delay, 0.0)).timeout.connect(func(): Sfx.play_at("deal", to_global(shoe_pos())))
+	_after(maxf(delay, 0.0)).timeout.connect(func(): sfx_at("deal", to_global(shoe_pos())))
 
 
 func _move_card(card: Card2D, place: Array, duration: float, delay := 0.0) -> void:
@@ -580,7 +580,7 @@ func _settle_step(seat: int, step: Dictionary, d: float, payout_at := Vector2.IN
 
 
 func _payout_from_tray(seat: int, amount: int) -> ChipStack2D:
-	Sfx.play_at("payout", to_global(tray_pos()))
+	sfx_at("payout", to_global(tray_pos()))
 	var stack := _make_stack(seat)
 	stack.amount = amount
 	stack.position = tray_pos()
@@ -622,7 +622,7 @@ func _discard(card: Card2D, d: float, delay := 0.0) -> void:
 ## elsewhere, e.g. what's left in a shoe, from `extra_from`) and feeds them into
 ## the shuffler's intake a few at a time; the shuffler then shuffles.
 func _feed_shuffler(d: float, seconds := 2.2, extra := 0, extra_from := Vector2.ZERO) -> float:
-	Sfx.play_at("shuffle", to_global(discard_rack.position))
+	sfx_at("shuffle", to_global(discard_rack.position))
 	var batches := []
 	var from_rack := discard_rack.take_all()
 	if from_rack > 0:
@@ -687,7 +687,7 @@ func _show_queued(seat: int, bets: Dictionary, d: float) -> void:
 			else:
 				stack.position = spot_pos(seat, spot)
 		if new > old and d > 0.0:
-			Sfx.play_at("bet", to_global(spot_pos(seat, spot)))
+			sfx_at("bet", to_global(spot_pos(seat, spot)))
 		chips[spot].amount = new
 
 
@@ -748,7 +748,7 @@ func _take_stack(seat: int, spot: String, to: Vector2, d: float) -> void:
 	var stack: ChipStack2D = chips[spot]
 	chips.erase(spot)
 	if to == tray_pos():  # the dealer sweeping it in
-		Sfx.play_at("sweep", stack.global_position)
+		sfx_at("sweep", stack.global_position)
 	_fly_and_free(stack, to, 0.3 * d)
 
 
@@ -769,7 +769,7 @@ func _show_bets(seat: int, bets: Dictionary, d: float) -> void:
 		var new := int(bets.get(spot, 0))
 		var old := int(chips[spot].amount) if chips.has(spot) else 0
 		if new > old:
-			Sfx.play_at("bet", to_global(spot_pos(seat, spot)))
+			sfx_at("bet", to_global(spot_pos(seat, spot)))
 			_add_stack_from(seat, spot, new - old, chair_pos(seat), d)
 		elif new < old:
 			_set_stack(seat, spot, new)

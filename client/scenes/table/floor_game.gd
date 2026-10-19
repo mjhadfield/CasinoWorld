@@ -36,6 +36,18 @@ const STOOL_SQUASH := 0.6
 
 
 # ------------------------------------------------------------------ the server's feed
+## A sound at a spot at this table, from its game's sound set, heard nearby only.
+func sfx_at(key: String, at: Vector2, trim_db := 0.0) -> void:
+	Sfx.play_at(key, at, trim_db, table_id)
+
+
+## The table or cabinet a node belongs to ("" if it's on none), for its sound set.
+static func table_of(node: Node) -> String:
+	while node != null and not node is FloorGame:
+		node = node.get_parent()
+	return (node as FloorGame).table_id if node != null else ""
+
+
 ## A `table_state`: draw it as it is, at once.
 func apply_snapshot(_state: Dictionary) -> void:
 	pass

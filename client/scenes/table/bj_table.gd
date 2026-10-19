@@ -185,7 +185,7 @@ func _deal_card(code: String, to: Vector2, delay: float, d: float, face_up := tr
 	tw.tween_callback(func():
 		card.show()
 		shoe.take_one()
-		Sfx.play_at("deal", to_global(shoe.mouth_point())))  # one card at a time out of the shoe: a swish each
+		sfx_at("deal", to_global(shoe.mouth_point())))  # one card at a time out of the shoe: a swish each
 	tw.tween_property(card, "position", to, 0.28 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	if rot != 0.0:
 		tw.parallel().tween_property(card, "rotation", rot, 0.28 * d)

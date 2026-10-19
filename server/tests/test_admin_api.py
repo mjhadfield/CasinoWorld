@@ -1,4 +1,4 @@
-"""The admin page's API: NPCs, looks, settings, players, sound categories."""
+"""The admin page's API: NPCs, looks, settings, players, sound sets."""
 from conftest import recv_until  # noqa: F401  (the client fixture lives in conftest)
 
 
@@ -59,12 +59,12 @@ def test_preview_and_credits(client):
     assert "LPC" in client.get("/credits").text
 
 
-def test_sound_moments_and_library_have_categories(client):
+def test_sound_sets_group_the_games(client):
     data = client.get("/api/sounds").json()
-    cats = {m["key"]: m["category"] for m in data["moments"]}
-    assert cats["click"] == "ui" and cats["deal"] == "global" and cats["ball_spin"] == "game:roulette"
-    assert {s["category"] for s in data["library"]} >= {"ui", "global", "game:roulette"}
-    assert data["games"]["roulette"] == "Roulette"
+    groups = {s["key"]: s["group"] for s in data["sets"]}
+    assert groups["casino"] == "" and groups["roulette"] == "Table games" and groups["slots.armadillo"] == "Slot machines"
+    assert data["moments"]["ball_spin"]["home"] == "roulette" and data["moments"]["reel_spin"]["loop"]
+    assert {s["group"] for s in data["library"]} >= {"kenney-casino", "slots", "western"}
 
 
 def test_bulk_generate_then_create(client):

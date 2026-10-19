@@ -35,7 +35,7 @@ static func rank_value(card_code: String) -> int:
 ## Turn over to `new_code` with a flip (scale.x squeeze); returns the tween.
 func flip_to(new_code: String, duration := 0.25) -> Tween:
 	if code == "??" and new_code != "??" and not Engine.is_editor_hint() and is_inside_tree():
-		Sfx.play_at("flip", global_position)  # turned face up (turning face down is silent)
+		Sfx.play_at("flip", global_position, 0.0, FloorGame.table_of(self))  # turned face up (turning face down is silent)
 	var tween := create_tween()
 	tween.tween_property(self, "scale:x", 0.0, duration / 2)
 	tween.tween_callback(func(): code = new_code)

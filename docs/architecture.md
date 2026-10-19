@@ -83,6 +83,11 @@ A Godot 4.7 project exported to the web.
 
 - **Autoloads:** `Net` (the socket, reconnects, away/resync), `Session` (who you are, your balance, the
   jackpot meter), `Sfx` (sounds chosen on the admin page), `Settings`, `LookLoader` and `SlotArt`.
+- **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
+  every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
+  The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the
+  files, resolves a moment up the tree for the table it's played at (`Sfx.focus` is the one you're seated
+  at), and loops a copy of a stream for `start_loop` so its one-shot uses stay one-shots.
 - **The floor (`scenes/world/casino_floor.gd`)** routes server messages to avatars and tables, and turns
   clicks into requests. The camera follows you at zoom 2 while walking and glides onto a table at 2.8 when
   you sit. The room, the tables and the felt are drawn in code, so they stay sharp at any zoom, and the scene
