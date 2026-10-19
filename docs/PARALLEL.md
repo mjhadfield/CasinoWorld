@@ -1,56 +1,38 @@
-# Working in parallel
+# Two or three things at once
 
-Several Claude sessions build Casino World at once. One coordinates; the rest work, each on its own task. The context they share lives in this repo, not in any conversation. If a session dies, hits a usage limit, or runs on the other account, a fresh one carries on from the files.
+Most of the time, one session works in the main folder on `main`. When you want two or three changes going side by side, give each extra session its own git worktree, so they can't overwrite each other.
 
-## The roles
+## Starting one
 
-- **Mike** decides what to build, answers the workers' questions, reviews diffs, and says when to merge and restart the live server.
-- **The coordinating session** runs in the main checkout (`~/Projects/CasinoWorld`, on `main`). It:
-  - turns a feature into tasks and writes the task files
-  - starts one worker per task
-  - reviews what comes back
-  - merges into `main`, re-exports the web client, and restarts the live server when Mike says so
-- **The workers** each run in their own git worktree on branch `task/<id>`. A worker:
-  - changes only the paths its task owns
-  - runs its own dev instance
-  - commits on its branch and writes a handoff
+- **Pick pieces that touch different files.** Server rules, a client scene, and art or sounds usually split cleanly. Some files nearly every feature touches, so don't run two sessions on them at once:
+  - the protocol (`server/protocol.md` and both `PROTOCOL_VERSION`s)
+  - `client/scenes/world/casino_floor.tscn`, because `.tscn` files merge badly
+  - `server/casino_server/store.py`, the database schema
+- **Start the session in a worktree.** In the desktop app, start the new session with a worktree. From a terminal:
 
-## Starting a feature
+  ```bash
+  git worktree add .claude/worktrees/<id> -b task/<id>
+  ```
 
-1. Tell the coordinating session what you want.
-2. It splits the feature into tasks whose **Owns** lists don't overlap. Usually that's by area: server rules, client scene, admin, art or sounds. Where two pieces both need a shared hot spot (CLAUDE.md), they run one after the other, not side by side.
-3. It writes `docs/tasks/<id>.md` for each task, sets them `active`, and commits on `main`. Worktrees start from `main`, so every worker sees every task file.
-4. It starts one session per task, each in a new worktree. In the Claude desktop app, a session started from the coordinating session in a worktree shows in the sidebar and reports back when it finishes a turn.
+- **Run `tools/dev.sh setup` in the worktree.** Its own instance is `tools/dev.sh server`, on its own ports from 8670 up with its own `.dev/data`. Add `--live-data` to start from a copy of the real floor. `tools/dev.sh port` prints the port, and `tools/dev.sh list` shows every checkout's.
+- **Client changes:** a worktree serves the main client until you run `tools/dev.sh export` there.
 
-   Doing it by hand from a terminal instead:
+## If it will take more than one sitting
+
+Copy `docs/tasks/_template.md` to `docs/tasks/<id>.md` and keep its Handoff section current. Then a fresh session, on either account, can pick it up from "continue docs/tasks/<id>.md" without being re-told everything.
+
+## Finishing
+
+1. Commit on the task branch.
+2. Merge from the main folder, then run the tests:
 
    ```bash
-   git worktree add .claude/worktrees/<id> -b task/<id>
-   cd .claude/worktrees/<id> && tools/dev.sh setup && claude
+   git merge task/<id>
    ```
 
-## While workers run
+3. Restart and export as usual (`tools/dev.sh restart`, `tools/dev.sh export`).
+4. Tidy up:
 
-- Each worker runs `tools/dev.sh server` in the background on its own port pair, from 8670 up. `tools/dev.sh list` shows every checkout's port and whether it's running.
-- To try one yourself, use `https://<LAN IP>:<port + 1>`. Its admin page is `/admin` on the same instance.
-- A blocked worker asks you in its own session, or messages the coordinating session.
-
-## Finishing a task
-
-1. The worker fills in **Handoff**, runs the tests, commits, and sets its status to `review` in its own task file.
-2. The coordinating session reads the handoff and the diff (`git diff main...task/<id>`) and tells you what changed and how it was checked.
-3. Once you've approved, the coordinating session:
-   1. runs `git merge --no-ff task/<id>` on `main`, then the tests again
-   2. sets the task to `merged`
-   3. removes the worktree: `git worktree remove .claude/worktrees/<id>`, then `git branch -d task/<id>`
-4. **Going live:** when the client changed, the coordinating session runs `tools/dev.sh export` in the main checkout. Then, on your word, it restarts `hub-proj-casino-world` (or you restart it from Citadel).
-
-Merging puts the new code on disk under the live server straight away. It only runs the new code after a restart. One exception: `dealer_lines.toml` reloads without a restart.
-
-## Notes
-
-- **Two accounts.** Transcripts and memory are stored locally in `~/.claude`, and the task files are in git, so switching accounts loses nothing. A worker that runs out of usage can be resumed, or replaced by a fresh session told "continue `docs/tasks/<id>.md`".
-- **Worktree caches.** A worktree has no `.venv` or `lpc_cache` of its own; `tools/dev.sh setup` links the main checkout's.
-- **The client in a worktree.** It has no `build/web` until `tools/dev.sh export`, so its server serves the main client until then. The first export also imports the assets into `client/.godot/`, and still takes only a few seconds.
-- **Live data.** `--live-data` copies `server/data/` into `.dev/data` once, with a consistent SQLite snapshot. Delete `.dev/data` to start over.
-- **Not in git:** `server/data/` (live), `server/lpc_cache/` (a download cache), `build/`, and `docs/slots/flux_raw/` (the raw FLUX outputs, kept in the main checkout only).
+   ```bash
+   git worktree remove .claude/worktrees/<id> && git branch -d task/<id>
+   ```

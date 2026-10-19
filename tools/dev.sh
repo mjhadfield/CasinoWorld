@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-# Runs a Casino World dev instance for this checkout (normally a git worktree), isolated
-# from the live server: its own port pair and its own data folder. See docs/PARALLEL.md.
+# Helpers for the live server and for side-by-side dev instances. See docs/PARALLEL.md.
 #
-#   tools/dev.sh setup                 link the main checkout's .venv and lpc_cache in here
-#   tools/dev.sh port                  print this checkout's HTTP port (HTTPS is port + 1)
-#   tools/dev.sh server [--live-data]  run the server (foreground; log in .dev/server.log)
+#   tools/dev.sh restart [--force]     restart the live server, unless someone holds it
+#   tools/dev.sh hold "why"            mark the live server as in use for a test
+#   tools/dev.sh release               clear that mark
 #   tools/dev.sh export                export the web client into this checkout's build/web
 #   tools/dev.sh test [pytest args]    run the server tests
+#
+# For a worktree that needs its own instance:
+#   tools/dev.sh setup                 link the main checkout's .venv and lpc_cache in here
+#   tools/dev.sh port                  print this checkout's HTTP port (HTTPS is port + 1)
+#   tools/dev.sh server [--live-data]  run it (foreground; log in .dev/server.log)
 #   tools/dev.sh list                  every checkout's port, and whether it is running
 #
-# The live server is the Citadel service on 8660/8661, run from the main checkout with
-# server/data/. This script never uses either: dev ports start at 8670, and the data
-# folder is .dev/data. --live-data copies the live data in once (a copy, never a link);
-# delete .dev/data to start over.
+# The live server is Citadel's unit hub-proj-casino-world on 8660/8661, run from the main
+# checkout with server/data/. Dev instances use ports from 8670 up and .dev/data;
+# --live-data copies the live data in once. Delete .dev/data to start over.
 set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
 MAIN=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 DEV="$ROOT/.dev"
 LIVE_PORT=8660
+LIVE_UNIT=hub-proj-casino-world.service
+HOLD="$MAIN/.dev/live-hold"
+HOLD_HOURS=3   # an older hold was forgotten, not meant
 FIRST_PORT=8670
 LAST_PORT=8698
 
@@ -129,12 +135,48 @@ list() {
     echo "(* the main checkout: the live server, run by Citadel)"
 }
 
+hold() {
+    [[ -n "${1:-}" ]] || die 'say why: tools/dev.sh hold "testing the craps payouts"'
+    mkdir -p "$(dirname "$HOLD")"
+    printf '%s\t%s\t%s\n' "$(date +%s)" "$ROOT" "$1" >"$HOLD"
+    echo "dev.sh: live server held. Run 'tools/dev.sh release' when the test is done."
+}
+
+release() { rm -f "$HOLD"; echo "dev.sh: live server released"; }
+
+restart() {
+    if [[ -f "$HOLD" && "${1:-}" != "--force" ]]; then
+        local since where why age
+        IFS=$'\t' read -r since where why <"$HOLD"
+        age=$(( $(date +%s) - since ))
+        if (( age < HOLD_HOURS * 3600 )); then
+            die "the live server is held ($(( age / 60 )) min ago, from $where): $why. Wait for 'release', or use --force."
+        fi
+        echo "dev.sh: ignoring a hold from $(( age / 3600 ))h ago ($why)"
+        rm -f "$HOLD"
+    fi
+    if ! systemctl --user is-active --quiet "$LIVE_UNIT"; then
+        echo "dev.sh: the live server isn't running, so there's nothing to restart (start it from Citadel)"
+        return
+    fi
+    systemctl --user restart "$LIVE_UNIT"
+    local i
+    for ((i = 0; i < 40; i++)); do
+        listening "$LIVE_PORT" && { echo "dev.sh: live server restarted"; return; }
+        sleep 0.25
+    done
+    die "restarted, but nothing is listening on $LIVE_PORT yet: journalctl --user -u $LIVE_UNIT -n 30"
+}
+
 case "${1:-}" in
+    restart) shift; restart "$@" ;;
+    hold) shift; hold "$@" ;;
+    release) release ;;
     setup) setup ;;
     port) port ;;
     server) shift; server "$@" ;;
     export) export_web ;;
     test) shift; run_tests "$@" ;;
     list) list ;;
-    *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
