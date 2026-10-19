@@ -41,7 +41,7 @@ setup() {
 # Ports other checkouts have claimed, one per line.
 claimed() {
     git worktree list --porcelain | sed -n 's/^worktree //p' | while read -r wt; do
-        [[ "$wt" != "$ROOT" && -f "$wt/.dev/port" ]] && cat "$wt/.dev/port"
+        if [[ "$wt" != "$ROOT" && -f "$wt/.dev/port" ]]; then cat "$wt/.dev/port"; fi
     done
 }
 
@@ -117,6 +117,7 @@ list() {
             worktree) wt=$value ;;
             branch) branch=${value#refs/heads/} ;;
             "")
+                [[ -z "$wt" ]] && continue
                 p=$( [[ -f "$wt/.dev/port" ]] && cat "$wt/.dev/port" || echo - )
                 [[ "$wt" == "$MAIN" ]] && p="$LIVE_PORT*"
                 state=-

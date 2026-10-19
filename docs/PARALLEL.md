@@ -51,6 +51,6 @@ Merging puts the new code on disk under the live server straight away. It only r
 
 - **Two accounts.** Transcripts and memory are stored locally in `~/.claude`, and the task files are in git, so switching accounts loses nothing. A worker that runs out of usage can be resumed, or replaced by a fresh session told "continue `docs/tasks/<id>.md`".
 - **Worktree caches.** A worktree has no `.venv` or `lpc_cache` of its own; `tools/dev.sh setup` links the main checkout's.
-- **The client in a worktree.** It has no `build/web` until `tools/dev.sh export`, so its server serves the main client until then. The first export imports every asset into `client/.godot/`, which takes a minute.
+- **The client in a worktree.** It has no `build/web` until `tools/dev.sh export`, so its server serves the main client until then. The first export also imports the assets into `client/.godot/`, and still takes only a few seconds.
 - **Live data.** `--live-data` copies `server/data/` into `.dev/data` once, with a consistent SQLite snapshot. Delete `.dev/data` to start over.
 - **Not in git:** `server/data/` (live), `server/lpc_cache/` (a download cache), `build/`, and `docs/slots/flux_raw/` (the raw FLUX outputs, kept in the main checkout only).
