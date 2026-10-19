@@ -4,7 +4,7 @@
 > card, v2's side bets) replaced the second Three Card Poker table. Shared code now lives in
 > `server/casino_server/tables/base.py` (seating, betting, the clock) and, on the client,
 > `scenes/table/casino_table.gd` and `table_felt.gd`, with reusable `CardShoe`, `CardShuffler` and
-> `DiscardRack` fixtures. See the README and `server/protocol.md` for the details.
+> `DiscardRack` fixtures. See `docs/tables.md`, `docs/games/` and `server/protocol.md` for the details.
 >
 > **Update (2026-10-18): admin page and NPC roster.**
 > - `/admin` has tabs: Sounds (with categories), NPCs, Players and Settings.
