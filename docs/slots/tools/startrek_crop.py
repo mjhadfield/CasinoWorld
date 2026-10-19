@@ -1,5 +1,5 @@
 """Cut the Star Trek reference sheets into one padded 1024² reference per symbol.
-usage (from docs/slots/startrek): python ../tools/startrek_crop.py   → ref/<name>.png"""
+usage (from server/slot_designs/startrek): python3 ../../../docs/slots/tools/startrek_crop.py   → ref/<name>.png"""
 from pathlib import Path
 from PIL import Image
 

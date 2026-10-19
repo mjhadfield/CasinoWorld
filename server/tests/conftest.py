@@ -35,9 +35,10 @@ class RiggedDeck(Deck):
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    """A TestClient on a scratch database -- never the real server/data -- with no
+    """A TestClient on a scratch database and design board -- never the real ones -- with no
     NPCs and quick table timers (but a long decision window, so tests can act)."""
     monkeypatch.setenv("CASINO_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))  # never the real design board
     monkeypatch.setenv("CASINO_NPCS", "0")
     with TestClient(app) as c:
         for runner in c.app.state.casino.tables.values():

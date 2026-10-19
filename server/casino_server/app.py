@@ -24,6 +24,7 @@ from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
 from casino_server.slot_art import ArtError, SlotArtBoard
+from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
 from casino_server.sounds import SoundBoard, SoundError
 from casino_server.store import Store
@@ -73,12 +74,16 @@ async def lifespan(app: FastAPI):
     app.state.casino = casino
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
+    # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
+    app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
+    design_worker = asyncio.create_task(app.state.slot_design.run())
     app.state.looks = looks
     await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
     await casino.start()
     try:
         yield
     finally:
+        design_worker.cancel()
         await casino.stop()
         store.close()
 
@@ -347,6 +352,94 @@ def slot_art_file(variant: str, source: str, request: Request):
         raise HTTPException(404, "No such image")
     cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": cache})
+
+
+# ------------------------------------------------------------------ slot design (the admin page)
+# The Slot design tab's board (slot_design.py). Generating runs in the board's own background task.
+def _design_call(fn, *args):
+    try:
+        return fn(*args)
+    except DesignError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/slot-design")
+def slot_design_list(request: Request):
+    return JSONResponse({"designs": request.app.state.slot_design.listing()}, headers=NO_STORE)
+
+
+@app.get("/api/slot-design/{design}")
+def slot_design_overview(design: str, request: Request):
+    return JSONResponse(_design_call(request.app.state.slot_design.overview, design), headers=NO_STORE)
+
+
+@app.get("/api/slot-design/{design}/status")
+def slot_design_status(design: str, request: Request):
+    return JSONResponse(_design_call(request.app.state.slot_design.status, design), headers=NO_STORE)
+
+
+@app.patch("/api/slot-design/{design}/symbols/{sid}")
+async def slot_design_update(design: str, sid: str, request: Request):
+    body = await _json_body(request, "{choice, hue, keep, reiterate, note, base, add_ref, remove_ref, ...}")
+    await run_in_threadpool(_design_call, request.app.state.slot_design.update_symbol, design, sid, body)
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/symbols")
+async def slot_design_add(design: str, request: Request):
+    body = await _json_body(request, "{name, category, kind, prompt, key, ref}")
+    return {"id": await run_in_threadpool(_design_call, request.app.state.slot_design.add_symbol, design, body)}
+
+
+@app.delete("/api/slot-design/{design}/symbols/{sid}")
+def slot_design_delete(design: str, sid: str, request: Request):
+    _design_call(request.app.state.slot_design.delete_symbol, design, sid)
+    return {"ok": True}
+
+
+@app.patch("/api/slot-design/{design}/categories/{cid}")
+async def slot_design_category(design: str, cid: str, request: Request):
+    body = await _json_body(request, "{required, title}")
+    _design_call(request.app.state.slot_design.update_category, design, cid, body)
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/links/{filename}")
+async def slot_design_link_upload(design: str, filename: str, request: Request):
+    data = await request.body()
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.link_image, design, filename, data)}
+
+
+@app.post("/api/slot-design/{design}/links")
+async def slot_design_link_url(design: str, request: Request):
+    body = await _json_body(request, "{url}")
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.link_url, design, body.get("url"))}
+
+
+@app.post("/api/slot-design/{design}/generate")
+def slot_design_generate(design: str, request: Request):
+    return {"queued": _design_call(request.app.state.slot_design.generate, design)}
+
+
+@app.post("/api/slot-design/{design}/jobs/{job_id}/retry")
+def slot_design_retry(design: str, job_id: int, request: Request):
+    _design_call(request.app.state.slot_design.retry, design, job_id)
+    return {"ok": True}
+
+
+@app.delete("/api/slot-design/{design}/jobs/{job_id}")
+def slot_design_cancel(design: str, job_id: int, request: Request):
+    _design_call(request.app.state.slot_design.cancel, design, job_id)
+    return {"ok": True}
+
+
+@app.get("/slot-design/{design}/{rel:path}")
+def slot_design_file(design: str, rel: str, request: Request):
+    d = request.app.state.slot_design.designs.get(design)
+    path = d.path(rel) if d else None
+    if path is None:
+        raise HTTPException(404, "No such image")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-cache"})
 
 
 # ------------------------------------------------------------------ NPCs (the admin page)

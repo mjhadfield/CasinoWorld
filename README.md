@@ -48,11 +48,13 @@ Environment knobs:
 - `CASINO_SPEED` scales every table timer and NPC pace; `0.5` is twice as fast.
 - `CASINO_DATA_DIR` sets where the SQLite database lives (default `server/data/`).
 - `CASINO_PORT` and `CASINO_WEB_DIR` set the HTTP port (HTTPS is one above) and the web export served.
+- `CASINO_DESIGNS_DIR` moves the Slot design board's folders (default `server/slot_designs/`); dev instances
+  use a copy in `.dev/slot_designs`, and the tests a scratch directory.
 
 ## Admin page
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
 no password: it's open to anyone who can reach the server, the same as the game, which is fine on the LAN
-and Tailscale. It has five tabs:
+and Tailscale. It has six tabs:
 - **Sounds:** the sound sets down the left: **Whole casino**, each table game, **Every slot machine** and each
   machine. A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
   own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
@@ -80,6 +82,19 @@ and Tailscale. It has five tabs:
   - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
 - **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
 - **Slots:** the jackpot meters, players' return on slots, and the symbol art set.
+- **Slot design:** the working board for a new slot's art, and the template for every later one (Star Trek is
+  the first). A section per category with how many symbols the main game needs (editable; bonus screens have no
+  count and can reuse any art on the board), and a card per symbol: cycle its variants, pick a character's
+  frame colour, tick it into the final set, link more reference images (upload, a web address, or art already
+  on the board), and mark it **Reiterate** with a note and a starting image. **New** adds a symbol to a
+  category, from a description, a reference or both, and stacks. **Generate** queues three takes per marked
+  symbol for FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs wait for
+  it), and they appear on the board as they finish.
+  - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `casino_server/slot_design.py`
+    explains the layout. Variants are found from the files, so a new slot is a new folder (categories, symbols
+    and any reference crops) and nothing else.
+  - Characters are drawn by FLUX as a bust only and put into one shared frame in code
+    (`casino_server/slot_design_art.py`), in six colours, so every character matches.
 - **Settings:** punters on the floor, cooldowns, dealer shift length.
 
 ## Money
@@ -129,7 +144,7 @@ the tiles). The layers come from the Universal LPC Spritesheet Character Generat
 under CC-BY-SA/GPL. Looks designed on the admin page are built by the server instead.
 
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
-library for the admin page's Slots tab.
+library for the admin page's Slots tab. New slot art is designed on the admin page's Slot design tab.
 
 ## Code map
 - **server/casino_server/**
@@ -143,6 +158,8 @@ library for the admin page's Slots tab.
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
+  - `slot_design.py`, `slot_design_art.py`: the Slot design board and its FLUX, keying and frame pipeline
+    (designs in `server/slot_designs/`).
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars and the room.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the

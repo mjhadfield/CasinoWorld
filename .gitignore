@@ -14,12 +14,12 @@ server/lpc_cache/
 
 # Raw 1024px FLUX outputs, kept on disk in the main checkout only (60 MB of PNGs).
 docs/slots/flux_raw/
-# Star Trek candidates: sheet crops, raw FLUX edits and the framed character renders (6 colours each) are
-# rebuilt by the scripts. The raw character busts are kept: the framed tiles are made from them.
-docs/slots/startrek/ref/
-docs/slots/startrek/raw/*
-!docs/slots/startrek/raw/bust_*.png
-docs/slots/startrek/chars/
+# Slot design boards (server/slot_designs/<id>/): the raw FLUX output and the framed character renders (six
+# colours each) stay on disk only. The raw character busts are kept: the renders are rebuilt from them with
+# `python -m casino_server.slot_design_art rebuild <design>`.
+server/slot_designs/*/raw/*
+!server/slot_designs/*/raw/bust_*.png
+server/slot_designs/*/chars/
 
 # Per-worktree scratch from tools/dev.sh: its port, database and logs.
 .dev/

@@ -1,0 +1,611 @@
+{
+ "name": "Star Trek",
+ "note": "Counts follow the slot engine as it is (Armadillo's maths): 2 high pays, 4 mid pays, 3 specials (wild, bonus scatter, free-spins scatter). Five royals means adding a fifth low tier when the maths is done.",
+ "categories": [
+  {
+   "id": "royals",
+   "title": "Royals",
+   "required": 5,
+   "kind": "object"
+  },
+  {
+   "id": "set1",
+   "title": "Symbol set 1 \u00b7 characters",
+   "required": 2,
+   "kind": "character"
+  },
+  {
+   "id": "set2",
+   "title": "Symbol set 2 \u00b7 ships, places & kit",
+   "required": 4,
+   "kind": "object"
+  },
+  {
+   "id": "specials",
+   "title": "Specials \u00b7 wild & scatters",
+   "required": 3,
+   "kind": "object"
+  },
+  {
+   "id": "bonus",
+   "title": "Bonus screens",
+   "required": null,
+   "kind": "object"
+  }
+ ],
+ "symbols": [
+  {
+   "id": "A",
+   "name": "A",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/A.png"
+   ],
+   "hue": "gold",
+   "keep_text": "letter A",
+   "favourite": "cut/A_1.png",
+   "hidden": [
+    "cut/A_2.png",
+    "cut/A_3.png"
+   ],
+   "choice": "cut/A_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "K",
+   "name": "K",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/K.png"
+   ],
+   "hue": "gold",
+   "keep_text": "letter K",
+   "favourite": "cut/K_1.png",
+   "hidden": [
+    "cut/K_2.png",
+    "cut/K_3.png"
+   ],
+   "choice": "cut/K_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "Q",
+   "name": "Q",
+   "category": "royals",
+   "kind": "object",
+   "key": "green",
+   "refs": [
+    "ref/Q.png"
+   ],
+   "hue": "gold",
+   "keep_text": "letter Q",
+   "favourite": "cut/Q_1.png",
+   "hidden": [
+    "cut/Q_2.png",
+    "cut/Q_3.png"
+   ],
+   "choice": "cut/Q_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "J",
+   "name": "J",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/J.png"
+   ],
+   "hue": "gold",
+   "keep_text": "letter J",
+   "favourite": "cut/J_1.png",
+   "hidden": [
+    "cut/J_2.png",
+    "cut/J_3.png"
+   ],
+   "choice": "cut/J_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "10",
+   "name": "10",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/10.png"
+   ],
+   "hue": "gold",
+   "keep_text": "number 10",
+   "favourite": "cut/10_1.png",
+   "hidden": [
+    "cut/10_2.png",
+    "cut/10_3.png"
+   ],
+   "choice": "cut/10_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "kirk",
+   "name": "Kirk",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/kirk.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/kirk_1.png",
+   "hidden": [
+    "cut/kirk_2.png",
+    "cut/kirk_3.png"
+   ],
+   "choice": "bust/kirk_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "spock",
+   "name": "Spock",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/spock.png"
+   ],
+   "hue": "blue",
+   "hidden": [
+    "cut/spock_1.png",
+    "cut/spock_2.png",
+    "cut/spock_3.png"
+   ],
+   "choice": "bust/spock_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "worf",
+   "name": "Worf",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/worf_tng.png"
+   ],
+   "hue": "red",
+   "favourite": "cut/worf_1.png",
+   "hidden": [
+    "cut/worf_2.png",
+    "cut/worf_3.png"
+   ],
+   "choice": "bust/worf_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "picard",
+   "name": "Picard",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/picard.png"
+   ],
+   "hue": "red",
+   "choice": "bust/picard_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "data",
+   "name": "Data",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/data.png"
+   ],
+   "hue": "gold",
+   "choice": "bust/data_2",
+   "keep": false,
+   "reiterate": true,
+   "note": ""
+  },
+  {
+   "id": "troi",
+   "name": "Troi",
+   "category": "set1",
+   "kind": "character",
+   "key": "green",
+   "refs": [
+    "ref/troi.png"
+   ],
+   "hue": "purple",
+   "choice": "bust/troi_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "obrien",
+   "name": "O'Brien",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "refs": [
+    "ref/obrien.png"
+   ],
+   "hue": "gold",
+   "choice": "bust/obrien_3",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "enterprise",
+   "name": "Enterprise (TOS)",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/enterprise.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/enterprise_1.png",
+   "hidden": [
+    "cut/enterprise_2.png",
+    "cut/enterprise_3.png"
+   ],
+   "choice": "cut/enterprise_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "enterprise_d",
+   "name": "Enterprise-D",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/enterprise_d.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/enterprise_d_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "ds9",
+   "name": "Deep Space Nine",
+   "category": "set2",
+   "kind": "object",
+   "key": "green",
+   "refs": [
+    "ref/ds9.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/ds9_1.png",
+   "hidden": [
+    "cut/ds9_2.png",
+    "cut/ds9_3.png"
+   ],
+   "choice": "cut/ds9_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "borg_cube",
+   "name": "Borg cube",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/borg_cube.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/borg_cube_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "bird_of_prey",
+   "name": "Klingon Bird of Prey",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/bird_of_prey.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/bird_of_prey_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "warbird",
+   "name": "Romulan Warbird",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/warbird.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/warbird_3.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "earth",
+   "name": "Earth",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/earth.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/earth_1.png",
+   "hidden": [
+    "cut/earth_2.png",
+    "cut/earth_3.png"
+   ],
+   "choice": "cut/earth_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "red_planet",
+   "name": "Red planet",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/red_planet.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/red_planet_1.png",
+   "hidden": [
+    "cut/red_planet_2.png",
+    "cut/red_planet_3.png"
+   ],
+   "choice": "cut/red_planet_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "gas_giant",
+   "name": "Gas giant",
+   "category": "set2",
+   "kind": "object",
+   "key": "green",
+   "refs": [
+    "ref/gas_giant.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/gas_giant_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "nebula",
+   "name": "Nebula",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/nebula.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/nebula_1.png",
+   "hidden": [
+    "cut/nebula_2.png",
+    "cut/nebula_3.png"
+   ],
+   "choice": "cut/nebula_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "delta",
+   "name": "Starfleet delta",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/delta.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/delta_2.png",
+   "hidden": [
+    "cut/delta_1.png",
+    "cut/delta_3.png"
+   ],
+   "choice": "cut/delta_2.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "delta_gold",
+   "name": "Gold delta",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/delta_gold.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/delta_gold_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "red_delta",
+   "name": "Red delta",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/red_delta.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/red_delta_1.png",
+   "hidden": [
+    "cut/red_delta_2.png",
+    "cut/red_delta_3.png"
+   ],
+   "choice": "cut/red_delta_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "communicator",
+   "name": "Communicator",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/communicator.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/communicator_1.png",
+   "hidden": [
+    "cut/communicator_2.png",
+    "cut/communicator_3.png"
+   ],
+   "choice": "cut/communicator_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "tricorder",
+   "name": "Tricorder",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/tricorder.png"
+   ],
+   "hue": "gold",
+   "choice": "cut/tricorder_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "phaser",
+   "name": "Phaser",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/phaser.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/phaser_1.png",
+   "hidden": [
+    "cut/phaser_2.png",
+    "cut/phaser_3.png"
+   ],
+   "choice": "cut/phaser_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "mug",
+   "name": "Mug",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/mug.png"
+   ],
+   "hue": "gold",
+   "favourite": "cut/mug_1.png",
+   "hidden": [
+    "cut/mug_2.png",
+    "cut/mug_3.png"
+   ],
+   "choice": "cut/mug_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "wild",
+   "name": "Wild",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/wild.png"
+   ],
+   "hue": "gold",
+   "keep_text": "word WILD",
+   "favourite": "cut/wild_1.png",
+   "hidden": [
+    "cut/wild_2.png",
+    "cut/wild_3.png"
+   ],
+   "choice": "cut/wild_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  },
+  {
+   "id": "scatter",
+   "name": "Scatter",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "refs": [
+    "ref/scatter.png"
+   ],
+   "hue": "gold",
+   "keep_text": "word SCATTER",
+   "favourite": "cut/scatter_1.png",
+   "hidden": [
+    "cut/scatter_2.png",
+    "cut/scatter_3.png"
+   ],
+   "choice": "cut/scatter_1.png",
+   "keep": false,
+   "reiterate": false,
+   "note": ""
+  }
+ ],
+ "jobs": []
+}
