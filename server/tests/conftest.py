@@ -5,6 +5,23 @@ from casino_server.app import app
 from casino_server.engines.cards import Card, Deck
 
 
+def pytest_addoption(parser):
+    parser.addoption("--all", action="store_true", help="also run the slow simulations (@pytest.mark.slow)")
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: a long simulation (minutes); skipped unless --all")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--all"):
+        return
+    skip = pytest.mark.skip(reason="slow: run with --all (tools/dev.sh test --all)")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip)
+
+
 class RiggedDeck(Deck):
     """Deals `codes` in order (seat 0's 3 cards, ..., then the dealer's 3)."""
 

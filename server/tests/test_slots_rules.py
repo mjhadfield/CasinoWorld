@@ -141,6 +141,7 @@ def test_jackpot_odds_scale_with_the_bet():
     assert rate(2500) / rate(250) == pytest.approx(10, rel=0.15)
 
 
+@pytest.mark.slow  # ~2 minutes: run it (tools/dev.sh test --all) after changing the slots maths
 def test_the_signed_off_return():
     """Game about 91.5% (each bonus valued from its own long run times its exact odds; the
     trail's 2,000x prizepot makes a single run swing), progressives 3.75%, Buy Bonus 93.7%."""

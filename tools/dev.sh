@@ -5,7 +5,7 @@
 #   tools/dev.sh hold "why"            mark the live server as in use for a test
 #   tools/dev.sh release               clear that mark
 #   tools/dev.sh export                export the web client into this checkout's build/web
-#   tools/dev.sh test [pytest args]    run the server tests
+#   tools/dev.sh test [--all] [args]   run the server tests (--all adds the slow simulations)
 #
 # For a worktree that needs its own instance:
 #   tools/dev.sh setup                 link the main checkout's .venv and lpc_cache in here
