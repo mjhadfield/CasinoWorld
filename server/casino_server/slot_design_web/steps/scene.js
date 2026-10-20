@@ -324,6 +324,16 @@ const boardImages = () => [
   ...C.data.symbols.flatMap(s => s.refs.map((r, k) => [`${s.name}: reference ${k + 1}`, r])),
   ...C.data.sources.map(p => [`Sheet: ${p.split("/")[1]}`, p])];
 
+// A background or logo job's progress; a failed one (the image model stopped, say) can be tried again.
+function jobLine(what, j) {
+  const {el} = C;
+  const state = {queued: "queued", waiting: "waiting for the image model", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status];
+  return el("p", {className: "hint"}, `${what}: ${state} `, j.status === "failed" ? el("button", {type: "button", textContent: "Retry", onclick: async () => {
+    try { await C.api("POST", `/api/slot-design/${C.did}/jobs/${j.id}/retry`); await C.refresh(); C.status(`${what} queued again.`, "ok"); }
+    catch (e) { C.status(e.message, "warn"); }
+  }}) : null);
+}
+
 // ------------------------------------------------------------------ background
 function drawBg() {
   const {el} = C, s = sc();
@@ -348,7 +358,7 @@ function drawBg() {
         el("span", {className: "wz-none", textContent: "None"})),
       ...s.backgrounds.map(p => take(p, s.background === p, () => patch({background: p}, "Background chosen."), "wide"))),
     ...bin("backgrounds", "wide"),
-    ...jobs.map(j => el("p", {className: "hint", textContent: `Background: ${{queued: "queued", waiting: "waiting for the image model", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
+    ...jobs.map(j => jobLine("Background", j)),
     el("label", {className: "field"}, el("span", {textContent: "Generate (three takes, about two minutes each)"}), desc),
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Generate", onclick: async () => {
       try { await C.api("POST", `/api/slot-design/${C.did}/scene/backgrounds`, {description: desc.value}); desc.value = ""; C.status("Background queued: the takes appear here as the image model finishes them.", "ok"); await C.refresh(); }
@@ -372,7 +382,7 @@ function logoStrip() {
   const jobs = (C.data.scene_jobs || []).filter(j => j.out === "logo");
   return el("div", {className: "wz-logos"},
     el("div", {className: "dz-strip"}, ...s.logos.map(p => take(p, s.logo.file === p, () => patch({logo_file: p}), "wide contain"))),
-    ...jobs.map(j => el("p", {className: "hint", textContent: `Logo: ${{queued: "queued", waiting: "waiting for the image model", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
+    ...jobs.map(j => jobLine("Logo", j)),
     ...bin("logos", "wide contain"));
 }
 function drawLogo() {
