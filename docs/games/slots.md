@@ -2,7 +2,9 @@
 
 Ten one-seat Armadillo cabinets in the south-east corner. Slots built with the admin page's Slot design wizard
 stand in banks of up to ten on named spots nearby (`<id>_1`..), and play by the same rules below with their own
-tiers, pays, features, bonus settings, look and words. The design record, the maths source and how to add another
+tiers, pays, features, bonus settings, look and words. A built slot can also switch a bonus off, start it from
+either scatter, and say whether Buy Bonus gives it; a scatter or Buy Bonus with more than one bonus plays one of them
+at random, and a scatter that starts nothing isn't on its reels. The design record, the maths source and how to add another
 slot are in `docs/slots/` (start with its README).
 
 ## Playing

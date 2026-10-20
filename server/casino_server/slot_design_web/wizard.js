@@ -177,7 +177,8 @@ async function checkFlux() {
 }
 
 // The mockup in a dialog, from the Scene step on: the base game with this design's art, scene and (once tuned) maths.
-// opts.rig forces the first spin: {features: [...]} or {trigger: "trail"|"free"} or {jackpot: tier}.
+// opts.rig forces the first spin: {features: [...]} or {trigger: "trail"|"free"} or {jackpot: tier}; opts.bonus plays
+// a bonus straight away (one no scatter starts).
 async function playMockup(opts = {}) {
   const {el} = H;
   await loadMath();
@@ -192,7 +193,7 @@ async function playMockup(opts = {}) {
   if (opts.rig) {
     game.rig({features: opts.rig.features || [], trigger: opts.rig.trigger || null, jackpot: opts.rig.jackpot || null});
     setTimeout(() => game.spin(), 900);
-  }
+  } else if (opts.bonus) setTimeout(() => game.bonus(opts.bonus), 900);
 }
 
 // While the tab is open: follow running jobs (and a step left showing older data, current.behind) every 4 s,

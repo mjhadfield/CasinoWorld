@@ -8,6 +8,8 @@ A slot cabinet: one seat, one variant (slots/variants), the shared progressives.
                 itself when you're idle.
   trail         The Trail Bonus: FIRE moves the armadillo; fires itself after `trail_auto`.
   free_games    Three Combo Free Games, played by the clock.
+
+Which bonus a scatter or Buy Bonus plays comes from the variant's routes (one of several at random).
   summary       A beat to show what a feature paid, then the next feature or idle.
 
 A paid spin is debited, its outcome drawn and its win credited at once (the client holds the
@@ -20,7 +22,7 @@ from dataclasses import dataclass
 
 from casino_server.dealer import DealerLines
 from casino_server.slots import base, bonuses, jackpots
-from casino_server.slots.outcome import presentation_seconds, spin_outcome
+from casino_server.slots.outcome import pick_bonus, presentation_seconds, spin_outcome
 from casino_server.slots.rng import fresh
 from casino_server.slots.variants import VARIANTS
 from casino_server.tables.base import TableError, TableMachine
@@ -84,7 +86,7 @@ class SlotMachine(TableMachine):
     def _reset_session(self):
         self.bet = base.LADDER[3]
         self.last: dict | None = None        # the last spin shown
-        self.pending: list = []              # features still to come: ("pick", tier) | ("trail", bet, bought) | ("free", bet)
+        self.pending: list = []              # features still to come: ("pick", tier) | ("trail", bet, bought) | ("free", bet, bought)
         self.pick: dict | None = None
         self.trail: dict | None = None
         self.trail_ready_at = 0.0
@@ -98,7 +100,7 @@ class SlotMachine(TableMachine):
                 "pays": {k: list(p) for k, p in v.pays.items()}, "upgrades": v.upgrades, "ladder": base.LADDER,
                 "features": v.features, "art": v.art, "theme": v.theme,
                 "strips": v.strips, "free_strips": v.free_strips, "big_strip": v.big_strip, "buy_cost": v.buy_cost,
-                "free_games": v.free_games, "tiers": [{k: t[k] for k in ("id", "name", "seed")} for t in jackpots.TIERS],
+                "free_games": v.free_games, "routes": v.routes, "tiers": [{k: t[k] for k in ("id", "name", "seed")} for t in jackpots.TIERS],
                 "seats": 1}
 
     # ------------------------------------------------------------------ seating
@@ -152,7 +154,7 @@ class SlotMachine(TableMachine):
         if o["trigger"] == "trail":
             self.pending.append(("trail", bet, False))
         elif o["trigger"] == "free":
-            self.pending.append(("free", bet))
+            self.pending.append(("free", bet, False))
         secs = presentation_seconds(o) * self.timings.present
         event = {"kind": "spin", "seat": 0, "outcome": outcome_view(o), "meters": self.progressives.amounts(), "rates": self.progressives.rates(),
                  "secs": round(secs, 2), "features_next": [f[0] for f in self.pending], "_paid": [p]}
@@ -167,14 +169,14 @@ class SlotMachine(TableMachine):
         p = self._player()
         if self.phase != "idle" or self.pending:
             raise TableError("Finish what's on screen first.")
-        if not self.variant.buy_cost:
+        if not self.variant.buy_cost or not self.variant.routes.get("buy"):
             raise TableError("This machine has no Buy Bonus.")
         bet = self._check_bet(bet)
         cost = bet * self.variant.buy_cost
         if not p.debit(cost, "buy bonus"):
             raise TableError("Not enough credit to buy the bonus.")
         self.bet, self.last_action = bet, now
-        self.pending.append(("trail", bet, True))
+        self.pending.append((pick_bonus(self.rng, self.variant.routes["buy"]), bet, True))
         return [{"kind": "bonus_bought", "seat": 0, "bet": bet, "cost": cost, "_paid": [p]}] + self._next_feature(now)
 
     def trail_fire(self, seat: int, now: float) -> list:
@@ -250,7 +252,7 @@ class SlotMachine(TableMachine):
         self.phase = "free_games"
         self.free = {"bet": step[1], "n": 0, "of": self.variant.free_games, "total": 0}
         self.deadline = now + self.timings.free_intro
-        return [{"kind": "free_start", "seat": 0, "of": self.free["of"], "bet": step[1]}]
+        return [{"kind": "free_start", "seat": 0, "of": self.free["of"], "bet": step[1], "bought": step[2]}]
 
     # ------------------------------------------------------------------ the Jackpot Pick
     def _reveal(self, index: int, now: float, auto: bool = False) -> list:

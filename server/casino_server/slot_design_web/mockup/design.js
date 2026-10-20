@@ -50,17 +50,20 @@ export function designParams(data) {
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
   const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail;
+  // every tier's count (a scatter that starts no bonus is on the Value ladder's tiers no more, and stays at 0)
+  const all = [...lad.tiers, ...b.unused_scatters];
+  const counts = (maths.counts || stretch(A.counts, all)).map(c => ({...c, ...Object.fromEntries(b.unused_scatters.map(s => [s, 0]))}));
   return {
     id: data.id, name: data.name, symbols, pays: lad.pays, upgrades: lad.upgrades,
     strips: maths.strips || null, freeStrips: maths.free_strips || null, bigStrip: maths.big_strip || null,
-    counts: maths.counts || stretch(A.counts, lad.tiers),
+    counts,
     bigCounts: maths.big_counts || stretch([A.bigCounts], paying)[0],
     features: f.enabled, rates: f.rates, freeRates: f.free_rates,
     wildCounts: f.tables.wild_counts, wildReelCounts: f.tables.wild_reel_counts, colossalSizes: f.tables.colossal_sizes,
     multipliers: f.tables.multipliers, repeats: f.tables.repeats, instants: f.tables.instants,
     trail: {length: tr.length, prizepot: tr.prizepot, counts: tr.counts, upgradeChance: tr.upgrade_chance,
             doubleChance: tr.double_chance, coins: tr.coins, crateRadius: tr.crate_radius},
-    freeGames: b.free.games, buyCost: b.buy.enabled ? b.buy.cost : 0,
+    freeGames: b.free.games, buyCost: b.routes.buy.length ? b.buy.cost : 0, routes: b.routes,
   };
 }
 
@@ -89,8 +92,8 @@ export function designConfig(data, img) {
     rules: data.signoff ? data.signoff.rules : null,
     labels: false,
     texts: {title: logoLines.map(l => l.toUpperCase()), tagline: "GOOD LUCK",
-            bonus: [`3+ ${symbols.BS.toUpperCase()}`, tr.name.toUpperCase()],
-            free: [`3+ ${symbols.FS.toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
+            bonus: [`3+ ${(symbols.BS || "BS").toUpperCase()}`, tr.name.toUpperCase()],
+            free: [`3+ ${(symbols.FS || "FS").toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
             freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint},
   };
 }

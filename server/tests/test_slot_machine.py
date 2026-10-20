@@ -193,6 +193,27 @@ def test_buy_bonus_costs_45_bets_and_goes_to_the_trail():
     assert p.log[0] == (-4500, "buy bonus") and m.phase == "trail"
 
 
+def test_buy_bonus_plays_one_of_its_bonuses_at_random():
+    import dataclasses
+    seen = set()
+    for seed in range(1, 30):
+        m, _ = cabinet(seed)
+        m.variant = dataclasses.replace(m.variant, routes={"BS": ["trail"], "FS": ["free"], "buy": ["trail", "free"]})
+        ev = m.buy_bonus(0, 100, now=0.0)
+        seen.add(ev[-1]["kind"])
+        if ev[-1]["kind"] == "free_start":
+            assert ev[-1]["bought"] and m.phase == "free_games"
+    assert seen == {"trail_start", "free_start"}
+
+
+def test_no_buyable_bonus_means_no_buy_bonus():
+    import dataclasses
+    m, _ = cabinet()
+    m.variant = dataclasses.replace(m.variant, routes={"BS": ["trail"], "FS": ["free"], "buy": []})
+    with pytest.raises(TableError):
+        m.buy_bonus(0, 100, now=0.0)
+
+
 def test_an_idle_human_is_stood_up_after_five_minutes():
     m, p = cabinet(idle_stand=300.0)
     m.spin(0, 25, now=0.0)

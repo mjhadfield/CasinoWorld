@@ -214,20 +214,19 @@ The craps `table_state` adds `point`, `shooter`, `want_dice`, `history` (last 12
 
 ### Slot cabinets (`event.kind`)
 Cabinets `slot_1`..`slot_10` (floor.py `SLOTS`) each have one seat and no dealer (`on_duty` is
-null). The `seated` message's `rules` carry the whole catalogue: `variant`, `name`, `symbols` (tier
--> name), `lines`, `pays` (line bets for 3/4/5), `upgrades`, `ladder` (pence), `strips`, `free_strips`,
-`big_strip`, `buy_cost`, `free_games`, `tiers`. Grid cells are numbered `reel * 4 + row` (row 0 at
-the top); a reel shows `strip[stop]` on its top row.
+null). Grid cells are numbered `reel * 4 + row` (row 0 at the top); a reel shows `strip[stop]` on its top row.
 
-A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `symbols`, `lines`, `pays` (its own tiers:
-W, H1.., M1.., L1..), `upgrades`, `features` (the random features it uses), `strips`, `free_strips`, `big_strip`,
-`buy_cost` (0: no Buy Bonus), `free_games`, the jackpot tiers, and for a built slot `theme`: {`colours`, `fonts`
+A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `variant`, `name`, `symbols` (tier -> name),
+`lines`, `pays` (line bets for 3/4/5, its own tiers: W, H1.., M1.., L1..), `upgrades`, `ladder` (pence), `features`
+(the random features it uses), `strips`, `free_strips`, `big_strip`, `buy_cost` (0: no Buy Bonus), `free_games`,
+`routes` (which bonuses each way in plays: {`BS`, `FS`, `buy`} -> [`trail`/`free`], one at random when there are
+several; an empty list means that way in plays nothing), the jackpot `tiers`, and for a built slot `theme`: {`colours`, `fonts`
 (display/ui, downloaded from the art manifest), `frame` {`style`, `colour`}, `win` (an animation per tier group),
 `labels`, `texts` (bonus and free-game names, the launcher, the tagline), `rules` (the info screen's lines),
 `cabinet`, `background`}. Armadillo has no `theme`: the screen draws its own.
 
 Messages: `spin` {`bet`} (one of `ladder`; may cut the last spin's presentation short after 1s),
-`buy_bonus` {`bet`} (`buy_cost` bets: straight to the Trail Bonus), `trail_fire`, `jackpot_pick` {`index`
+`buy_bonus` {`bet`} (`buy_cost` bets: straight to one of `routes.buy`'s bonuses, at random if there are several), `trail_fire`, `jackpot_pick` {`index`
 0-11}. `bet`/`ready`/`rebet` aren't used.
 
 A paid spin's win is credited at once (the wallet follows the `spin` event; the client holds the
@@ -237,14 +236,14 @@ or disconnects mid-feature has it played out and paid (those events carry `finis
 | kind | fields | when |
 |---|---|---|
 | `spin` | `seat`, `outcome` {`bet`, `free`, `stops`, `landed`, `after_colossal`, `pre_grid`, `grid`, `trigger` (trail/free/null), `colossal` {`start`, `k`, `stop`, `offset`}, `wild_reels`, `wilds`, `multiplier`, `upgrade` {`from`, `to`, `cells`}, `wins` [{`line`, `sym`, `count`, `mult`, `cells`, `pence`}], `line_win`, `repeat`, `instant`, `total`, `features`, `scatters`}, `meters`, `secs` (how long the screen takes), `features_next` (pick/trail/free still to come) | A paid spin. |
-| `bonus_bought` | `bet`, `cost` | Buy Bonus; `trail_start` follows. |
+| `bonus_bought` | `bet`, `cost` | Buy Bonus; `trail_start` or `free_start` follows. |
 | `jackpot_start` | `coins` (12) | The Jackpot Pick begins. |
 | `jackpot_reveal` | `index`, `tier`, `auto` | A coin turns over (picked, or picked for an idle player). |
 | `slot_jackpot_won` | `tier`, `amount`, `name`, `coins` (every coin's tier), `meters` | Third match: paid, the meter resets (a `slot_jackpots` message goes to everyone). |
 | `trail_start` | `bought`, `trail` {`bet`, `board` [{`type`, `x`?}], `pos`, `hearts`, `doubled`, `upgraded`, `lightning`, `total`, `done`, `rolls`} | The Trail Bonus begins. |
 | `trail_roll` | `roll` {`bullets`, `move`, `from`, `path`, `events` [{`kind` coin/prizepot/heart/heart_used/snake/double/upgrade/lightning/lightning_roll/crate/forward/back, `pos`, `pence`?, `r`?, `n`?}], `done`}, `total`, `hearts`, `upgraded`, `doubled`, `secs` | A shot fired (by the player, or by itself after 6s). |
 | `trail_end` | `total`, `prizepot`, `rolls` | Paid. |
-| `free_start` | `of`, `bet` | Combo Free Spins begin. |
+| `free_start` | `of`, `bet`, `bought` | Combo Free Spins begin. |
 | `free_game` | `n`, `of`, `outcome` (as `spin`), `total`, `secs` | Each free game, played by the clock. |
 | `free_end` | `total` | Paid. |
 | `features_done` | | Back to idle. |

@@ -130,6 +130,20 @@
 .wz-slot > img { width: 72px; height: 72px; border-radius: 8px; background: var(--stage); object-fit: contain; }
 .wz-slot > img.standin { opacity: .45; }
 .wz-slot select { max-width: 100%; }
+/* Bonus games: the ways in, a bonus switched off, its way-in row, and its pictures as a strip of tiles */
+.wz-ways { display: grid; gap: 6px; }
+.wz-way { display: grid; grid-template-columns: 36px auto auto minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; }
+.wz-way > img, .wz-way-icon { width: 36px; height: 36px; border-radius: 6px; background: var(--stage); object-fit: contain; display: grid; place-items: center; font-weight: 700; color: var(--gold); }
+.wz-way.off { color: var(--muted); }
+.wz-way.off > img { opacity: .4; }
+.wz-off > :not(.card-head) { opacity: .75; }
+.wz-in { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; }
+.wz-in select { max-width: 100%; }
+.wz-pics { display: flex; flex-wrap: wrap; gap: 6px; }
+.wz-pic { display: grid; justify-items: center; gap: 2px; width: 74px; padding: 4px; font-size: 11px; line-height: 1.2; text-align: center; }
+.wz-pic img { width: 56px; height: 56px; border-radius: 6px; background: var(--stage); object-fit: contain; }
+.wz-pic img.standin { opacity: .45; }
+.wz-pic[aria-pressed="true"] { outline: 2px solid var(--gold); }
 .wz-spec { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 6px; }
 .wz-spec p { grid-column: 1 / -1; margin: 0; font-size: 13px; }
 /* Sprites and Sounds */

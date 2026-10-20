@@ -6,7 +6,10 @@ so every method runs under the board's lock and saves through its Design.
   Scene          the background (FLUX or uploaded), the logo lettering (rendered here: FLUX can't spell) and the
                  reel frame's style
   Features       which of the library's random features the slot uses, their rates and value tables
-  Bonus games    the Trail bonus's recipe and names, the free games, Buy Bonus
+  Bonus games    each library bonus (the Trail, the free games): on or off, the scatter that starts it, whether
+                 Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
+                 (which bonuses each way in plays, one at random when there are several). A scatter that
+                 starts nothing comes off the reels and the Value ladder.
   Art slots      the pictures the game draws outside the reels (shared by Features and Bonus games): a board
                  image, or "sym:<id>" to follow a symbol's chosen take
   Specs          a new feature or bonus type, described for building (Build lists them as code tasks)
@@ -51,6 +54,13 @@ ART_SLOTS = {
     "t_double": ("Trail space: all coins doubled", "bonuses"),
 }
 TRAIL_SPACES = ("snake", "heart", "forward", "back", "lightning", "crate")
+# Each bonus's way in, as Armadillo has it: the trail from the bonus scatter or Buy Bonus, the free games from theirs.
+BONUS_WAYS = {"trail": {"enabled": True, "scatter": "BS", "buyable": True},
+              "free": {"enabled": True, "scatter": "FS", "buyable": False}}
+TRAIL_WORDS = ("name", "launcher", "hint")   # the trail's words: not part of its maths
+WAYS = tuple(BONUS_WAYS["trail"])
+# What each art slot is drawn for: a feature, or a bonus (a picture for something switched off isn't needed).
+ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",)}
 WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
 WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
 # The screen's colours (the mockup's names; Armadillo's values) and fonts.
@@ -93,15 +103,31 @@ def features_view(d) -> dict:
 
 def bonuses_view(d) -> dict:
     b = d.data.get("bonuses", {})
-    t = {**{k: v for k, v in ARMADILLO.trail.items()}, **b.get("trail", {})}
+    t = {**BONUS_WAYS["trail"], **{k: v for k, v in ARMADILLO.trail.items()}, **b.get("trail", {})}
     t["coins"] = [list(p) for p in t["coins"]]
     t["crate_radius"] = [list(p) for p in t["crate_radius"]]
     t.setdefault("name", "TRAIL BONUS")
     t.setdefault("launcher", "THE LAUNCHER")
     t.setdefault("hint", "fire to move along the trail")
-    return {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **b.get("free", {})},
+    view = {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **BONUS_WAYS["free"], **b.get("free", {})},
             "buy": {"enabled": True, "cost": ARMADILLO.buy_cost, **b.get("buy", {})},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "bonus"]}
+    view["routes"] = routes_of(view)
+    view["unused_scatters"] = [s for s in base.SCATTERS if not view["routes"][s]]
+    return view
+
+
+def routes_of(view) -> dict:
+    """Which bonuses each way in plays (the variant's routes): 3+ of a scatter, and Buy Bonus when it's offered."""
+    on = [k for k in base.BONUSES if view[k]["enabled"]]
+    out = {s: [k for k in on if view[k]["scatter"] == s] for s in base.SCATTERS}
+    out["buy"] = [k for k in on if view[k]["buyable"]] if view["buy"]["enabled"] else []
+    return out
+
+
+def trail_maths(t: dict) -> dict:
+    """The trail's settings the engine uses (not its words or its way in)."""
+    return {k: v for k, v in t.items() if k not in TRAIL_WORDS + WAYS}
 
 
 def sprites_view(d) -> dict:
@@ -113,6 +139,11 @@ def sprites_view(d) -> dict:
             "cabinet": {**CABINET_DEFAULTS, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
 
 
+def _armadillo_scatters(s: str) -> list[int]:
+    """How many of scatter `s` Armadillo has on each reel (what a scatter switched back on starts from)."""
+    return [strip.count(s) for strip in ARMADILLO.strips]
+
+
 def _paying(tiers) -> list:
     return [t for t in tiers if t not in ("BS", "FS")]
 
@@ -121,8 +152,8 @@ def _settings_hash(d) -> str:
     """What a simulation depends on besides the strips: pays, upgrades, features and bonuses."""
     f, b, lad = features_view(d), bonuses_view(d), ladder_view(d)
     blob = {"pays": lad["pays"], "upgrades": lad["upgrades"], "features": {k: f[k] for k in ("enabled", "rates", "free_rates", "tables")},
-            "trail": {k: v for k, v in b["trail"].items() if k not in ("name", "launcher", "hint")},
-            "free": b["free"]["games"], "buy": b["buy"]["enabled"] and b["buy"]["cost"]}
+            "trail": trail_maths(b["trail"]), "free": b["free"]["games"], "buy": b["buy"]["enabled"] and b["buy"]["cost"],
+            "routes": b["routes"]}
     return hashlib.sha1(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:12]
 
 
@@ -155,9 +186,8 @@ def variant_from_design(d):
         wild_counts=pair(f["tables"]["wild_counts"]), wild_reel_counts=pair(f["tables"]["wild_reel_counts"]),
         colossal_sizes=pair(f["tables"]["colossal_sizes"]), multipliers=pair(f["tables"]["multipliers"]),
         repeats=pair(f["tables"]["repeats"]), instants=pair(f["tables"]["instants"]),
-        trail={**{k: v for k, v in b["trail"].items() if k not in ("name", "launcher", "hint")},
-               "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
-        buy_cost=b["buy"]["cost"] if b["buy"]["enabled"] else 0, free_games=b["free"]["games"],
+        trail={**trail_maths(b["trail"]), "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
+        buy_cost=b["buy"]["cost"] if b["routes"]["buy"] else 0, free_games=b["free"]["games"], routes=b["routes"],
         pays={k: tuple(v) for k, v in lad["pays"].items() if k in _paying(lad["tiers"])}, upgrades=lad["upgrades"],
         features=f["enabled"])
 
@@ -170,9 +200,17 @@ def default_rules(d) -> list[str]:
     ups = {}
     for frm, to in lad["upgrades"].items():
         ups.setdefault(to, []).append(nm(frm))
-    return [f"{nm('W')} stands in for everything except {nm('BS')} and {nm('FS')}. Pays left to right on 25 lines; the longest match on each line pays.",
+    r = b["routes"]
+    title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}"}
+    plays = lambda ks: title[ks[0]] if len(ks) == 1 else " or ".join(title[k] for k in ks) + ", at random"
+    scatters = [s for s in base.SCATTERS if r[s]]
+    ways = [f"3+ {nm(s)}: {plays(r[s])}." for s in scatters]
+    if r["buy"]:
+        ways.append(f"Buy Bonus ({b['buy']['cost']}x the bet): {plays(r['buy'])}.")
+    return [f"{nm('W')} stands in for everything" + (f" except {' and '.join(nm(s) for s in scatters)}" if scatters else "")
+            + ". Pays left to right on 25 lines; the longest match on each line pays.",
             "Random features can hit any spin, some before the reels stop and some after.",
-            f"3+ {nm('BS')}: {b['trail']['name']}. 3+ {nm('FS')}: {b['free']['games']} {b['free']['name'].lower()}.",
+            *([" ".join(ways)] if ways else []),
             "Upgrades: " + " · ".join(f"{', '.join(fs)} → {nm(t)}" for t, fs in ups.items())]
 
 
@@ -188,7 +226,7 @@ def checklist(d) -> list[dict]:
         if c.get("required") is not None:
             have = sum(bool(s.get("keep")) for s in d.data["symbols"] if s["category"] == c["id"])
             out.append({"id": "cat_" + c["id"], "label": f"{c['title']}: {have} of {c['required']} in the final set", "ok": have == c["required"], "required": False, "step": "art"})
-    stand = [k for k, a in art_slots.items() if not a["file"]]
+    stand = [k for k, a in art_slots.items() if a["used"] and not a["file"]]
     out.append({"id": "art_slots", "label": "Feature and bonus pictures" + (f": {len(stand)} still Armadillo's" if stand else ""), "ok": not stand, "required": False, "step": "bonuses"})
     sc = d.data.get("scene", {})
     out.append({"id": "background", "label": "A background", "ok": bool(sc.get("background")), "required": False, "step": "scene"})
@@ -228,6 +266,8 @@ def art_view(d) -> dict:
     """Each art slot: what it's for, the step that sets it, what's chosen ("sym:<id>" or a path) and the file it
     comes to now (None until chosen; the mockup then shows Armadillo's)."""
     slots = d.data.get("art_slots", {})
+    b, on = bonuses_view(d), set(features_view(d)["enabled"])
+    on |= {k for k in base.BONUSES if b[k]["enabled"]}
     out = {}
     for key, (label, step) in ART_SLOTS.items():
         v = slots.get(key)
@@ -237,7 +277,8 @@ def art_view(d) -> dict:
             f = d.chosen_file(s) if s else None
         elif v:
             f = v if d.path(v) else None
-        out[key] = {"label": label, "step": step, "value": v, "file": f}
+        used = bool(on & set(ART_USE.get(key, ("trail",))))   # the trail's pictures unless listed
+        out[key] = {"label": label, "step": step, "value": v, "file": f, "used": used}
     return out
 
 
@@ -249,13 +290,16 @@ def ladder_view(d) -> dict:
     """The Value ladder for the overview: every tier of the tier shape, the symbol in each, the upgrade chain and
     each tier's pays (the house defaults until the Maths step changes them)."""
     shape = d.data["concept"]["tiers"]
-    tiers = base.tier_ids(shape)
+    unused = bonuses_view(d)["unused_scatters"]   # a scatter that starts nothing isn't on the reels
+    tiers = [t for t in base.tier_ids(shape) if t not in unused]
     lad = d.data.get("ladder", {})
     ids = {s["id"] for s in d.data["symbols"]}
     slots = {t: sid for t, sid in lad.get("slots", {}).items() if t in tiers and sid in ids}
     upgrades = {k: v for k, v in (lad.get("upgrades") or base.default_upgrades(shape)).items() if k in tiers and v in tiers}
     pays = {**base.default_pays(shape), **{k: tuple(v) for k, v in d.data.get("maths", {}).get("pays", {}).items() if k in tiers}}
-    return {"tiers": tiers, "slots": slots, "upgrades": upgrades, "default_upgrades": base.default_upgrades(shape),
+    # a scatter's symbol is kept while it's off the reels (it comes back with its way in)
+    scatters = {t: sid for t, sid in lad.get("slots", {}).items() if t in base.SCATTERS and sid in ids}
+    return {"tiers": tiers, "slots": slots, "scatters": scatters, "upgrades": upgrades, "default_upgrades": base.default_upgrades(shape),
             "pays": {k: list(v) for k, v in pays.items()}, "complete": len(slots) == len(tiers)}
 
 
@@ -391,7 +435,10 @@ class StepsMixin:
                 counts = ch["counts"]
                 if not isinstance(counts, list) or len(counts) != 5:
                     raise DesignError("Reel counts are five reels of {tier: how many}.")
+                unused = bonuses_view(d)["unused_scatters"]
                 for i, c in enumerate(counts, 1):
+                    if isinstance(c, dict):
+                        c.update({s: 0 for s in unused})   # a scatter that starts nothing stays off the reels
                     if not isinstance(c, dict) or set(c) != set(tiers):
                         raise DesignError(f"Reel {i} needs a count for every tier.")
                     if any(not isinstance(n, int) or not 0 <= n <= 40 for n in c.values()):
@@ -515,59 +562,106 @@ class StepsMixin:
 
     # ------------------------------------------------------------- Bonus games
     def update_bonuses(self, did: str, ch: dict) -> None:
+        """Change the bonus games. Every bonus that's on needs a way in, and at least one stays on. A scatter that
+        stops starting anything comes off the reels (its counts go to 0), and one that starts something again gets
+        Armadillo's back; either way the frozen strips no longer fit, so the maths is unfrozen."""
         with self.lock:
             d = self.design(did)
             self._unlocked(d)
-            b = d.data.setdefault("bonuses", {})
-            if "trail" in ch:
-                t, cur = ch["trail"], dict(b.get("trail", {}))
-                for k in ("name", "launcher", "hint"):
-                    if k in t:
-                        cur[k] = str(t[k] or "").strip()[:40] or bonuses_view(d)["trail"][k]
-                if "length" in t:
-                    if not isinstance(t["length"], int) or not 40 <= t["length"] <= 200:
-                        raise DesignError("The trail is 40 to 200 spaces long.")
-                    cur["length"] = t["length"]
-                if "prizepot" in t:
-                    if not isinstance(t["prizepot"], int) or not 100 <= t["prizepot"] <= 10000:
-                        raise DesignError("The prizepot is 100 to 10,000 times the bet.")
-                    cur["prizepot"] = t["prizepot"]
-                for k in ("upgrade_chance", "double_chance"):
-                    if k in t:
-                        cur[k] = _rate(t[k], k.replace("_", " "))
-                if "counts" in t:
-                    c = t["counts"]
-                    if not isinstance(c, dict) or set(c) - set(TRAIL_SPACES) or any(not isinstance(v, int) or not 0 <= v <= 40 for v in c.values()):
-                        raise DesignError("Trail spaces: whole numbers from 0 to 40 of " + ", ".join(TRAIL_SPACES) + ".")
-                    cur["counts"] = {**bonuses_view(d)["trail"]["counts"], **c}
-                for k in ("coins", "crate_radius"):
-                    if k in t:
-                        cur[k] = _pairs(t[k], k.replace("_", " "))
-                length = cur.get("length", bonuses_view(d)["trail"]["length"])
-                if sum({**bonuses_view(d)["trail"]["counts"], **cur.get("counts", {})}.values()) > length // 2:
-                    raise DesignError("Special spaces can fill at most half the trail; the rest are coins.")
-                b["trail"] = cur
-            if "free" in ch:
-                fr = ch["free"]
-                cur = dict(b.get("free", {}))
-                if "games" in fr:
-                    if not isinstance(fr["games"], int) or not 1 <= fr["games"] <= 20:
-                        raise DesignError("Free games: 1 to 20.")
-                    cur["games"] = fr["games"]
-                if "name" in fr:
-                    cur["name"] = str(fr["name"] or "").strip()[:40] or "COMBO FREE GAMES"
-                b["free"] = cur
-            if "buy" in ch:
-                by = ch["buy"]
-                cur = dict(b.get("buy", {}))
-                if "enabled" in by:
-                    cur["enabled"] = bool(by["enabled"])
-                if "cost" in by:
-                    if not isinstance(by["cost"], int) or not 10 <= by["cost"] <= 500:
-                        raise DesignError("Buy Bonus costs 10 to 500 times the bet.")
-                    cur["cost"] = by["cost"]
-                b["buy"] = cur
+            before = json.loads(json.dumps(d.data.get("bonuses", {})))
+            was = bonuses_view(d)["unused_scatters"]
+            try:
+                self._apply_bonuses(d, ch)
+                view = bonuses_view(d)
+                for k, what in (("trail", "The trail bonus"), ("free", "The free games")):
+                    x = view[k]
+                    if x["enabled"] and not x["scatter"] and not (x["buyable"] and view["buy"]["enabled"]):
+                        raise DesignError(f"{what} needs a way in: a scatter, or Buy Bonus.")
+                if not any(view[k]["enabled"] for k in base.BONUSES):
+                    raise DesignError("Keep at least one bonus game on.")
+            except Exception:
+                d.data["bonuses"] = before
+                raise
+            self._scatters_moved(d, was, view["unused_scatters"])
             d.save()
+
+    @staticmethod
+    def _scatters_moved(d, was: list, now: list) -> None:
+        m = d.data.get("maths", {})
+        counts = m.get("counts")
+        if not counts or was == now:
+            return
+        for s in base.SCATTERS:
+            if s in now:
+                for c in counts:
+                    c[s] = 0
+            elif s in was and not any(c.get(s) for c in counts):
+                for c, n in zip(counts, _armadillo_scatters(s)):
+                    c[s] = n
+        for k in ("strips", "free_strips", "big_strip", "report", "check", "frozen_at", "settings"):
+            m.pop(k, None)
+
+    @staticmethod
+    def _apply_bonuses(d, ch: dict) -> None:
+        b = d.data.setdefault("bonuses", {})
+        for k in base.BONUSES:
+            if isinstance(ch.get(k), dict):
+                w, cur = ch[k], b.setdefault(k, {})
+                for flag in ("enabled", "buyable"):
+                    if flag in w:
+                        cur[flag] = bool(w[flag])
+                if "scatter" in w:
+                    if w["scatter"] not in (None, *base.SCATTERS):
+                        raise DesignError("A bonus starts from the bonus scatter (BS), the free-spins scatter (FS) or neither.")
+                    cur["scatter"] = w["scatter"]
+        if "trail" in ch:
+            t, cur = ch["trail"], dict(b.get("trail", {}))
+            for k in ("name", "launcher", "hint"):
+                if k in t:
+                    cur[k] = str(t[k] or "").strip()[:40] or bonuses_view(d)["trail"][k]
+            if "length" in t:
+                if not isinstance(t["length"], int) or not 40 <= t["length"] <= 200:
+                    raise DesignError("The trail is 40 to 200 spaces long.")
+                cur["length"] = t["length"]
+            if "prizepot" in t:
+                if not isinstance(t["prizepot"], int) or not 100 <= t["prizepot"] <= 10000:
+                    raise DesignError("The prizepot is 100 to 10,000 times the bet.")
+                cur["prizepot"] = t["prizepot"]
+            for k in ("upgrade_chance", "double_chance"):
+                if k in t:
+                    cur[k] = _rate(t[k], k.replace("_", " "))
+            if "counts" in t:
+                c = t["counts"]
+                if not isinstance(c, dict) or set(c) - set(TRAIL_SPACES) or any(not isinstance(v, int) or not 0 <= v <= 40 for v in c.values()):
+                    raise DesignError("Trail spaces: whole numbers from 0 to 40 of " + ", ".join(TRAIL_SPACES) + ".")
+                cur["counts"] = {**bonuses_view(d)["trail"]["counts"], **c}
+            for k in ("coins", "crate_radius"):
+                if k in t:
+                    cur[k] = _pairs(t[k], k.replace("_", " "))
+            length = cur.get("length", bonuses_view(d)["trail"]["length"])
+            if sum({**bonuses_view(d)["trail"]["counts"], **cur.get("counts", {})}.values()) > length // 2:
+                raise DesignError("Special spaces can fill at most half the trail; the rest are coins.")
+            b["trail"] = cur
+        if "free" in ch:
+            fr = ch["free"]
+            cur = dict(b.get("free", {}))
+            if "games" in fr:
+                if not isinstance(fr["games"], int) or not 1 <= fr["games"] <= 20:
+                    raise DesignError("Free games: 1 to 20.")
+                cur["games"] = fr["games"]
+            if "name" in fr:
+                cur["name"] = str(fr["name"] or "").strip()[:40] or "COMBO FREE GAMES"
+            b["free"] = cur
+        if "buy" in ch:
+            by = ch["buy"]
+            cur = dict(b.get("buy", {}))
+            if "enabled" in by:
+                cur["enabled"] = bool(by["enabled"])
+            if "cost" in by:
+                if not isinstance(by["cost"], int) or not 10 <= by["cost"] <= 500:
+                    raise DesignError("Buy Bonus costs 10 to 500 times the bet.")
+                cur["cost"] = by["cost"]
+            b["buy"] = cur
 
     # ------------------------------------------------------------- art slots and specs
     def set_art_slot(self, did: str, key: str, value) -> None:

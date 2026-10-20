@@ -94,7 +94,7 @@ class BuildMixin:
                 "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}), "win": sp["win"], "labels": False,
                 "texts": {"tagline": "GOOD LUCK", "trail": b["trail"]["name"].upper(), "launcher": b["trail"]["launcher"].upper(),
                           "hint": b["trail"]["hint"], "free": b["free"]["name"].upper(),
-                          "bonus_line": f"3+ {v.symbols['BS'].upper()}", "free_line": f"3+ {v.symbols['FS'].upper()}"},
+                          "bonus_line": f"3+ {v.symbols.get('BS', 'BS').upper()}", "free_line": f"3+ {v.symbols.get('FS', 'FS').upper()}"},
                 "rules": signoff_view(d)["rules"], "cabinet": sp["cabinet"], "background": "bg" in pictures}
             data = json.loads(json.dumps(dataclasses.asdict(v)))
             data.update(theme=theme, extras={"assets": labels, "floor": {"spot": spot, "count": count},

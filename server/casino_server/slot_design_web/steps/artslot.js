@@ -1,8 +1,8 @@
 // An art slot: a picture the game draws outside the reels (the mascot, the Instant Win prize, the bonus launcher,
 // the trail's spaces). Follow a symbol (its chosen take, whatever that becomes), pick any image on the board, or
 // make a new one: it's added to the Bonus screens category and generated straight away.
-const STAND_IN = key => `/slot-art/armadillo/flux2/${key}.png`;
-const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder: "Bonus launcher", t_coin: "Trail coins",
+export const STAND_IN = key => `/slot-art/armadillo/flux2/${key}.png`;
+export const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder: "Bonus launcher", t_coin: "Trail coins",
   t_gold: "Trail prizepot", t_snake: "Trail hazard", t_heart: "Trail heart", t_forward: "Trail forward", t_lightning: "Trail lightning",
   t_crate: "Trail coin crate", t_upgrade: "Trail moves doubled", t_double: "Trail coins doubled"};
 

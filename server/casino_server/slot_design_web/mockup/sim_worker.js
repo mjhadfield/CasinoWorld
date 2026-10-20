@@ -2,7 +2,8 @@
    Messages in: {cmd: "sim", params, spins, buys} | {cmd: "tune", params, control, target, spins, buys} |
    {cmd: "sample", params}. Out: {progress} while it works, then {result} (sim), {tuned} (tune) or {sample}.
    Like the signed-off tuner (docs/slots/mockup/sim_worker.js), the trail's share comes from its own long run of
-   bought trails times how often spins trigger it: the trail swings far too hard to sample from spins alone. */
+   trails times how often spins trigger it: the trail swings far too hard to sample from spins alone. Buy Bonus is
+   measured on its own run (one of the buyable bonuses at random each time). */
 importScripts("/slot-design-ui/slots_math.js");
 const M = self.SlotMath;
 
@@ -18,9 +19,9 @@ function report(V, spins, buys, progress = () => {}, seed = 1000) {
   const pct = (v) => (100 * v) / r.staked;
   r.rtp = {plain: pct(r.plain), featured: pct(r.featured), repeat: pct(r.repeatExtra), instant: pct(r.instant), trail: pct(r.trail),
            free: pct(r.free), jackpot: 100 * M.jackpotRtp()};
-  r.buy = M.simulateBuy(V, buys, 100, 99);
+  r.buy = V.buyCost && V.routes.buy.length ? M.simulateBuy(V, buys, 100, 99) : null;
   r.rtp.trailSampled = r.rtp.trail;
-  r.rtp.trail = 100 * (r.trails / spins) * r.buy.mean;
+  r.rtp.trail = r.trails ? 100 * (r.trails / spins) * M.simulateTrail(V, buys, 100, 99).mean : 0;
   r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free;
   r.rtp.total = r.rtp.game + r.rtp.jackpot;
   r.sd = Math.sqrt(r.sumSq / spins - Math.pow(r.rtp.game / 100, 2));

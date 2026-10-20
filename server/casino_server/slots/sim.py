@@ -1,11 +1,12 @@
 """
 Simulation, for tuning (tools/slot_tune.py) and the tests: paid spins with everything
 included, and bought bonuses. The trail swings hard (a 2,000x prizepot about 1 in 250), so its
-value is best judged from a long run of trails on its own (simulate_buy).
+value is best judged from a long run of trails on its own (simulate_trail).
 """
 from casino_server.slots import jackpots
 from casino_server.slots.bonuses import free_games, trail_play_out, trail_start
-from casino_server.slots.outcome import spin_outcome
+from casino_server.slots.base import SCATTERS
+from casino_server.slots.outcome import pick_bonus, spin_outcome
 from casino_server.slots.rng import mulberry32
 
 
@@ -45,40 +46,61 @@ def simulate(v, spins: int, bet: int = 100, seed: int = 7) -> dict:
 
 
 def simulate_buy(v, n: int, bet: int = 100, seed: int = 9) -> dict:
+    """Bought bonuses: each one of the buyable bonuses at random (just the trail for Armadillo)."""
     rng = mulberry32(seed)
     won = top = ends = rolls = 0
+    for _ in range(n):
+        if pick_bonus(rng, v.routes.get("buy", [])) == "free":
+            total = sum(g["total"] for g in free_games(v, bet, rng, v.free_games))
+        else:
+            st = trail_start(v, bet, rng)
+            trail_play_out(v, st, rng)
+            total = st["total"]
+            rolls += st["rolls"]
+            ends += st["pos"] >= len(st["board"]) - 1
+        won += total
+        top = max(top, total)
+    return {"n": n, "rtp": 100 * won / (n * bet * v.buy_cost) if v.buy_cost else 0.0, "mean": won / n / bet,
+            "max": top / bet, "prizepots": ends, "rolls": rolls / n}
+
+
+def simulate_trail(v, n: int, bet: int = 100, seed: int = 9) -> float:
+    """The mean Trail Bonus win, in bets."""
+    rng = mulberry32(seed)
+    won = 0
     for _ in range(n):
         st = trail_start(v, bet, rng)
         trail_play_out(v, st, rng)
         won += st["total"]
-        top = max(top, st["total"])
-        rolls += st["rolls"]
-        ends += st["pos"] >= len(st["board"]) - 1
-    return {"n": n, "rtp": 100 * won / (n * bet * v.buy_cost), "mean": won / n / bet, "max": top / bet,
-            "prizepots": ends, "rolls": rolls / n}
+    return won / n / bet
 
 
 def scatter_odds(v) -> dict:
-    """The exact chance a paid spin triggers each bonus, from the strips. Scatters sit at least
-    four apart on a strip, so a reel shows at most one; each reel shows BS, FS or neither."""
+    """The exact chance a paid spin plays each bonus, from the strips. Scatters sit at least four
+    apart on a strip, so a reel shows at most one; each reel shows BS, FS or neither. A scatter that
+    plays several bonuses shares its chance between them equally."""
     per_reel = []
     for strip in v.strips:
         n = len(strip)
         bs, fs = 4 * strip.count("BS") / n, 4 * strip.count("FS") / n
         per_reel.append({"BS": bs, "FS": fs, None: 1 - bs - fs})
-    odds = {"trail": 0.0, "free": 0.0}
+    hits = {"BS": 0.0, "FS": 0.0}
 
     def walk(reel, p, counts):
         if reel == len(per_reel):
             if counts["BS"] >= 3:
-                odds["trail"] += p
+                hits["BS"] += p
             elif counts["FS"] >= 3:
-                odds["free"] += p
+                hits["FS"] += p
             return
         for s, q in per_reel[reel].items():
             if q:
                 walk(reel + 1, p * q, {**counts, s: counts.get(s, 0) + 1} if s else counts)
     walk(0, 1.0, {"BS": 0, "FS": 0})
+    odds = {"trail": 0.0, "free": 0.0}
+    for s in SCATTERS:
+        for kind in v.routes.get(s, []):
+            odds[kind] += hits[s] / len(v.routes[s])
     return odds
 
 
@@ -93,7 +115,7 @@ def expected_rtp(v, spins: int = 200_000, bonuses: int = 100_000, seed: int = 11
     its own long run, times its exact trigger odds."""
     r = simulate(v, spins, 100, seed)
     odds = scatter_odds(v)
-    trail = simulate_buy(v, bonuses, 100, seed + 1)["mean"]
+    trail = simulate_trail(v, bonuses, 100, seed + 1)
     free = simulate_free(v, bonuses // 4, 100, seed + 2)
     base_part = sum(r["rtp"][k] for k in ("plain", "featured", "repeat_extra", "instant"))
     out = {"base": base_part, "trail": 100 * odds["trail"] * trail, "free": 100 * odds["free"] * free,

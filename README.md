@@ -111,12 +111,16 @@ and Tailscale. It has six tabs:
     shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.
   - **Features:** the library's seven random features, each switched on or off with its chance on a paid spin
     and in the free games and its value table (value:weight pairs); **Show me** plays the mockup with it forced.
-  - **Bonus games:** the Trail bonus (its name, launcher, length, prizepot, special spaces and coin values), the
-    free games, Buy Bonus and the shared Jackpot Pick, each with **Try it**.
-  - **Art slots** (on both steps): the pictures drawn outside the reels: the mascot (Wild Reels and the trail's
-    token), the Instant Win prize, the launcher and the trail's spaces. Each follows a symbol's chosen take or
-    uses any image on the board, or **Make one** adds it to Bonus screens and generates it. Until set, the mockup
-    shows Armadillo's.
+  - **Bonus games:** "How players get in" at the top, then a card per bonus: the Trail bonus (its name, launcher,
+    length, prizepot, special spaces and coin values, and its pictures) and the free games. Each is switched on or
+    off, started by either scatter or neither, and ticked if Buy Bonus can give it. Bonuses sharing a way in play
+    one at random; a scatter that starts nothing comes off the reels and the Value ladder (its reel counts go to 0,
+    so re-freeze the maths). Then Buy Bonus's price and the always-on Jackpot Pick, each bonus with **Try it**.
+  - **Art slots:** the pictures drawn outside the reels: the mascot (Wild Reels and the trail's token) and the
+    Instant Win prize on Features; the launcher and the trail's spaces in the Trail bonus's card, as a strip of
+    tiles (pick one to change it). Each follows a symbol's chosen take or uses any image on the board, or **Make
+    one** adds it to Bonus screens and generates it. Until set, the mockup shows Armadillo's; a picture for
+    something switched off isn't counted as missing.
   - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
     code tasks, and once built they join the library.
   - **Sprites:** win animations per tier group (pulse, bounce, shine, glow or spin, with a strength and glow

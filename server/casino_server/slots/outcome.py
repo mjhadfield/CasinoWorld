@@ -8,7 +8,8 @@ The rules the pipeline keeps (from the rules sheet):
 - no feature lands on a Wild or a scatter
 - Wild Reels and Colossal Reels never come on a spin that triggers a bonus
 - Repeat Win never comes with a free-spin trigger, nor with an Instant Win
-- the two bonuses never trigger together
+- the two scatters never trigger together
+- a scatter (or Buy Bonus) that plays more than one bonus picks one at random (pick_bonus)
 """
 from casino_server.slots.base import REELS, ROWS, SCATTERS, count_scatters, evaluate, grid_from_stops
 from casino_server.slots.rng import randint, sample, weighted
@@ -26,13 +27,14 @@ def spin_outcome(v, bet: int, rng, free: bool = False, rig: dict | None = None) 
         stops = list(rig["stops"]) if rig.get("stops") else [randint(rng, len(s)) for s in strips]
         grid = grid_from_stops(strips, stops)
         if rig.get("trigger") and not rig.get("stops"):
-            _force_trigger(grid, rig["trigger"], rng)
+            _force_trigger(grid, rig["trigger"], rng, v.routes)
         sc = count_scatters(grid)
         if not (len(sc["BS"]) >= 3 and len(sc["FS"]) >= 3) or tries > 50:   # never both bonuses at once
             break
         tries += 1
     landed = list(grid)
-    trigger = "trail" if len(sc["BS"]) >= 3 else "free" if len(sc["FS"]) >= 3 else None
+    hit = "BS" if len(sc["BS"]) >= 3 else "FS" if len(sc["FS"]) >= 3 else None
+    trigger = pick_bonus(rng, v.routes.get(hit, []), rig.get("trigger")) if hit else None
 
     # Which features fire. Free games guarantee at least one, and often several.
     rates = v.free_rates if free else v.rates
@@ -112,9 +114,21 @@ def spin_outcome(v, bet: int, rng, free: bool = False, rig: dict | None = None) 
     return out
 
 
-def _force_trigger(grid, kind, rng):
-    """The test rig: three scatters of the kind, on reels 1, 3 and 5."""
-    sym = "BS" if kind == "trail" else "FS"
+def pick_bonus(rng, choices: list, want: str | None = None) -> str | None:
+    """The bonus a way in plays: `want` if it's one of them (the rig), the only one, or one at random. One
+    choice draws nothing, so a slot with a bonus per way in spins exactly as it always has."""
+    if want in choices:
+        return want
+    if len(choices) <= 1:
+        return choices[0] if choices else None
+    return choices[randint(rng, len(choices))]
+
+
+def _force_trigger(grid, kind, rng, routes):
+    """The test rig: three of the scatter that plays bonus `kind`, on reels 1, 3 and 5 (none if only Buy gives it)."""
+    sym = next((s for s in SCATTERS if kind in routes.get(s, [])), None)
+    if sym is None:
+        return
     for c in range(len(grid)):
         if grid[c] in SCATTERS:
             grid[c] = "L1"

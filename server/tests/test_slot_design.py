@@ -359,6 +359,46 @@ def test_bonuses(board):
         assert c.patch("/api/slot-design/demo/bonuses", json=body).status_code == 400, body
 
 
+def test_bonus_switches_and_ways_in(board):
+    """Each bonus can be switched off, started by either scatter or neither, and given by Buy Bonus. Bonuses on the
+    same way in play one at random; a scatter that starts nothing comes off the reels and the Value ladder."""
+    from casino_server.slots.variants.armadillo import VARIANT as A
+    c, _ = board
+    api = "/api/slot-design/demo/bonuses"
+    b = _overview(c)["bonuses"]
+    assert b["routes"] == {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]} and b["unused_scatters"] == []
+    tiers = _overview(c)["ladder"]["tiers"]
+    counts = [{t: strip.count(t) for t in tiers} for strip in A.strips]
+    assert c.patch("/api/slot-design/demo/maths", json={"counts": counts}).status_code == 200
+    # the free games move onto the bonus scatter: three of it play either; the free-spins scatter leaves the reels
+    assert c.patch(api, json={"free": {"scatter": "BS"}}).status_code == 200
+    o = _overview(c)
+    assert o["bonuses"]["routes"] == {"BS": ["trail", "free"], "FS": [], "buy": ["trail"]} and o["bonuses"]["unused_scatters"] == ["FS"]
+    assert "FS" not in o["ladder"]["tiers"] and all(r["FS"] == 0 for r in o["maths"]["counts"])
+    assert any("or 3 combo free games, at random" in line for line in o["signoff"]["rules"])
+    # the page leaves the scatter out of the reel counts it saves: it's filled in at 0
+    assert c.patch("/api/slot-design/demo/maths", json={"counts": [{k: v for k, v in r.items() if k != "FS"} for r in counts]}).status_code == 200
+    assert all(r["FS"] == 0 for r in _overview(c)["maths"]["counts"])
+    # back on their own scatter, which gets Armadillo's counts back
+    assert c.patch(api, json={"free": {"scatter": "FS"}}).status_code == 200
+    o = _overview(c)
+    assert [r["FS"] for r in o["maths"]["counts"]] == [s.count("FS") for s in A.strips] and "FS" in o["ladder"]["tiers"]
+    # Buy Bonus only, and buyable: Buy plays either
+    assert c.patch(api, json={"free": {"scatter": None, "buyable": True}}).status_code == 200
+    assert _overview(c)["bonuses"]["routes"] == {"BS": ["trail"], "FS": [], "buy": ["trail", "free"]}
+    # every bonus that's on needs a way in, and one stays on; a refused change leaves things as they were
+    before = _overview(c)["bonuses"]
+    for body in [{"buy": {"enabled": False}}, {"free": {"buyable": False}}, {"trail": {"enabled": False}, "free": {"enabled": False}},
+                 {"free": {"scatter": "XX"}}]:
+        assert c.patch(api, json=body).status_code == 400, body
+        assert _overview(c)["bonuses"] == before, body
+    # the trail switched off: its pictures aren't needed (the mascot still is, for Wild Reels)
+    assert c.patch(api, json={"trail": {"enabled": False}}).status_code == 200
+    o = _overview(c)
+    assert o["bonuses"]["routes"] == {"BS": [], "FS": [], "buy": ["free"]} and o["bonuses"]["unused_scatters"] == ["BS", "FS"]
+    assert not o["art"]["t_coin"]["used"] and o["art"]["armadillo"]["used"]
+
+
 def test_art_slots_and_specs(board):
     c, _ = board
     a = _overview(c)["art"]

@@ -275,11 +275,12 @@ export function createGame(cv, cfg) {
     ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = C.gold; ctx.stroke();
     ctx.save(); if (busy) ctx.globalAlpha = 0.45;
     text("BUY BONUS", 1150, by + 24, 26, COND, C.goldHi);
-    drawImg(img("BS"), 1150 - 52, by + 38, 104, 104);
+    drawImg(img(buyIcon()), 1150 - 52, by + 38, 104, 104);
     text(money(bet() * V.buyCost), 1150, by + 156, 26, COND, "#fff");
     ctx.restore();
     }
-    const info = [["BS", ...TEXT.bonus], ["FS", ...TEXT.free]];
+    const info = M.SCATTERS.filter((s) => routes(s).length)
+      .map((s) => [s, (s === "BS" ? TEXT.bonus : TEXT.free)[0], routes(s).length > 1 ? "A RANDOM BONUS" : plays(routes(s))]);
     info.forEach(([sym, a, b], i) => {
       const y = by + 196 + i * 116;
       rr(1052, y, 196, 104, 12); ctx.fillStyle = "rgba(20,9,4,0.65)"; ctx.fill();
@@ -559,8 +560,8 @@ export function createGame(cv, cfg) {
     } else if (o.kind === "buy") {
       woodPanel(360, 170, 560, 340, 22);
       goldText("BUY BONUS", 640, 228, 50);
-      drawImg(img("BS"), 640 - 60, 256, 120, 120);
-      text(`Go straight to the ${TEXT.bonus[1].toLowerCase()} for ${money(bet() * V.buyCost)}`, 640, 400, 26, COND, C.cream);
+      drawImg(img(buyIcon()), 640 - 60, 256, 120, 120);
+      text(`Go straight to ${routes("buy").length > 1 ? "" : "the "}${plays(routes("buy")).toLowerCase()} for ${money(bet() * V.buyCost)}`, 640, 400, 26, COND, C.cream, "center", "700", 0, 520);
       text(`${V.buyCost} \u00d7 your ${money(bet())} bet. Bonus wins pay at ${money(bet())}.`, 640, 430, 19, COND, C.muted);
       button("buy-yes", 470, 450, 160, 48, "BUY", { colour: [C.goldHi, C.spin, "#9a5a10"], disabled: S.balance < bet() * V.buyCost });
       button("buy-no", 650, 450, 160, 48, "CANCEL");
@@ -590,10 +591,11 @@ export function createGame(cv, cfg) {
     const nm = (t) => V.symbols[t] || t;
     const ups = {};
     for (const [f, t] of Object.entries(V.upgrades)) (ups[t] = ups[t] || []).push(nm(f));
+    const ways = M.SCATTERS.filter((s) => routes(s).length);
     const tips = (cfg.rules || [
-      `Wild stands in for everything except ${nm("BS")} and ${nm("FS")}. Pays left to right on 25 lines; the longest match on each line pays.`,
+      `Wild stands in for everything except ${ways.map(nm).join(" and ")}. Pays left to right on 25 lines; the longest match on each line pays.`,
       "Random features can hit any spin, some before the reels stop and some after.",
-      `3+ ${nm("BS")}: ${TEXT.bonus[1]}. 3+ ${nm("FS")}: ${TEXT.free[1]}.`,
+      ways.map((s) => `3+ ${nm(s)}: ${plays(routes(s))}.`).join(" "),
       "Upgrades: " + Object.entries(ups).map(([t, fs]) => `${fs.join(", ")} \u2192 ${nm(t)}`).join(" \u00b7 ")]);
     tips.forEach((t, i) => text(t, 640, 528 + i * 28, 19, COND, i === tips.length - 1 ? C.goldHi : C.cream, "center", "700", 0, 1140));
     button("overlay", 1100, 56, 120, 44, "CLOSE");
@@ -763,10 +765,17 @@ export function createGame(cv, cfg) {
       .then(() => { S.overlay = null; });
   }
 
+  // ------------------------------------------------------------------ ways in
+  // Which bonuses a way in plays ("BS", "FS" or "buy"); several means one of them at random.
+  const routes = (way) => (V.routes || M.ROUTES)[way] || [];
+  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : TEXT.free[1]).join(" OR ");
+  const buyIcon = () => M.SCATTERS.find((s) => routes("buy").some((k) => routes(s).includes(k))) || "BS";
+  function playBonus(kind, b, bought) { return kind === "free" ? freeGames(b, bought) : trailBonus(b, bought); }
+
   // ------------------------------------------------------------------ Combo Free Games
-  async function freeGames(b) {
+  async function freeGames(b, bought = false) {
     S.free = { n: 0, of: V.freeGames, total: 0 };
-    await banner(TEXT.freeName, `${V.freeGames} games \u00b7 a random feature every spin`, 2.2);
+    await banner(TEXT.freeName, bought ? "bought for " + money(b * V.buyCost) : `${V.freeGames} games \u00b7 a random feature every spin`, 2.2);
     for (let i = 1; i <= V.freeGames; i++) {
       S.free.n = i; S.message = `FREE GAME ${i} OF ${V.freeGames}`;
       clearWins(); S.winShown = S.winTarget = S.free.total;
@@ -1077,7 +1086,7 @@ export function createGame(cv, cfg) {
       } else if (id === "buy-yes") {
         S.overlay = null; const b = bet();
         S.balance -= b * V.buyCost; S.busy = true; clearWins();
-        trailBonus(b, true).then(() => { S.busy = false; });
+        playBonus(M.pickBonus(rng, routes("buy")), b, true).then(() => { S.busy = false; });
       } else if (id === "buy-no") S.overlay = null;
       return;
     }
@@ -1127,6 +1136,12 @@ export function createGame(cv, cfg) {
     setSpeed(x) { S.speed = x; },
     topUp() { S.balance = Math.max(S.balance, 100000); },
     rig(r) { S.rig = r; },
+    // Play a bonus straight away, as if it had triggered (the Bonus games step's Try it, for one only Buy gives).
+    bonus(kind) {
+      if (S.busy || S.overlay || S.mode !== "reels") return;
+      S.busy = true; clearWins();
+      playBonus(kind, bet(), false).then(() => { S.busy = false; });
+    },
     spin: () => act("spin"),
     // Show a five-of-a-kind of `tier` on the middle line, as if it had just landed (the Sprites step's preview).
     demoWin(tier) {

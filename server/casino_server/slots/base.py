@@ -21,6 +21,9 @@ PAYS = {
     "L1": (4, 8, 20), "L2": (4, 8, 20), "L3": (4, 8, 20), "L4": (4, 8, 20),
 }
 SCATTERS = ("BS", "FS")   # the bonus scatter and the free-spin scatter: never substituted, pay nothing
+BONUSES = ("trail", "free")   # the library's bonus games: the Trail Bonus and Combo Free Games
+# Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus). With more than one, it's one of them at random.
+ROUTES = {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]}
 UPGRADES = {"L1": "M3", "L2": "M3", "L3": "M4", "L4": "M4", "M3": "M1", "M4": "M2", "M1": "H2", "M2": "H2", "H2": "H1"}
 LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500]   # total bet in pence (a whole-pence line bet)
 FEATURES = ["wilds", "wildReels", "colossal", "multiplier", "upgrade", "repeat", "instant"]

@@ -25,19 +25,21 @@ const upgrades = {L1: "M3", L2: "M3", L3: "M4", L4: "M4", L5: "M4", M3: "M1", M4
 const features = M.FEATURES.filter((f) => f !== "colossal");
 const V = M.makeVariant({...A, strips: null, freeStrips: null, bigStrip: null, id: "testtrek", name: "Test Trek", counts, pays, upgrades, features,
   bigCounts: {W: 1, H1: 2, H2: 2, M1: 3, M2: 3, M3: 3, M4: 3, L1: 4, L2: 4, L3: 4, L4: 4, L5: 4},
-  symbols: {...A.symbols, L5: "Ten"}});
+  symbols: {...A.symbols, L5: "Ten"}, routes: {BS: ["trail", "free"], FS: ["free"], buy: ["trail", "free"]}});
 const variant = {id: V.id, name: V.name, symbols: V.symbols, strips: V.strips, free_strips: V.freeStrips, big_strip: V.bigStrip,
   rates: V.rates, free_rates: V.freeRates, wild_counts: V.wildCounts, wild_reel_counts: V.wildReelCounts,
   colossal_sizes: V.colossalSizes, multipliers: V.multipliers, repeats: V.repeats, instants: V.instants,
   trail: {length: V.trail.length, prizepot: V.trail.prizepot, counts: V.trail.counts, upgrade_chance: V.trail.upgradeChance,
           double_chance: V.trail.doubleChance, coins: V.trail.coins, crate_radius: V.trail.crateRadius},
-  buy_cost: V.buyCost, free_games: V.freeGames, pays: V.pays, upgrades: V.upgrades, features: V.features};
+  buy_cost: V.buyCost, free_games: V.freeGames, pays: V.pays, upgrades: V.upgrades, features: V.features, routes: V.routes};
 const spins = [];
 for (let s = 1; s <= 300; s++) {
   const o = M.spinOutcome(V, M.LADDER[s % 9], M.mulberry32(s));
-  spins.push({seed: s, stops: o.stops, grid: o.grid, total: o.total, upgrade: o.upgrade, wins: o.wins.map((w) => [w.line, w.sym, w.count, w.pence])});
+  spins.push({seed: s, stops: o.stops, grid: o.grid, total: o.total, trigger: o.trigger, upgrade: o.upgrade, wins: o.wins.map((w) => [w.line, w.sym, w.count, w.pence])});
 }
-console.log(JSON.stringify({variant, spins, exact: M.exactLineRtp(V.strips, V.pays)}));
+const sim = M.simulate(V, 4000, 100, 7);
+console.log(JSON.stringify({variant, spins, exact: M.exactLineRtp(V.strips, V.pays), buy: M.simulateBuy(V, 400, 100, 9),
+  sim: {trails: sim.trails, frees: sim.frees, trail: sim.trail, free: sim.free}}));
 """
 
 
@@ -63,7 +65,7 @@ def test_it_spins_the_same_as_the_browser(built):
         o = spin_outcome(v, base.LADDER[case["seed"] % 9], mulberry32(case["seed"]))
         assert o["stops"] == case["stops"] and o["grid"] == case["grid"], case["seed"]
         assert [[w["line"], w["sym"], w["count"], w["pence"]] for w in o["wins"]] == case["wins"], case["seed"]
-        assert o["total"] == case["total"]
+        assert o["total"] == case["total"] and o["trigger"] == case["trigger"]
     assert any(w[1] == "L5" for c in out["spins"] for w in c["wins"])        # the fifth royal pays
     assert any(c["upgrade"] and c["upgrade"]["from"] == "L5" for c in out["spins"])
 
@@ -73,3 +75,14 @@ def test_its_maths_uses_its_own_pays(built):
     assert base.exact_line_rtp(v.strips, v.pays) == pytest.approx(out["exact"], rel=1e-12)
     assert base.exact_line_rtp(v.strips, v.pays) != pytest.approx(base.exact_line_rtp(v.strips), rel=1e-6)
     assert sim.simulate(v, 3000, 100, 7)["plain"] > 0
+
+
+def test_routes_pick_the_same_bonus_in_both(built):
+    """Two bonuses on the bonus scatter and both buyable: each engine picks the same one, draw for draw."""
+    v, out = built
+    assert v.routes == {"BS": ["trail", "free"], "FS": ["free"], "buy": ["trail", "free"]}
+    r = sim.simulate(v, 4000, 100, 7)
+    assert {k: r[k] for k in ("trails", "frees", "trail", "free")} == out["sim"]
+    assert r["trails"] and r["frees"]
+    b = sim.simulate_buy(v, 400, 100, 9)
+    assert b["mean"] == pytest.approx(out["buy"]["mean"], rel=1e-12) and b["prizepots"] == out["buy"]["prizepots"]

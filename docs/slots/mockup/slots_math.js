@@ -22,6 +22,9 @@
   };
   const PAYING = Object.keys(PAYS);
   const SCATTERS = ["BS", "FS"];
+  const BONUSES = ["trail", "free"];
+  // Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus); with more than one, it's one of them at random.
+  const ROUTES = { BS: ["trail"], FS: ["free"], buy: ["trail"] };
   const UPGRADES = { L1: "M3", L2: "M3", L3: "M4", L4: "M4", M3: "M1", M4: "M2", M1: "H2", M2: "H2", H2: "H1" };
   const LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500];
   const FEATURES = ["wilds", "wildReels", "colossal", "multiplier", "upgrade", "repeat", "instant"];
@@ -149,12 +152,13 @@
     for (let tries = 0; ; tries++) {
       stops = rig.stops || strips.map((s) => int(rng, s.length));
       grid = gridFromStops(strips, stops);
-      if (rig.trigger && !rig.stops) forceTrigger(grid, rig.trigger, rng);
+      if (rig.trigger && !rig.stops) forceTrigger(grid, rig.trigger, rng, V.routes || ROUTES);
       sc = countScatters(grid);
       if (!(sc.BS.length >= 3 && sc.FS.length >= 3) || tries > 50) break;   // never both bonuses at once
     }
     const landed = grid.slice();
-    const trigger = sc.BS.length >= 3 ? "trail" : sc.FS.length >= 3 ? "free" : null;
+    const hit = sc.BS.length >= 3 ? "BS" : sc.FS.length >= 3 ? "FS" : null;
+    const trigger = hit ? pickBonus(rng, (V.routes || ROUTES)[hit] || [], rig.trigger) : null;
 
     // Which features fire. Free games guarantee at least one, and often several.
     const rates = free ? V.freeRates : V.rates;
@@ -237,8 +241,16 @@
     }
     return grid;
   }
-  function forceTrigger(grid, kind, rng) {   // test rig: 3 scatters of the kind on reels 1, 3 and 5
-    const sym = kind === "trail" ? "BS" : "FS";
+  /* The bonus a way in plays: `want` if it's one of them (the rig), the only one, or one at random. One choice
+     draws nothing, so a slot with a bonus per way in spins exactly as it always has. */
+  function pickBonus(rng, choices, want) {
+    if (want && choices.includes(want)) return want;
+    if (choices.length <= 1) return choices[0] || null;
+    return choices[int(rng, choices.length)];
+  }
+  function forceTrigger(grid, kind, rng, routes) {   // test rig: 3 of the scatter that plays `kind`, on reels 1, 3 and 5
+    const sym = SCATTERS.find((s) => (routes[s] || []).includes(kind));
+    if (!sym) return;   // only Buy Bonus gives it
     for (let c = 0; c < grid.length; c++) if (SCATTERS.includes(grid[c])) grid[c] = "L1";
     for (const r of [0, 2, 4]) grid[r * ROWS + int(rng, ROWS)] = sym;
   }
@@ -451,16 +463,34 @@
     r.sd = Math.sqrt(r.sumSq / spins - mean * mean);
     return r;
   }
+  /* Bought bonuses: each one of the buyable bonuses at random (just the trail for Armadillo). */
   function simulateBuy(V, n, bet, seed) {
-    const rng = mulberry32(seed);
+    const rng = mulberry32(seed), routes = (V.routes || ROUTES).buy || [];
     let won = 0, max = 0, prizepots = 0, rolls = 0;
+    for (let i = 0; i < n; i++) {
+      let total;
+      if (pickBonus(rng, routes) === "free") total = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
+      else {
+        const s = trailStart(V, bet, rng);
+        trailPlayOut(V, s, rng);
+        total = s.total; rolls += s.rolls;
+        if (s.pos >= s.board.length - 1) prizepots++;
+      }
+      won += total; max = Math.max(max, total);
+    }
+    return { n, rtp: V.buyCost ? (100 * won) / (n * bet * V.buyCost) : 0, mean: won / n / bet, max: max / bet, prizepots, rolls: rolls / n };
+  }
+  /* The mean Trail Bonus win, in bets, from `n` trails on their own. */
+  function simulateTrail(V, n, bet, seed) {
+    const rng = mulberry32(seed);
+    let won = 0, prizepots = 0;
     for (let i = 0; i < n; i++) {
       const s = trailStart(V, bet, rng);
       trailPlayOut(V, s, rng);
-      won += s.total; max = Math.max(max, s.total); rolls += s.rolls;
+      won += s.total;
       if (s.pos >= s.board.length - 1) prizepots++;
     }
-    return { n, rtp: (100 * won) / (n * bet * V.buyCost), mean: won / n / bet, max: max / bet, prizepots, rolls: rolls / n };
+    return { n, mean: won / n / bet, prizepots };
   }
   /* What the progressives return: every bet's share, plus each seed paid out once per win. */
   function jackpotRtp() { return JACKPOT_TIERS.reduce((a, t) => a + t.rate + t.seed / t.every, 0); }
@@ -494,6 +524,7 @@
     V.pays = p.pays || PAYS;
     V.upgrades = p.upgrades || UPGRADES;
     V.features = p.features || FEATURES;
+    V.routes = p.routes || ROUTES;
     V.strips = p.strips || p.counts.map((c, i) => buildStrip(c, 1000 + i));
     V.freeStrips = p.freeStrips || p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
     V.bigStrip = p.bigStrip || buildStrip(p.bigCounts, 3000);
@@ -528,10 +559,10 @@
     freeGames: 3,
   });
 
-  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
+  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
     mulberry32, weighted, buildStrip, evaluate, countScatters, exactLineRtp, spinOutcome, gridFromStops,
     makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, jackpotTrigger, pickSequence, presentationSeconds,
-    simulate, simulateBuy, jackpotRtp,
+    simulate, simulateBuy, simulateTrail, pickBonus, jackpotRtp,
     makeVariant, ARMADILLO };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.SlotMath = api;

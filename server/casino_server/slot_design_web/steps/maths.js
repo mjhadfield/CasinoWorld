@@ -6,7 +6,7 @@ import {typing} from "./artslot.js";
 
 let C, worker = null, busy = false, last = null, tuned = null, spins = 500000;
 const key = p => JSON.stringify([p.pays, p.counts, p.bigCounts, p.features, p.rates, p.freeRates, p.wildCounts, p.wildReelCounts,
-  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.freeGames, p.buyCost, p.upgrades]);
+  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.freeGames, p.buyCost, p.routes, p.upgrades]);
 
 function run(msg, onProgress) {
   worker ??= new Worker("/slot-design-ui/mockup/sim_worker.js");

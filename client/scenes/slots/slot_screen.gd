@@ -108,6 +108,7 @@ class Layer extends Control:
 
 var cab: SlotCabinet
 var rules := {}
+const ROUTES := {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]}   # Armadillo's ways in (rules.routes)
 var variant := "armadillo"
 var _strips: Array = []
 var _free_strips: Array = []
@@ -435,7 +436,8 @@ func _handle(ev: Dictionary) -> void:
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
 			_sfx("bonus_trigger")
-			await _banner(texts.free, "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
+			await _banner(texts.free, "bought for %s" % Money.format(int(ev.bet) * int(rules.get("buy_cost", 45)))
+				if ev.get("bought", false) else "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
 		"free_game":
 			free.n = int(ev.n)
 			_sfx("free_spin")
@@ -762,6 +764,32 @@ func _tex(id: String) -> Texture2D:
 	return SlotArt.tex(variant, id)
 
 
+## Which bonuses a way in plays ("BS", "FS" or "buy"); several means one of them at random.
+func _routes(way: String) -> Array:
+	return rules.get("routes", ROUTES).get(way, [])
+
+
+func _can_buy() -> bool:
+	return int(rules.get("buy_cost", 0)) > 0 and not _routes("buy").is_empty()
+
+
+## What a way in plays, for the side panel: the bonus's name, or each of them "or" (it's one at random).
+func _plays(kinds: Array) -> String:
+	var names := []
+	for k in kinds:
+		names.append(texts.trail if k == "trail" else "%d %s" % [int(rules.get("free_games", 3)), texts.free])
+	return " OR ".join(names)
+
+
+## The Buy Bonus picture: the scatter of what it buys (the bonus scatter's when that's the trail's).
+func _buy_icon() -> Texture2D:
+	for s in ["BS", "FS"]:
+		for k in _routes("buy"):
+			if k in _routes(s):
+				return _tex(s)
+	return _tex("BS") if _tex("BS") else _tex("FS")
+
+
 func _sym(ci: CanvasItem, sym: String, r: Rect2, fx: Dictionary = {}, alpha := 1.0) -> void:
 	var tex := _tex(sym)
 	if tex == null:
@@ -885,15 +913,18 @@ func _draw_sides(ci: CanvasItem) -> void:
 	var buy := Rect2(1052, by, 196, 178)
 	var hov := _hover == "buy" and not busy
 	_rr(ci, buy, 14, Color(0.35, 0.16, 0.04, 0.95) if hov else Color(0.16, 0.07, 0.02, 0.85), 4 if hov else 3, GOLD)
-	var a := 0.45 if busy else 1.0
+	var a := 0.45 if busy or not _can_buy() else 1.0
 	_text(ci, "BUY BONUS", Vector2(1150, by + 24), 26, COND, Color(GOLD_HI, a), "center", 0, 180)
-	var bs := _tex("BS")
+	var bs := _buy_icon()
 	if bs:
 		ci.draw_texture_rect(bs, Rect2(1098, by + 38, 104, 104), false, Color(1, 1, 1, a))
 	_text(ci, Money.format(_bet() * int(rules.get("buy_cost", 45))), Vector2(1150, by + 156), 26, COND, Color(1, 1, 1, a), "center", 0, 180)
-	if not busy and int(rules.get("buy_cost", 0)) > 0:
+	if not busy and _can_buy():
 		_add_hit("buy", buy)
-	var info := [["BS", texts.bonus_line, texts.trail], ["FS", texts.free_line, "%d %s" % [int(rules.get("free_games", 3)), texts.free]]]
+	var info := []
+	for s in ["BS", "FS"]:
+		if not _routes(s).is_empty():
+			info.append([s, texts.bonus_line if s == "BS" else texts.free_line, "A RANDOM BONUS" if _routes(s).size() > 1 else _plays(_routes(s))])
 	for i in info.size():
 		# Each box: the symbol on the left, its two lines centred in the space to its right.
 		var box := Rect2(SIDE_INFO.position + Vector2(0, by + 196 + i * 116), SIDE_INFO.size)
@@ -1458,11 +1489,12 @@ func _draw_overlay(ci: CanvasItem) -> void:
 		"buy":
 			_wood(ci, Rect2(360, 170, 560, 340), 22)
 			_gold_text(ci, "BUY BONUS", Vector2(640, 228), 50, 520)
-			var bs := _tex("BS")
+			var bs := _buy_icon()
 			if bs:
 				ci.draw_texture_rect(bs, Rect2(580, 256, 120, 120), false)
 			var cost := _bet() * int(rules.get("buy_cost", 45))
-			_text(ci, texts.buy_text % Money.format(cost), Vector2(640, 400), 26, COND, CREAM, "center", 0, 520)
+			var buy_text: String = texts.buy_text if _routes("buy") == ["trail"] else "Go straight to %s for %%s" % _plays(_routes("buy")).to_lower()
+			_text(ci, buy_text % Money.format(cost), Vector2(640, 400), 26, COND, CREAM, "center", 0, 520)
 			_text(ci, texts.buy_sub % [int(rules.get("buy_cost", 45)), Money.format(_bet()), Money.format(_bet())], Vector2(640, 430), 19, COND, MUTED, "center", 0, 520)
 			_button(ci, "buy-yes", Rect2(470, 450, 160, 48), "BUY", false, Session.shown_balance + _credit_adj < cost, 22, [GOLD_HI, Color("9a5a10")])
 			_button(ci, "buy-no", Rect2(650, 450, 160, 48), "CANCEL")

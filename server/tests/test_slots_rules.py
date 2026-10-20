@@ -150,3 +150,20 @@ def test_the_signed_off_return():
     assert e["trail_odds"] == pytest.approx(1 / 189, rel=0.02) and e["free_odds"] == pytest.approx(1 / 294, rel=0.02)
     assert jackpots.rtp() * 100 == pytest.approx(3.75)
     assert sim.simulate_buy(V, 250_000, 100, 12)["rtp"] == pytest.approx(93.7, abs=2.0)   # (~3 SDs: the prizepot)
+
+
+def test_a_scatter_shared_by_two_bonuses_plays_each_at_random():
+    """Both bonuses on the bonus scatter: three of it play either, about half each; the free-spins scatter plays
+    nothing; and the exact odds split the scatter's chance between them."""
+    import dataclasses
+    from casino_server.slots.outcome import pick_bonus
+    v = dataclasses.replace(V, routes={"BS": ["trail", "free"], "FS": [], "buy": ["trail"]})
+    r = sim.simulate(v, 20000, 100, 5)
+    assert r["trails"] > 20 and r["frees"] > 20 and 0.6 < r["trails"] / r["frees"] < 1.6
+    for s in range(1, 60):
+        o = spin_outcome(v, 100, mulberry32(s), rig={"trigger": "trail"})
+        assert o["trigger"] == "trail" and len(o["scatters"]["BS"]) >= 3 and not o["scatters"]["FS"]
+    assert spin_outcome(v, 100, mulberry32(3), rig={"trigger": "free"})["trigger"] == "free"   # the rig picks it
+    odds = sim.scatter_odds(v)
+    assert odds["trail"] == pytest.approx(odds["free"]) and odds["trail"] == pytest.approx(sim.scatter_odds(V)["trail"] / 2)
+    assert pick_bonus(mulberry32(1), ["trail"]) == "trail" and pick_bonus(mulberry32(1), []) is None
