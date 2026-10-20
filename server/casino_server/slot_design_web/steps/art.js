@@ -35,7 +35,7 @@ export function render(ctx, body) {
         for (const s of C.data.symbols) { const r = rows.get(s.id); if (r) r.card.hidden = !visible(s); }
       }})));
   body.append(
-    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX). ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
+    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX). ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
     el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
@@ -300,7 +300,12 @@ function symRow(s) {
     ...[0, 1, 3, 5].map(n => el("button", {type: "button", textContent: n ? `${n} take${n === 1 ? "" : "s"}` : "No",
       ariaPressed: String(s.reiterate ? n === s.takes : !n),
       onclick: () => patch(s, n ? {reiterate: true, takes: n} : {reiterate: false})})));
-  const re = el("div", {className: "dz-re"}, el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base), note);
+  const queue = s.reiterate || s.pending_new ? el("button", {type: "button", className: "primary", textContent: "Queue",
+    title: `Send ${s.name} to FLUX now, on its own (Generate sends everything marked)`, onclick: async () => {
+      while (saving.get(s.id)) await new Promise(r => setTimeout(r, 50));   // the note just typed lands first
+      await act(s, "queue", {}, `Queued ${s.name}. The takes appear here as FLUX finishes them.`);
+    }}) : null;
+  const re = el("div", {className: "dz-re"}, el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base, queue), note);
 
   let prompt = null;
   if (s.added || s.prompt) {

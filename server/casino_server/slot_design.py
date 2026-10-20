@@ -696,12 +696,13 @@ class DesignBoard(StepsMixin, BuildMixin):
             return new
 
     # ------------------------------------------------------------- jobs
-    def generate(self, did: str) -> int:
-        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (3). Returns how many."""
+    def generate(self, did: str, sid: str | None = None) -> int:
+        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (3), or just for `sid`
+        (a card's Queue). Returns how many."""
         with self.lock:
             d = self.design(did)
             queued = 0
-            for s in d.data["symbols"]:
+            for s in [d.symbol(sid)] if sid else d.data["symbols"]:
                 count = TAKES
                 if s.get("pending_new"):
                     ref = s["refs"][0] if s.get("refs") else None

@@ -193,6 +193,14 @@ def test_reiterate_makes_one_three_or_five_takes(board):
     assert [v["id"] for v in _sym(o, "ship")["variants"]][2:] == [f"cut/ship_{n}.png" for n in range(5, 10)]
     assert [v["id"] for v in _sym(o, "hero")["variants"]] == ["bust/hero_1", "bust/hero_2"]
     assert _sym(o, "ship")["takes"] == 5  # remembered for next time
+    # a card's Queue sends that symbol alone, and its Reiterate goes back to No
+    c.patch("/api/slot-design/demo/symbols/ship", json={"reiterate": True, "takes": 1})
+    c.patch("/api/slot-design/demo/symbols/hero", json={"reiterate": True, "takes": 1})
+    assert c.post("/api/slot-design/demo/symbols/ship/queue", json={}).json()["queued"] == 1
+    o = _overview(c)
+    assert not _sym(o, "ship")["reiterate"] and _sym(o, "hero")["reiterate"] and o["pending"] == 1
+    _wait_idle(c)
+    assert len(_sym(_overview(c), "ship")["variants"]) == 8
 
 
 def test_cancel_all_stops_the_running_job_and_drops_its_picture(board, monkeypatch):
