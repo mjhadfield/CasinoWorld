@@ -6,7 +6,8 @@ Mike's living 2D multiplayer casino. The client is Godot 4.7 (GDScript, exported
 - **docs/architecture.md**: the design.
 - **server/protocol.md**: every WebSocket message.
 - **docs/tables.md**: building a table, the layout rules and the layout audit.
-- **docs/slots/README.md**: the slots design record.
+- **docs/slots/README.md**: the slots design record. **docs/slots/scenes.md**: designing a slot's scene, when Mike says
+  "design the X scene" (his brief is on the Scene step).
 
 ## The running server
 

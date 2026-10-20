@@ -110,20 +110,29 @@ and Tailscale. It has six tabs:
     styles, the three from-a-description styles, the character portrait style, the specials' emblem style and the
     royals' repaint, per design (`art_prompts` in design.json; an emptied box or **Default** goes back to the code's
     prompt). Its **Lettering** sets the specials' font and colours and the royals' font (`lettering`; unset, the
-    Sprites step's display font and theme gold). One worker draws every job, one picture
+    scene's display font and gold). The lettering font is the slot's font: the scene's words use it too. One worker draws every job, one picture
     at a time.
   - **Value ladder:** order the final set by value into the tiers of the tier shape (Wild, the bonus and
     free-spins scatters, then H1…, M1…, L1…), by dragging or click-to-place, with each tier's pays shown and the
     Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
-  - **Scene:** the background (the image model, three takes; an upload; or art already on the board, fitted to 1280×720),
-    the logo lettering (rendered by the server from a bundled or uploaded font, with gradient colours, an outline
-    and an optional emblem), each with its own **Bin** like Art's (✕ on a background or logo; restorable), the reel frame's style and colour, and the deck's (the bottom bar, its readouts and
-    every button: the frame's style by default, or its own style and a tint). The step shows the **mockup**: the real
-    screen layout, playable, using the ladder's symbols. From here on, **Play the mockup** opens it from any step.
+  - **Scene:** the screen's whole look, as **scenes** (skins: `slot_design_scene.py`, and [docs/slots/scenes.md](docs/slots/scenes.md)).
+    A design keeps several and plays the chosen one: a strip to pick, rename, duplicate, bin (restorable) or start a
+    new Classic or LCARS one, and **Reset to Claude's version** for one Claude made. **Look**: the family (Classic,
+    the four frame styles; LCARS, elbows and pills on frosted glass), the palette, glass, the two fonts (by default
+    the Art step's lettering font), the screen's eleven colours and its words (SPIN, CREDIT, ...). **Parts**: a shape
+    and colours per part (Classic: the reel frame's style and colour, and the deck's). **Decor**: the shapes Claude
+    laid round the parts (show, colour, words, or the JSON). **Brief for Claude**: words and reference pictures, and
+    **Ask Claude**; a Claude Code session answers with a new scene (`tools/scene.py`). The background (the image
+    model, three takes; an upload; or art already on the board, fitted to 1280×720) and the logo (**Render** in a
+    font with gradient colours, an outline and an optional emblem; **Style the lettering**: that rendering restyled
+    by the image model, keeping the font's letters; **Generate**: drawn whole by the image model), each with its own
+    **Bin** like Art's. The step shows the **mockup**: the real screen layout, playable, using the ladder's symbols.
+    From here on, **Play the mockup** opens it from any step.
     The mockup is the signed-off Armadillo mockup made design-driven (`slot_design_web/mockup/`), running the
     shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.
   - **Features:** the library's seven random features, each switched on or off with its chance on a paid spin
-    and in the free games and its value table (value:weight pairs); **Show me** plays the mockup with it forced.
+    and in the free games, its value table (value:weight pairs) and its name on the screen (which sign-off doesn't
+    lock); **Show me** plays the mockup with it forced.
   - **Bonus games:** one column: "How players get in" at the top, then a row per bonus with its switch, tags for
     its ways in and pictures, and **Try it**. ▸ opens a row's settings, whether it's on or off (an off bonus keeps
     them): its ways in (started by either scatter or neither, ticked if Buy Bonus can give it), its pictures, and how
@@ -148,12 +157,11 @@ and Tailscale. It has six tabs:
   - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
     code tasks, and once built they join the library.
   - **Sprites:** win animations per tier group (pulse, bounce, shine, glow or spin, with a strength and glow
-    colour), the screen's eleven theme colours and two fonts (any bundled or added font), and the floor cabinet
-    (body, trim, topper lettering and its words), previewed live: **Show it** lays a five-of-a-kind on the mockup.
-    Every tone the slot screen draws (mockup and `slot_screen.gd`) comes from those colours, the frame and the
-    deck; only the wood style, the drawn dusk, the payline and jackpot-tier colours and the bonus pop-ups are
-    fixed. A colour still at Armadillo's value is marked so. A design with its own colours gets the ones it never
-    picked worked out from its edge and accent colours (`Design._migrate`).
+    colour) and the floor cabinet (body, trim, topper lettering and its words; **Match the scene**), previewed live:
+    **Show it** lays a five-of-a-kind on the mockup. Both start from the scene's colours. Every tone the slot screen
+    draws (mockup and `slot_screen.gd`) comes from the scene; only the wood style, the drawn dusk and the payline
+    colours are fixed. An older design's frame, deck, colours and fonts became its Classic scene
+    (`slot_design_scene.migrate`), the colours it never picked worked out from its edge and accent.
   - **Sounds:** the 30 slot moments, each playing what every slot machine plays until given this slot's own
     (from the Sounds tab's library or an upload, several at random, with a volume trim). Kept in the design until
     Build gives the slot its sound set.
@@ -223,6 +231,10 @@ tools/shot.py sit:crp_1 until:roll_open send:'{"type":"bet","spot":"pass","add":
 ```
 Shots land in `.dev/shots/`. `tools/shot.py --help` lists the steps.
 
+`tools/scene.py` is for designing a slot's scene in a session ([docs/slots/scenes.md](docs/slots/scenes.md)):
+`brief` prints what Mike asked for, `fresh` copies a design to the dev instance, `shot` shoots the dev mockup with a
+skin (and `--bonus` inside a bonus), and `put` saves a finished skin to the live board.
+
 ## Art
 `python3 tools/build_art.py` rebuilds the built-in character sheets (the player, the dealer and 8 NPC looks,
 in `LOOKS`), `client/assets/sprites/CREDITS.md`, the carpet and the felt grain (`build_art.py tiles` does just
@@ -244,14 +256,15 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
-  - `slot_design.py`, `slot_design_steps.py`, `slot_design_build.py`, `slot_design_art.py`: the Slot design
-    wizard (designs, its steps, Build, and the image-model/keying/frame pipeline; designs in `server/slot_designs/`), its
+  - `slot_design.py`, `slot_design_steps.py`, `slot_design_scene.py`, `slot_design_build.py`, `slot_design_art.py`: the
+    Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
+    designs in `server/slot_designs/`), its
     UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars and the room.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the
     shoe, shuffler, discard rack, cards and chips, the roulette wheel and the craps dice.
-  - `scenes/slots/`: the cabinet and the full-screen `slot_screen`.
+  - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, and the `settings_menu`, which edits the `Settings`
     autoload (saved to `user://settings.cfg`) and sets the Master, Effects and Ambience bus volumes. The buses
     are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
@@ -259,4 +272,4 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
     `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader` and
     `slot_art`.
-- **tools/**: `dev.sh`, `shot.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`.
+- **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`.
