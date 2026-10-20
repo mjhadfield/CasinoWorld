@@ -538,8 +538,8 @@ async def slot_design_bonuses(design: str, request: Request):
 
 @app.put("/api/slot-design/{design}/art-slots/{key}")
 async def slot_design_art_slot(design: str, key: str, request: Request):
-    body = await _json_body(request, "{value: a board path, 'sym:<id>' or null}")
-    _design_call(request.app.state.slot_design.set_art_slot, design, key, body.get("value"))
+    body = await _json_body(request, "{value?: a board path, 'sym:<id>' or null, adjust?: {scale, dx, dy, rot, mirror, flip, bright, sat} or null}")
+    _design_call(request.app.state.slot_design.set_art_slot, design, key, body)
     return {"ok": True}
 
 

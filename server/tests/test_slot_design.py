@@ -440,6 +440,17 @@ def test_art_slots_and_specs(board):
     assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": "ref/ship.png"}).status_code == 200
     assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": "ref/none.png"}).status_code == 400
     assert c.put("/api/slot-design/demo/art-slots/teapot", json={"value": None}).status_code == 400
+    # adjustments: baked into adj/ (the game and mockup get the tweaked picture), clamped, and cleared by null
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"adjust": {"mirror": True, "scale": 9}}).status_code == 200
+    b = _overview(c)["art"]["barrel"]
+    assert b["src"] == "ref/ship.png" and b["file"].startswith("adj/barrel_") and b["adjust"]["mirror"] and b["adjust"]["scale"] == 2.0
+    baked = Image.open(io.BytesIO(c.get(f"/slot-design/demo/{b['file']}").content))
+    assert baked.size == Image.open(io.BytesIO(c.get("/slot-design/demo/ref/ship.png").content)).size
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": b["file"]}).status_code == 400   # not a source
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"adjust": {"scale": "big"}}).status_code == 400
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"adjust": None}).status_code == 200
+    b = _overview(c)["art"]["barrel"]
+    assert b["file"] == "ref/ship.png" and not b["adjust"]["mirror"]
     assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": None}).status_code == 200
     spec = c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "Red Alert", "description": "All reels flash red..."}).json()
     assert spec["status"] == "spec" and _overview(c)["features"]["specs"][0]["name"] == "Red Alert"

@@ -18,7 +18,7 @@ import os
 import subprocess
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 CONTAINER = os.environ.get("CASINO_FLUX_CONTAINER", "odysseus-odysseus-1")
 FLUX_URL = "localhost:8000"
@@ -283,6 +283,52 @@ def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
     layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     layer.paste(im, (round((S - im.width) / 2 + f["dx"]), round((S - im.height) / 2 - 6 + f["dy"])))
     return _shadow(layer, 14)
+
+
+# ------------------------------------------------------------------ an art slot's hand tweaks
+# The Bonus games and Features steps' Adjust panel: size, a nudge (% of the picture), rotation, mirror and flip,
+# brightness and colour. Applied in the order a CSS transform "translate rotate scale" draws it, so the page's
+# live preview matches the baked picture.
+ADJUST = {"scale": 1.0, "dx": 0.0, "dy": 0.0, "rot": 0.0, "mirror": False, "flip": False, "bright": 1.0, "sat": 1.0}
+ADJUST_LIMITS = {"scale": (0.3, 2.0), "dx": (-50.0, 50.0), "dy": (-50.0, 50.0), "rot": (-180.0, 180.0),
+                 "bright": (0.4, 1.6), "sat": (0.0, 2.0)}
+
+
+def adjust_values(a: dict | None) -> dict:
+    """An art slot's adjustments, every key filled in and clamped."""
+    a = a or {}
+    out = dict(ADJUST)
+    for k, (lo, hi) in ADJUST_LIMITS.items():
+        if k in a:
+            out[k] = round(min(hi, max(lo, float(a[k]))), 3)
+    for k in ("mirror", "flip"):
+        if k in a:
+            out[k] = bool(a[k])
+    return out
+
+
+def adjust(im: Image.Image, a: dict) -> Image.Image:
+    """The picture with its adjustments, on a transparent canvas the size of the original (what goes past the
+    edge is cut off, as in its box in the game)."""
+    a = adjust_values(a)
+    im = im.convert("RGBA")
+    w, h = im.size
+    if a["mirror"]:
+        im = ImageOps.mirror(im)
+    if a["flip"]:
+        im = ImageOps.flip(im)
+    if a["bright"] != 1 or a["sat"] != 1:
+        alpha = im.getchannel("A")
+        rgb = ImageEnhance.Color(ImageEnhance.Brightness(im.convert("RGB")).enhance(a["bright"])).enhance(a["sat"])
+        im = rgb.convert("RGBA")
+        im.putalpha(alpha)
+    if a["scale"] != 1:
+        im = im.resize((max(1, round(w * a["scale"])), max(1, round(h * a["scale"]))), Image.LANCZOS)
+    if a["rot"]:
+        im = im.rotate(-a["rot"], resample=Image.BICUBIC, expand=True)
+    canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    canvas.paste(im, (round((w - im.width) / 2 + a["dx"] * w / 100), round((h - im.height) / 2 + a["dy"] * h / 100)))
+    return canvas
 
 
 # ------------------------------------------------------------------ the character frame

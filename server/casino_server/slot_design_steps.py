@@ -288,9 +288,10 @@ def sounds_view(d, board) -> dict:
 
 
 def art_view(d) -> dict:
-    """Each art slot: what it's for, the step that sets it, what's chosen ("sym:<id>" or a path) and the file it
-    comes to now (None until chosen; the mockup then shows Armadillo's)."""
-    slots = d.data.get("art_slots", {})
+    """Each art slot: what it's for, the step that sets it, what's chosen ("sym:<id>" or a path), its adjustments
+    (scale, mirror, ...), the picture chosen (src) and the file it comes to now, adjustments baked in (both None
+    until chosen; the mockup then shows Armadillo's)."""
+    slots, tweaks = d.data.get("art_slots", {}), d.data.get("art_adjust", {})
     b, on = bonuses_view(d), set(features_view(d)["enabled"])
     on |= {k for k in base.BONUSES if b[k]["enabled"]}
     out = {}
@@ -303,7 +304,9 @@ def art_view(d) -> dict:
         elif v:
             f = v if d.path(v) else None
         used = bool(on & set(ART_USE.get(key, ("trail",))))   # the trail's pictures unless listed
-        out[key] = {"label": label, "step": step, "value": v, "file": f, "used": used}
+        a = art.adjust_values(tweaks.get(key))
+        out[key] = {"label": label, "step": step, "value": v, "src": f, "file": d.adjusted(key, f, a) if f else None,
+                    "adjust": a, "used": used}
     return out
 
 
@@ -740,20 +743,38 @@ class StepsMixin:
         return cur
 
     # ------------------------------------------------------------- art slots and specs
-    def set_art_slot(self, did: str, key: str, value) -> None:
+    def set_art_slot(self, did: str, key: str, body: dict) -> None:
+        """Choose an art slot's picture ("value": "sym:<id>", a board path or None) and/or its adjustments
+        ("adjust": {scale, dx, dy, rot, mirror, flip, bright, sat}, or None for none). Either is optional."""
         if key not in ART_SLOTS:
             raise DesignError(f"There's no art slot {key!r}.")
         with self.lock:
             d = self.design(did)
-            if value and str(value).startswith("sym:"):
-                d.symbol(str(value)[4:])
-            elif value and not d.path(value):
-                raise DesignError(f"Not on the board: {value}")
-            slots = d.data.setdefault("art_slots", {})
-            if value:
-                slots[key] = value
-            else:
-                slots.pop(key, None)
+            if "value" in body:
+                value = body["value"]
+                if value and str(value).startswith("sym:"):
+                    d.symbol(str(value)[4:])
+                elif value and (not d.path(value) or str(value).startswith("adj/")):   # (adj/: a baked picture, not a source)
+                    raise DesignError(f"Not on the board: {value}")
+                slots = d.data.setdefault("art_slots", {})
+                if value:
+                    slots[key] = value
+                else:
+                    slots.pop(key, None)
+            if "adjust" in body:
+                a = body["adjust"]
+                if a is not None and not isinstance(a, dict):
+                    raise DesignError("Adjustments are an object: scale, dx, dy, rot, mirror, flip, bright, sat.")
+                try:
+                    a = art.adjust_values(a)
+                except (TypeError, ValueError):
+                    raise DesignError("Adjustments are numbers (mirror and flip are true or false).") from None
+                tweaks = d.data.setdefault("art_adjust", {})
+                if a == art.ADJUST:
+                    tweaks.pop(key, None)
+                    d.clear_adjusted(key)
+                else:
+                    tweaks[key] = {k: v for k, v in a.items() if v != art.ADJUST[k]}
             d.save()
 
     def add_spec(self, did: str, body: dict) -> dict:

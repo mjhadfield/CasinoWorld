@@ -24,6 +24,7 @@ app.state for the server's lifespan) works through them with FLUX in Odysseus (s
 Jobs live in design.json, so a restart carries on where it stopped.
 """
 import asyncio
+import hashlib
 import io
 import json
 import re
@@ -40,7 +41,7 @@ from casino_server.slot_design_steps import (DesignError, StepsMixin, art_view, 
                                              maths_view, scene_view, signoff_view, sounds_view, sprites_view)
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
-SERVED = ("source", "ref", "links", "cut", "chars", "scene")
+SERVED = ("source", "ref", "links", "cut", "chars", "scene", "adj")   # adj: art slots with their adjustments baked in
 MAX_IMAGE = 12 * 1024 * 1024
 TAKES = 3  # images per job
 KINDS = ("object", "character")
@@ -202,6 +203,29 @@ class Design:
         if not v:
             return None
         return v["hues"].get(s.get("hue"), next(iter(v["hues"].values()))) if "hues" in v else v["src"]
+
+    def adjusted(self, key: str, rel: str, a: dict) -> str:
+        """An art slot's picture with its adjustments baked in (adj/<key>_<hash>.png, made once and replacing the
+        slot's last one), or the picture itself when there are none."""
+        a = art.adjust_values(a)
+        p = self.path(rel)
+        if a == art.ADJUST or not p:
+            return rel
+        tag = hashlib.sha1(json.dumps([rel, p.stat().st_mtime_ns, a], sort_keys=True).encode()).hexdigest()[:10]
+        folder, name = self.folder / "adj", f"{key}_{tag}.png"
+        if not (folder / name).is_file():
+            folder.mkdir(exist_ok=True)
+            self.clear_adjusted(key)
+            tmp = folder / f".{name}"
+            art.adjust(Image.open(p), a).save(tmp, "PNG")
+            tmp.replace(folder / name)
+        return f"adj/{name}"
+
+    def clear_adjusted(self, key: str) -> None:
+        """Remove an art slot's baked picture (adj/<key>_<hash>.png)."""
+        for old in (self.folder / "adj").glob(f"{key}_*.png"):
+            if re.fullmatch(rf"{re.escape(key)}_[0-9a-f]{{10}}\.png", old.name):
+                old.unlink()
 
     def next_n(self, prefix: str) -> int:
         ns = list(_numbered(self.folder / "raw", prefix)) + list(_numbered(self.folder / "cut", prefix))

@@ -7,7 +7,25 @@ export const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder
   t_crate: "Trail coin crate", t_upgrade: "Trail moves doubled", t_double: "Trail coins doubled",
   b_hero: "Battle: your ship", b_enemy: "Battle: enemy ship", b_boss: "Battle: boss"};
 
-export function artSlot(C, key) {
+// Hand tweaks on top of the picture: the server bakes them in (adj/), so the mockup and the built game draw the
+// tweaked picture. The preview here is the same transform in CSS, live while the sliders move.
+export const ADJUST = {scale: 1, dx: 0, dy: 0, rot: 0, mirror: false, flip: false, bright: 1, sat: 1};
+const pct = x => Math.round(x * 100) + "%", signed = x => (x > 0 ? "+" : "") + x;
+const SLIDERS = [["scale", "Size", 0.3, 2, 0.01, pct], ["dx", "Left / right", -50, 50, 0.5, x => signed(x) + "%"],
+  ["dy", "Up / down", -50, 50, 0.5, x => signed(x) + "%"], ["rot", "Rotate", -180, 180, 1, x => signed(x) + "°"],
+  ["bright", "Brightness", 0.4, 1.6, 0.01, pct], ["sat", "Colour", 0, 2, 0.01, pct]];
+const drafts = new Map();      // art slot -> adjustments being made, not saved yet (kept across redraws)
+const adjusting = new Map();   // art slot -> Adjust panel opened (true) or closed (false) by hand
+const same = (a, b) => Object.keys(ADJUST).every(k => a[k] === b[k]);
+export const adjusted = a => !same({...ADJUST, ...a}, ADJUST);
+function look(img, a) {
+  const sx = a.mirror ? -a.scale : a.scale, sy = a.flip ? -a.scale : a.scale;
+  img.style.transform = `translate(${a.dx}%, ${a.dy}%) rotate(${a.rot}deg) scale(${sx}, ${sy})`;
+  img.style.filter = a.bright === 1 && a.sat === 1 ? "" : `brightness(${a.bright}) saturate(${a.sat})`;
+}
+
+// `open`: show the Adjust panel from the start (the Bonus games step's picture editor).
+export function artSlot(C, key, {open = false} = {}) {
   const {el} = C, a = C.data.art[key];
   const sel = el("select", {ariaLabel: a.label},
     el("option", {value: "", textContent: "Armadillo's (stand-in)"}),
@@ -16,7 +34,7 @@ export function artSlot(C, key) {
       ...C.data.symbols.flatMap(s => s.refs.map((r, k) => el("option", {value: r, textContent: `${s.name}: reference ${k + 1}`}))),
       ...C.data.sources.map(p => el("option", {value: p, textContent: `Sheet: ${p.split("/")[1]}`}))));
   sel.value = a.value || "";
-  sel.addEventListener("change", () => set(C, key, sel.value || null));
+  sel.addEventListener("change", () => set(C, key, {value: sel.value || null}));
   const desc = el("input", {placeholder: "Describe it, e.g. 'a glowing photon torpedo'", ariaLabel: `Describe ${a.label}`});
   const make = el("div", {className: "controls", hidden: true}, desc, el("button", {type: "button", className: "primary", textContent: "Make it", onclick: async () => {
     if (!desc.value.trim()) return C.status("Describe it first.", "warn");
@@ -29,15 +47,76 @@ export function artSlot(C, key) {
       await C.refresh();
     } catch (e) { C.status(e.message, "warn"); }
   }}));
-  return el("div", {className: "wz-slot"},
-    el("img", {src: a.file ? C.img(a.file) : STAND_IN(key), alt: "", className: a.file ? "" : "standin"}),
-    el("div", {className: "pane"}, el("b", {textContent: a.label}), sel,
-      el("button", {type: "button", textContent: "＋ Make one", onclick: () => { make.hidden = !make.hidden; }}), make));
+  // the preview: the picture as chosen, with the adjustments drawn over it (a stand-in can't be adjusted)
+  const img = el("img", {src: a.src ? C.img(a.src) : STAND_IN(key), alt: "", className: a.src ? "" : "standin"});
+  const frame = el("div", {className: "wz-adj-frame", title: "The picture's box: anything moved past its edge is cut off"}, img);
+  img.addEventListener("load", () => { frame.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`; });
+  const isOpen = () => !!a.src && (adjusting.get(key) ?? open);
+  const toggle = el("button", {type: "button", textContent: "Adjust", ariaPressed: String(isOpen()), disabled: !a.src,
+    title: a.src ? "Size, position, rotation, mirror and colour" : "Choose a picture first: Armadillo's stand-ins can't be adjusted",
+    onclick: () => { adjusting.set(key, !isOpen()); swap(); }});
+  const side = el("div", {className: "pane"},
+    el("div", {className: "controls"}, el("b", {textContent: a.label}), adjusted(a.adjust) ? el("span", {className: "tag gold", textContent: "adjusted"}) : null),
+    sel, el("div", {className: "controls"}, el("button", {type: "button", textContent: "＋ Make one", onclick: () => { make.hidden = !make.hidden; }}), toggle), make);
+  const box = el("div", {className: "wz-slot edit"}, frame, side);
+  let panel = null;
+  const swap = () => {
+    const on = isOpen();
+    toggle.ariaPressed = String(on);
+    if (panel) panel.remove();
+    panel = on ? adjustPanel(C, key, img) : null;
+    if (panel) side.append(panel);
+    else look(img, a.src ? a.adjust : ADJUST);
+  };
+  swap();
+  return box;
 }
 
-async function set(C, key, value) {
-  try { await C.api("PUT", `/api/slot-design/${C.did}/art-slots/${key}`, {value}); await C.refresh(); }
-  catch (e) { C.status(e.message, "warn"); }
+function adjustPanel(C, key, img) {
+  const {el} = C, saved = {...ADJUST, ...C.data.art[key].adjust};
+  const f = {...saved, ...drafts.get(key)};
+  const outs = {}, ranges = {}, flags = {};
+  const changed = () => {
+    if (same(f, saved)) drafts.delete(key); else drafts.set(key, {...f});
+    look(img, f);
+    for (const [k, , , , , show] of SLIDERS) { ranges[k].value = f[k]; outs[k].textContent = show(f[k]); }
+    for (const k of ["mirror", "flip"]) flags[k].ariaPressed = String(f[k]);
+    saveBtn.disabled = undo.disabled = same(f, saved);
+    reset.disabled = same(f, ADJUST);
+  };
+  const sliders = SLIDERS.map(([k, label, min, max, step, show]) => {
+    outs[k] = el("output", {textContent: show(f[k])});
+    ranges[k] = el("input", {type: "range", min, max, step, value: f[k], ariaLabel: label, title: "Double-click to put it back"});
+    ranges[k].addEventListener("input", () => { f[k] = +ranges[k].value; changed(); });
+    ranges[k].addEventListener("dblclick", () => { f[k] = ADJUST[k]; changed(); });
+    return el("label", {className: "dz-slider"}, el("span", {textContent: label}), ranges[k], outs[k]);
+  });
+  const flag = (k, text, title) => (flags[k] = el("button", {type: "button", textContent: text, title, ariaPressed: String(f[k]),
+    onclick: () => { f[k] = !f[k]; changed(); }}));
+  const turn = by => () => { const r = f.rot + by; f.rot = r > 180 ? r - 360 : r < -180 ? r + 360 : r; changed(); };
+  const saveBtn = el("button", {type: "button", className: "primary", textContent: "Save", onclick: () => {
+    drafts.delete(key);
+    set(C, key, {adjust: same(f, ADJUST) ? null : f}, "Adjustments saved: the mockup and the built game use them.");
+  }});
+  const undo = el("button", {type: "button", textContent: "Undo changes", title: "Back to what's saved",
+    onclick: () => { Object.assign(f, saved); changed(); }});
+  const reset = el("button", {type: "button", textContent: "Reset", title: "The picture as it comes, no adjustments (Save to keep it)",
+    onclick: () => { Object.assign(f, ADJUST); changed(); }});
+  const panel = el("div", {className: "wz-adj"}, ...sliders,
+    el("div", {className: "controls"}, flag("mirror", "⇆ Mirror", "Flip left to right (face the other way)"),
+      flag("flip", "⇅ Flip", "Turn upside down"),
+      el("button", {type: "button", textContent: "↺ 90°", onclick: turn(-90)}), el("button", {type: "button", textContent: "↻ 90°", onclick: turn(90)})),
+    el("div", {className: "controls"}, saveBtn, undo, reset));
+  changed();
+  return panel;
+}
+
+async function set(C, key, body, msg) {
+  try {
+    await C.api("PUT", `/api/slot-design/${C.did}/art-slots/${key}`, body);
+    await C.refresh();
+    if (msg) C.status(msg, "ok");
+  } catch (e) { C.status(e.message, "warn"); }
 }
 
 // Is someone typing in this part of the page? (Polling and saves redraw a step, but never under the caret.)
