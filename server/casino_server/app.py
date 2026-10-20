@@ -463,7 +463,7 @@ async def slot_design_cuts(design: str, request: Request):
 @app.post("/api/slot-design/{design}/symbols/{sid}/{action}")
 async def slot_design_variant_action(design: str, sid: str, action: str, request: Request):
     """bin / restore {variant}; refine {variant, instruction}; fit {variant, fit}; fit-preview {variant, fit, hue};
-    queue {} (Generate for this symbol alone); split {variant} (a take into a new symbol of its own)."""
+    queue {} (Generate for this symbol alone); split {variant, name?} (a take into a new symbol of its own)."""
     body = await _json_body(request, "{variant, ...}")
     board, vid = request.app.state.slot_design, body.get("variant")
     if action == "bin":
@@ -475,7 +475,7 @@ async def slot_design_variant_action(design: str, sid: str, action: str, request
     elif action == "fit":
         return {"variant": await run_in_threadpool(_design_call, board.fit_save, design, sid, vid, body.get("fit"))}
     elif action == "split":
-        return {"id": await run_in_threadpool(_design_call, board.split_variant, design, sid, vid)}
+        return {"id": await run_in_threadpool(_design_call, board.split_variant, design, sid, vid, body.get("name"))}
     elif action == "queue":
         return {"queued": await run_in_threadpool(_design_call, board.generate, design, sid)}
     elif action == "fit-preview":

@@ -337,7 +337,8 @@ def test_split_a_take_into_its_own_symbol(board):
     assert (d / f"raw/{new}_1.png").exists() and s["refs"] == ["ref/ship.png"]
     assert "cut/ship_4.png" in [v["id"] for v in ship["binned"]] and ship["choice"] == "cut/ship_1.png"
     assert [x["id"] for x in o["symbols"]][:2] == ["ship", new]  # right after the original
-    hero = c.post("/api/slot-design/demo/symbols/hero/split", json={"variant": "bust/hero_1"}).json()["id"]
+    hero = c.post("/api/slot-design/demo/symbols/hero/split", json={"variant": "bust/hero_1", "name": " Captain "}).json()["id"]
+    assert hero == "captain" and _sym(_overview(c), hero)["name"] == "Captain"
     h = _sym(_overview(c), hero)
     assert h["kind"] == "character" and h["variants"][0]["id"] == f"bust/{hero}_1" and set(h["variants"][0]["hues"]) == set(art.HUES)
     assert h["file"] == f"chars/{hero}_1_blue.png"

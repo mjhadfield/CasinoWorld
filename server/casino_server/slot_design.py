@@ -627,9 +627,10 @@ class DesignBoard(StepsMixin, BuildMixin):
             s["binned"].remove(vid)
             d.save()
 
-    def split_variant(self, did: str, sid: str, vid: str) -> str:
+    def split_variant(self, did: str, sid: str, vid: str, name: str | None = None) -> str:
         """Move a take out into a new symbol of its own, in the same section, with that take as its only one (copied
-        as take 1; the original goes to the old symbol's Bin, so nothing is lost). Returns the new symbol's id."""
+        as take 1; the original goes to the old symbol's Bin, so nothing is lost), named `name` or "<name> 2".
+        Returns the new symbol's id."""
         import shutil
         with self.lock:
             d = self.design(did)
@@ -640,7 +641,7 @@ class DesignBoard(StepsMixin, BuildMixin):
             k = 2
             while f"{base} {k}" in names:
                 k += 1
-            name = f"{base} {k}"
+            name = str(name or "").strip()[:40] or f"{base} {k}"
             new = self._new_id(d, name)
             for sub in ("raw", "cut", "chars"):
                 (d.folder / sub).mkdir(exist_ok=True)

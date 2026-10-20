@@ -96,7 +96,7 @@ and Tailscale. It has six tabs:
     art on the board), **Reiterate** (1, 3 or 5 fresh takes from the chosen take or a reference, with a note; a reference redraw also
     goes by the symbol's description),
     **Refine** (one FLUX edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
-    tile, previewed live; saved as a new take), **Split** (moves the take shown into a new symbol of its own in the
+    tile, previewed live; saved as a new take), **Split** (asks for a name, then moves the take shown into a new symbol of its own in the
     same section; the original goes to the Bin) and the **Bin** (✕ on a take; restorable, nothing is deleted).
     **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
     everything marked to FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs

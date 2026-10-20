@@ -251,8 +251,11 @@ function symRow(s) {
       el("button", {type: "button", textContent: "Fit", ariaPressed: String(tool === "fit"), onclick: toggle("fit")}),
       el("button", {type: "button", textContent: "Split", title: `Move ${v.label} out into a new symbol of its own in this section (the original goes to ${s.name}'s Bin)`,
         onclick: async () => {
-          const r = await act(s, "split", {variant: v.id});
-          if (r) { C.status(`${v.label} is now its own symbol in this section; ${s.name}'s copy is in its Bin.`, "ok"); await C.refresh(); }
+          const name = prompt(`Name the new symbol made from ${s.name}'s ${v.label}:`, `${s.name} 2`);
+          if (name === null) return;
+          if (!name.trim()) return C.status("The new symbol needs a name.", "warn");
+          const r = await act(s, "split", {variant: v.id, name});
+          if (r) { C.status(`${name.trim()} is now its own symbol in this section; ${s.name}'s copy of the take is in its Bin.`, "ok"); await C.refresh(); }
         }})) : null);
 
   const section = el("select", {className: "dz-section", ariaLabel: `Section for ${s.name}`, title: "Section: choose another to move it there"},
