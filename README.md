@@ -151,7 +151,7 @@ and Tailscale. It has six tabs:
     or jackpot; the checklist (✗ what Build needs: a full Value ladder, art for every tier, frozen maths; • what's
     still a stand-in); the rules screen's words (written from the design, editable; INFO shows them); and **Sign it
     off**, which locks the Value ladder, Features, Bonus games and Maths until **Reopen**. Looks stay editable.
-  - **Build:** pick a floor spot and how many cabinets (up to ten, in the Armadillo bank's pattern); Build writes
+  - **Build:** pick a floor spot and a bank: Single, Double or Quad (one row facing the camera) or Full (ten, in the Armadillo bank's pattern); Build writes
     `server/slot_builds/<id>/` (the variant, its art, fonts and an IDEAS.md for anything needing code) and
     **Install** restarts the live server, which loads it: the cabinets appear and the game downloads their art,
     fonts and sounds. No client export is needed (`docs/slots/README.md` explains the path).

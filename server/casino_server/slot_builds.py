@@ -10,8 +10,7 @@ dev instance):
   IDEAS.md       feature or bonus ideas the design described that still need building in code
 
 install() runs in the app's lifespan, before the casino and the sound board start: it registers the variants
-(slots/variants VARIANTS), puts their cabinets on the floor (floor.TABLES, on a named spot in the Armadillo
-bank's pattern) and gives each its sound set (sounds.py). Everything it adds is removed first, so it can run
+(slots/variants VARIANTS), puts their cabinets on the floor (floor.TABLES, a bank shape on a named spot) and gives each its sound set (sounds.py). Everything it adds is removed first, so it can run
 again (tests do, with their own folder).
 """
 from pathlib import Path
@@ -27,17 +26,32 @@ SPOTS = {
     "above_armadillo": {"label": "Above Armadillo's bank, below the craps table", "centre": (1650, 810)},
     "west_of_armadillo": {"label": "West of Armadillo's bank, by the bottom-right card table", "centre": (1430, 960)},
 }
-# The Armadillo bank's pattern, from its centre (1650, 960): four facing up, four down, one at each end.
-BANK = [(-51, -13, "up"), (-17, -13, "up"), (17, -13, "up"), (51, -13, "up"),
-        (-51, 13, "down"), (-17, 13, "down"), (17, 13, "down"), (51, 13, "down"), (-92, 2, "left"), (92, 2, "right")]
+# The bank shapes the Build step offers, as (dx, dy, facing) from the spot's centre; facing is where a screen
+# faces, and its player sits on that side. Single, Double and Quad are one row facing the camera (seats on the
+# near side); Full is the Armadillo bank's pattern (its centre 1650, 960): four facing up, four down, one at each end.
+ROW = [(-51, 0, "down"), (-17, 0, "down"), (17, 0, "down"), (51, 0, "down")]
+BANKS = {
+    "single": {"label": "Single", "cabinets": [(0, 0, "down")]},
+    "double": {"label": "Double", "cabinets": ROW[1:3]},
+    "quad": {"label": "Quad", "cabinets": ROW},
+    "full": {"label": "Full bank", "cabinets": [(-51, -13, "up"), (-17, -13, "up"), (17, -13, "up"), (51, -13, "up"),
+             (-51, 13, "down"), (-17, 13, "down"), (17, 13, "down"), (51, 13, "down"), (-92, 2, "left"), (92, 2, "right")]},
+}
 
 _built = {"variants": set(), "tables": set(), "sets": set()}
 BUILT: dict = {}   # variant id -> {"dir", "theme", "cabinets": [...]}
 
 
-def cabinet_spots(spot: str, count: int) -> list[tuple]:
+def cabinet_spots(spot: str, bank: str) -> list[tuple]:
     cx, cy = SPOTS[spot]["centre"]
-    return [(cx + dx, cy + dy, facing) for dx, dy, facing in BANK[:count]]
+    return [(cx + dx, cy + dy, facing) for dx, dy, facing in BANKS[bank]["cabinets"]]
+
+
+def bank_of(where: dict) -> str | None:
+    """A build's bank shape (builds before the shapes gave a cabinet count: the shape of that size)."""
+    if where.get("bank") in BANKS:
+        return where["bank"]
+    return next((k for k, b in BANKS.items() if len(b["cabinets"]) == where.get("count")), None)
 
 
 def install(root: Path = DEFAULT_DIR) -> list[str]:
@@ -61,11 +75,11 @@ def install(root: Path = DEFAULT_DIR) -> list[str]:
             print(f"slot build {v.id} not loaded: that id is taken")
             continue
         spot = v.extras.get("floor", {}).get("spot")
-        count = int(v.extras.get("floor", {}).get("count", 0))
+        bank = bank_of(v.extras.get("floor", {}))
         cabinets = []
-        if spot in SPOTS and spot not in taken and 0 < count <= len(BANK):
+        if spot in SPOTS and spot not in taken and bank:
             taken.add(spot)
-            for i, (x, y, facing) in enumerate(cabinet_spots(spot, count), 1):
+            for i, (x, y, facing) in enumerate(cabinet_spots(spot, bank), 1):
                 tid = f"{v.id}_{i}"
                 floor.TABLES[tid] = {"game": "slots", "variant": v.id, "name": v.name, "seats": 1}
                 _built["tables"].add(tid)

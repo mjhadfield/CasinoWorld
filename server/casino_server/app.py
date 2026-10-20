@@ -615,7 +615,7 @@ def slot_design_reopen(design: str, request: Request):
 @app.post("/api/slot-design/{design}/build")
 async def slot_design_build(design: str, request: Request):
     body = await _json_body(request, "{spot, count}")
-    return await run_in_threadpool(_design_call, request.app.state.slot_design.build, design, body.get("spot"), body.get("count"))
+    return await run_in_threadpool(_design_call, request.app.state.slot_design.build, design, body.get("spot"), body.get("bank"))
 
 
 @app.post("/api/slot-design/{design}/install")

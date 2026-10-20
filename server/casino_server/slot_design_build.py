@@ -48,23 +48,25 @@ class BuildMixin:
         if p.is_file():
             try:
                 v = json.loads(p.read_text())
-                built = {"at": v.get("extras", {}).get("built_at"), **v.get("extras", {}).get("floor", {}),
+                where = v.get("extras", {}).get("floor", {})
+                built = {"at": v.get("extras", {}).get("built_at"), **where, "bank": slot_builds.bank_of(where),
                          "loaded": d.id in slot_builds.BUILT}
             except (ValueError, OSError):
                 built = {"at": None, "loaded": False}
         return {"spots": [{"id": k, "label": s["label"], "taken_by": _spot_owner(self.builds_dir, k, d.id)} for k, s in slot_builds.SPOTS.items()],
-                "max_cabinets": len(slot_builds.BANK), "built": built, "live": _is_live(),
+                "banks": [{"id": k, "label": b["label"], "count": len(b["cabinets"])} for k, b in slot_builds.BANKS.items()],
+                "built": built, "live": _is_live(),
                 "ideas": d.data.get("specs", []), "signed_off": bool(d.data.get("signed_off"))}
 
-    def build(self, did: str, spot: str, count: int) -> dict:
+    def build(self, did: str, spot: str, bank: str) -> dict:
         with self.lock:
             d = self.design(did)
             if not d.data.get("signed_off"):
                 raise DesignError("Sign the slot off first (Mockup & sign-off).")
             if spot not in slot_builds.SPOTS:
                 raise DesignError("Pick one of the floor spots.")
-            if not isinstance(count, int) or not 1 <= count <= len(slot_builds.BANK):
-                raise DesignError(f"A bank has 1 to {len(slot_builds.BANK)} cabinets.")
+            if bank not in slot_builds.BANKS:
+                raise DesignError("Pick a bank: " + ", ".join(b["label"] for b in slot_builds.BANKS.values()) + ".")
             owner = _spot_owner(self.builds_dir, spot, did)
             if owner:
                 raise DesignError(f"{owner} already stands there.")
@@ -99,7 +101,7 @@ class BuildMixin:
                           "bonus_line": f"3+ {v.symbols.get('BS', 'BS').upper()}", "free_line": f"3+ {v.symbols.get('FS', 'FS').upper()}"},
                 "rules": signoff_view(d)["rules"], "cabinet": sp["cabinet"], "background": "bg" in pictures}
             data = json.loads(json.dumps(dataclasses.asdict(v)))
-            data.update(theme=theme, extras={"assets": labels, "floor": {"spot": spot, "count": count},
+            data.update(theme=theme, extras={"assets": labels, "floor": {"spot": spot, "bank": bank, "count": len(slot_builds.BANKS[bank]["cabinets"])},
                                              "sounds": d.data.get("sounds", {}), "design": d.id,
                                              "built_at": datetime.datetime.now().isoformat(timespec="seconds")})
             out = self.builds_dir / d.id

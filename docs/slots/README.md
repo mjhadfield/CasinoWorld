@@ -26,7 +26,7 @@ How a built slot reaches the game:
   server has already checked against its own engine spin for spin, plus the theme, floor spot and sounds), `art/`
   (every picture, the logo and the background), `fonts/`, and `IDEAS.md` for anything that needs code.
 - **At startup** `casino_server/slot_builds.py` registers each one: its variant (`slots/variants` VARIANTS), its
-  cabinets on its floor spot in the Armadillo bank's pattern (`floor.TABLES`), its sound set (`slots.<id>`), and its
+  cabinets on its floor spot in its bank shape (`slot_builds.BANKS`) (`floor.TABLES`), its sound set (`slots.<id>`), and its
   art and fonts in the art manifest (`slot_art.py`). **Install** on the Build step restarts the live server.
 - **The client** adds the built cabinets from the `welcome` message, downloads their art and fonts (`SlotArt`),
   and the slot screen and cabinet draw from the variant's `theme` (`slot_screen.gd` `_apply_theme`,

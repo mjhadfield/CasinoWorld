@@ -589,21 +589,32 @@ def test_sign_off_locks_how_it_pays(board):
 
 
 # ------------------------------------------------------------------ Build (Phase 8)
+def test_bank_shapes():
+    from casino_server import slot_builds as sb
+    assert {k: len(b["cabinets"]) for k, b in sb.BANKS.items()} == {"single": 1, "double": 2, "quad": 4, "full": 10}
+    for k in ("single", "double", "quad"):   # one row, the seats on the camera's side
+        assert {f for _, _, f in sb.BANKS[k]["cabinets"]} == {"down"}
+    assert [f for _, _, f in sb.BANKS["full"]["cabinets"]].count("up") == 4
+    assert sb.cabinet_spots("above_armadillo", "double") == [(1633, 810, "down"), (1667, 810, "down")]
+    # a build from before the shapes (a cabinet count) gets the shape of that size
+    assert sb.bank_of({"count": 2}) == "double" and sb.bank_of({"bank": "full"}) == "full" and sb.bank_of({"count": 7}) is None
+
+
 def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch):
     from casino_server import floor, slot_builds, sounds
     from casino_server.slots.variant import from_json
     from casino_server.slots.variants import VARIANTS
     c, d = board
-    assert c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "count": 4}).status_code == 400  # not signed off
+    assert c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "bank": "quad"}).status_code == 400  # not signed off
     _complete(c, d)
     c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [c.get("/api/sounds").json()["library"][0]["id"]]})
     c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "Red Alert", "description": "Reels flash red."})
     assert c.post("/api/slot-design/demo/sign-off").status_code == 200
-    assert c.post("/api/slot-design/demo/build", json={"spot": "the_roof", "count": 4}).status_code == 400
-    assert c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "count": 11}).status_code == 400
-    r = c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "count": 4})
+    assert c.post("/api/slot-design/demo/build", json={"spot": "the_roof", "bank": "quad"}).status_code == 400
+    assert c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "count": 4}).status_code == 400  # a shape, not a size
+    r = c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "bank": "quad"})
     assert r.status_code == 200, r.text
-    assert r.json()["built"]["spot"] == "above_armadillo" and not r.json()["built"]["loaded"]
+    assert r.json()["built"]["spot"] == "above_armadillo" and r.json()["built"]["bank"] == "quad" and not r.json()["built"]["loaded"]
     out = tmp_path / "slot_builds" / "demo"
     v = from_json(out / "variant.json")
     assert v.name == "Demo" and v.symbols["H1"] == "Sym H1" and v.theme["frame"]["style"] in ("metal", "wood", "neon", "glass") \
@@ -624,7 +635,9 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
         assert c2.get(man["variants"]["demo"]["H1"]).headers["content-type"] == "image/png"
         assert c2.get(man["fonts"]["demo"]["ui"]).headers["content-type"] == "font/ttf"
         cab = slot_builds.cabinets()
-        assert [x["id"] for x in cab] == ["demo_1", "demo_2", "demo_3", "demo_4"] and cab[0]["x"] == 1599 and cab[0]["y"] == 797
+        # a quad is one row facing the camera
+        assert [x["id"] for x in cab] == ["demo_1", "demo_2", "demo_3", "demo_4"] and (cab[0]["x"], cab[0]["y"]) == (1599, 810)
+        assert {x["facing"] for x in cab} == {"down"}
         m = c2.app.state.casino.tables["demo_1"].machine
         rules = m.rules()
         assert rules["variant"] == "demo" and rules["theme"]["texts"]["trail"] == "TRAIL BONUS" and rules["pays"]["H1"] == [20, 40, 120]
