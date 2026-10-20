@@ -648,7 +648,11 @@
    "added": true,
    "pending_new": false,
    "hue": "gold",
-   "choice": "cut/bonus_3.png"
+   "binned": [
+    "cut/bonus_1.png",
+    "cut/bonus_2.png",
+    "cut/bonus_3.png"
+   ]
   }
  ],
  "jobs": [
@@ -757,8 +761,8 @@
  "steps": {
   "concept": "todo",
   "art": "doing",
-  "ladder": "todo",
-  "scene": "todo",
+  "ladder": "doing",
+  "scene": "doing",
   "features": "todo",
   "bonuses": "todo",
   "sprites": "todo",
@@ -766,5 +770,50 @@
   "maths": "todo",
   "mockup": "todo",
   "build": "todo"
+ },
+ "ladder": {
+  "slots": {
+   "L1": "A",
+   "L2": "K",
+   "L3": "Q",
+   "L4": "J",
+   "L5": "10",
+   "H1": "worf",
+   "H2": "troi",
+   "M1": "ds9",
+   "M2": "earth",
+   "M3": "tricorder",
+   "M4": "phaser",
+   "W": "wild",
+   "FS": "scatter"
+  },
+  "upgrades": {
+   "L1": "M3",
+   "L2": "M3",
+   "L3": "M3",
+   "L4": "M4",
+   "L5": "M4",
+   "M1": "H2",
+   "M2": "H2",
+   "M3": "M1",
+   "M4": "M2",
+   "H2": "H1"
+  }
+ },
+ "scene": {
+  "frame": {
+   "style": "glass",
+   "colour": "#4ab0c9"
+  }
+ },
+ "sprites": {
+  "cabinet": {
+   "trim": "#478eff",
+   "title": "#3bbde8",
+   "body": "#353231"
+  },
+  "fonts": {
+   "ui": "BarlowCondensed-Bold.ttf"
+  }
  }
 }

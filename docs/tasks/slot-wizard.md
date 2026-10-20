@@ -25,7 +25,7 @@ the way through as the first. The full plan, agreed with Mike on 2026-10-20, is
 - [x] Phase 7: Mockup & sign-off
 - [x] Phase 8: Build, data variants, client generalisation
 - [ ] Phase 9: Star Trek playable on the floor
-- [ ] `tools/dev.sh test` passes (and `--all` after any maths change)
+- [x] `tools/dev.sh test` passes (663, 2026-10-20; `--all` passed after the engine change)
 
 ## Handoff
 - **State:** Phases 1-8 done and live. Phase 9 is Mike's: take Star Trek through the steps on the live board (choices below), then Build + Install. The dev copy (.dev/) was built end to end as a check.
