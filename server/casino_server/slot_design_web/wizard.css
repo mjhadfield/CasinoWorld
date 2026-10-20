@@ -142,3 +142,9 @@
 .snd-list { display: grid; gap: 4px; }
 .snd-pick { margin-top: 8px; grid-column: 1 / -1; }
 .snd-pick .list { max-height: 320px; }
+/* Maths & payouts */
+.wz-thumb { width: 30px; height: 30px; border-radius: 5px; background: var(--stage); display: inline-block; vertical-align: middle; }
+.wz-num.sm { width: 58px; }
+.wz-progress { flex: 1 1 160px; height: 10px; }
+tr.strong td { font-weight: 700; }
+.wz-step td input.wz-num { padding: 2px 4px; }

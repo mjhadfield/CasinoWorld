@@ -123,6 +123,12 @@ and Tailscale. It has six tabs:
   - **Sounds:** the 30 slot moments, each playing what every slot machine plays until given this slot's own
     (from the Sounds tab's library or an upload, several at random, with a volume trim). Kept in the design until
     Build gives the slot its sound set.
+  - **Maths & payouts:** the pays per tier, each reel's symbol counts and the Colossal mix. **Simulate** runs the
+    shared engine (`slots_math.js`) in a Web Worker and reports the return by source, hit rate, bonus frequency,
+    biggest win and volatility against the Concept's target. **Auto-tune** turns one control (low symbols or Wilds
+    one at a time, the pays together, or the feature chances) until the return meets the target. **Freeze** keeps
+    the strips once the server has replayed 200 of the browser's seeded spins with its own engine and matched them
+    exactly, so the mockup and the cabinet play the same game. Changing what was measured shows the freeze as stale.
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads

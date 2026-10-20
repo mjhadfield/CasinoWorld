@@ -3,6 +3,7 @@ generating (with FLUX faked: it draws an orange disc on magenta)."""
 import io
 import json
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -393,3 +394,44 @@ def test_sounds(board):
     assert c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [], "gain_db": 40}).status_code == 400
     assert c.delete("/api/slot-design/demo/sounds/reel_stop").status_code == 200
     assert {r["key"]: r for r in _overview(c)["sounds"]["moments"]}["reel_stop"]["own"] is None
+
+
+# ------------------------------------------------------------------ Maths & payouts (Phase 6)
+MATH_JS = Path(__file__).resolve().parents[2] / "docs/slots/mockup/slots_math.js"
+SAMPLE_JS = """
+const M = require(process.argv[1]), A = M.ARMADILLO, sample = [];
+for (let s = 1; s <= 200; s++) { const bet = M.LADDER[s % 9], o = M.spinOutcome(A, bet, M.mulberry32(s)); sample.push({seed: s, bet, stops: o.stops, total: o.total}); }
+console.log(JSON.stringify({counts: A.counts, big_counts: A.bigCounts, strips: A.strips, free_strips: A.freeStrips, big_strip: A.bigStrip,
+                            sample, exact: 100 * M.exactLineRtp(A.strips, A.pays)}));
+"""
+
+
+def test_maths_save_and_freeze(board):
+    import shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    c, _ = board
+    m = _overview(c)["maths"]
+    assert m["counts"] is None and not m["frozen"] and m["target"] == 91.5 and m["pays"]["H1"] == [20, 40, 120]
+    assert c.patch("/api/slot-design/demo/maths", json={"pays": {"H1": [40, 20, 10]}}).status_code == 400     # must not fall
+    assert c.patch("/api/slot-design/demo/maths", json={"pays": {"BS": [1, 2, 3]}}).status_code == 400       # scatters pay nothing
+    js = json.loads(subprocess.run(["node", "-e", SAMPLE_JS, str(MATH_JS)], capture_output=True, text=True, check=True).stdout)
+    bad_counts = [dict(r) for r in js["counts"]]; bad_counts[0]["BS"] = 5
+    assert c.patch("/api/slot-design/demo/maths", json={"counts": bad_counts}).status_code == 400
+    assert c.post("/api/slot-design/demo/maths/freeze", json=js).status_code == 400                             # counts not saved
+    assert c.patch("/api/slot-design/demo/maths", json={"counts": js["counts"], "big_counts": js["big_counts"]}).status_code == 200
+    tampered = {**js, "sample": [{**js["sample"][0], "total": js["sample"][0]["total"] + 1}] + js["sample"][1:]}
+    assert c.post("/api/slot-design/demo/maths/freeze", json=tampered).status_code == 400
+    assert not _overview(c)["maths"]["frozen"]
+    wrong = {**js, "strips": [js["strips"][1]] + js["strips"][1:]}
+    assert c.post("/api/slot-design/demo/maths/freeze", json=wrong).status_code == 400
+    r = c.post("/api/slot-design/demo/maths/freeze", json={**js, "report": {"rtp": {"game": 87.5}}})
+    assert r.status_code == 200, r.text
+    m = r.json()
+    assert m["frozen"] and not m["stale"] and m["check"]["sample"] == 200 and m["report"]["rtp"]["game"] == 87.5
+    assert m["strips"] == js["strips"]
+    # a later change to what the maths measured makes the freeze stale; a change to the pays or reels drops it
+    c.patch("/api/slot-design/demo/features", json={"rates": {"wilds": 0.2}})
+    assert _overview(c)["maths"]["stale"]
+    c.patch("/api/slot-design/demo/maths", json={"pays": {"L1": [5, 10, 25]}})
+    assert not _overview(c)["maths"]["frozen"]

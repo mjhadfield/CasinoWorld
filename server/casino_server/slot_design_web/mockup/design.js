@@ -42,16 +42,17 @@ function stretch(counts, tiers) {
   });
 }
 
-export function designConfig(data, img) {
+// The settings a design's variant is built from (SlotMath.makeVariant), as plain data the Maths step's worker can be
+// sent: reel counts from the Maths step (or Armadillo's stretched to the tier shape), frozen strips once it's frozen.
+export function designParams(data) {
   const M = window.SlotMath, A = M.ARMADILLO, lad = data.ladder;
-  const pays = Object.fromEntries(Object.entries(lad.pays).map(([k, v]) => [k, v]));
   const paying = lad.tiers.filter(t => !["BS", "FS"].includes(t));
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
   const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail;
-  const V = M.makeVariant({
-    ...A, strips: maths.strips || null, freeStrips: maths.free_strips || null, bigStrip: maths.big_strip || null,
-    id: data.id, name: data.name, symbols, pays, upgrades: lad.upgrades,
+  return {
+    id: data.id, name: data.name, symbols, pays: lad.pays, upgrades: lad.upgrades,
+    strips: maths.strips || null, freeStrips: maths.free_strips || null, bigStrip: maths.big_strip || null,
     counts: maths.counts || stretch(A.counts, lad.tiers),
     bigCounts: maths.big_counts || stretch([A.bigCounts], paying)[0],
     features: f.enabled, rates: f.rates, freeRates: f.free_rates,
@@ -60,7 +61,14 @@ export function designConfig(data, img) {
     trail: {length: tr.length, prizepot: tr.prizepot, counts: tr.counts, upgradeChance: tr.upgrade_chance,
             doubleChance: tr.double_chance, coins: tr.coins, crateRadius: tr.crate_radius},
     freeGames: b.free.games, buyCost: b.buy.enabled ? b.buy.cost : 0,
-  });
+  };
+}
+
+export function designConfig(data, img) {
+  const M = window.SlotMath, A = M.ARMADILLO, lad = data.ladder, b = data.bonuses, tr = b.trail;
+  const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
+  const V = M.makeVariant(designParams(data));
+  const symbols = V.symbols;
   const art = {};
   for (const t of lad.tiers) {
     const s = sym(t);

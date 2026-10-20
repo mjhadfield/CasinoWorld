@@ -572,6 +572,19 @@ def slot_design_sound_inherit(design: str, key: str, request: Request):
     return {"ok": True}
 
 
+@app.patch("/api/slot-design/{design}/maths")
+async def slot_design_maths(design: str, request: Request):
+    body = await _json_body(request, "{pays, counts, big_counts}")
+    _design_call(request.app.state.slot_design.update_maths, design, body)
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/maths/freeze")
+async def slot_design_freeze(design: str, request: Request):
+    body = await _json_body(request, "{strips, free_strips, big_strip, report, sample, exact}")
+    return await run_in_threadpool(_design_call, request.app.state.slot_design.freeze_maths, design, body)
+
+
 @app.post("/api/slot-design/{design}/generate")
 def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}

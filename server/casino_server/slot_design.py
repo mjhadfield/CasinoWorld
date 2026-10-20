@@ -36,7 +36,7 @@ from PIL import Image, UnidentifiedImageError
 
 from casino_server import slot_design_art as art
 from casino_server.slot_design_steps import (DesignError, StepsMixin, art_view, bonuses_view, features_view, ladder_view,
-                                             scene_view, sounds_view, sprites_view)
+                                             maths_view, scene_view, sounds_view, sprites_view)
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
 SERVED = ("source", "ref", "links", "cut", "chars", "scene")
@@ -261,7 +261,7 @@ class DesignBoard(StepsMixin):
                     "concept": d.data["concept"], "sources": sources, "signed_off": d.data.get("signed_off"),
                     "ladder": ladder_view(d), "scene": scene_view(d), "features": features_view(d),
                     "bonuses": bonuses_view(d), "art": art_view(d), "sprites": sprites_view(d),
-                    "sounds": sounds_view(d, self.sounds),
+                    "sounds": sounds_view(d, self.sounds), "maths": maths_view(d),
                     "scene_jobs": [j for j in jobs if j["symbol"] is None and j["status"] in ("queued", "waiting", "running", "failed")],
                     "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),

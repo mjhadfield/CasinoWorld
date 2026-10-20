@@ -13,8 +13,15 @@ so every method runs under the board's lock and saves through its Design.
   Sprites        win animations per tier group, the screen's colours and fonts (its "theme"), the floor cabinet
   Sounds         the slot's own sound for any slot moment (sounds.py); the rest play "Every slot machine"'s.
                  Kept in the design until Build makes the slot's sound set (slots.<id>).
+  Maths          the pays and per-reel symbol counts; the browser simulates and tunes (slots_math.js in a Web
+                 Worker) and freezes the strips here, where the server replays a sample of the browser's spins to
+                 prove both engines agree. A freeze remembers the settings it measured, so later changes show
+                 it as stale.
 """
+import datetime
+import hashlib
 import io
+import json
 from pathlib import Path
 
 from PIL import Image, ImageFont
@@ -102,6 +109,55 @@ def sprites_view(d) -> dict:
     return {"win": win, "presets": list(WIN_PRESETS), "colours": {**THEME_DEFAULTS, **sp.get("colours", {})},
             "fonts": {**FONT_DEFAULTS, **sp.get("fonts", {})}, "font_list": _fonts(d),
             "cabinet": {**CABINET_DEFAULTS, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
+
+
+def _paying(tiers) -> list:
+    return [t for t in tiers if t not in ("BS", "FS")]
+
+
+def _settings_hash(d) -> str:
+    """What a simulation depends on besides the strips: pays, upgrades, features and bonuses."""
+    f, b, lad = features_view(d), bonuses_view(d), ladder_view(d)
+    blob = {"pays": lad["pays"], "upgrades": lad["upgrades"], "features": {k: f[k] for k in ("enabled", "rates", "free_rates", "tables")},
+            "trail": {k: v for k, v in b["trail"].items() if k not in ("name", "launcher", "hint")},
+            "free": b["free"]["games"], "buy": b["buy"]["enabled"] and b["buy"]["cost"]}
+    return hashlib.sha1(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:12]
+
+
+def maths_view(d) -> dict:
+    m = d.data.get("maths", {})
+    tiers = base.tier_ids(d.data["concept"]["tiers"])
+    counts = m.get("counts")
+    if counts and any(set(c) != set(tiers) for c in counts):
+        counts = None   # the tier shape changed since: start again from the stretched defaults
+    frozen = bool(m.get("strips")) and counts is not None
+    return {"pays": ladder_view(d)["pays"], "counts": counts, "big_counts": m.get("big_counts") if counts else None,
+            "strips": m.get("strips") if frozen else None, "free_strips": m.get("free_strips") if frozen else None,
+            "big_strip": m.get("big_strip") if frozen else None, "frozen": frozen, "frozen_at": m.get("frozen_at"),
+            "report": m.get("report"), "check": m.get("check"),
+            "stale": frozen and m.get("settings") != _settings_hash(d), "target": d.data["concept"]["target_rtp"]}
+
+
+def variant_from_design(d):
+    """The design as a slot variant (slots/variant.py), from its frozen maths. Build writes this as JSON."""
+    from casino_server.slots.variant import SlotVariant
+    m, lad, f, b = maths_view(d), ladder_view(d), features_view(d), bonuses_view(d)
+    if not m["frozen"]:
+        raise DesignError("Freeze the maths first (Maths & payouts step).")
+    names = {s["id"]: s["name"] for s in d.data["symbols"]}
+    pair = lambda rows: [tuple(r) for r in rows]
+    return SlotVariant(
+        id=d.id, name=d.data.get("name", d.id), symbols={t: names.get(lad["slots"].get(t), t) for t in lad["tiers"]},
+        strips=m["strips"], free_strips=m["free_strips"], big_strip=m["big_strip"],
+        rates={k: f["rates"][k] for k in base.FEATURES}, free_rates={k: f["free_rates"][k] for k in base.FEATURES},
+        wild_counts=pair(f["tables"]["wild_counts"]), wild_reel_counts=pair(f["tables"]["wild_reel_counts"]),
+        colossal_sizes=pair(f["tables"]["colossal_sizes"]), multipliers=pair(f["tables"]["multipliers"]),
+        repeats=pair(f["tables"]["repeats"]), instants=pair(f["tables"]["instants"]),
+        trail={**{k: v for k, v in b["trail"].items() if k not in ("name", "launcher", "hint")},
+               "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
+        buy_cost=b["buy"]["cost"] if b["buy"]["enabled"] else 0, free_games=b["free"]["games"],
+        pays={k: tuple(v) for k, v in lad["pays"].items() if k in _paying(lad["tiers"])}, upgrades=lad["upgrades"],
+        features=f["enabled"])
 
 
 def machine_moments() -> dict:
@@ -232,6 +288,96 @@ class StepsMixin:
     def font_file(self, did: str, name: str) -> Path:
         with self.lock:
             return _font_path(self.design(did), name)
+
+    # ------------------------------------------------------------- Maths & payouts
+    def update_maths(self, did: str, ch: dict) -> None:
+        """New pays or reel counts: the old freeze no longer describes the game, so it's dropped."""
+        with self.lock:
+            d = self.design(did)
+            tiers = base.tier_ids(d.data["concept"]["tiers"])
+            m = d.data.setdefault("maths", {})
+            if "pays" in ch:
+                pays = ch["pays"]
+                if not isinstance(pays, dict) or set(pays) - set(_paying(tiers)):
+                    raise DesignError("Pays are for the Wild and the H, M and L tiers.")
+                for t, p in pays.items():
+                    if not (isinstance(p, list) and len(p) == 3 and all(isinstance(x, int) and 0 <= x <= 5000 for x in p) and p[0] <= p[1] <= p[2]):
+                        raise DesignError(f"{t}: pays for 3, 4 and 5 are whole numbers, each at least the one before.")
+                m["pays"] = {**m.get("pays", {}), **{t: list(p) for t, p in pays.items()}}
+            if "counts" in ch:
+                counts = ch["counts"]
+                if not isinstance(counts, list) or len(counts) != 5:
+                    raise DesignError("Reel counts are five reels of {tier: how many}.")
+                for i, c in enumerate(counts, 1):
+                    if not isinstance(c, dict) or set(c) != set(tiers):
+                        raise DesignError(f"Reel {i} needs a count for every tier.")
+                    if any(not isinstance(n, int) or not 0 <= n <= 40 for n in c.values()):
+                        raise DesignError(f"Reel {i}: counts are whole numbers from 0 to 40.")
+                    if c["BS"] > 3 or c["FS"] > 3:
+                        raise DesignError(f"Reel {i}: at most 3 of each scatter (a reel never shows two).")
+                    if not 20 <= sum(c.values()) <= 150:
+                        raise DesignError(f"Reel {i} is {sum(c.values())} symbols long: keep it 20 to 150.")
+                m["counts"] = counts
+            if "big_counts" in ch:
+                big = ch["big_counts"]
+                if not isinstance(big, dict) or set(big) != set(_paying(tiers)) or any(not isinstance(n, int) or not 0 <= n <= 20 for n in big.values()) or sum(big.values()) < 5:
+                    raise DesignError("Colossal symbols: a count of 0 to 20 for every pay tier, at least 5 in all.")
+                m["big_counts"] = big
+            for k in ("strips", "free_strips", "big_strip", "report", "check", "frozen_at", "settings"):
+                m.pop(k, None)
+            d.save()
+
+    def freeze_maths(self, did: str, body: dict) -> dict:
+        """Keep the browser's strips (built from the counts) with its report, once the server agrees with it:
+        the same spins for a sample of seeds, and the same exact line return."""
+        from casino_server.slots.outcome import spin_outcome
+        from casino_server.slots.rng import mulberry32
+        from casino_server.slots import sim
+        with self.lock:
+            d = self.design(did)
+            mv = maths_view(d)
+            counts, big = mv["counts"], mv["big_counts"]
+            if not counts or not big:
+                raise DesignError("Save the reel counts first.")
+            strips, free, bigs = body.get("strips"), body.get("free_strips"), body.get("big_strip")
+            try:
+                for i, (strip, c) in enumerate(zip(strips, counts)):
+                    if sorted(strip) != sorted(t for t, n in c.items() for _ in range(n)):
+                        raise DesignError(f"Reel {i + 1}'s strip doesn't match its counts.")
+                for i, (strip, c) in enumerate(zip(free, counts)):
+                    if sorted(strip) != sorted(t for t, n in c.items() if t not in ("BS", "FS") for _ in range(n)):
+                        raise DesignError(f"Free-game reel {i + 1} doesn't match its counts.")
+                if sorted(bigs) != sorted(t for t, n in big.items() for _ in range(n)):
+                    raise DesignError("The Colossal strip doesn't match its counts.")
+            except TypeError:
+                raise DesignError("Send the strips, the free-game strips and the Colossal strip.")
+            if len(strips) != 5 or len(free) != 5:
+                raise DesignError("Five reels, please.")
+            m = d.data.setdefault("maths", {})
+            saved = {k: m.get(k) for k in ("strips", "free_strips", "big_strip")}
+            m.update(strips=strips, free_strips=free, big_strip=bigs)
+            try:
+                v = variant_from_design(d)
+                bad = []
+                for case in (body.get("sample") or [])[:300]:
+                    o = spin_outcome(v, case["bet"], mulberry32(case["seed"]))
+                    if o["stops"] != case["stops"] or o["total"] != case["total"]:
+                        bad.append(case["seed"])
+                exact = base.exact_line_rtp(v.strips, v.pays)
+                if bad or abs(100 * exact - float(body.get("exact", -1))) > 1e-6:
+                    raise DesignError(f"The server's engine disagrees with the browser's ({len(bad)} of the sample spins"
+                                      f"{'' if abs(100 * exact - float(body.get('exact', -1))) <= 1e-6 else ', and the exact line return'}).")
+            except Exception:
+                m.update(saved)
+                raise
+        check = sim.simulate(v, 30000, 100, 11)["rtp"]
+        with self.lock:
+            m.update(report=body.get("report"), settings=_settings_hash(d),
+                     check={"sample": len(body.get("sample") or []), "exact": round(100 * exact, 4),
+                            "python_30k": {k: round(x, 2) for k, x in check.items()}},
+                     frozen_at=datetime.datetime.now().isoformat(timespec="seconds"))
+            d.save()
+            return maths_view(d)
 
     # ------------------------------------------------------------- Sounds
     def set_sound(self, did: str, key: str, files, gain_db=0.0) -> None:

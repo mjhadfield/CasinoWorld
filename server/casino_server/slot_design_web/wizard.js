@@ -9,11 +9,12 @@ import * as features from "./steps/features.js";
 import * as bonuses from "./steps/bonuses.js";
 import * as sprites from "./steps/sprites.js";
 import * as sounds from "./steps/sounds.js";
+import * as maths from "./steps/maths.js";
 import * as later from "./steps/later.js";
 import {createGame} from "./mockup/game.js";
 import {designConfig, loadMath} from "./mockup/design.js";
 
-const STEPS = {concept, art, ladder, scene, features, bonuses, sprites, sounds};   // built steps; the rest show what they'll do (later.js)
+const STEPS = {concept, art, ladder, scene, features, bonuses, sprites, sounds, maths};   // built steps; the rest show what they'll do (later.js)
 const ctx = {did: null, data: null, step: null};
 let H, shell = null, timer = null, ticks = 0, current = null;
 
