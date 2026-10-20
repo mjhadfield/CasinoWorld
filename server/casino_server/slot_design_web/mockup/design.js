@@ -86,6 +86,7 @@ export function designConfig(data, img) {
             display: `"${fontFamily(data.id, data.sprites.fonts.display)}", Georgia, serif`,
             cond: `"${fontFamily(data.id, data.sprites.fonts.ui)}", "Arial Narrow", system-ui, sans-serif`},
     win: data.sprites.win,
+    rules: data.signoff ? data.signoff.rules : null,
     labels: false,
     texts: {title: logoLines.map(l => l.toUpperCase()), tagline: "GOOD LUCK",
             bonus: [`3+ ${symbols.BS.toUpperCase()}`, tr.name.toUpperCase()],

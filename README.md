@@ -129,6 +129,10 @@ and Tailscale. It has six tabs:
     one at a time, the pays together, or the feature chances) until the return meets the target. **Freeze** keeps
     the strips once the server has replayed 200 of the browser's seeded spins with its own engine and matched them
     exactly, so the mockup and the cabinet play the same game. Changing what was measured shows the freeze as stale.
+  - **Mockup & sign-off:** the whole machine, playable, with **Next spin** controls to force any feature, bonus
+    or jackpot; the checklist (✗ what Build needs: a full Value ladder, art for every tier, frozen maths; • what's
+    still a stand-in); the rules screen's words (written from the design, editable; INFO shows them); and **Sign it
+    off**, which locks the Value ladder, Features, Bonus games and Maths until **Reopen**. Looks stay editable.
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads

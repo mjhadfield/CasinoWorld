@@ -148,3 +148,9 @@
 .wz-progress { flex: 1 1 160px; height: 10px; }
 tr.strong td { font-weight: 700; }
 .wz-step td input.wz-num { padding: 2px 4px; }
+/* Mockup & sign-off */
+.wz-check { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.wz-check li { display: flex; gap: 8px; align-items: baseline; }
+.wz-check .m { width: 16px; font-weight: 700; flex: none; }
+.wz-check li.ok .m { color: var(--ok); } .wz-check li.bad .m { color: var(--warn); } .wz-check li.warn .m { color: var(--gold); }
+.wz-check a { color: inherit; }

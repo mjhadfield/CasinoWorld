@@ -17,6 +17,8 @@ so every method runs under the board's lock and saves through its Design.
                  Worker) and freezes the strips here, where the server replays a sample of the browser's spins to
                  prove both engines agree. A freeze remembers the settings it measured, so later changes show
                  it as stale.
+  Sign-off       the checklist (what Build needs, and what's still a stand-in), the rules screen's text, and
+                 the sign-off, which locks everything that changes how the slot pays until it's reopened.
 """
 import datetime
 import hashlib
@@ -160,6 +162,50 @@ def variant_from_design(d):
         features=f["enabled"])
 
 
+def default_rules(d) -> list[str]:
+    """The rules screen's lines, written from the design (the mockup's INFO overlay; editable on the Mockup step)."""
+    lad, b = ladder_view(d), bonuses_view(d)
+    names = {s["id"]: s["name"] for s in d.data["symbols"]}
+    nm = lambda t: names.get(lad["slots"].get(t), t)
+    ups = {}
+    for frm, to in lad["upgrades"].items():
+        ups.setdefault(to, []).append(nm(frm))
+    return [f"{nm('W')} stands in for everything except {nm('BS')} and {nm('FS')}. Pays left to right on 25 lines; the longest match on each line pays.",
+            "Random features can hit any spin, some before the reels stop and some after.",
+            f"3+ {nm('BS')}: {b['trail']['name']}. 3+ {nm('FS')}: {b['free']['games']} {b['free']['name'].lower()}.",
+            "Upgrades: " + " · ".join(f"{', '.join(fs)} → {nm(t)}" for t, fs in ups.items())]
+
+
+def checklist(d) -> list[dict]:
+    """What the slot needs before Build (required) and what's still a stand-in or unfinished (worth a look)."""
+    lad, m, art_slots = ladder_view(d), maths_view(d), art_view(d)
+    cats = {c["id"]: c for c in d.data["categories"]}
+    out = [{"id": "ladder", "label": f"Value ladder: {len(lad['slots'])} of {len(lad['tiers'])} tiers filled", "ok": lad["complete"], "required": True, "step": "ladder"},
+           {"id": "maths", "label": "Maths frozen" + (" (but settings changed since)" if m["stale"] else ""), "ok": m["frozen"] and not m["stale"], "required": True, "step": "maths"}]
+    no_art = [lad["slots"][t] for t in lad["slots"] if not d.chosen_file(d.symbol(lad["slots"][t]))]
+    out.append({"id": "art", "label": "Every tier's symbol has art" + (f" (not yet: {', '.join(no_art)})" if no_art else ""), "ok": not no_art, "required": True, "step": "art"})
+    for c in d.data["categories"]:
+        if c.get("required") is not None:
+            have = sum(bool(s.get("keep")) for s in d.data["symbols"] if s["category"] == c["id"])
+            out.append({"id": "cat_" + c["id"], "label": f"{c['title']}: {have} of {c['required']} in the final set", "ok": have == c["required"], "required": False, "step": "art"})
+    stand = [k for k, a in art_slots.items() if not a["file"]]
+    out.append({"id": "art_slots", "label": "Feature and bonus pictures" + (f": {len(stand)} still Armadillo's" if stand else ""), "ok": not stand, "required": False, "step": "bonuses"})
+    sc = d.data.get("scene", {})
+    out.append({"id": "background", "label": "A background", "ok": bool(sc.get("background")), "required": False, "step": "scene"})
+    out.append({"id": "logo", "label": "A logo", "ok": bool(sc.get("logo", {}).get("file")), "required": False, "step": "scene"})
+    out.append({"id": "sounds", "label": f"Own sounds for {len(d.data.get('sounds', {}))} moments (optional)", "ok": True, "required": False, "step": "sounds"})
+    specs = d.data.get("specs", [])
+    if specs:
+        out.append({"id": "specs", "label": f"{len(specs)} new feature/bonus idea{'s' if len(specs) > 1 else ''} to be built in code", "ok": False, "required": False, "step": "build"})
+    return out
+
+
+def signoff_view(d) -> dict:
+    so = d.data.get("signed_off")
+    return {"signed_off": so, "rules": d.data.get("rules") or default_rules(d), "rules_custom": bool(d.data.get("rules")),
+            "checklist": checklist(d), "ready": all(c["ok"] for c in checklist(d) if c["required"])}
+
+
 def machine_moments() -> dict:
     """The sound moments a slot machine's own set can change (sounds.shows for a machine's set)."""
     from casino_server import sounds
@@ -238,6 +284,42 @@ def scene_view(d) -> dict:
 class StepsMixin:
     sounds = None   # the casino's SoundBoard (app.py sets it), for the Sounds step's library and defaults
 
+    @staticmethod
+    def _unlocked(d) -> None:
+        """A signed-off slot's pays are locked: Value ladder, Features, Bonus games and Maths refuse changes."""
+        if d.data.get("signed_off"):
+            raise DesignError("This slot is signed off: reopen it (Mockup & sign-off) to change how it pays.")
+
+    # ------------------------------------------------------------- Mockup & sign-off
+    def set_rules(self, did: str, lines) -> None:
+        with self.lock:
+            d = self.design(did)
+            if lines is None:
+                d.data.pop("rules", None)
+            else:
+                if not isinstance(lines, list) or not 1 <= len(lines) <= 8:
+                    raise DesignError("The rules screen has 1 to 8 lines.")
+                d.data["rules"] = [str(x).strip()[:160] for x in lines if str(x).strip()]
+            d.save()
+
+    def sign_off(self, did: str) -> dict:
+        with self.lock:
+            d = self.design(did)
+            missing = [c["label"] for c in checklist(d) if c["required"] and not c["ok"]]
+            if missing:
+                raise DesignError("Not ready to sign off: " + "; ".join(missing) + ".")
+            d.data["signed_off"] = {"at": datetime.datetime.now().isoformat(timespec="seconds"), "settings": _settings_hash(d)}
+            d.data["steps"]["mockup"] = "done"
+            d.save()
+            return signoff_view(d)
+
+    def reopen(self, did: str) -> None:
+        with self.lock:
+            d = self.design(did)
+            d.data.pop("signed_off", None)
+            d.data["steps"]["mockup"] = "doing"
+            d.save()
+
     # ------------------------------------------------------------- Sprites
     def update_sprites(self, did: str, ch: dict) -> None:
         with self.lock:
@@ -294,6 +376,7 @@ class StepsMixin:
         """New pays or reel counts: the old freeze no longer describes the game, so it's dropped."""
         with self.lock:
             d = self.design(did)
+            self._unlocked(d)
             tiers = base.tier_ids(d.data["concept"]["tiers"])
             m = d.data.setdefault("maths", {})
             if "pays" in ch:
@@ -335,6 +418,7 @@ class StepsMixin:
         from casino_server.slots import sim
         with self.lock:
             d = self.design(did)
+            self._unlocked(d)
             mv = maths_view(d)
             counts, big = mv["counts"], mv["big_counts"]
             if not counts or not big:
@@ -406,6 +490,7 @@ class StepsMixin:
     def update_features(self, did: str, ch: dict) -> None:
         with self.lock:
             d = self.design(did)
+            self._unlocked(d)
             f = d.data.setdefault("features", {})
             if "enabled" in ch:
                 on = ch["enabled"]
@@ -432,6 +517,7 @@ class StepsMixin:
     def update_bonuses(self, did: str, ch: dict) -> None:
         with self.lock:
             d = self.design(did)
+            self._unlocked(d)
             b = d.data.setdefault("bonuses", {})
             if "trail" in ch:
                 t, cur = ch["trail"], dict(b.get("trail", {}))
@@ -530,6 +616,7 @@ class StepsMixin:
     def set_ladder(self, did: str, slots: dict, upgrades: dict | None = None) -> dict:
         with self.lock:
             d = self.design(did)
+            self._unlocked(d)
             tiers = base.tier_ids(d.data["concept"]["tiers"])
             ids = {s["id"] for s in d.data["symbols"]}
             if not isinstance(slots, dict):

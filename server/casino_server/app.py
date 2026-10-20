@@ -585,6 +585,24 @@ async def slot_design_freeze(design: str, request: Request):
     return await run_in_threadpool(_design_call, request.app.state.slot_design.freeze_maths, design, body)
 
 
+@app.put("/api/slot-design/{design}/rules")
+async def slot_design_rules(design: str, request: Request):
+    body = await _json_body(request, "{lines: [...]} (null: back to the written ones)")
+    _design_call(request.app.state.slot_design.set_rules, design, body.get("lines"))
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/sign-off")
+def slot_design_sign_off(design: str, request: Request):
+    return _design_call(request.app.state.slot_design.sign_off, design)
+
+
+@app.post("/api/slot-design/{design}/reopen")
+def slot_design_reopen(design: str, request: Request):
+    _design_call(request.app.state.slot_design.reopen, design)
+    return {"ok": True}
+
+
 @app.post("/api/slot-design/{design}/generate")
 def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}

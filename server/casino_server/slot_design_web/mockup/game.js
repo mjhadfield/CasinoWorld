@@ -345,8 +345,9 @@ export function createGame(cv, cfg) {
     ctx.drawImage(im, -size / 2, -size / 2, size, size);
     if (a && a.preset === "shine") {   // a light band sweeping across the symbol
       const p = ((t * 0.9) % 1.4) - 0.2, band = ctx.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
-      band.addColorStop(Math.max(0, p - 0.12), "rgba(255,255,255,0)"); band.addColorStop(Math.min(1, Math.max(0, p)), `rgba(255,255,255,${0.5 * Math.min(1, k)})`);
-      band.addColorStop(Math.min(1, Math.max(0, p + 0.12)), "rgba(255,255,255,0)");
+      const c01 = (x) => Math.min(1, Math.max(0, x));
+      band.addColorStop(c01(p - 0.12), "rgba(255,255,255,0)"); band.addColorStop(c01(p), `rgba(255,255,255,${0.5 * Math.min(1, k)})`);
+      band.addColorStop(c01(p + 0.12), "rgba(255,255,255,0)");
       ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = band; ctx.fillRect(-size / 2, -size / 2, size, size);
     }
     ctx.restore();
@@ -1018,8 +1019,14 @@ export function createGame(cv, cfg) {
 
   // ------------------------------------------------------------------ the frame loop
   let last = performance.now(), running = true;
+  // One frame. A design can be half-made (missing pictures, odd settings), so a drawing error is reported and the
+  // next frame still comes: the mockup never freezes.
   function frame(t) {
     if (!running) return;
+    try { paint(t); } catch (e) { if (ctx.reset) ctx.reset(); else ctx.setTransform(1, 0, 0, 1, 0, 0); console.error("mockup frame:", e); }
+    requestAnimationFrame(frame);
+  }
+  function paint(t) {
     const dt = Math.min(0.05, (t - last) / 1000) * pace();
     last = t;
     update(dt);
@@ -1046,7 +1053,6 @@ export function createGame(cv, cfg) {
     drawParticles();
     ctx.restore();
     drawOverlay();
-    requestAnimationFrame(frame);
   }
 
   // ------------------------------------------------------------------ input

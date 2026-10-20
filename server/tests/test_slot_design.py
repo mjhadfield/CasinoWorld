@@ -435,3 +435,47 @@ def test_maths_save_and_freeze(board):
     assert _overview(c)["maths"]["stale"]
     c.patch("/api/slot-design/demo/maths", json={"pays": {"L1": [5, 10, 25]}})
     assert not _overview(c)["maths"]["frozen"]
+
+
+# ------------------------------------------------------------------ Mockup & sign-off (Phase 7)
+def _complete(c, d):
+    """Fill the demo design's ladder with symbols that have art, and freeze Armadillo's maths for it."""
+    import shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("needs node")
+    tiers = _overview(c)["ladder"]["tiers"]
+    slots = {}
+    for t in tiers:
+        sid = c.post("/api/slot-design/demo/symbols", json={"name": f"Sym {t}", "category": "set2", "prompt": "x"}).json()["id"]
+        _fake_flux().save(d / f"cut/{sid}_1.png")
+        slots[t] = sid
+    assert c.put("/api/slot-design/demo/ladder", json={"slots": slots}).json()["complete"]
+    js = json.loads(subprocess.run(["node", "-e", SAMPLE_JS, str(MATH_JS)], capture_output=True, text=True, check=True).stdout)
+    c.patch("/api/slot-design/demo/maths", json={"counts": js["counts"], "big_counts": js["big_counts"]})
+    assert c.post("/api/slot-design/demo/maths/freeze", json={**js, "report": {"rtp": {"game": 87.5}}}).status_code == 200
+
+
+def test_sign_off_locks_how_it_pays(board):
+    c, d = board
+    so = _overview(c)["signoff"]
+    assert not so["ready"] and so["rules"][0].startswith("W stands in")
+    assert {x["id"]: x["ok"] for x in so["checklist"]}["ladder"] is False
+    assert c.post("/api/slot-design/demo/sign-off").status_code == 400
+    _complete(c, d)
+    so = _overview(c)["signoff"]
+    assert so["ready"] and "Sym W stands in for everything except Sym BS and Sym FS" in so["rules"][0]
+    assert c.put("/api/slot-design/demo/rules", json={"lines": ["Line one", "Line two"]}).status_code == 200
+    assert _overview(c)["signoff"]["rules"] == ["Line one", "Line two"]
+    r = c.post("/api/slot-design/demo/sign-off")
+    assert r.status_code == 200 and r.json()["signed_off"]["at"]
+    assert {s["id"]: s["status"] for s in _overview(c)["steps"]}["mockup"] == "done"
+    for call in [lambda: c.patch("/api/slot-design/demo/maths", json={"pays": {"L1": [5, 10, 25]}}),
+                 lambda: c.patch("/api/slot-design/demo/features", json={"rates": {"wilds": 0.2}}),
+                 lambda: c.patch("/api/slot-design/demo/bonuses", json={"free": {"games": 4}}),
+                 lambda: c.put("/api/slot-design/demo/ladder", json={"slots": {}})]:
+        assert call().status_code == 400
+    assert c.patch("/api/slot-design/demo/sprites", json={"colours": {"gold": "#33ccff"}}).status_code == 200   # looks aren't locked
+    assert c.post("/api/slot-design/demo/reopen").status_code == 200
+    assert c.patch("/api/slot-design/demo/features", json={"rates": {"wilds": 0.2}}).status_code == 200
+    assert c.put("/api/slot-design/demo/rules", json={"lines": None}).status_code == 200
+    assert not _overview(c)["signoff"]["rules_custom"]

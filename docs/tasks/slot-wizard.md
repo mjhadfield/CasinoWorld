@@ -22,14 +22,14 @@ the way through as the first. The full plan, agreed with Mike on 2026-10-20, is
 - [x] Phase 4: Features and Bonus games (+ art slots, specs, rigged mockup runs)
 - [x] Phase 5: Sprites and Sounds
 - [x] Phase 6: Maths & payouts (simulate, auto-tune, freeze)
-- [ ] Phase 7: Mockup & sign-off
+- [x] Phase 7: Mockup & sign-off
 - [ ] Phase 8: Build, data variants, client generalisation
 - [ ] Phase 9: Star Trek playable on the floor
 - [ ] `tools/dev.sh test` passes (and `--all` after any maths change)
 
 ## Handoff
-- **State:** Phases 1-6 done; Phase 7 (Mockup & sign-off) next.
-- **Changed:** Phase 6: maths in slot_design_steps.py (update_maths, freeze_maths with server replay, variant_from_design), mockup/sim_worker.js (sim, step-aware tune, sample), steps/maths.js, design.js designParams. Phase 5: sprites/sounds in slot_design_steps.py, steps/sprites.js, sounds.js; mockup theme colours (C.*), win animations, demoWin, design fonts via /slot-design-font/. Phase 4: features/bonuses/art slots/specs in slot_design_steps.py, steps/features.js, bonuses.js, artslot.js; mockup takes them. Phases 2-3: slots/variant.py (+ JSON variants), base.py tier defaults, slots_math.js makeVariant(pays, upgrades, features, strips), slot_design_steps.py (ladder, scene), steps/ladder.js, steps/scene.js, mockup/game.js + design.js. Phase 1: `slot_design_web/` (wizard.js, wizard.css, steps/concept.js, art.js, later.js), routes in app.py, migrations in `Design._migrate`.
+- **State:** Phases 1-7 done; Phase 8 (Build, data variants, client generalisation) next.
+- **Changed:** Phase 7: checklist/rules/sign-off + pay lock in slot_design_steps.py, steps/mockup.js; mockup frame loop survives errors. Phase 6: maths in slot_design_steps.py (update_maths, freeze_maths with server replay, variant_from_design), mockup/sim_worker.js (sim, step-aware tune, sample), steps/maths.js, design.js designParams. Phase 5: sprites/sounds in slot_design_steps.py, steps/sprites.js, sounds.js; mockup theme colours (C.*), win animations, demoWin, design fonts via /slot-design-font/. Phase 4: features/bonuses/art slots/specs in slot_design_steps.py, steps/features.js, bonuses.js, artslot.js; mockup takes them. Phases 2-3: slots/variant.py (+ JSON variants), base.py tier defaults, slots_math.js makeVariant(pays, upgrades, features, strips), slot_design_steps.py (ladder, scene), steps/ladder.js, steps/scene.js, mockup/game.js + design.js. Phase 1: `slot_design_web/` (wizard.js, wizard.css, steps/concept.js, art.js, later.js), routes in app.py, migrations in `Design._migrate`.
 - **Checked:** Phase 1: tests in test_slot_design.py; headless run of every Phase 1 control on the dev copy (one real FLUX Refine).
 - **Questions for Mike:** the Value ladder order and the floor spot for Star Trek's cabinets come up in Phase 9.
 - **Rule:** the live server keeps each design in memory and saves over `design.json`, so data changes to a design
