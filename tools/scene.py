@@ -84,6 +84,10 @@ def fresh(args) -> None:
     shutil.rmtree(dst, ignore_errors=True)
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, dst)
+    # the copy doesn't draw pictures: the live board's queued jobs stay the live board's
+    data = json.loads((dst / "design.json").read_text())
+    data["jobs"] = [j for j in data.get("jobs", []) if j["status"] in ("done", "failed")]
+    (dst / "design.json").write_text(json.dumps(data, indent=1))
     print(f"copied to {dst}; start the dev server (tools/dev.sh server)")
 
 

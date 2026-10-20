@@ -816,14 +816,17 @@ func _text(ci: CanvasItem, s: String, at: Vector2, size: int, font: Font = COND,
 	ci.draw_string(font, Vector2(x, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 
-## The largest size (down to 10) at which `s` fits `max_w` (0: no limit).
+## The largest size (down to 8: a wide font can need it) at which `s` fits `max_w` (0: no limit).
 static func _fit(s: String, font: Font, size: int, max_w: float) -> int:
 	if max_w <= 0.0:
 		return size
 	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	if w <= max_w:
 		return size
-	return maxi(10, int(size * max_w / w))
+	size = maxi(8, int(size * max_w / w))
+	while size > 8 and font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > max_w:
+		size -= 1
+	return size
 
 
 ## Banner and big-win lettering: Rye in gold on a dark outline, with a drop shadow. (Every
@@ -1353,7 +1356,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 			_lcars_box(ci, Rect2(1048, box.position.y, 200, box.size.y), Color.TRANSPARENT, 1.0)
 		else:
 			_rr(ci, box, 12, deck.inset)
-		var icon := Rect2(box.position + Vector2(6, 14), Vector2(76, 76))
+		var icon := Rect2(box.position + Vector2(4, 24), Vector2(56, 56)) if lc else Rect2(box.position + Vector2(6, 14), Vector2(76, 76))   # (LCARS: room for a wide font)
 		var t := _tex(info[i][0])
 		if t:
 			ci.draw_texture_rect(t, icon, false)

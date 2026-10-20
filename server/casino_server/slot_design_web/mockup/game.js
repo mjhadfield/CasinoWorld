@@ -161,9 +161,10 @@ export function createGame(cv, cfg) {
   // maxW: shrink to fit that width (so a theme's longer names never spill out of their boxes)
   function text(str, x, y, size, font = COND, colour = C.cream, align = "center", weight = "700", stroke = 0, maxW = 0) {
     ctx.font = `${weight} ${size}px ${font}`;
-    if (maxW > 0) {
+    if (maxW > 0) {   // (down to 8px; a wide font can need it)
       const w = ctx.measureText(str).width;
-      if (w > maxW) { size = Math.max(10, Math.floor(size * maxW / w)); ctx.font = `${weight} ${size}px ${font}`; }
+      if (w > maxW) { size = Math.max(8, Math.floor(size * maxW / w)); ctx.font = `${weight} ${size}px ${font}`; }
+      while (size > 8 && ctx.measureText(str).width > maxW) { size--; ctx.font = `${weight} ${size}px ${font}`; }
     } ctx.textAlign = align; ctx.textBaseline = "middle";
     if (stroke) { ctx.lineWidth = stroke; ctx.strokeStyle = alpha(C.shade, 0.95); ctx.lineJoin = "round"; ctx.strokeText(str, x, y); }
     ctx.fillStyle = colour; ctx.fillText(str, x, y);
@@ -551,8 +552,9 @@ export function createGame(cv, cfg) {
       const y = by + 196 + i * 116;
       if (lc()) lcarsBox(1048, y, 200, 104, { edgeW: 1 }); else { rr(1052, y, 196, 104, 12); ctx.fillStyle = DECK.inset; ctx.fill(); }
       // the symbol on the left, its two lines centred in the space to its right
-      drawImg(img(sym), 1058, y + 14, 76, 76);
-      const tx = 1138, tw = 1248 - 8 - tx, mid = tx + tw / 2;
+      // (LCARS: a smaller symbol, so a wide font's words have room)
+      if (lc()) drawImg(img(sym), 1056, y + 24, 56, 56); else drawImg(img(sym), 1058, y + 14, 76, 76);
+      const tx = lc() ? 1116 : 1138, tw = 1248 - 8 - tx, mid = tx + tw / 2;
       if (lc()) { text(a, mid, y + 40, 17, DISPLAY, sc("hl"), "center", "400", 0, tw); text(b, mid, y + 66, 14, COND, C.cream, "center", "700", 0, tw); }
       else { text(a, mid, y + 40, 22, COND, C.goldHi, "center", "700", 0, tw); text(b, mid, y + 66, 16, COND, C.cream, "center", "700", 0, tw); }
     });
