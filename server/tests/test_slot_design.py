@@ -266,3 +266,49 @@ def test_fit_previews_and_saves_a_new_take(board):
     _fake_flux().save(d / "raw/bust_hero_1.png")
     hero = c.post("/api/slot-design/demo/symbols/hero/fit", json={"variant": "bust/hero_1", "fit": {"scale": 0.8, "dy": 20}}).json()["variant"]
     assert hero == "bust/hero_2" and all((d / f"chars/hero_2_{h}.png").exists() for h in art.HUES)
+
+
+# ------------------------------------------------------------------ Value ladder and Scene (Phase 2)
+def test_the_value_ladder(board):
+    c, _ = board
+    lad = _overview(c)["ladder"]
+    assert lad["tiers"][:5] == ["W", "BS", "FS", "H1", "H2"] and len(lad["tiers"]) == 13 and not lad["complete"]
+    assert lad["pays"]["H1"] == [20, 40, 120] and lad["upgrades"]["L1"] == "M3"
+    r = c.put("/api/slot-design/demo/ladder", json={"slots": {"H1": "hero", "M1": "ship"}})
+    assert r.status_code == 200 and r.json()["slots"] == {"H1": "hero", "M1": "ship"}
+    assert c.put("/api/slot-design/demo/ladder", json={"slots": {"H1": "hero", "H2": "hero"}}).status_code == 400
+    assert c.put("/api/slot-design/demo/ladder", json={"slots": {"L9": "hero"}}).status_code == 400
+    assert c.put("/api/slot-design/demo/ladder", json={"slots": {}, "upgrades": {"H1": "L1"}}).status_code == 400  # downgrade
+    assert c.put("/api/slot-design/demo/ladder", json={"slots": {}, "upgrades": {"L1": "W"}}).status_code == 400
+    ok = c.put("/api/slot-design/demo/ladder", json={"slots": {"H2": "hero"}, "upgrades": {"L1": "H1"}}).json()
+    assert ok["upgrades"] == {"L1": "H1"} and ok["slots"] == {"H2": "hero"}
+    # a bigger tier shape gets more tiers, and the defaults stretch to them
+    c.patch("/api/slot-design/demo/concept", json={"tiers": {"high": 2, "mid": 4, "low": 5}})
+    lad = _overview(c)["ladder"]
+    assert lad["tiers"][-1] == "L5" and lad["pays"]["L5"] == [4, 8, 20]
+
+
+def test_the_scene(board, monkeypatch):
+    c, d = board
+    monkeypatch.setattr(art, "flux_generate", lambda prompt, size="1024x1024": Image.new("RGB", (1344, 768), (20, 30, 90)))
+    job = c.post("/api/slot-design/demo/scene/backgrounds", json={"description": "a starfield"}).json()["job"]
+    assert job["out"] == "background" and job["symbol"] is None
+    _wait_idle(c)
+    sc = _overview(c)["scene"]
+    assert sc["backgrounds"] == ["scene/bg_1.png", "scene/bg_2.png", "scene/bg_3.png"] and sc["background"] == "scene/bg_1.png"
+    assert Image.open(d / "scene/bg_1.png").size == (1280, 720)
+    up = c.put("/api/slot-design/demo/scene/backgrounds/mine.jpg", content=_png(size=(800, 800))).json()["path"]
+    assert up == "scene/bg_4.png" and Image.open(d / up).size == (1280, 720)
+    assert c.patch("/api/slot-design/demo/scene", json={"background": "scene/bg_2.png"}).status_code == 200
+    assert c.patch("/api/slot-design/demo/scene", json={"background": "cut/ship_1.png"}).status_code == 400
+    logo = c.post("/api/slot-design/demo/scene/logo", json={"lines": ["DEMO", "SLOT"], "font": "Cinzel-SemiBold.ttf"}).json()["path"]
+    assert logo == "scene/logo_1.png" and Image.open(d / logo).mode == "RGBA"
+    assert _overview(c)["scene"]["logo"]["lines"] == ["DEMO", "SLOT"]
+    assert c.post("/api/slot-design/demo/scene/logo", json={"lines": ["X"], "top": "gold"}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/logo", json={"lines": [], "font": "Cinzel-SemiBold.ttf"}).status_code == 400
+    assert c.patch("/api/slot-design/demo/scene", json={"frame": {"style": "neon", "colour": "#33ccff"}}).status_code == 200
+    assert c.patch("/api/slot-design/demo/scene", json={"frame": {"style": "lace", "colour": "#33ccff"}}).status_code == 400
+    assert c.put("/api/slot-design/demo/fonts/bad.ttf", content=b"nope").status_code == 400
+    assert c.put("/api/slot-design/demo/fonts/notes.txt", content=b"nope").status_code == 400
+    assert c.get("/slot-design-ui/slots_math.js").status_code == 200
+    assert c.get("/slot-design-ui/../app.py").status_code == 404

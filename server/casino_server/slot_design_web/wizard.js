@@ -3,9 +3,13 @@
 // is the page hash: #design/<design>/<step>.
 import * as concept from "./steps/concept.js";
 import * as art from "./steps/art.js";
+import * as ladder from "./steps/ladder.js";
+import * as scene from "./steps/scene.js";
 import * as later from "./steps/later.js";
+import {createGame} from "./mockup/game.js";
+import {designConfig, loadMath} from "./mockup/design.js";
 
-const STEPS = {concept, art};          // built steps; the rest show what they'll do (later.js)
+const STEPS = {concept, art, ladder, scene};   // built steps; the rest show what they'll do (later.js)
 const ctx = {did: null, data: null, step: null};
 let H, shell = null, timer = null, ticks = 0, current = null;
 
@@ -37,12 +41,14 @@ function buildShell() {
     tabs, form,
     flux: el("span", {className: "tag", textContent: "FLUX…"}),
     queue: el("span", {className: "hint"}),
+    play: el("button", {type: "button", className: "wz-play", textContent: "▶ Play the mockup", onclick: playMockup,
+      title: "The base game with this design's art and scene (from the Scene step on)"}),
     rail: el("nav", {className: "wz-rail", ariaLabel: "Steps"}),
     head: el("div", {className: "wz-head"}),
     body: el("div", {className: "wz-body"}),
   };
   document.getElementById("dz-app").replaceChildren(tabs, form,
-    el("div", {className: "wz-bar"}, shell.flux, shell.queue),
+    el("div", {className: "wz-bar"}, shell.flux, shell.queue, el("span", {className: "grow"}), shell.play),
     el("div", {className: "wz"}, shell.rail, el("div", {className: "wz-step"}, shell.head, shell.body)));
   drawTabs();
 }
@@ -98,6 +104,7 @@ async function open() {
   if (changed) drawTabs();
   if (changed || step !== ctx.step) {
     ctx.step = step;
+    current?.leave?.();
     current = STEPS[step] || later;
     drawRail(); drawHead();
     shell.body.replaceChildren();
@@ -145,7 +152,9 @@ export async function setStep(step, status) {
 
 function drawBar() {
   const r = ctx.data.running;
-  const who = r && (ctx.data.symbols.find(s => s.id === r.symbol) || {}).name;
+  const who = r && (r.symbol ? (ctx.data.symbols.find(s => s.id === r.symbol) || {}).name : "the background");
+  const sceneAt = ctx.data.steps.findIndex(s => s.id === "scene");
+  shell.play.hidden = !(ctx.data.steps.findIndex(s => s.id === ctx.step) >= sceneAt || ctx.data.steps[sceneAt].status !== "todo");
   shell.queue.textContent = [
     r ? (r.status === "waiting" ? `Waiting for FLUX to make ${who}` : `Making ${who}: ${r.done + 1} of ${r.count}`) : "",
     ctx.data.queued ? `${ctx.data.queued} queued` : ""].filter(Boolean).join(" · ");
@@ -159,6 +168,20 @@ async function checkFlux() {
     shell.flux.title = st.flux ? "FLUX.2-klein is loaded in Odysseus."
       : "Start FLUX.2-klein from Odysseus's Cookbook, with CPU Offload ticked. Queued jobs wait for it.";
   } catch (e) {}
+}
+
+// The mockup in a dialog, from the Scene step on: the base game with this design's art, scene and (once tuned) maths.
+async function playMockup() {
+  const {el} = H;
+  await loadMath();
+  const canvas = el("canvas", {width: 1280, height: 720, className: "wz-canvas"});
+  const dlg = el("dialog", {className: "wz-mock"}, el("div", {className: "wz-mock-head"},
+    el("b", {textContent: `${ctx.data.name}: mockup`}), el("span", {className: "hint", textContent: "Click Spin or press Space."}),
+    el("button", {type: "button", textContent: "Close", onclick: () => dlg.close()})), canvas);
+  document.body.append(dlg);
+  const game = createGame(canvas, designConfig(ctx.data, ctx.img));
+  dlg.addEventListener("close", () => { game.destroy(); dlg.remove(); });
+  dlg.showModal();
 }
 
 // While the tab is open: follow running jobs every 4 s, and check FLUX every 20 s otherwise.

@@ -471,6 +471,47 @@ async def slot_design_variant_action(design: str, sid: str, action: str, request
     return {"ok": True}
 
 
+@app.put("/api/slot-design/{design}/ladder")
+async def slot_design_ladder(design: str, request: Request):
+    body = await _json_body(request, "{slots: {tier: symbol}, upgrades: {tier: tier}}")
+    return await run_in_threadpool(_design_call, request.app.state.slot_design.set_ladder, design,
+                                   body.get("slots"), body.get("upgrades"))
+
+
+@app.patch("/api/slot-design/{design}/scene")
+async def slot_design_scene(design: str, request: Request):
+    body = await _json_body(request, "{background, logo_file, frame}")
+    await run_in_threadpool(_design_call, request.app.state.slot_design.update_scene, design, body)
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/scene/backgrounds")
+async def slot_design_background_job(design: str, request: Request):
+    body = await _json_body(request, "{description} or {path}")
+    board = request.app.state.slot_design
+    if body.get("path"):
+        return {"path": await run_in_threadpool(_design_call, board.add_background, design, "", b"", body["path"])}
+    return {"job": await run_in_threadpool(_design_call, board.queue_background, design, body.get("description"))}
+
+
+@app.put("/api/slot-design/{design}/scene/backgrounds/{filename}")
+async def slot_design_background_upload(design: str, filename: str, request: Request):
+    data = await request.body()
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.add_background, design, filename, data)}
+
+
+@app.post("/api/slot-design/{design}/scene/logo")
+async def slot_design_logo(design: str, request: Request):
+    body = await _json_body(request, "{lines, font, top, bottom, outline, emblem}")
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.render_logo, design, body)}
+
+
+@app.put("/api/slot-design/{design}/fonts/{filename}")
+async def slot_design_font(design: str, filename: str, request: Request):
+    data = await request.body()
+    return {"font": await run_in_threadpool(_design_call, request.app.state.slot_design.add_font, design, filename, data)}
+
+
 @app.post("/api/slot-design/{design}/generate")
 def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}
@@ -489,11 +530,15 @@ def slot_design_cancel(design: str, job_id: int, request: Request):
 
 
 # The wizard's own scripts (slot_design_web/), loaded by the Slot design tab; never cached, so an edit shows on reload.
+# slots_math.js is the signed-off slot maths, served from its home in docs/slots/mockup (the one source for both).
 SLOT_DESIGN_WEB = Path(__file__).resolve().parent / "slot_design_web"
+SLOTS_MATH = Path(__file__).resolve().parents[2] / "docs" / "slots" / "mockup" / "slots_math.js"
 
 
 @app.get("/slot-design-ui/{rel:path}")
 def slot_design_ui(rel: str):
+    if rel == "slots_math.js":
+        return FileResponse(SLOTS_MATH, media_type="text/javascript", headers=NO_STORE)
     path = (SLOT_DESIGN_WEB / rel).resolve()
     if not path.is_relative_to(SLOT_DESIGN_WEB) or not path.is_file():
         raise HTTPException(404, "No such file")

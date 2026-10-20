@@ -35,9 +35,10 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
 from casino_server import slot_design_art as art
+from casino_server.slot_design_steps import DesignError, StepsMixin, ladder_view, scene_view
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
-SERVED = ("source", "ref", "links", "cut", "chars")
+SERVED = ("source", "ref", "links", "cut", "chars", "scene")
 MAX_IMAGE = 12 * 1024 * 1024
 TAKES = 3  # images per job
 KINDS = ("object", "character")
@@ -73,10 +74,6 @@ def _template(name: str, brief: str) -> dict:
                  "refs": [], "added": True, "pending_new": True, "hue": "gold", "prompt": prompt}
                 for sid, nm, keep, prompt in SPECIALS]
     return {"name": name, "concept": {"brief": brief}, "categories": cats, "symbols": symbols, "jobs": []}
-
-
-class DesignError(ValueError):
-    """A request the board can't take (shown to the page as-is)."""
 
 
 def _slug(text: str) -> str:
@@ -209,7 +206,7 @@ class Design:
         return max(ns, default=0) + 1
 
 
-class DesignBoard:
+class DesignBoard(StepsMixin):
     def __init__(self, root: Path = DEFAULT_DESIGNS_DIR):
         self.root = root
         self.lock = threading.RLock()
@@ -261,6 +258,8 @@ class DesignBoard:
                 if (d.folder / "source").is_dir() else []
             return {"id": d.id, "name": d.data.get("name", d.id), "note": d.data.get("note", ""),
                     "concept": d.data["concept"], "sources": sources, "signed_off": d.data.get("signed_off"),
+                    "ladder": ladder_view(d), "scene": scene_view(d),
+                    "scene_jobs": [j for j in jobs if j["symbol"] is None and j["status"] in ("queued", "waiting", "running", "failed")],
                     "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),
                     "pending": sum(bool(s.get("reiterate") or s.get("pending_new")) for s in d.data["symbols"]),
@@ -641,10 +640,10 @@ class DesignBoard:
             d.save()
             return queued
 
-    def _queue(self, d: Design, s: dict, job: dict, count: int = TAKES) -> dict:
-        """Add a job (the caller saves). Keeps the last 50 finished jobs as a record."""
+    def _queue(self, d: Design, s: dict | None, job: dict, count: int = TAKES) -> dict:
+        """Add a job (the caller saves): for a symbol, or for the Scene (s None). Keeps the last 50 finished."""
         jobs = d.data["jobs"]
-        job = {"id": max((j["id"] for j in jobs), default=0) + 1, "symbol": s["id"], "status": "queued",
+        job = {"id": max((j["id"] for j in jobs), default=0) + 1, "symbol": s["id"] if s else None, "status": "queued",
                "done": 0, "count": count, "made": [], "error": "", **job}
         jobs.append(job)
         done = [j for j in jobs if j["status"] == "done"]
@@ -699,6 +698,8 @@ class DesignBoard:
 
     def make_one(self, d: Design, job: dict) -> str:
         """One FLUX picture for a job, keyed and saved; returns the raw file's name."""
+        if job["out"] == "background":
+            return self._make_background(d, job)
         with self.lock:
             s = d.symbol(job["symbol"])
             key, keep_text = s.get("key", "magenta"), s.get("keep_text")
@@ -742,6 +743,17 @@ class DesignBoard:
             if job.get("label"):
                 s.setdefault("labels", {})[vid] = job["label"].replace("{n}", str(n))
         return f"{prefix}_{n}"
+
+    def _make_background(self, d: Design, job: dict) -> str:
+        with self.lock:
+            c = d.data["concept"]
+            theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
+        im = art.flux_generate(art.themed(art.background_prompt(job["text"]), theme), "1344x768")
+        with self.lock:
+            out = self._next_scene(d, "bg")
+            art.fit_cover(im, (1280, 720)).save(d.folder / out)
+            d.data.setdefault("scene", {}).setdefault("background", out)
+        return Path(out).stem
 
     async def run(self):
         """The worker: one job at a time, one picture at a time. Waits while FLUX is off."""

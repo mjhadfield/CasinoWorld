@@ -6,31 +6,36 @@
    "id": "royals",
    "title": "Royals",
    "required": 5,
-   "kind": "object"
+   "kind": "object",
+   "role": "low"
   },
   {
    "id": "set1",
    "title": "Symbol set 1 \u00b7 characters",
    "required": 2,
-   "kind": "character"
+   "kind": "character",
+   "role": "high"
   },
   {
    "id": "set2",
    "title": "Symbol set 2 \u00b7 ships, places & kit",
    "required": 4,
-   "kind": "object"
+   "kind": "object",
+   "role": "mid"
   },
   {
    "id": "specials",
    "title": "Specials \u00b7 wild & scatters",
    "required": 3,
-   "kind": "object"
+   "kind": "object",
+   "role": "specials"
   },
   {
    "id": "bonus",
    "title": "Bonus screens",
    "required": null,
-   "kind": "object"
+   "kind": "object",
+   "role": null
   }
  ],
  "symbols": [
@@ -46,14 +51,14 @@
    "hue": "gold",
    "keep_text": "letter A",
    "favourite": "cut/A_1.png",
-   "hidden": [
-    "cut/A_2.png",
-    "cut/A_3.png"
-   ],
    "choice": "cut/A_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/A_2.png",
+    "cut/A_3.png"
+   ]
   },
   {
    "id": "K",
@@ -67,14 +72,14 @@
    "hue": "gold",
    "keep_text": "letter K",
    "favourite": "cut/K_1.png",
-   "hidden": [
-    "cut/K_2.png",
-    "cut/K_3.png"
-   ],
    "choice": "cut/K_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/K_2.png",
+    "cut/K_3.png"
+   ]
   },
   {
    "id": "Q",
@@ -88,14 +93,14 @@
    "hue": "gold",
    "keep_text": "letter Q",
    "favourite": "cut/Q_1.png",
-   "hidden": [
-    "cut/Q_2.png",
-    "cut/Q_3.png"
-   ],
    "choice": "cut/Q_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/Q_2.png",
+    "cut/Q_3.png"
+   ]
   },
   {
    "id": "J",
@@ -109,14 +114,14 @@
    "hue": "gold",
    "keep_text": "letter J",
    "favourite": "cut/J_1.png",
-   "hidden": [
-    "cut/J_2.png",
-    "cut/J_3.png"
-   ],
    "choice": "cut/J_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/J_2.png",
+    "cut/J_3.png"
+   ]
   },
   {
    "id": "10",
@@ -130,14 +135,14 @@
    "hue": "gold",
    "keep_text": "number 10",
    "favourite": "cut/10_1.png",
-   "hidden": [
-    "cut/10_2.png",
-    "cut/10_3.png"
-   ],
    "choice": "cut/10_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/10_2.png",
+    "cut/10_3.png"
+   ]
   },
   {
    "id": "kirk",
@@ -150,14 +155,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/kirk_1.png",
-   "hidden": [
-    "cut/kirk_2.png",
-    "cut/kirk_3.png"
-   ],
    "choice": "bust/kirk_3",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/kirk_2.png",
+    "cut/kirk_3.png"
+   ]
   },
   {
    "id": "spock",
@@ -169,15 +174,15 @@
     "ref/spock.png"
    ],
    "hue": "blue",
-   "hidden": [
-    "cut/spock_1.png",
-    "cut/spock_2.png",
-    "cut/spock_3.png"
-   ],
    "choice": "bust/spock_3",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/spock_1.png",
+    "cut/spock_2.png",
+    "cut/spock_3.png"
+   ]
   },
   {
    "id": "worf",
@@ -190,14 +195,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/worf_1.png",
-   "hidden": [
-    "cut/worf_2.png",
-    "cut/worf_3.png"
-   ],
    "choice": "bust/worf_2",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/worf_2.png",
+    "cut/worf_3.png"
+   ]
   },
   {
    "id": "picard",
@@ -284,14 +289,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/enterprise_1.png",
-   "hidden": [
-    "cut/enterprise_2.png",
-    "cut/enterprise_3.png"
-   ],
    "choice": "cut/enterprise_1.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/enterprise_2.png",
+    "cut/enterprise_3.png"
+   ]
   },
   {
    "id": "enterprise_d",
@@ -319,14 +324,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/ds9_1.png",
-   "hidden": [
-    "cut/ds9_2.png",
-    "cut/ds9_3.png"
-   ],
    "choice": "cut/ds9_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/ds9_2.png",
+    "cut/ds9_3.png"
+   ]
   },
   {
    "id": "borg_cube",
@@ -384,14 +389,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/earth_1.png",
-   "hidden": [
-    "cut/earth_2.png",
-    "cut/earth_3.png"
-   ],
    "choice": "cut/earth_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/earth_2.png",
+    "cut/earth_3.png"
+   ]
   },
   {
    "id": "red_planet",
@@ -404,14 +409,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/red_planet_1.png",
-   "hidden": [
-    "cut/red_planet_2.png",
-    "cut/red_planet_3.png"
-   ],
    "choice": "cut/red_planet_1.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/red_planet_2.png",
+    "cut/red_planet_3.png"
+   ]
   },
   {
    "id": "gas_giant",
@@ -439,14 +444,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/nebula_1.png",
-   "hidden": [
-    "cut/nebula_2.png",
-    "cut/nebula_3.png"
-   ],
    "choice": "cut/nebula_1.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/nebula_2.png",
+    "cut/nebula_3.png"
+   ]
   },
   {
    "id": "delta",
@@ -459,14 +464,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/delta_2.png",
-   "hidden": [
-    "cut/delta_1.png",
-    "cut/delta_3.png"
-   ],
    "choice": "cut/delta_2.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/delta_1.png",
+    "cut/delta_3.png"
+   ]
   },
   {
    "id": "delta_gold",
@@ -494,14 +499,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/red_delta_1.png",
-   "hidden": [
-    "cut/red_delta_2.png",
-    "cut/red_delta_3.png"
-   ],
    "choice": "cut/red_delta_1.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/red_delta_2.png",
+    "cut/red_delta_3.png"
+   ]
   },
   {
    "id": "communicator",
@@ -514,10 +519,6 @@
    ],
    "hue": "gold",
    "favourite": "cut/communicator_1.png",
-   "hidden": [
-    "cut/communicator_2.png",
-    "cut/communicator_3.png"
-   ],
    "choice": "cut/communicator_6.png",
    "keep": false,
    "reiterate": false,
@@ -527,6 +528,10 @@
      "from": "raw/communicator_1.png",
      "note": ""
     }
+   ],
+   "binned": [
+    "cut/communicator_2.png",
+    "cut/communicator_3.png"
    ]
   },
   {
@@ -555,14 +560,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/phaser_1.png",
-   "hidden": [
-    "cut/phaser_2.png",
-    "cut/phaser_3.png"
-   ],
    "choice": "cut/phaser_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/phaser_2.png",
+    "cut/phaser_3.png"
+   ]
   },
   {
    "id": "mug",
@@ -575,14 +580,14 @@
    ],
    "hue": "gold",
    "favourite": "cut/mug_1.png",
-   "hidden": [
-    "cut/mug_2.png",
-    "cut/mug_3.png"
-   ],
    "choice": "cut/mug_1.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/mug_2.png",
+    "cut/mug_3.png"
+   ]
   },
   {
    "id": "wild",
@@ -596,10 +601,6 @@
    "hue": "gold",
    "keep_text": "word WILD",
    "favourite": "cut/wild_1.png",
-   "hidden": [
-    "cut/wild_2.png",
-    "cut/wild_3.png"
-   ],
    "choice": "cut/wild_1.png",
    "keep": true,
    "reiterate": false,
@@ -609,6 +610,10 @@
      "from": "raw/wild_1.png",
      "note": ""
     }
+   ],
+   "binned": [
+    "cut/wild_2.png",
+    "cut/wild_3.png"
    ]
   },
   {
@@ -623,14 +628,14 @@
    "hue": "gold",
    "keep_text": "word SCATTER",
    "favourite": "cut/scatter_1.png",
-   "hidden": [
-    "cut/scatter_2.png",
-    "cut/scatter_3.png"
-   ],
    "choice": "cut/scatter_1.png",
    "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "binned": [
+    "cut/scatter_2.png",
+    "cut/scatter_3.png"
+   ]
   },
   {
    "id": "bonus",
@@ -737,5 +742,29 @@
    "out": "object",
    "action": "new"
   }
- ]
+ ],
+ "concept": {
+  "brief": "",
+  "style": "",
+  "tiers": {
+   "high": 2,
+   "mid": 4,
+   "low": 5
+  },
+  "target_rtp": 91.5,
+  "volatility": "medium"
+ },
+ "steps": {
+  "concept": "todo",
+  "art": "doing",
+  "ladder": "todo",
+  "scene": "todo",
+  "features": "todo",
+  "bonuses": "todo",
+  "sprites": "todo",
+  "sounds": "todo",
+  "maths": "todo",
+  "mockup": "todo",
+  "build": "todo"
+ }
 }

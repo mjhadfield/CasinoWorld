@@ -98,6 +98,15 @@ and Tailscale. It has six tabs:
     **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
     everything marked to FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs
     wait for it).
+  - **Value ladder:** order the final set by value into the tiers of the tier shape (Wild, the bonus and
+    free-spins scatters, then H1…, M1…, L1…), by dragging or click-to-place, with each tier's pays shown and the
+    Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
+  - **Scene:** the background (FLUX, three takes; an upload; or art already on the board, fitted to 1280×720),
+    the logo lettering (rendered by the server from a bundled or uploaded font, with gradient colours, an outline
+    and an optional emblem) and the reel frame's style and colour. The step shows the **mockup**: the real
+    screen layout, playable, using the ladder's symbols. From here on, **Play the mockup** opens it from any step.
+    The mockup is the signed-off Armadillo mockup made design-driven (`slot_design_web/mockup/`), running the
+    shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads

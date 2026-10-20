@@ -83,7 +83,7 @@
   /* Line wins on a grid (array of 20 symbols, cell = reel*4+row). The longest match per line
      only; Wild stands in for everything but the scatters; a run of Wilds pays as Wilds when
      that's worth more. Returns [{line, sym, count, mult (line-bet multiple), cells}]. */
-  function evaluate(grid) {
+  function evaluate(grid, pays = PAYS) {
     const wins = [];
     for (let l = 0; l < LINES.length; l++) {
       const cells = LINES[l].map((row, reel) => reel * ROWS + row);
@@ -92,12 +92,12 @@
       while (wildRun < REELS && syms[wildRun] === "W") wildRun++;
       const target = syms.find((s) => s !== "W");
       let best = null;
-      if (wildRun >= 3) best = { sym: "W", count: wildRun, mult: PAYS.W[wildRun - 3] };
-      if (target && PAYS[target]) {
+      if (wildRun >= 3) best = { sym: "W", count: wildRun, mult: pays.W[wildRun - 3] };
+      if (target && pays[target]) {
         let n = 0;
         while (n < REELS && (syms[n] === target || syms[n] === "W")) n++;
         if (n >= 3) {
-          const m = PAYS[target][n - 3];
+          const m = pays[target][n - 3];
           if (!best || m > best.mult) best = { sym: target, count: n, mult: m };
         }
       }
@@ -114,7 +114,7 @@
 
   /* The exact return of the line pays with no features: every cell of a reel has the same
      symbol distribution, so one line's expectation, times 25, is the whole thing. */
-  function exactLineRtp(strips) {
+  function exactLineRtp(strips, pays = PAYS) {
     const freq = strips.map((strip) => {
       const f = {};
       for (const s of strip) f[s] = (f[s] || 0) + 1 / strip.length;
@@ -126,7 +126,7 @@
       if (reel === REELS) {
         const grid = new Array(REELS * ROWS).fill("L1");
         for (let r = 0; r < REELS; r++) grid[r * ROWS + 1] = syms[r];   // line 1 is row 1 throughout
-        const w = evaluate(grid).find((x) => x.line === 1);
+        const w = evaluate(grid, pays).find((x) => x.line === 1);
         if (w) ev += p * w.mult;
         return;
       }
@@ -143,6 +143,7 @@
   function spinOutcome(V, bet, rng, opts = {}) {
     const free = !!opts.free, rig = opts.rig || {};
     const strips = free ? V.freeStrips : V.strips;
+    const pays = V.pays || PAYS, upgrades = V.upgrades || UPGRADES, features = V.features || FEATURES;
     const lineBet = bet / 25;
     let stops, grid, sc;
     for (let tries = 0; ; tries++) {
@@ -159,12 +160,12 @@
     const rates = free ? V.freeRates : V.rates;
     let on = {};
     if (rig.features) for (const f of rig.features) on[f] = true;
-    else for (const f of FEATURES) if (rng() < rates[f]) on[f] = true;
+    else for (const f of features) if (rng() < rates[f]) on[f] = true;
     if (trigger) { delete on.wildReels; delete on.colossal; }
     if (trigger === "free") delete on.repeat;
     if (on.repeat && on.instant) delete on[rng() < 0.5 ? "repeat" : "instant"];
     if (free && !Object.keys(on).some((f) => f !== "repeat")) {
-      on[weighted(rng, FEATURES.filter((f) => f !== "repeat").map((f) => [f, rates[f]]))] = true;
+      on[weighted(rng, features.filter((f) => f !== "repeat").map((f) => [f, rates[f]]))] = true;
     }
 
     const out = { bet, free, stops, landed, trigger, scatters: sc, colossal: null, wildReels: [], wilds: [],
@@ -209,16 +210,16 @@
 
     // Post-stop: Symbol Upgrade, then the lines, then Repeat Win or Instant Win.
     if (on.upgrade) {
-      const present = [...new Set(grid.filter((s) => UPGRADES[s]))];
+      const present = [...new Set(grid.filter((s) => upgrades[s]))];
       if (present.length) {
-        const from = present[int(rng, present.length)], to = UPGRADES[from];
+        const from = present[int(rng, present.length)], to = upgrades[from];
         const cells = [];
         grid.forEach((s, c) => { if (s === from) { grid[c] = to; cells.push(c); } });
         out.upgrade = { from, to, cells };
       }
     }
     out.grid = grid;
-    out.wins = evaluate(grid).map((w) => ({ ...w, pence: Math.floor(w.mult * lineBet * out.multiplier) }));
+    out.wins = evaluate(grid, pays).map((w) => ({ ...w, pence: Math.floor(w.mult * lineBet * out.multiplier) }));
     out.lineWin = out.wins.reduce((a, w) => a + w.pence, 0);
     if (on.repeat && out.lineWin > 0) out.repeat = weighted(rng, V.repeats);
     if (on.instant) out.instant = weighted(rng, V.instants) * bet;
@@ -485,11 +486,17 @@
   const BASE_COUNTS = [0, 1, 2, 3, 4].map((reel) => ({
     W: reel ? 4 : 0, H1: 3, H2: 3, M1: 5, M2: 5, M3: 5, M4: 5, L1: 6, L2: 6, L3: 6, L4: 6, BS: reel === 2 ? 2 : 1, FS: 1,
   }));
+  /* A variant from its settings. Pays, upgrades and features default to the house standard (Armadillo's); a
+     designed slot (the admin page's Slot design wizard) brings its own, and its strips either as per-reel symbol
+     counts (built here, seeded, so the server builds the same) or already frozen. */
   function makeVariant(p) {
     const V = Object.assign({}, p);
-    V.strips = p.counts.map((c, i) => buildStrip(c, 1000 + i));
-    V.freeStrips = p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
-    V.bigStrip = buildStrip(p.bigCounts, 3000);
+    V.pays = p.pays || PAYS;
+    V.upgrades = p.upgrades || UPGRADES;
+    V.features = p.features || FEATURES;
+    V.strips = p.strips || p.counts.map((c, i) => buildStrip(c, 1000 + i));
+    V.freeStrips = p.freeStrips || p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
+    V.bigStrip = p.bigStrip || buildStrip(p.bigCounts, 3000);
     return V;
   }
   const ARMADILLO = makeVariant({

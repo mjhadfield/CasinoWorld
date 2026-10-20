@@ -95,6 +95,12 @@ def refine_prompt(kind: str, key: str, instruction: str) -> str:
             f"this: {instruction.strip().rstrip('.')}. {_bg(key)}, as it is now. No text, no border.")
 
 
+def background_prompt(description: str) -> str:
+    return (f"A wide painterly slot machine game background: {description.strip().rstrip('.')}. Cinematic lighting, "
+            "rich colour, darker and calmer in the middle where the reels sit. No text, no slot machine, no reels, "
+            "no people in the foreground.")
+
+
 def themed(prompt: str, theme: str = "") -> str:
     """Lead with the design's theme brief (Concept), so every picture belongs to the same slot."""
     return f"Theme: {theme.strip().rstrip('.')}. {prompt}" if theme and theme.strip() else prompt
@@ -140,9 +146,9 @@ def flux_edit(ref: Image.Image, prompt: str) -> Image.Image:
                            "--form-string", "size=512x512", "--form-string", "quality=high"], buf.getvalue()))
 
 
-def flux_generate(prompt: str) -> Image.Image:
-    """Draw from a prompt alone (1024²)."""
-    body = json.dumps({"prompt": prompt, "size": "1024x1024", "quality": "high"}).encode()
+def flux_generate(prompt: str, size: str = "1024x1024") -> Image.Image:
+    """Draw from a prompt alone (1024², or a background's 1344×768)."""
+    body = json.dumps({"prompt": prompt, "size": size, "quality": "high"}).encode()
     return _image(_docker(["-X", "POST", f"{FLUX_URL}/v1/images/generations",
                            "-H", "Content-Type: application/json", "--data-binary", "@-"], body))
 
@@ -153,6 +159,63 @@ def fit_square(im: Image.Image, size: int, fill=(8, 12, 28)) -> Image.Image:
     sq = Image.new("RGB", (side, side), fill)
     sq.paste(im, ((side - im.width) // 2, (side - im.height) // 2), im if im.mode == "RGBA" else None)
     return sq.resize((size, size), Image.LANCZOS)
+
+
+def fit_cover(im: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Scale and centre-crop to fill `size` exactly (a background)."""
+    k = max(size[0] / im.width, size[1] / im.height)
+    im = im.resize((max(size[0], round(im.width * k)), max(size[1], round(im.height * k))), Image.LANCZOS)
+    x, y = (im.width - size[0]) // 2, (im.height - size[1]) // 2
+    return im.crop((x, y, x + size[0], y + size[1]))
+
+
+def is_colour(v) -> bool:
+    return isinstance(v, str) and len(v) == 7 and v[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in v[1:])
+
+
+def render_logo(lines: list[str], font_path, top: str, bottom: str, outline: str, emblem: Image.Image | None = None) -> Image.Image:
+    """The logo's lettering: each line fitted to the width (the first biggest), filled with a top-to-bottom
+    gradient, outlined and shadowed, with an optional emblem to the left; trimmed to fit the screen's logo box."""
+    from PIL import ImageDraw, ImageFont
+    W, H = 1200, 420
+    tx, tw = (0, W) if emblem is None else (int(H * 0.95), W - int(H * 0.95))
+    weights = [1.25] + [1.0] * (len(lines) - 1)
+    heights = [H * w / sum(weights) for w in weights]
+    mask = Image.new("L", (W, H), 0)
+    stroke = Image.new("L", (W, H), 0)
+    y = 0.0
+    for line, lh in zip(lines, heights):
+        size = int(lh * 0.86)
+        while size > 10:
+            font = ImageFont.truetype(str(font_path), size)
+            box = font.getbbox(line, stroke_width=max(2, size // 14))
+            if box[2] - box[0] <= tw - 16 and box[3] - box[1] <= lh:
+                break
+            size -= 4
+        sw = max(2, size // 14)
+        x = tx + (tw - (box[2] - box[0])) / 2 - box[0]
+        yy = y + (lh - (box[3] - box[1])) / 2 - box[1]
+        ImageDraw.Draw(stroke).text((x, yy), line, font=font, fill=255, stroke_width=sw, stroke_fill=255)
+        ImageDraw.Draw(mask).text((x, yy), line, font=font, fill=255)
+        y += lh
+    t, b = _rgb(top), _rgb(bottom)
+    col = (t[None, :] * (1 - np.linspace(0, 1, H)[:, None]) + b[None, :] * np.linspace(0, 1, H)[:, None]).astype(np.uint8)
+    grad = Image.fromarray(np.dstack([np.repeat(col[:, None, :], W, axis=1), np.full((H, W), 255, np.uint8)]), "RGBA")
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    shadow.putalpha(stroke.filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * 0.6)))
+    out.alpha_composite(shadow, (0, 6))
+    ring = Image.new("RGBA", (W, H), tuple(int(c) for c in _rgb(outline)) + (255,))
+    ring.putalpha(stroke)
+    out.alpha_composite(ring)
+    grad.putalpha(mask)
+    out.alpha_composite(grad)
+    if emblem is not None:
+        e = emblem.copy()
+        e.thumbnail((int(H * 0.95), int(H * 0.95)), Image.LANCZOS)
+        out.alpha_composite(e, ((tx - e.width) // 2, (H - e.height) // 2))
+    bbox = out.getchannel("A").getbbox()
+    return out.crop(bbox) if bbox else out
 
 
 # ------------------------------------------------------------------ keying

@@ -6,30 +6,7 @@ Signed off by Mike on 2026-10-18 from the mockup (docs/slots/mockup): the game r
 The strips are frozen from the mockup's buildStrip (seeds 1000+reel, 2000+reel, 3000), so the
 Python engine and the mockup give the same spin for the same seed.
 """
-from dataclasses import dataclass, field
-
-
-@dataclass(frozen=True)
-class SlotVariant:
-    id: str
-    name: str
-    symbols: dict                 # tier -> what this theme calls it
-    strips: list                  # base game, one per reel (the top row shows strip[stop])
-    free_strips: list             # free games: no scatters
-    big_strip: list               # the big symbols Colossal Reels spin
-    rates: dict                   # chance of each random feature on a paid spin
-    free_rates: dict              # ...and on a free game (at least one is guaranteed)
-    wild_counts: list
-    wild_reel_counts: list
-    colossal_sizes: list
-    multipliers: list
-    repeats: list
-    instants: list                # Instant Win, in multiples of the bet
-    trail: dict
-    buy_cost: int = 45            # Buy Bonus, in bets (0: no Buy Bonus)
-    free_games: int = 3
-    extras: dict = field(default_factory=dict)
-
+from casino_server.slots.variant import SlotVariant
 
 BASE_STRIPS = [
     ["L2", "M2", "M3", "H2", "M2", "L2", "M4", "L4", "M1", "M1", "BS", "L4", "M4", "M2", "L3", "H2", "H1", "L4", "M3", "L1", "M4", "M1", "M3", "L1", "M3", "L2", "L1", "L4", "L1", "M4", "L3", "L2", "FS", "L3", "M2", "M1", "H1", "M4", "L4", "L4", "M1", "L1", "L1", "L2", "H2", "M2", "M3", "H1", "L3", "L2", "L3", "L3"],

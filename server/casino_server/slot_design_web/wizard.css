@@ -87,3 +87,37 @@
 .cut-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .cut-row input { flex: 1 1 160px; }
 .cut-row select { flex: 1 1 110px; }
+/* the mockup (Scene step and the Play dialog) */
+.wz-bar .grow { flex: 1 1 auto; }
+.wz-canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: #000; }
+.wz-mock { width: min(1320px, 96vw); padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); }
+.wz-mock::backdrop { background: rgb(0 0 0 / .7); }
+.wz-mock-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.wz-mock-head button { margin-left: auto; }
+.wz-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.wz-none { display: grid; place-items: center; width: 96px; height: 64px; font-size: 12px; color: var(--muted); }
+.dz-strip img.contain { object-fit: contain; background: #1a1030; }
+/* the Value ladder */
+.lad-cols { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .lad-cols { grid-template-columns: 1fr; } }
+.lad-pal { display: grid; gap: 4px; }
+.lad-pal button { text-align: left; padding: 3px 6px; }
+.lad-pal button.placed { opacity: .55; }
+.lad-pal button[aria-pressed="true"] { border-color: var(--gold); background: var(--target); opacity: 1; }
+.lad-sym { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.lad-sym img, .lad-sym .noart { width: 40px; height: 40px; border-radius: 6px; background: var(--stage); flex: none; }
+.lad-sym .noart { display: grid; place-items: center; color: var(--muted); }
+.lad-sym.small img { width: 34px; height: 34px; }
+.lad-group { display: grid; gap: 4px; }
+.lad-group h3 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); }
+.lad-row { display: grid; grid-template-columns: 44px minmax(140px, 1fr) minmax(0, auto) auto auto; gap: 8px; align-items: center; }
+.lad-tier { justify-self: start; font: 12px var(--mono); }
+.lad-slot { min-height: 46px; display: flex; align-items: center; padding: 2px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.lad-slot.empty { border-style: dashed; }
+.lad-slot.target { cursor: pointer; border-color: var(--gold); }
+.lad-slot.over { background: var(--target); }
+.lad-pays { font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+.lad-up { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--muted); }
+.lad-up select { font-size: 12px; padding: 1px 4px; }
+.lad-move { display: inline-flex; gap: 3px; }
+@media (max-width: 620px) { .lad-row { grid-template-columns: 40px minmax(0, 1fr); } .lad-pays, .lad-up, .lad-move { grid-column: 2; } }

@@ -95,7 +95,8 @@ class SlotMachine(TableMachine):
     def rules(self) -> dict:
         v = self.variant
         return {"game": GAME_KEY, "variant": v.id, "name": v.name, "symbols": v.symbols, "lines": base.LINES,
-                "pays": {k: list(p) for k, p in base.PAYS.items()}, "upgrades": base.UPGRADES, "ladder": base.LADDER,
+                "pays": {k: list(p) for k, p in v.pays.items()}, "upgrades": v.upgrades, "ladder": base.LADDER,
+                "features": v.features, "art": v.art, "theme": v.theme,
                 "strips": v.strips, "free_strips": v.free_strips, "big_strip": v.big_strip, "buy_cost": v.buy_cost,
                 "free_games": v.free_games, "tiers": [{k: t[k] for k in ("id", "name", "seed")} for t in jackpots.TIERS],
                 "seats": 1}

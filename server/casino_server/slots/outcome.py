@@ -10,8 +10,7 @@ The rules the pipeline keeps (from the rules sheet):
 - Repeat Win never comes with a free-spin trigger, nor with an Instant Win
 - the two bonuses never trigger together
 """
-from casino_server.slots.base import (FEATURES, REELS, ROWS, SCATTERS, UPGRADES, count_scatters, evaluate,
-                                      grid_from_stops)
+from casino_server.slots.base import REELS, ROWS, SCATTERS, count_scatters, evaluate, grid_from_stops
 from casino_server.slots.rng import randint, sample, weighted
 
 
@@ -42,7 +41,7 @@ def spin_outcome(v, bet: int, rng, free: bool = False, rig: dict | None = None) 
         for f in rig["features"]:
             on[f] = True
     else:
-        for f in FEATURES:
+        for f in v.features:
             if rng() < rates[f]:
                 on[f] = True
     if trigger:
@@ -53,7 +52,7 @@ def spin_outcome(v, bet: int, rng, free: bool = False, rig: dict | None = None) 
     if on.get("repeat") and on.get("instant"):
         on.pop("repeat" if rng() < 0.5 else "instant")
     if free and not any(f != "repeat" for f in on):
-        on[weighted(rng, [(f, rates[f]) for f in FEATURES if f != "repeat"])] = True
+        on[weighted(rng, [(f, rates[f]) for f in v.features if f != "repeat"])] = True
 
     out = {"bet": bet, "free": free, "stops": stops, "landed": landed, "trigger": trigger, "scatters": sc,
            "colossal": None, "wild_reels": [], "wilds": [], "multiplier": 1, "upgrade": None, "repeat": 0, "instant": 0}
@@ -91,16 +90,16 @@ def spin_outcome(v, bet: int, rng, free: bool = False, rig: dict | None = None) 
 
     # Post-stop: Symbol Upgrade, then the lines, then Repeat Win or Instant Win.
     if on.get("upgrade"):
-        present = list(dict.fromkeys(s for s in grid if s in UPGRADES))
+        present = list(dict.fromkeys(s for s in grid if s in v.upgrades))
         if present:
             frm = present[randint(rng, len(present))]
-            to = UPGRADES[frm]
+            to = v.upgrades[frm]
             cells = [c for c, s in enumerate(grid) if s == frm]
             for c in cells:
                 grid[c] = to
             out["upgrade"] = {"from": frm, "to": to, "cells": cells}
     out["grid"] = grid
-    out["wins"] = [{**w, "pence": int(w["mult"] * line_bet * out["multiplier"])} for w in evaluate(grid)]
+    out["wins"] = [{**w, "pence": int(w["mult"] * line_bet * out["multiplier"])} for w in evaluate(grid, v.pays)]
     out["line_win"] = sum(w["pence"] for w in out["wins"])
     if on.get("repeat") and out["line_win"] > 0:
         out["repeat"] = weighted(rng, v.repeats)
