@@ -51,7 +51,7 @@
     "cut/A_3.png"
    ],
    "choice": "cut/A_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -72,7 +72,7 @@
     "cut/K_3.png"
    ],
    "choice": "cut/K_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -93,7 +93,7 @@
     "cut/Q_3.png"
    ],
    "choice": "cut/Q_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -114,7 +114,7 @@
     "cut/J_3.png"
    ],
    "choice": "cut/J_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -135,7 +135,7 @@
     "cut/10_3.png"
    ],
    "choice": "cut/10_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -188,14 +188,14 @@
    "refs": [
     "ref/worf_tng.png"
    ],
-   "hue": "red",
+   "hue": "gold",
    "favourite": "cut/worf_1.png",
    "hidden": [
     "cut/worf_2.png",
     "cut/worf_3.png"
    ],
-   "choice": "bust/worf_3",
-   "keep": false,
+   "choice": "bust/worf_2",
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -206,13 +206,21 @@
    "kind": "character",
    "key": "magenta",
    "refs": [
-    "ref/picard.png"
+    "ref/picard.png",
+    "links/screenshot_20261020_003926.png"
    ],
    "hue": "red",
-   "choice": "bust/picard_3",
+   "choice": "bust/picard_6",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "It looks remarkably unlike captain picard, please see attached reference image",
+   "base": "links/screenshot_20261020_003926.png",
+   "history": [
+    {
+     "from": "links/screenshot_20261020_003926.png",
+     "note": "It looks remarkably unlike captain picard, please see attached reference image"
+    }
+   ]
   },
   {
    "id": "data",
@@ -224,10 +232,16 @@
     "ref/data.png"
    ],
    "hue": "gold",
-   "choice": "bust/data_2",
+   "choice": "bust/data_1",
    "keep": false,
-   "reiterate": true,
-   "note": ""
+   "reiterate": false,
+   "note": "",
+   "history": [
+    {
+     "from": "raw/bust_data_2.png",
+     "note": ""
+    }
+   ]
   },
   {
    "id": "troi",
@@ -240,7 +254,7 @@
    ],
    "hue": "purple",
    "choice": "bust/troi_3",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -310,7 +324,7 @@
     "cut/ds9_3.png"
    ],
    "choice": "cut/ds9_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -375,7 +389,7 @@
     "cut/earth_3.png"
    ],
    "choice": "cut/earth_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -464,7 +478,7 @@
     "ref/delta_gold.png"
    ],
    "hue": "gold",
-   "choice": "cut/delta_gold_1.png",
+   "choice": "cut/delta_gold_3.png",
    "keep": false,
    "reiterate": false,
    "note": ""
@@ -504,10 +518,16 @@
     "cut/communicator_2.png",
     "cut/communicator_3.png"
    ],
-   "choice": "cut/communicator_1.png",
+   "choice": "cut/communicator_6.png",
    "keep": false,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "history": [
+    {
+     "from": "raw/communicator_1.png",
+     "note": ""
+    }
+   ]
   },
   {
    "id": "tricorder",
@@ -520,7 +540,7 @@
    ],
    "hue": "gold",
    "choice": "cut/tricorder_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -540,7 +560,7 @@
     "cut/phaser_3.png"
    ],
    "choice": "cut/phaser_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
   },
@@ -581,9 +601,15 @@
     "cut/wild_3.png"
    ],
    "choice": "cut/wild_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
-   "note": ""
+   "note": "",
+   "history": [
+    {
+     "from": "raw/wild_1.png",
+     "note": ""
+    }
+   ]
   },
   {
    "id": "scatter",
@@ -602,10 +628,114 @@
     "cut/scatter_3.png"
    ],
    "choice": "cut/scatter_1.png",
-   "keep": false,
+   "keep": true,
    "reiterate": false,
    "note": ""
+  },
+  {
+   "id": "bonus",
+   "name": "Bonus",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "Bonus icon based on Starfleet Delta",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "choice": "cut/bonus_3.png"
   }
  ],
- "jobs": []
+ "jobs": [
+  {
+   "id": 1,
+   "symbol": "picard",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_picard_4",
+    "bust_picard_5",
+    "bust_picard_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_003926.png",
+   "text": "It looks remarkably unlike captain picard, please see attached reference image",
+   "out": "character",
+   "action": "reiterate"
+  },
+  {
+   "id": 2,
+   "symbol": "data",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_data_4",
+    "bust_data_5",
+    "bust_data_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/bust_data_2.png",
+   "text": "",
+   "out": "character",
+   "action": "reiterate"
+  },
+  {
+   "id": 3,
+   "symbol": "communicator",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "communicator_4",
+    "communicator_5",
+    "communicator_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/communicator_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 4,
+   "symbol": "wild",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "wild_4",
+    "wild_5",
+    "wild_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/wild_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 5,
+   "symbol": "bonus",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_1",
+    "bonus_2",
+    "bonus_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Bonus icon based on Starfleet Delta",
+   "out": "object",
+   "action": "new"
+  }
+ ]
 }
