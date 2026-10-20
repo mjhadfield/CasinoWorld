@@ -10,6 +10,7 @@ extends Node
 signal art_changed
 
 const DIR := "res://assets/slots/%s/%s.png"
+const UI_FALLBACK := preload("res://assets/fonts/BarlowCondensed-Bold.ttf")
 const ARMADILLO := ["W", "H1", "H2", "M1", "M2", "M3", "M4", "L1", "L2", "L3", "L4", "BS", "FS", "barrel",
 	"armadillo", "cylinder", "t_coin", "t_double", "t_forward", "t_heart", "t_lightning", "t_crate",
 	"t_upgrade", "t_gold", "t_snake", "logo"]
@@ -67,6 +68,7 @@ func reload() -> void:
 		if url.contains("/fonts/"):
 			var f := FontFile.new()
 			f.data = body
+			f.fallbacks = [UI_FALLBACK]   # a glyph the slot's font lacks (StarTrek Film has no £) comes from the house font
 			_downloaded[url] = f
 		else:
 			var img := Image.new()

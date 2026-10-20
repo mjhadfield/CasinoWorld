@@ -2,7 +2,7 @@
 The Slot design wizard's last step, Build: a signed-off design becomes a slot the casino plays.
 
 build() writes the design into its build folder (slot_builds.py explains the layout): the variant (its frozen
-maths, from slot_design_steps.variant_from_design) with its theme (colours, fonts, frame, win animations, words,
+maths, from slot_design_steps.variant_from_design) with its theme (the chosen scene's skin, colours and fonts, win animations, words,
 rules screen, floor cabinet), every picture the game draws, the two fonts, its floor spot and its sounds, and an
 IDEAS.md of any new feature or bonus it described (those need building in code). install() then restarts the live
 server, which loads it: its cabinets appear on the floor and its art, fonts and sounds reach every game. A dev
@@ -17,6 +17,8 @@ import subprocess
 from pathlib import Path
 
 from casino_server import slot_builds
+from casino_server.slot_design_art import web_font
+from casino_server.slot_design_scene import bake_glass, look
 from casino_server.slot_design_steps import (FONTS_DIR, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view,
                                              ladder_view, signoff_view, sprites_view, variant_from_design)
 
@@ -90,11 +92,13 @@ class BuildMixin:
             labels = {t: f"{names.get(lad['slots'][t], t)} ({t})" for t in lad["tiers"]}
             labels.update({k: a["label"] for k, a in arts.items()})
             labels.update({k: n for k, n in (("logo", "Logo"), ("bg", "Background")) if k in pictures})
-            fonts = {role: _font_path(d, name) for role, name in sp["fonts"].items()}
+            lk = look(d)
+            skin = {k: v for k, v in lk["skin"].items() if k not in ("colours", "fonts", "frame", "deck", "note", "by")}
+            fonts = {role: _font_path(d, name) for role, name in lk["fonts"].items()}
             theme = {
-                "colours": sp["colours"], "fonts": {role: f"{role}{p.suffix.lower()}" for role, p in fonts.items()},
-                "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}), "deck": deck_look(sc), "win": sp["win"], "labels": False,
-                "texts": {"tagline": "GOOD LUCK", "trail": b["trail"]["name"].upper(), "launcher": b["trail"]["launcher"].upper(),
+                "colours": lk["colours"], "fonts": {role: f"{role}{p.suffix.lower()}" for role, p in fonts.items()},
+                "frame": lk["skin"]["frame"], "deck": deck_look(lk["skin"]), "skin": skin, "win": sp["win"], "labels": False,
+                "texts": {"tagline": skin["texts"].get("tagline", "GOOD LUCK"), "trail": b["trail"]["name"].upper(), "launcher": b["trail"]["launcher"].upper(),
                           "hint": b["trail"]["hint"], "free": b["free"]["name"].upper(),
                           "battle": b["battle"]["name"].upper(), "battle_hint": b["battle"]["hint"],
                           "enemy": b["battle"]["enemy"].upper(), "boss": b["battle"]["boss_name"].upper(),
@@ -113,8 +117,11 @@ class BuildMixin:
             (tmp / "fonts").mkdir()
             for key, src in pictures.items():
                 shutil.copyfile(src, tmp / "art" / f"{key}.png")
-            for role, src in fonts.items():
-                shutil.copyfile(src, tmp / "fonts" / theme["fonts"][role])
+            if "bg" in pictures and skin["base"] != "classic":   # what the glass panels show through them
+                bake_glass(pictures["bg"], tmp / "art" / "bg_glass.png", skin["glass"].get("blur", 14))
+                labels["bg_glass"] = "Background, behind glass"
+            for role, src in fonts.items():   # (browser-safe: the web build's fonts load like the wizard's)
+                (tmp / "fonts" / theme["fonts"][role]).write_bytes(web_font(src.read_bytes()))
             ideas = d.data.get("specs", [])
             if ideas:
                 (tmp / "IDEAS.md").write_text(f"# {v.name}: ideas to build\n\nDescribed on the Slot design wizard; each needs the engine "

@@ -290,6 +290,30 @@ def _lettering(lines: list[str], font_path, top: str, bottom: str, outline: str,
     return out
 
 
+def web_font(data: bytes) -> bytes:
+    """A font browsers will load. Their font checker (OTS) refuses a 'post' table of version 2.5 or 2.8 (old Apple
+    fonts such as StarTrek Film BT), so that table becomes version 3.0: the same font without its glyph names."""
+    import struct
+    if len(data) < 12 or data[:4] not in (b"\x00\x01\x00\x00", b"true", b"OTTO"):
+        return data
+    n = struct.unpack(">H", data[4:6])[0]
+    for i in range(n):
+        at = 12 + 16 * i
+        tag, _, off, length = struct.unpack(">4sIII", data[at:at + 16])
+        if tag != b"post" or length < 32:
+            continue
+        if struct.unpack(">I", data[off:off + 4])[0] in (0x00010000, 0x00020000, 0x00030000):
+            return data
+        head = bytearray(data[off:off + 32])
+        head[0:4] = struct.pack(">I", 0x00030000)
+        total = sum(struct.unpack(">8I", bytes(head))) & 0xFFFFFFFF
+        out = bytearray(data)
+        out[off:off + 32] = head
+        out[at + 4:at + 16] = struct.pack(">III", total, off, 32)   # the table is just its header now
+        return bytes(out)
+    return data
+
+
 def render_logo(lines: list[str], font_path, top: str, bottom: str, outline: str, emblem: Image.Image | None = None) -> Image.Image:
     """The logo's lettering: each line fitted to the width (the first biggest), filled with a top-to-bottom
     gradient, outlined and shadowed, with an optional emblem to the left; trimmed to fit the screen's logo box."""

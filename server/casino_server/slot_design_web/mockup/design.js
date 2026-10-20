@@ -11,7 +11,8 @@ export function loadMath() {
   });
 }
 
-// The design's two fonts (Sprites step), served by the server and added to the page so the canvas can use them.
+const HOUSE_UI = "BarlowCondensed-Bold.ttf";
+// The design's two fonts (its scene's), served by the server and added to the page so the canvas can use them.
 const fontsLoaded = new Map();
 export function fontFamily(did, name) {
   const family = "sd-" + (did + "-" + name).replace(/[^a-z0-9]+/gi, "-");
@@ -75,6 +76,7 @@ export function designParams(data) {
 }
 
 // The deck's look with "frame" (match the reel frame) resolved; slot_design_build does the same for a built slot.
+// sc is the chosen skin (scene.look.skin), which has the frame and deck.
 const deckOf = sc => {
   const d = sc.deck || {style: "frame", colour: null};
   return {style: d.style === "frame" ? (sc.frame || {}).style || "metal" : d.style, colour: d.colour || null};
@@ -91,17 +93,19 @@ export function designConfig(data, img) {
     art[t] = s && s.file ? img(s.file) : (A.symbols[t] ? armadillo(t) : null);
   }
   for (const id of EXTRA_ART) art[id] = data.art[id] && data.art[id].file ? img(data.art[id].file) : armadillo(id);
-  const sc = data.scene || {};
+  const sc = data.scene || {}, lk = sc.look;
   const logoLines = sc.logo && sc.logo.lines && sc.logo.lines.length ? sc.logo.lines : [data.name];
   return {
     variant: V, art,
     logo: sc.logo && sc.logo.file ? img(sc.logo.file) : null,
     background: sc.background ? img(sc.background) : null,
-    frame: sc.frame || {style: "metal", colour: "#c9a24a"},
-    deck: deckOf(sc),
-    theme: {colours: data.sprites.colours,
-            display: `"${fontFamily(data.id, data.sprites.fonts.display)}", Georgia, serif`,
-            cond: `"${fontFamily(data.id, data.sprites.fonts.ui)}", "Arial Narrow", system-ui, sans-serif`},
+    frame: lk.skin.frame,
+    deck: deckOf(lk.skin),
+    skin: lk.skin,
+    // a font without a glyph (StarTrek Film has no £) falls back to the house's interface font
+    theme: {colours: lk.colours,
+            display: `"${fontFamily(data.id, lk.fonts.display)}", "${fontFamily(data.id, HOUSE_UI)}", Georgia, serif`,
+            cond: `"${fontFamily(data.id, lk.fonts.ui)}", "${fontFamily(data.id, HOUSE_UI)}", "Arial Narrow", system-ui, sans-serif`},
     win: data.sprites.win,
     rules: data.signoff ? data.signoff.rules : null,
     labels: false,

@@ -20,6 +20,8 @@ export function createGame(cv, cfg) {
   };
   const C0 = Object.assign({}, C);   // Armadillo's look: a design's theme (Sprites step) is laid over it
   let FRAME = { style: "wood", colour: C.edge }, TEXT = {}, LABELS = true;
+  let SKIN = { base: "classic" };   // the Scene step's skin: its shapes, palette, decor and words
+  const lc = () => SKIN.base === "lcars";
   const VOYAGE_TEXT = { name: "DEAD MAN'S MAP", hint: "choose your next island", start: "TORTUGA", final: "ISLA DE MUERTA",
     treasure: "TREASURE ISLAND", wreck: "SHIPWRECK", skull: "SKULL ISLAND", port: "PORT ROYAL", cove: "HIDDEN COVE", relic: "RELIC",
     chest: "LEGENDARY TREASURE", legend: "THE LEGEND", artefacts: ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"] };
@@ -84,6 +86,8 @@ export function createGame(cv, cfg) {
                            pistol: "THE PISTOL", freeName: "COMBO FREE GAMES", battle: "RED ALERT", battleHint: "tap a ship to fire",
                            enemy: "ENEMY SHIP", boss: "FLAGSHIP", voyage: VOYAGE_TEXT }, c.texts || {});
     LABELS = c.labels !== false;
+    SKIN = c.skin || { base: "classic" };
+    if (SKIN.texts && SKIN.texts.tagline) TEXT.tagline = SKIN.texts.tagline;
   }
   setConfig(cfg);
 
@@ -173,6 +177,7 @@ export function createGame(cv, cfg) {
   }
   // Panels in the design's frame style (Scene step): wood (Armadillo's), metal, neon or glass, edged in its colour.
   function woodPanel(x, y, w, h, r = 14) {
+    if (lc()) return lcarsPanel(x, y, w, h);
     if (FRAME.style !== "wood") return stylePanel(x, y, w, h, r);
     const g = ctx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0, "#8a5530"); g.addColorStop(0.5, "#5c341a"); g.addColorStop(1, "#3a1f0d");
@@ -202,11 +207,230 @@ export function createGame(cv, cfg) {
     const base = opts.colour || (on ? [mix(C.gold, C.goldHi, 0.5), mix(C.gold, C.goldLo, 0.3), C.goldLo] : DECK.btn);
     g.addColorStop(0, base[0]); g.addColorStop(0.55, base[1]); g.addColorStop(1, base[2]);
     ctx.save(); if (disabled) ctx.globalAlpha = 0.4;
+    if (lc()) {   // LCARS: a flat pill, its label on the right
+      lcarsButton(x, y, w, h, opts.colour, hover, on);
+      const tc = sc(part("button").text || "ink"), wide = w > 80 && label.length > 1;
+      text(label, wide ? x + w - 12 : x + w / 2, y + h / 2 + 1, Math.min(opts.size || 22, h * 0.5), wide ? DISPLAY : COND, tc,
+           wide ? "right" : "center", wide ? "400" : "700", 0, w - 20);
+      ctx.restore();
+      if (!disabled) S.hits.push({ id, x, y, w, h });
+      return;
+    }
     rr(x, y, w, h, h * 0.28); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hover ? 3 : 2; ctx.strokeStyle = hover ? C.goldHi : C.edge; ctx.stroke();
     text(label, x + w / 2, y + h / 2 + 1, opts.size || 22, COND, on || opts.colour ? C.ink : C.cream);
     ctx.restore();
     if (!disabled) S.hits.push({ id, x, y, w, h });
+  }
+
+  // ------------------------------------------------------------------ the skin's shapes (Scene step; slot_screen.gd's match)
+  // A skin's colour: one of its names (palette, then the screen's colours) or a colour like #8fd3ff.
+  const sc = (ref) => !ref ? C.edge : ref[0] === "#" ? ref : (SKIN.palette && SKIN.palette[ref]) || C[ref] || ref;
+  const part = (p) => (SKIN.parts && SKIN.parts[p]) || {};
+  const T = (key, fallback) => (SKIN.texts && SKIN.texts[key]) || fallback;
+  // A bar with round ends (both, left, right or none): a half-circle each, or as round as a short bar allows.
+  function pillPath(x, y, w, h, round = "both") {
+    const L = round === "both" || round === "left", R = round === "both" || round === "right";
+    const r = Math.min(h / 2, L && R ? w / 2 : w);
+    ctx.beginPath();
+    ctx.moveTo(x + (L ? r : 0), y);
+    if (R) { ctx.arcTo(x + w, y, x + w, y + r, r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); } else { ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h); }
+    if (L) { ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r); ctx.arcTo(x, y, x + r, y, r); } else { ctx.lineTo(x, y + h); }
+    ctx.closePath();
+  }
+  // An LCARS elbow: a vertical arm (arm wide) turning into a bar (bar high) through a rounded outer corner r, in
+  // the box x,y,w,h, the turn at corner (tl, tr, bl, br).
+  function elbowPath(x, y, w, h, corner, arm, bar, r) {
+    r = Math.min(r, w, h);
+    const ri = Math.max(2, Math.min(r * 0.45, w - arm, h - bar));
+    const fx = corner[1] === "r", fy = corner[0] === "b";
+    const P = (px, py) => [fx ? x + w - px : x + px, fy ? y + h - py : y + py];   // the tl shape, turned to its corner
+    ctx.beginPath();
+    ctx.moveTo(...P(w, 0)); ctx.lineTo(...P(r, 0)); ctx.arcTo(...P(0, 0), ...P(0, r), r); ctx.lineTo(...P(0, h)); ctx.lineTo(...P(arm, h));
+    ctx.lineTo(...P(arm, bar + ri)); ctx.arcTo(...P(arm, bar), ...P(arm + ri, bar), ri); ctx.lineTo(...P(w, bar)); ctx.closePath();
+  }
+  // The background blurred, for glass to show (made once per background picture).
+  let bgBlur = null, bgBlurOf = null;
+  function blurred() {
+    const src = ok(bgImg) ? bgImg.src : null, blur = (SKIN.glass && SKIN.glass.blur) || 0;
+    if (!src || !blur) return null;
+    if (bgBlurOf !== src + blur) {
+      bgBlur = document.createElement("canvas"); bgBlur.width = W; bgBlur.height = H;
+      const b = bgBlur.getContext("2d"); b.filter = `blur(${blur}px)`; b.drawImage(bgImg, -blur, -blur, W + blur * 2, H + blur * 2);
+      bgBlurOf = src + blur;
+    }
+    return bgBlur;
+  }
+  // Frosted glass in the current path's shape: the blurred background, the tint, a sheen across the top, an edge.
+  function glass(path, x, y, w, h, tint, edge, edgeW) {
+    const G = SKIN.glass || {};
+    ctx.save(); path(); ctx.clip();
+    const bl = blurred();
+    if (bl) ctx.drawImage(bl, 0, 0);
+    ctx.globalAlpha = G.opacity != null ? G.opacity : 0.55; ctx.fillStyle = sc(tint || "glass"); ctx.fillRect(x, y, w, h);
+    if (G.sheen) {
+      const g = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 80));
+      g.addColorStop(0, `rgba(255,255,255,${G.sheen})`); g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(x, y, w, Math.min(h, 80));
+    }
+    ctx.restore();
+    const ew = edgeW != null ? edgeW : G.edge != null ? G.edge : 1.5;
+    if (edge && ew > 0) { path(); ctx.lineWidth = ew; ctx.strokeStyle = sc(edge); ctx.stroke(); }
+  }
+  // An LCARS panel: elbows top and bottom on its spine side, the spine between in blocks, a glass body. The side
+  // panels put the spine on the screen's edge; pop-ups on the left.
+  function lcarsPanel(x, y, w, h) {
+    const p = part("panel");
+    if (p.shape === "glass") { glass(() => rr(x, y, w, h, 16), x, y, w, h, p.fill, p.edge); return; }
+    // the side panels' spines run in the screen's margin, on its edge; a pop-up's on its left
+    const right = x + w >= 1250, left = x <= 20, arm = left || right ? 16 : 14, bar = 14, gap = 4;
+    const ox = left ? 4 : right ? x : x, ow = left ? x + w - 4 : right ? 1276 - x : w;   // the elbows' box
+    const bx = left ? 4 + arm + gap : right ? x : x + arm + gap, bw = left ? x + w - 4 - bx : right ? 1276 - arm - gap - x - 4 : w - arm - gap;
+    const eh = Math.min(110, h * 0.3);
+    glass(() => rr(bx, y + bar + gap, bw, h - 2 * (bar + gap), 10), bx, y + bar + gap, bw, h - 2 * (bar + gap), p.fill, p.edge, 1);
+    elbowPath(ox, y, ow, eh, right ? "tr" : "tl", arm, bar, 44); ctx.fillStyle = sc(p.top || "a"); ctx.fill();
+    elbowPath(ox, y + h - eh, ow, eh, right ? "br" : "bl", arm, bar, 44); ctx.fillStyle = sc(p.bottom || "c"); ctx.fill();
+    const spine = p.spine || ["b"], top = y + eh + gap, len = h - 2 * (eh + gap), seg = (len - gap * (spine.length - 1)) / spine.length;
+    spine.forEach((c, i) => { ctx.fillStyle = sc(c); ctx.fillRect(right ? ox + ow - arm : ox, top + i * (seg + gap), arm, seg); });
+  }
+  function lcarsFrame() {
+    const p = part("frame"), x = REEL_X - 22, y = REEL_Y - 18, w = REEL_W + 44, h = REEL_H + 36;
+    ctx.fillStyle = sc(p.fill || "glass"); ctx.fillRect(REEL_X, REEL_Y, REEL_W, REEL_H);
+    for (let r = 0; r < 5; r++) {
+      const rx = REEL_X + r * CELL_W, g = ctx.createLinearGradient(rx, 0, rx + CELL_W, 0);
+      g.addColorStop(0, "rgba(0,0,0,0.45)"); g.addColorStop(0.5, "rgba(255,255,255,0.03)"); g.addColorStop(1, "rgba(0,0,0,0.45)");
+      ctx.fillStyle = g; ctx.fillRect(rx, REEL_Y, CELL_W, REEL_H);
+    }
+    if (p.shape === "glass") { ctx.save(); rr(x, y, w, h, 18); rr(REEL_X - 4, REEL_Y - 4, REEL_W + 8, REEL_H + 8, 6); ctx.clip("evenodd");
+      glass(() => rr(x, y, w, h, 18), x, y, w, h, p.fill, null); ctx.restore(); rr(x, y, w, h, 18); ctx.lineWidth = 1.5; ctx.strokeStyle = sc(p.edge || "hl"); ctx.stroke(); return; }
+    const arm = 10, bar = 10, gap = 4, top = sc(p.top || "a"), bottom = sc(p.bottom || "c"), edge = sc(p.edge || "hl");
+    elbowPath(x, y, 260, 120, "tl", arm, bar, 28); ctx.fillStyle = top; ctx.fill();
+    elbowPath(x + w - 260, y + h - 120, 260, 120, "br", arm, bar, 28); ctx.fillStyle = bottom; ctx.fill();
+    // the bars running on from each elbow, in blocks
+    const run = (bx, by, len, cols, round) => {
+      const seg = [0.62, 0.24, 0.14];
+      let cx = bx;
+      cols.forEach((c, i) => { const sw = len * seg[i] - (i < cols.length - 1 ? gap : 0);
+        pillPath(cx, by, sw, bar, i === cols.length - 1 ? round : "none"); ctx.fillStyle = c; ctx.fill(); cx += sw + gap; });
+    };
+    run(x + 260 + gap, y, w - 260 - gap, [top, edge, bottom], "right");
+    ctx.save(); ctx.translate(x + w, y + h - bar); ctx.scale(-1, 1); run(260 + gap, 0, w - 260 - gap, [bottom, edge, top], "right"); ctx.restore();
+    ctx.fillStyle = alpha(edge, 0.7);
+    ctx.fillRect(x + 2, y + 120 + gap, 2, h - 120 - gap - bar - gap); ctx.fillRect(x + w - 4, y + bar + gap, 2, h - 120 - gap - bar - gap);
+  }
+  // The jackpot meters: a tier-coloured cap on the outer end and a glass body (tab); a coloured pill; or glass.
+  function lcarsMeter(id, name, value, x, y, w, h, lit) {
+    const p = part("meter"), tier = (SKIN.palette && SKIN.palette[id]) || C.tiers[id];
+    const fill = p.fill === "tier" || !p.fill ? tier : sc(p.fill), txt = sc(p.text || "goldHi");
+    const outer = x < 640 ? "left" : "right";
+    if (p.shape === "pill") {
+      pillPath(x, y, w, h); ctx.fillStyle = lit ? mix(fill, "#ffffff", 0.35) : fill; ctx.fill();
+      text(name, x + w / 2, y + 18, 16, DISPLAY, sc("ink"), "center", "400", 0, w - 40);
+      text(value, x + w / 2, y + 46, 32, COND, sc("ink"), "center", "700", 0, w - 40);
+      return;
+    }
+    if (p.shape === "glass") {
+      glass(() => rr(x, y, w, h, 18), x, y, w, h, "glass", fill, lit ? 4 : 2);
+    } else {
+      const cap = 44, gap = 5, cx = outer === "left" ? x : x + w - cap, bx = outer === "left" ? x + cap + gap : x;
+      pillPath(cx, y, cap, h, outer); ctx.fillStyle = lit ? mix(fill, "#ffffff", 0.45) : fill; ctx.fill();
+      glass(() => { ctx.beginPath(); ctx.rect(bx, y, w - cap - gap, h); }, bx, y, w - cap - gap, h, "glass", lit ? "hl" : fill, lit ? 3 : 1.5);
+      x = bx; w = w - cap - gap;
+    }
+    text(name, x + w / 2, y + 17, 16, DISPLAY, fill, "center", "400", 0, w - 16);
+    text(value, x + w / 2, y + 46, 32, COND, txt, "center", "700", 0, w - 16);
+  }
+  // A box (credit, bet, win; the feature list; the info boxes; Buy Bonus): a glass pill, or glass.
+  function lcarsBox(x, y, w, h, opts = {}) {
+    const p = part("box");
+    const path = () => (p.shape === "glass" || h > 60 ? rr(x, y, w, h, Math.min(p.shape === "glass" ? 14 : 22, h / 2)) : pillPath(x, y, w, h));
+    if (opts.lit) { path(); ctx.fillStyle = opts.lit; ctx.fill(); return; }
+    glass(path, x, y, w, h, p.fill, opts.edge || p.edge || "b", opts.edgeW);
+  }
+  function lcarsButton(x, y, w, h, base, hover, on) {
+    const p = part("button");
+    pillPath(x, y, w, h, p.shape === "half" ? "right" : "both");
+    const f = base ? base[1] : on ? sc(p.on || "warn") : sc(p.fill || "b");
+    ctx.fillStyle = hover ? mix(f, "#ffffff", 0.3) : f; ctx.fill();
+  }
+  // The deck: dark glass under an LCARS rail, an elbow at its left end.
+  function lcarsDeck(y) {
+    const p = part("deck"), top = y - 26, fill = sc(p.fill || "d"), accent = sc(p.accent || "a"), edge = sc(p.edge || "hl");
+    ctx.fillStyle = alpha(sc("shade"), 0.9); ctx.fillRect(0, top, W, H - top);
+    const bar = 6, gap = 4;
+    if (p.shape === "bar") {
+      pillPath(4, top, 600, bar, "left"); ctx.fillStyle = accent; ctx.fill();
+      ctx.fillStyle = edge; ctx.fillRect(608, top, 200, bar);
+      pillPath(812, top, W - 816, bar, "right"); ctx.fillStyle = fill; ctx.fill();
+      return;
+    }
+    elbowPath(4, top, 140, H - top - 4, "tl", 12, bar, 26); ctx.fillStyle = accent; ctx.fill();
+    ctx.fillStyle = fill; ctx.fillRect(148, top, 460, bar);
+    ctx.fillStyle = edge; ctx.fillRect(612, top, 180, bar);
+    pillPath(796, top, W - 800, bar, "right"); ctx.fillStyle = fill; ctx.fill();
+  }
+  // The spin button: a pill across the gap between AUTO and CASH OUT, or a glass disc.
+  const SPIN_PILL = { x: 1036, y: 628, w: 128, h: 72 };
+  function lcarsSpin(label, spinning, hov) {
+    const p = part("spin"), f = sc(p.fill || "hl"), cx = 1112, cy = 664;
+    if (p.shape === "disc") {
+      glass(() => { ctx.beginPath(); ctx.arc(cx, cy, 46, 0, 7); }, cx - 46, cy - 46, 92, 92, f, f, hov ? 5 : 3);
+      ctx.beginPath(); ctx.arc(cx, cy, 34, 0, 7); ctx.fillStyle = spinning ? dark(f, 0.25) : f; ctx.fill();
+      text(label, cx, cy + 2, 22, DISPLAY, sc(p.text || "ink"), "center", "400", 0, 62);
+      return { x: cx - 46, y: cy - 46, w: 92, h: 92 };
+    }
+    const b = SPIN_PILL;
+    pillPath(b.x, b.y, b.w, b.h); ctx.fillStyle = spinning ? dark(f, 0.25) : hov ? mix(f, "#ffffff", 0.3) : f; ctx.fill();
+    text(label, b.x + b.w / 2, b.y + b.h / 2 + 2, 28, DISPLAY, sc(p.text || "ink"), "center", "400", 0, b.w - 28);
+    return b;
+  }
+  // Decor: Claude's free shapes, under the parts or over them.
+  const pad = (n, k) => String(n).padStart(k, "0");
+  function stardate() {
+    const d = new Date(), y0 = new Date(d.getFullYear(), 0, 1), y1 = new Date(d.getFullYear() + 1, 0, 1);
+    return ((d.getFullYear() - 1976) * 1000 + ((d - y0) / (y1 - y0)) * 1000).toFixed(1);
+  }
+  function token(s) {
+    const d = new Date();
+    return s.replace("{name}", V.name.toUpperCase()).replace("{stardate}", stardate())
+      .replace("{date}", d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase())
+      .replace("{time}", `${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}`);
+  }
+  // A readout's number: the same for a cell until its tick comes round (slot_screen.gd's _readout_value matches).
+  function readoutValue(seed, i, epoch, digits) {
+    let h = (Math.imul(seed + 1, 73856093) ^ Math.imul(i + 1, 19349663) ^ Math.imul(epoch + 1, 83492791)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0; h = (h ^ (h >>> 16)) >>> 0;
+    return pad(h % Math.pow(10, digits), digits);
+  }
+  function drawDecor(layer) {
+    for (const d of SKIN.decor || []) {
+      if (d.layer !== layer || d.show === false) continue;
+      ctx.save(); ctx.globalAlpha = d.alpha != null ? d.alpha : 1;
+      const col = sc(d.colour);
+      if (d.kind === "elbow") { elbowPath(d.x, d.y, d.w, d.h, d.corner, d.arm, d.bar, d.r); ctx.fillStyle = col; ctx.fill(); }
+      else if (d.kind === "bar" || d.kind === "pill") {
+        pillPath(d.x, d.y, d.w, d.h, d.round); ctx.fillStyle = col; ctx.fill();
+        if (d.kind === "pill" && d.text) {
+          const tx = d.align === "left" ? d.x + d.h / 2 + 4 : d.align === "right" ? d.x + d.w - d.h / 2 - 4 : d.x + d.w / 2;
+          text(token(d.text), tx, d.y + d.h / 2 + 1, d.size, d.font === "ui" ? COND : DISPLAY, sc(d.text_colour), d.align, "400", 0, d.w - d.h);
+        }
+      } else if (d.kind === "text") {
+        const tx = d.align === "left" ? d.x : d.align === "right" ? d.x + d.w : d.x + d.w / 2;
+        text(token(d.text), tx, d.y + d.h / 2, d.size, d.font === "ui" ? COND : DISPLAY, col, d.align, "400", 0, d.w);
+      } else if (d.kind === "readout") {
+        const total = d.cells.reduce((a, c) => a + c + 1.2, 0), gap = 3, unit = (d.w - gap * (d.cells.length - 1)) / total;
+        let x = d.x;
+        d.cells.forEach((n, i) => {
+          const cw = unit * (n + 1.2), c = sc(d.colours[i % d.colours.length]);
+          const epoch = d.tick > 0 ? Math.floor(S.now / d.tick + i * 0.37) : 0;   // the cells change one by one
+          pillPath(x, d.y, cw, d.h, i === 0 ? "left" : i === d.cells.length - 1 ? "right" : "none"); ctx.fillStyle = c; ctx.fill();
+          text(readoutValue(d.seed, i, epoch, n), x + cw - 4 - (i === d.cells.length - 1 ? d.h / 3 : 0), d.y + d.h / 2 + 1,
+               d.h * 0.78, COND, sc(d.text_colour), "right", "700", 0, cw - 6);
+          x += cw + gap;
+        });
+      }
+      ctx.restore();
+    }
   }
 
   // The vector background: dusk over the mesas (the painted set brings its own).
@@ -235,7 +459,12 @@ export function createGame(cv, cfg) {
 
   // ------------------------------------------------------------------ the frame, meters, panels, deck
   function drawBackground() {
-    if (ok(bgImg)) ctx.drawImage(bgImg, 0, 0, W, H); else ctx.drawImage(vecBg, 0, 0);
+    if (ok(bgImg)) ctx.drawImage(bgImg, 0, 0, W, H);
+    else if (lc()) {   // no picture: deep space, not Armadillo's dusk
+      const g = ctx.createRadialGradient(W / 2, H * 0.45, 60, W / 2, H / 2, 900);
+      g.addColorStop(0, mix(sc("glass"), "#ffffff", 0.05)); g.addColorStop(1, "#000000");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else ctx.drawImage(vecBg, 0, 0);
     const v = ctx.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, 820);
     v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, dark(C.shade, 0.6, 0.6));
     ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
@@ -244,6 +473,7 @@ export function createGame(cv, cfg) {
     const pills = [["grand", 18, 250], ["major", 278, 210], ["minor", 792, 210], ["mini", 1012, 250]];
     for (const [id, x, w] of pills) {
       const t = M.JACKPOT_TIERS.find((q) => q.id === id), y = 14, h = 70, col = C.tiers[id];
+      if (lc()) { lcarsMeter(id, t.name, moneyShort(Math.floor(S.metersShown[id])), x, y, w, h, S.pick && S.pick.lit === id && Math.floor(S.now * 6) % 2); continue; }
       const g = ctx.createLinearGradient(0, y, 0, y + h);
       g.addColorStop(0, "rgba(255,255,255,0.18)"); g.addColorStop(0.5, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.3)");
       rr(x, y, w, h, 18); ctx.fillStyle = C.shade; ctx.fill();
@@ -261,6 +491,7 @@ export function createGame(cv, cfg) {
     else goldText(TEXT.title[0], 640, 53, 40);
   }
   function drawFrame() {
+    if (lc()) return lcarsFrame();
     woodPanel(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36, 18);
     const reelBg = FRAME.style === "wood" ? ["#1c0e07", "#2e190d"] : FRAME.style === "metal" ? ["#0d0f13", "#1d2128"] : ["#05040f", "#100c26"];
     for (let r = 0; r < 5; r++) {
@@ -278,16 +509,21 @@ export function createGame(cv, cfg) {
   function drawSides() {
     // Left: the random features, lit when they hit this spin.
     woodPanel(18, REEL_Y - 18, 224, REEL_H + 36, 16);
-    text("RANDOM FEATURES", 130, REEL_Y + 8, 19, COND, C.goldHi);
+    text(T("features", "RANDOM FEATURES"), lc() ? 134 : 130, REEL_Y + 8, 19, lc() ? DISPLAY : COND, lc() ? sc(part("panel").title || "hl") : C.goldHi, "center", lc() ? "400" : "700", 0, 196);
     const names = [["wilds", "RANDOM WILDS"], ["wildReels", "WILD REELS"], ["colossal", "COLOSSAL REELS"], ["multiplier", "MULTIPLIER"],
       ["upgrade", "SYMBOL UPGRADE"], ["repeat", "REPEAT WIN"], ["instant", "INSTANT WIN"]].filter(([id]) => V.features.includes(id));
     const step = Math.min(52, 364 / Math.max(1, names.length));
     names.forEach(([id, label], i) => {
       const y = REEL_Y + 32 + i * step, lit = S.featureLit[id];
-      rr(34, y, 192, 42, 10);
-      ctx.fillStyle = lit ? alpha(mix(C.win, C.goldHi, 0.5 + 0.5 * Math.sin(S.now * 8)), 0.95) : DECK.inset; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : DECK.boxEdge; ctx.stroke();
-      text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, 130, y + 22, 20, COND, lit ? C.ink : C.muted);
+      const litCol = alpha(mix(C.win, C.goldHi, 0.5 + 0.5 * Math.sin(S.now * 8)), 0.95);
+      if (lc()) lcarsBox(36, y, 196, 42, { lit: lit ? sc("hl") : null, edgeW: 1 });
+      else {
+        rr(34, y, 192, 42, 10);
+        ctx.fillStyle = lit ? litCol : DECK.inset; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : DECK.boxEdge; ctx.stroke();
+      }
+      text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, lc() ? 134 : 130, y + 22, 20, COND,
+           lit ? C.ink : lc() ? sc(part("box").label || "c") : C.muted, "center", "700", 0, 180);
     });
     // Right: Buy Bonus and the two ways in.
     woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
@@ -295,12 +531,15 @@ export function createGame(cv, cfg) {
     const by = REEL_Y + 6;
     if (V.buyCost) {   // no Buy Bonus: the panel shows just the two ways in
     S.hits.push(...(busy ? [] : [{ id: "buy", x: 1052, y: by, w: 196, h: 178 }]));
-    rr(1052, by, 196, 178, 14);
     const hov = S.hover === "buy" && !busy;
-    ctx.fillStyle = hov ? DECK.buyHover : DECK.buy; ctx.fill();
-    ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = C.gold; ctx.stroke();
+    if (lc()) glass(() => rr(1048, by, 200, 178, 18), 1048, by, 200, 178, "glass", hov ? "hl" : "warn", hov ? 3 : 2);
+    else {
+      rr(1052, by, 196, 178, 14);
+      ctx.fillStyle = hov ? DECK.buyHover : DECK.buy; ctx.fill();
+      ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = C.gold; ctx.stroke();
+    }
     ctx.save(); if (busy) ctx.globalAlpha = 0.45;
-    text("BUY BONUS", 1150, by + 24, 26, COND, C.goldHi);
+    text(T("buy", "BUY BONUS"), 1150, by + 24, 26, lc() ? DISPLAY : COND, lc() ? sc("warn") : C.goldHi, "center", lc() ? "400" : "700", 0, 180);
     drawImg(img(buyIcon()), 1150 - 52, by + 38, 104, 104);
     text(money(bet() * V.buyCost), 1150, by + 156, 26, COND, "#fff");
     ctx.restore();
@@ -309,46 +548,63 @@ export function createGame(cv, cfg) {
       .map((s) => [s, (s === "BS" ? TEXT.bonus : TEXT.free)[0], routes(s).length > 1 ? "A RANDOM BONUS" : plays(routes(s))]);
     info.forEach(([sym, a, b], i) => {
       const y = by + 196 + i * 116;
-      rr(1052, y, 196, 104, 12); ctx.fillStyle = DECK.inset; ctx.fill();
+      if (lc()) lcarsBox(1048, y, 200, 104, { edgeW: 1 }); else { rr(1052, y, 196, 104, 12); ctx.fillStyle = DECK.inset; ctx.fill(); }
       // the symbol on the left, its two lines centred in the space to its right
       drawImg(img(sym), 1058, y + 14, 76, 76);
       const tx = 1138, tw = 1248 - 8 - tx, mid = tx + tw / 2;
-      text(a, mid, y + 40, 22, COND, C.goldHi, "center", "700", 0, tw); text(b, mid, y + 66, 16, COND, C.cream, "center", "700", 0, tw);
+      if (lc()) { text(a, mid, y + 40, 17, DISPLAY, sc("hl"), "center", "400", 0, tw); text(b, mid, y + 66, 14, COND, C.cream, "center", "700", 0, tw); }
+      else { text(a, mid, y + 40, 22, COND, C.goldHi, "center", "700", 0, tw); text(b, mid, y + 66, 16, COND, C.cream, "center", "700", 0, tw); }
     });
   }
   function drawDeck() {
     const y = 618;
-    ctx.fillStyle = DECK.band; ctx.fillRect(0, y - 26, W, H - y + 26);
-    ctx.fillStyle = C.edge; ctx.fillRect(0, y - 26, W, 2);
+    if (lc()) lcarsDeck(y);
+    else {
+      ctx.fillStyle = DECK.band; ctx.fillRect(0, y - 26, W, H - y + 26);
+      ctx.fillStyle = C.edge; ctx.fillRect(0, y - 26, W, 2);
+    }
     // the message bar
     text(S.message, 640, y - 12, 19, COND, C.goldHi);
     const box = (x, w, label, value, col = "#fff") => {
+      if (lc()) {
+        lcarsBox(x, y + 10, w, 82);
+        text(label, x + w / 2, y + 28, 16, DISPLAY, sc(part("box").label || "c"), "center", "400");
+        text(value, x + w / 2, y + 64, 36, COND, col === "#fff" ? sc(part("box").value || "goldHi") : col, "center", "700", 0, w - 50);
+        return;
+      }
       rr(x, y + 10, w, 82, 12); ctx.fillStyle = DECK.box; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = DECK.boxEdge; ctx.stroke();
       text(label, x + w / 2, y + 28, 16, COND, C.muted); text(value, x + w / 2, y + 64, 36, COND, col);
     };
     const credit = S.balance - (S.pendingCredit || 0);
-    box(20, 210, "CREDIT", money(credit));
-    box(242, 230, "BET", money(bet()));
+    box(20, 210, T("credit", "CREDIT"), money(credit));
+    box(242, 230, T("bet", "BET"), money(bet()));
     const canBet = !S.busy && S.mode === "reels";
     button("bet-", 252, y + 46, 40, 38, "\u2212", { disabled: !canBet || S.betIdx === 0, size: 30 });
     button("bet+", 422, y + 46, 40, 38, "+", { disabled: !canBet || S.betIdx === M.LADDER.length - 1, size: 30 });
-    box(484, 230, S.free ? "FREE GAMES WIN" : "WIN", S.winShown > 0 ? money(Math.floor(S.winShown)) : "", C.win);
+    box(484, 230, S.free ? "FREE GAMES WIN" : T("win", "WIN"), S.winShown > 0 ? money(Math.floor(S.winShown)) : "", C.win);
     const deckBusy = S.mode !== "reels" || S.overlay;
-    button("info", 730, y + 22, 92, 56, "INFO", { disabled: deckBusy || S.busy });
-    button("turbo", 832, y + 22, 92, 56, "TURBO", { on: S.turbo });
-    button("auto", 934, y + 22, 92, 56, S.auto > 0 ? `STOP ${S.auto}` : "AUTO", { on: S.auto > 0 || S.autoMenu, disabled: S.mode !== "reels" && S.auto === 0 });
+    button("info", 730, y + 22, 92, 56, T("info", "INFO"), { disabled: deckBusy || S.busy });
+    button("turbo", 832, y + 22, 92, 56, T("turbo", "TURBO"), { on: S.turbo });
+    button("auto", 934, y + 22, 92, 56, S.auto > 0 ? `STOP ${S.auto}` : T("auto", "AUTO"), { on: S.auto > 0 || S.autoMenu, disabled: S.mode !== "reels" && S.auto === 0 });
     // SPIN
     // Inside the 720px screen with room to spare: centre 664, ring 50 (614..714).
     const cx = 1112, cy = 664, r = 46, spinning = reels.some((x) => x.spinning);
     const hov = S.hover === "spin";
+    const spinLabel = spinning ? T("stop", "STOP") : S.mode === "trail" || S.mode === "battle" ? T("fire", "FIRE") : S.mode === "voyage" ? T("sail", "SAIL") : T("spin", "SPIN");
+    if (lc()) {
+      S.hits.push(Object.assign({ id: "spin" }, lcarsSpin(spinLabel, spinning, hov)));
+      button("cashout", 1172, y + 22, 96, 56, T("cashout", "CASH OUT"), { size: 18, disabled: S.busy || S.mode !== "reels" });
+      if (S.autoMenu) [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 930, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: spinBtn() }));
+      return;
+    }
     const g = ctx.createRadialGradient(cx - 14, cy - 18, 6, cx, cy, r);
     g.addColorStop(0, C.goldHi); g.addColorStop(0.5, spinning ? dark(C.spin, 0.2) : C.spin); g.addColorStop(1, dark(C.spin, 0.5));
     ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = DECK.ring; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
-    text(spinning ? "STOP" : S.mode === "trail" || S.mode === "battle" ? "FIRE" : S.mode === "voyage" ? "SAIL" : "SPIN", cx, cy + 2, 28, COND, C.ink);
+    text(spinLabel, cx, cy + 2, 28, COND, C.ink, "center", "700", 0, 84);
     S.hits.push({ id: "spin", x: cx - r, y: cy - r, w: r * 2, h: r * 2 });
-    button("cashout", 1172, y + 22, 96, 56, "CASH OUT", { size: 18, disabled: S.busy || S.mode !== "reels" });
+    button("cashout", 1172, y + 22, 96, 56, T("cashout", "CASH OUT"), { size: 18, disabled: S.busy || S.mode !== "reels" });
     if (S.autoMenu) {
       [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 934 + i * 0 - 4, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: spinBtn() }));
     }
@@ -579,7 +835,7 @@ export function createGame(cv, cfg) {
       goldText(o.title, 640, 240, 54);
       text(o.sub || "", 640, 300, 24, COND, C.cream);
       text(money(o.amount), 640, 372, 76, COND, C.win, "center", "700", 8);
-      button("overlay", 560, 430, 160, 50, "COLLECT", { colour: spinBtn() });
+      button("overlay", 560, 430, 160, 50, T("collect", "COLLECT"), { colour: spinBtn() });
       const left = 5 - (S.now - o.t0);
       text(`collects itself in ${Math.max(1, Math.ceil(left))}`, 640, 486 + 10, 16, COND, C.muted);
       if (left <= 0 && o.done) { const d = o.done; o.done = null; d(); }
@@ -1585,6 +1841,7 @@ export function createGame(cv, cfg) {
     ctx.save();
     if (S.shake > 0) ctx.translate((rng() - 0.5) * 14 * S.shake, (rng() - 0.5) * 10 * S.shake);
     drawBackground();
+    drawDecor("under");
     drawTop();
     if (S.mode === "trail" && S.trail) drawTrail();
     else if (S.mode === "battle" && S.battle) drawBattle();
@@ -1601,6 +1858,7 @@ export function createGame(cv, cfg) {
       text(`${TEXT.freeName} ${S.free.n} OF ${S.free.of}`, 640, REEL_Y + 1, 22, COND, C.goldHi, "center", "700", 0, 380);
     }
     drawDeck();
+    drawDecor("over");
     drawFlyers();
     drawBanner();
     drawParticles();

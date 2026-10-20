@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
-from casino_server import slot_builds
+from casino_server import slot_builds, slot_design_art
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -550,6 +550,44 @@ async def slot_design_logo(design: str, request: Request):
     return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.render_logo, design, body)}
 
 
+@app.post("/api/slot-design/{design}/scene/skins")
+async def slot_design_skin_new(design: str, request: Request):
+    body = await _json_body(request, "a skin (docs/slots/scenes.md)")
+    return {"slug": await run_in_threadpool(_design_call, request.app.state.slot_design.put_skin, design, None, body)}
+
+
+@app.put("/api/slot-design/{design}/scene/skins/{slug}")
+async def slot_design_skin_put(design: str, slug: str, request: Request):
+    body = await _json_body(request, "a skin (docs/slots/scenes.md)")
+    return {"slug": await run_in_threadpool(_design_call, request.app.state.slot_design.put_skin, design, slug, body)}
+
+
+@app.patch("/api/slot-design/{design}/scene/skins/{slug}")
+async def slot_design_skin_patch(design: str, slug: str, request: Request):
+    body = await _json_body(request, "{colours, palette, glass, parts, decor, fonts, texts, name, note, base}")
+    await run_in_threadpool(_design_call, request.app.state.slot_design.update_skin, design, slug, body)
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/scene/skins/{slug}/{action}")
+async def slot_design_skin_action(design: str, slug: str, action: str, request: Request):
+    body = await _json_body(request, "{name?, base?}") if (await request.body()) else {}
+    return {"slug": await run_in_threadpool(_design_call, request.app.state.slot_design.skin_action, design, slug, action, body)}
+
+
+@app.patch("/api/slot-design/{design}/scene/brief")
+async def slot_design_brief(design: str, request: Request):
+    body = await _json_body(request, "{text?, refs?, ask?, withdraw?}")
+    await run_in_threadpool(_design_call, request.app.state.slot_design.update_brief, design, body)
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/scene/brief/{filename}")
+async def slot_design_brief_ref(design: str, filename: str, request: Request):
+    data = await request.body()
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.add_brief_ref, design, filename, data)}
+
+
 @app.put("/api/slot-design/{design}/fonts/{filename}")
 async def slot_design_font(design: str, filename: str, request: Request):
     data = await request.body()
@@ -599,7 +637,7 @@ async def slot_design_sprites(design: str, request: Request):
 @app.get("/slot-design-font/{design}/{name}")
 def slot_design_font_file(design: str, name: str, request: Request):
     path = _design_call(request.app.state.slot_design.font_file, design, name)
-    return FileResponse(path, media_type="font/otf" if name.lower().endswith(".otf") else "font/ttf")
+    return Response(slot_design_art.web_font(path.read_bytes()), media_type="font/otf" if name.lower().endswith(".otf") else "font/ttf")
 
 
 @app.put("/api/slot-design/{design}/sounds/{key}")

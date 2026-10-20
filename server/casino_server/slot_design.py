@@ -47,9 +47,11 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 
 from casino_server import slot_design_art as art
+from casino_server import slot_design_scene as scene
 from casino_server.slot_design_build import BuildMixin
+from casino_server.slot_design_scene import SceneMixin, scene_view
 from casino_server.slot_design_steps import (FONT_DEFAULTS, THEME_DEFAULTS, DesignError, StepsMixin, _font_path, _fonts,
-                                             art_view, bonuses_view, features_view, ladder_view, maths_view, scene_view,
+                                             art_view, bonuses_view, features_view, ladder_view, maths_view,
                                              signoff_view, sounds_view, sprites_view)
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
@@ -152,7 +154,7 @@ class Design:
         # A design with its own colours takes none of Armadillo's: the shades it never picked (outlines, highlight,
         # text, and the shade and accent shadow added later) are worked out from its edge and accent colours.
         cols = d.get("sprites", {}).get("colours")
-        if cols:
+        if cols and "skins" not in d.get("scene", {}):
             rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
             hexc = lambda c: "#" + "".join(f"{round(v):02x}" for v in c)
             dark = lambda h, t: hexc(v * (1 - t) for v in rgb(h))
@@ -161,6 +163,7 @@ class Design:
             for k, v in (("shade", dark(edge, 0.88)), ("goldLo", dark(gold, 0.4)), ("ink", dark(edge, 0.82)),
                          ("goldHi", light(gold, 0.75)), ("cream", light(edge, 0.88))):
                 cols.setdefault(k, v)
+        scene.migrate(d)   # the screen's look is the Scene step's skins now
 
     def save(self):
         tmp = self.folder / "design.json.tmp"
@@ -255,10 +258,9 @@ class Design:
     # ------------------------------------------------------------- lettering: specials' words, royals' ranks
     def lettering(self) -> dict:
         """The shared lettering: the specials' font and colours and the royals' font. Unset, the fonts are the
-        Sprites step's display font and the colours its gold and ink."""
-        sp = self.data.get("sprites", {})
-        theme = {**THEME_DEFAULTS, **sp.get("colours", {})}
-        font = sp.get("fonts", {}).get("display") or FONT_DEFAULTS["display"]
+        scene's display font and the colours its gold and ink."""
+        theme = scene.chosen(self)[1]["colours"]
+        font = scene.lettering_font(self)
         return {"special_font": font, "royal_font": font, "top": theme["goldHi"], "bottom": theme["goldLo"],
                 "outline": theme["ink"], **self.data.get("lettering", {})}
 
@@ -346,7 +348,7 @@ class Design:
         return p
 
 
-class DesignBoard(StepsMixin, BuildMixin):
+class DesignBoard(StepsMixin, SceneMixin, BuildMixin):
     def __init__(self, root: Path = DEFAULT_DESIGNS_DIR):
         self.root = root
         self.lock = threading.RLock()

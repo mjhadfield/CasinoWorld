@@ -615,7 +615,7 @@ def test_the_scene(board, monkeypatch):
     sc = _overview(c)["scene"]
     assert sc["backgrounds"] == ["scene/bg_1.png", "scene/bg_3.png", "scene/bg_4.png"] and sc["background"] is None
     assert sc["logos"] == [] and "file" not in sc["logo"] and sc["logo"]["lines"] == ["DEMO", "SLOT"]
-    assert sc["bin"] == {"backgrounds": ["scene/bg_2.png"], "logos": [logo]} and (d / "scene/bg_2.png").is_file()
+    assert sc["bin"] == {"backgrounds": ["scene/bg_2.png"], "logos": [logo], "skins": []} and (d / "scene/bg_2.png").is_file()
     assert c.patch("/api/slot-design/demo/scene", json={"background": "scene/bg_2.png"}).status_code == 400
     assert c.post("/api/slot-design/demo/scene/bin", json={"path": "cut/ship_1.png"}).status_code == 400
     assert c.post("/api/slot-design/demo/scene/restore", json={"path": "scene/bg_3.png"}).status_code == 400
@@ -627,6 +627,77 @@ def test_the_scene(board, monkeypatch):
     assert c.get("/slot-design-ui/slots_math.js").status_code == 200
     assert c.get("/slot-design-ui/../app.py").status_code == 404
 
+
+
+def test_scene_skins(board):
+    """The screen's look is a skin: the design starts on Classic; Claude's skins come in whole and keep how they
+    were made (Reset); tweaks merge; decor stays out of the screen's working places."""
+    from casino_server import slot_design_scene as scene
+    c, d = board
+    sc = _overview(c)["scene"]
+    assert sc["skin"] == "classic" and [s["slug"] for s in sc["skins"]] == ["classic"]
+    assert sc["look"]["skin"]["base"] == "classic" and sc["look"]["fonts"]["display"] == "Rye-Regular.ttf"
+    lcars = {"name": "Bridge LCARS", "by": "claude", "base": "lcars", "note": "after the phone mockup",
+             "palette": {"hl": "#8fd3ff"}, "fonts": {"display": "@lettering", "ui": "@lettering"},
+             "texts": {"spin": "ENGAGE"},
+             "decor": [{"id": "corner", "kind": "elbow", "x": 4, "y": 90, "w": 200, "h": 30, "corner": "tl", "arm": 12, "bar": 8, "colour": "a"},
+                       {"id": "sd", "kind": "text", "x": 500, "y": 106, "w": 280, "h": 16, "text": "STARDATE {stardate}", "colour": "#ffaa33"},
+                       {"id": "nums", "kind": "readout", "x": 1040, "y": 92, "w": 180, "h": 14, "cells": [2, 5, 2], "colours": ["b", "c"]}]}
+    slug = c.put("/api/slot-design/demo/scene/skins/bridge", json=lcars).json()["slug"]
+    assert slug == "bridge"
+    assert c.post(f"/api/slot-design/demo/scene/skins/{slug}/choose").status_code == 200
+    sc = _overview(c)["scene"]
+    sk = sc["look"]["skin"]
+    assert sc["skin"] == "bridge" and sk["palette"]["hl"] == "#8fd3ff" and sk["palette"]["warn"] == scene.LCARS_PALETTE["warn"]   # the rest from the starter
+    assert sk["parts"]["meter"]["shape"] == "tab" and sk["texts"] == {"spin": "ENGAGE"}
+    assert sc["look"]["fonts"] == {"display": "Rye-Regular.ttf", "ui": "Rye-Regular.ttf"}   # @lettering: the lettering font
+    assert _overview(c)["sprites"]["colours"]["gold"] == "#9fdcff"   # Sprites sees the scene's colours
+    assert _overview(c)["sprites"]["cabinet"]["trim"] == "#8fd3ff"   # and starts the cabinet from them
+    # bad skins
+    for bad in ({**lcars, "base": "art-deco"}, {**lcars, "palette": {"hl": "blue"}}, {**lcars, "parts": {"meter": {"shape": "star"}}},
+                {**lcars, "parts": {"meter": {"fill": "nope"}}}, {**lcars, "fonts": {"display": "Nope.ttf"}}, {**lcars, "texts": {"jackpot": "X"}},
+                {**lcars, "decor": [{"kind": "bar", "x": 1200, "y": 700, "w": 200, "h": 40}]},           # off the screen
+                {**lcars, "decor": [{"kind": "bar", "x": 300, "y": 200, "w": 50, "h": 20, "layer": "over"}]},   # over the reels
+                {**lcars, "decor": [{"kind": "blob", "x": 10, "y": 10, "w": 5, "h": 5}]}, {**lcars, "wings": 2}):
+        assert c.put("/api/slot-design/demo/scene/skins/bad", json=bad).status_code == 400, bad
+    # tweaks merge; Reset goes back to Claude's version
+    assert c.patch("/api/slot-design/demo/scene/skins/bridge", json={"palette": {"a": "#112233"}, "parts": {"spin": {"shape": "disc"}}}).status_code == 200
+    sk = _overview(c)["scene"]["look"]["skin"]
+    assert sk["palette"]["a"] == "#112233" and sk["palette"]["hl"] == "#8fd3ff" and sk["parts"]["spin"] == {"shape": "disc", "fill": "hl", "text": "ink"}
+    assert c.patch("/api/slot-design/demo/scene/skins/bridge", json={"decor": [{"kind": "bar", "x": 300, "y": 200, "w": 50, "h": 20, "layer": "over"}]}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/skins/bridge/reset").status_code == 200
+    assert _overview(c)["scene"]["look"]["skin"]["palette"]["a"] == scene.LCARS_PALETTE["a"]
+    assert c.post("/api/slot-design/demo/scene/skins/classic/reset").status_code == 400   # only Claude's have one
+    # duplicate, new, bin, restore
+    dup = c.post("/api/slot-design/demo/scene/skins/bridge/duplicate", json={"name": "Bridge night"}).json()["slug"]
+    assert dup == "bridge-night" and _overview(c)["scene"]["skin"] == dup
+    new = c.post("/api/slot-design/demo/scene/skins/bridge/new", json={"base": "lcars"}).json()["slug"]
+    assert new == "lcars"
+    assert c.post("/api/slot-design/demo/scene/skins/lcars/new", json={"base": "lcars"}).json()["slug"] == "lcars-2"
+    assert c.post(f"/api/slot-design/demo/scene/skins/{dup}/bin").status_code == 200
+    sc = _overview(c)["scene"]
+    assert dup not in [s["slug"] for s in sc["skins"]] and sc["bin"]["skins"] == [{"slug": dup, "name": "Bridge night"}]
+    assert c.post(f"/api/slot-design/demo/scene/skins/{dup}/choose").status_code == 400
+    assert c.post(f"/api/slot-design/demo/scene/skins/{dup}/restore").status_code == 200
+    # the classic frame and deck still go to the chosen skin
+    assert c.post("/api/slot-design/demo/scene/skins/classic/choose").status_code == 200
+    assert c.patch("/api/slot-design/demo/scene", json={"frame": {"style": "neon", "colour": "#33ccff"}}).status_code == 200
+    assert _overview(c)["scene"]["frame"] == {"style": "neon", "colour": "#33ccff"}
+
+
+def test_scene_brief_for_claude(board):
+    c, d = board
+    ref = c.put("/api/slot-design/demo/scene/brief/lcars.png", content=_png(size=(900, 600))).json()["path"]
+    assert ref == "scene/brief_1.png"
+    assert c.patch("/api/slot-design/demo/scene/brief", json={"ask": True}).status_code == 400   # words first
+    assert c.patch("/api/slot-design/demo/scene/brief", json={"text": "LCARS, glassy, light blue", "ask": True}).status_code == 200
+    br = _overview(c)["scene"]["brief"]
+    assert br["status"] == "waiting" and br["refs"] == [ref] and br["text"].startswith("LCARS")
+    assert any(x["id"] == "skin" and "waiting" in x["label"] for x in _overview(c)["signoff"]["checklist"])
+    c.post("/api/slot-design/demo/scene/skins", json={"name": "Answer", "by": "claude", "base": "lcars"})
+    br = _overview(c)["scene"]["brief"]
+    assert br["status"] == "answered" and br["answer"] == "answer"
+    assert c.patch("/api/slot-design/demo/scene/brief", json={"refs": ["cut/ship_1.png"]}).status_code == 400
 
 # ------------------------------------------------------------------ Features and Bonus games (Phase 4)
 def test_features(board):
@@ -786,10 +857,13 @@ def test_own_colours_get_a_shade_and_accent_shadow_of_their_own(board):
     _, d = board
     data = json.loads((d / "design.json").read_text())
     data["sprites"] = {"colours": {"edge": "#4aa9d9", "gold": "#30494f"}}
+    data.pop("scene", None)   # a design from before the Scene step's skins
     (d / "design.json").write_text(json.dumps(data))
-    cols = Design(d).data["sprites"]["colours"]
+    data = Design(d).data
+    cols = data["scene"]["skins"]["classic"]["colours"]   # (they're the Scene step's Classic skin's now)
     assert cols["shade"] == "#09141a" and cols["goldLo"] == "#1d2c2f" and cols["ink"] == "#0d1e27"
-    assert cols["goldHi"] == "#cbd2d3" and cols["cream"] == "#e9f5fa" and "alert" not in cols
+    assert cols["goldHi"] == "#cbd2d3" and cols["cream"] == "#e9f5fa" and cols["alert"] == "#7d130c"
+    assert "colours" not in data["sprites"]
 
 
 def test_sprites(board):
@@ -928,6 +1002,9 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
     c, d = board
     assert c.post("/api/slot-design/demo/build", json={"spot": "above_armadillo", "bank": "quad"}).status_code == 400  # not signed off
     _complete(c, d)
+    c.put("/api/slot-design/demo/scene/backgrounds/bg.png", content=_png(size=(1280, 720)))
+    c.post("/api/slot-design/demo/scene/skins/" + c.post("/api/slot-design/demo/scene/skins", json={"name": "Glass", "base": "lcars",
+           "texts": {"spin": "ENGAGE"}}).json()["slug"] + "/choose")
     c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [c.get("/api/sounds").json()["library"][0]["id"]]})
     c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "Red Alert", "description": "Reels flash red."})
     assert c.post("/api/slot-design/demo/sign-off").status_code == 200
@@ -940,7 +1017,10 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
     v = from_json(out / "variant.json")
     assert v.name == "Demo" and v.symbols["H1"] == "Sym H1" and v.theme["frame"]["style"] in ("metal", "wood", "neon", "glass") \
         and v.theme["deck"]["style"] == v.theme["frame"]["style"]
-    assert {p.stem for p in (out / "art").glob("*.png")} >= set(v.pays) | {"BS", "FS", "armadillo", "t_coin"}
+    assert {p.stem for p in (out / "art").glob("*.png")} >= set(v.pays) | {"BS", "FS", "armadillo", "t_coin", "bg", "bg_glass"}
+    sk = v.theme["skin"]   # the chosen scene, for the client to draw
+    assert sk["base"] == "lcars" and sk["texts"] == {"spin": "ENGAGE"} and sk["parts"]["meter"]["shape"] == "tab" and "original" not in sk
+    assert v.theme["colours"]["gold"] == "#9fdcff" and v.extras["assets"]["bg_glass"]
     assert sorted(p.name for p in (out / "fonts").iterdir()) == ["display.ttf", "ui.ttf"]
     assert "Red Alert" in (out / "IDEAS.md").read_text()
     assert c.post("/api/slot-design/demo/install").status_code == 400   # a test instance: restart it by hand

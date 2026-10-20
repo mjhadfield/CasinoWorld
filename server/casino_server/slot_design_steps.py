@@ -174,14 +174,27 @@ def trail_maths(t: dict) -> dict:
     return {k: v for k, v in t.items() if k not in TRAIL_WORDS + WAYS}
 
 
+def scene_match(d) -> tuple[str, dict]:
+    """The win glow and the floor cabinet's colours that match the chosen scene (where the Sprites step starts)."""
+    from casino_server.slot_design_scene import chosen
+    sk = chosen(d)[1]
+    pal, cols = sk.get("palette", {}), sk["colours"]
+    if sk["base"] == "classic":
+        return "#ffe27a", dict(CABINET_DEFAULTS)
+    return pal.get("hl", cols["win"]), {"body": pal.get("d", cols["shade"]), "trim": pal.get("hl", cols["edge"]),
+                                        "title": pal.get("warn", cols["gold"])}
+
+
 def sprites_view(d) -> dict:
+    from casino_server.slot_design_scene import look
     sp = d.data.get("sprites", {})
-    win = {g: {"preset": p, "strength": 1.0, "colour": "#ffe27a", **sp.get("win", {}).get(g, {})} for g, p in WIN_DEFAULTS.items()}
+    glow, cab = scene_match(d)
+    win = {g: {"preset": p, "strength": 1.0, "colour": glow, **sp.get("win", {}).get(g, {})} for g, p in WIN_DEFAULTS.items()}
     lines = (d.data.get("scene", {}).get("logo", {}).get("lines") or [d.data.get("name", "")])[:2]
-    return {"win": win, "presets": list(WIN_PRESETS), "colours": {**THEME_DEFAULTS, **sp.get("colours", {})},
-            "armadillo_colours": THEME_DEFAULTS,
-            "fonts": {**FONT_DEFAULTS, **sp.get("fonts", {})}, "font_list": _fonts(d),
-            "cabinet": {**CABINET_DEFAULTS, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
+    lk = look(d)
+    return {"win": win, "presets": list(WIN_PRESETS), "colours": lk["colours"], "armadillo_colours": THEME_DEFAULTS,
+            "fonts": lk["fonts"], "font_list": _fonts(d),
+            "cabinet": {**cab, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
 
 
 def _armadillo_scatters(s: str) -> list[int]:
@@ -291,6 +304,11 @@ def checklist(d) -> list[dict]:
     sc = d.data.get("scene", {})
     out.append({"id": "background", "label": "A background", "ok": bool(sc.get("background")), "required": False, "step": "scene"})
     out.append({"id": "logo", "label": "A logo", "ok": bool(sc.get("logo", {}).get("file")), "required": False, "step": "scene"})
+    skin = sc["skins"][sc["skin"]] if sc.get("skin") in sc.get("skins", {}) else {"by": "house"}
+    waiting = sc.get("brief", {}).get("status") == "waiting"
+    out.append({"id": "skin", "label": "A designed scene" + (" (Claude's brief is waiting)" if waiting else
+                f": {skin.get('name')}" if skin.get("by") != "house" else " (still a house look)"),
+                "ok": skin.get("by") != "house" and not waiting, "required": False, "step": "scene"})
     out.append({"id": "sounds", "label": f"Own sounds for {len(d.data.get('sounds', {}))} moments (optional)", "ok": True, "required": False, "step": "sounds"})
     specs = d.data.get("specs", [])
     if specs:
@@ -379,20 +397,6 @@ def _font_path(d, name: str) -> Path:
     raise DesignError(f"There's no font {name!r}.")
 
 
-def scene_view(d) -> dict:
-    sc = d.data.get("scene", {})
-    folder = d.folder / "scene"
-    listed = lambda pattern: sorted((f"scene/{p.name}" for p in folder.glob(pattern)),
-                                    key=lambda p: int(Path(p).stem.split("_")[-1])) if folder.is_dir() else []
-    binned = set(sc.get("binned", []))
-    bgs, logos = listed("bg_*.png"), listed("logo_*.png")
-    return {"background": sc.get("background"), "logo": sc.get("logo", {}), "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}),
-            "deck": sc.get("deck", {"style": "frame", "colour": None}),
-            "backgrounds": [p for p in bgs if p not in binned], "logos": [p for p in logos if p not in binned],
-            "bin": {"backgrounds": [p for p in bgs if p in binned], "logos": [p for p in logos if p in binned]},
-            "fonts": _fonts(d), "frame_styles": list(FRAME_STYLES), "deck_styles": list(DECK_STYLES)}
-
-
 class StepsMixin:
     sounds = None   # the casino's SoundBoard (app.py sets it), for the Sounds step's library and defaults
 
@@ -451,18 +455,22 @@ class StepsMixin:
                         raise DesignError("A glow colour is like #ffe27a.")
                     win[g] = {"preset": v.get("preset", "none"), "strength": float(strength), "colour": v.get("colour", "#ffe27a")}
                 sp["win"] = win
+            # the screen's colours and fonts are the chosen scene's (the Scene step's), set here too for older pages
+            from casino_server.slot_design_scene import LETTERING, chosen
+            skin = chosen(d)[1]
             if "colours" in ch:
                 cols = ch["colours"] or {}
                 if set(cols) - set(THEME_DEFAULTS) or not all(art.is_colour(c) for c in cols.values()):
                     raise DesignError("Theme colours are " + ", ".join(THEME_DEFAULTS) + ", each like #f4c94f.")
-                sp["colours"] = {**sp.get("colours", {}), **cols}
+                skin["colours"] = {**skin["colours"], **cols}
             if "fonts" in ch:
                 fonts = ch["fonts"] or {}
                 if set(fonts) - set(FONT_DEFAULTS):
                     raise DesignError("The fonts are display and ui.")
                 for f in fonts.values():
-                    _font_path(d, f)
-                sp["fonts"] = {**sp.get("fonts", {}), **fonts}
+                    if f != LETTERING:
+                        _font_path(d, f)
+                skin["fonts"] = {**skin["fonts"], **fonts}
             if "cabinet" in ch:
                 cab = dict(sp.get("cabinet", {}))
                 for k, v in (ch["cabinet"] or {}).items():
@@ -1034,14 +1042,14 @@ class StepsMixin:
                     if not (isinstance(v, str) and v.startswith("scene/logo_") and d.path(v) and v not in sc.get("binned", [])):
                         raise DesignError("Pick one of this slot's logos.")
                     sc.setdefault("logo", {})["file"] = v
-                elif k == "frame":
+                elif k == "frame":   # the chosen scene's (a classic skin's frame and deck)
                     if not isinstance(v, dict) or v.get("style") not in FRAME_STYLES or not art.is_colour(v.get("colour")):
                         raise DesignError(f"A frame is a style ({', '.join(FRAME_STYLES)}) and a colour like #c9a24a.")
-                    sc["frame"] = {"style": v["style"], "colour": v["colour"]}
+                    sc["skins"][sc["skin"]]["frame"] = {"style": v["style"], "colour": v["colour"]}
                 elif k == "deck":
                     if not isinstance(v, dict) or v.get("style") not in DECK_STYLES or not (v.get("colour") is None or art.is_colour(v["colour"])):
                         raise DesignError(f"A deck is a style ({', '.join(DECK_STYLES)}) and a colour like #c9a24a, or none.")
-                    sc["deck"] = {"style": v["style"], "colour": v.get("colour")}
+                    sc["skins"][sc["skin"]]["deck"] = {"style": v["style"], "colour": v.get("colour")}
                 else:
                     raise DesignError(f"Can't change {k!r}.")
             d.save()

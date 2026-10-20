@@ -90,6 +90,9 @@ var frame_colour := Color("d9a54a")
 ## The deck's look (the wizard's Scene step): the bottom bar, readout boxes and buttons. See _deck_look.
 var deck := {}
 var win_anims := {}                 # tier group -> {preset, strength, colour}: what a symbol does while its line win shows
+## The skin (the wizard's Scene step): "classic" is the frame styles above; "lcars" draws every part from its own
+## shapes, palette, glass and decor (the "skin" section below; docs/slots/scenes.md).
+var skin := {}
 var feature_rows: Array = []
 var background := false
 const TIERS := {"mini": Color("4fb3ff"), "minor": Color("55d07a"), "major": Color("c768ff"), "grand": Color("ff5a48")}
@@ -279,6 +282,9 @@ func _apply_theme() -> void:
 	deck = _deck_look(str(dk.get("style", frame_style)), dk.get("colour"))
 	win_anims = theme.get("win", {})
 	background = bool(theme.get("background", false))
+	skin = theme.get("skin", {})
+	if skin.get("texts", {}).has("tagline"):
+		texts["tagline"] = str(skin.texts.tagline)
 	var on: Array = rules.get("features", [])
 	feature_rows = FEATURE_ROWS.filter(func(f): return on.is_empty() or on.has(f[0]))
 
@@ -759,6 +765,7 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 		"under":
 			_hits = []
 			_draw_background(ci)
+			_draw_decor(ci, "under")
 			_draw_top(ci)
 			if not trail.is_empty():
 				_draw_trail(ci)
@@ -788,6 +795,7 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 				_rr(ci, Rect2(440, REEL_Y - 16, 400, 34), 10, ALERT, 2, GOLD)
 				_text(ci, texts.free_banner % [int(free.n), int(free.of)], Vector2(640, REEL_Y + 1), 22, COND, GOLD_HI, "center", 0, 380)
 			_draw_deck(ci)
+			_draw_decor(ci, "over")
 			_draw_flyers(ci)
 			_draw_banner(ci)
 			_draw_particles(ci)
@@ -864,6 +872,9 @@ func _deck_look(style: String, tint: Variant) -> Dictionary:
 
 ## A panel in the slot's frame style: wood (Armadillo's), metal, neon or glass, edged in its colour.
 func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
+	if _lc():
+		_lcars_panel(ci, r)
+		return
 	if frame_style != "wood":
 		var top := Color("5d6470")
 		var bottom := Color("15181d")
@@ -893,6 +904,16 @@ func _button(ci: CanvasItem, id: String, r: Rect2, label: String, on := false, d
 	var hover := _hover == id and not disabled
 	var cols: Array = colour if not colour.is_empty() else ([GOLD.lerp(GOLD_HI, 0.5), GOLD_LO] if on else deck.btn)
 	var a := 0.4 if disabled else 1.0
+	if _lc():   # LCARS: a flat pill, its label on the right
+		var bp: Dictionary = _part("button")
+		var f: Color = cols[1] if not colour.is_empty() else (_sc(bp.get("on", "warn")) if on else _sc(bp.get("fill", "b")))
+		SkinDraw.fill(ci, SkinDraw.pill(r, "right" if bp.get("shape") == "half" else "both"), Color(f.lerp(Color.WHITE, 0.3) if hover else f, a))
+		var wide := r.size.x > 80 and label.length() > 1
+		_text(ci, label, Vector2(r.end.x - 12 if wide else r.get_center().x, r.get_center().y + 1), mini(size, int(r.size.y * 0.5)),
+			RYE if wide else COND, Color(_sc(bp.get("text", "ink")), a), "right" if wide else "center", 0, r.size.x - 20)
+		if not disabled:
+			_add_hit(id, r)
+		return
 	_rr(ci, r, r.size.y * 0.28, Color(cols[1], a), 3 if hover else 2, Color(GOLD_HI if hover else EDGE, a))
 	_vgrad(ci, Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, r.size.y * 0.5 - 3)), Color(cols[0], 0.75 * a), Color(cols[0], 0.0))
 	_text(ci, label, r.get_center() + Vector2(0, 1), size, COND, Color(INK if (on or not colour.is_empty()) else CREAM, a), "center", 0, r.size.x - 14)
@@ -991,12 +1012,237 @@ func _sym(ci: CanvasItem, sym: String, r: Rect2, fx: Dictionary = {}, alpha := 1
 	ci.draw_set_transform(Vector2.ZERO)
 
 
+# ------------------------------------------------------------------ the skin (the wizard mockup's game.js matches)
+func _lc() -> bool:
+	return str(skin.get("base", "classic")) == "lcars"
+
+
+## A skin's colour: one of its names (its palette, then the screen's colours) or a colour like #8fd3ff.
+func _sc(ref: String) -> Color:
+	if ref.begins_with("#"):
+		return Color(ref)
+	var pal: Dictionary = skin.get("palette", {})
+	if pal.has(ref):
+		return Color(str(pal[ref]))
+	var named := {"gold": GOLD, "goldHi": GOLD_HI, "goldLo": GOLD_LO, "edge": EDGE, "cream": CREAM, "muted": MUTED, "ink": INK,
+		"shade": SHADE, "win": WIN_COL, "spin": SPIN_COL, "alert": ALERT}
+	return named.get(ref, EDGE)
+
+
+func _part(p: String) -> Dictionary:
+	return skin.get("parts", {}).get(p, {})
+
+
+## One of the screen's words, as the skin relabels it.
+func _t(key: String, fallback: String) -> String:
+	return str(skin.get("texts", {}).get(key, fallback))
+
+
+func _glass(ci: CanvasItem, pts: PackedVector2Array, tint: String, edge: Color, edge_w := -1.0) -> void:
+	var g: Dictionary = skin.get("glass", {})
+	SkinDraw.glass(ci, pts, _tex("bg_glass") if background else null, _sc(tint), float(g.get("opacity", 0.55)), float(g.get("sheen", 0.0)),
+		edge, float(g.get("edge", 1.5)) if edge_w < 0.0 else edge_w)
+
+
+## An LCARS panel: elbows top and bottom on its spine side, the spine between in blocks, a glass body. The side panels'
+## spines run in the screen's margin, on its edge; a pop-up's on its left.
+func _lcars_panel(ci: CanvasItem, r: Rect2) -> void:
+	var p := _part("panel")
+	if p.get("shape") == "glass":
+		_glass(ci, SkinDraw.rounded(r, 16), str(p.get("fill", "glass")), _sc(p.get("edge", "hl")))
+		return
+	var right := r.end.x >= 1250.0
+	var left := r.position.x <= 20.0
+	var arm := 16.0 if left or right else 14.0
+	var bar := 14.0
+	var gap := 4.0
+	var ox := 4.0 if left else r.position.x
+	var ow := r.end.x - 4.0 if left else (1276.0 - r.position.x if right else r.size.x)
+	var bx := 4.0 + arm + gap if left else (r.position.x if right else r.position.x + arm + gap)
+	var bw := r.end.x - 4.0 - bx if left else (1276.0 - arm - gap - r.position.x - 4.0 if right else r.size.x - arm - gap)
+	var eh := minf(110.0, r.size.y * 0.3)
+	var y := r.position.y
+	var h := r.size.y
+	_glass(ci, SkinDraw.rounded(Rect2(bx, y + bar + gap, bw, h - 2.0 * (bar + gap)), 10), str(p.get("fill", "glass")), _sc(p.get("edge", "hl")), 1.0)
+	SkinDraw.fill(ci, SkinDraw.elbow(Rect2(ox, y, ow, eh), "tr" if right else "tl", arm, bar, 44), _sc(p.get("top", "a")))
+	SkinDraw.fill(ci, SkinDraw.elbow(Rect2(ox, y + h - eh, ow, eh), "br" if right else "bl", arm, bar, 44), _sc(p.get("bottom", "c")))
+	var spine: Array = p.get("spine", ["b"])
+	var top := y + eh + gap
+	var seg := (h - 2.0 * (eh + gap) - gap * (spine.size() - 1)) / spine.size()
+	for i in spine.size():
+		ci.draw_rect(Rect2(ox + ow - arm if right else ox, top + i * (seg + gap), arm, seg), _sc(str(spine[i])))
+
+
+func _lcars_frame(ci: CanvasItem) -> void:
+	var p := _part("frame")
+	var r := Rect2(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36)
+	ci.draw_rect(Rect2(REEL_X, REEL_Y, REEL_W, REEL_H), _sc(p.get("fill", "glass")))
+	for i in 5:
+		var x := REEL_X + i * CELL_W
+		_hgrad(ci, Rect2(x, REEL_Y, CELL_W / 2.0, REEL_H), Color(0, 0, 0, 0.45), Color(1, 1, 1, 0.03))
+		_hgrad(ci, Rect2(x + CELL_W / 2.0, REEL_Y, CELL_W / 2.0, REEL_H), Color(1, 1, 1, 0.03), Color(0, 0, 0, 0.45))
+	var edge := _sc(p.get("edge", "hl"))
+	if p.get("shape") == "glass":
+		_glass(ci, SkinDraw.rounded(Rect2(r.position.x, r.position.y, r.size.x, 14), 7), str(p.get("fill", "glass")), edge, 1.0)
+		_glass(ci, SkinDraw.rounded(Rect2(r.position.x, r.end.y - 14, r.size.x, 14), 7), str(p.get("fill", "glass")), edge, 1.0)
+		SkinDraw.outline(ci, SkinDraw.rounded(r, 18), edge, 1.5)
+		return
+	var arm := 10.0
+	var bar := 10.0
+	var gap := 4.0
+	var top := _sc(p.get("top", "a"))
+	var bottom := _sc(p.get("bottom", "c"))
+	SkinDraw.fill(ci, SkinDraw.elbow(Rect2(r.position.x, r.position.y, 260, 120), "tl", arm, bar, 28), top)
+	SkinDraw.fill(ci, SkinDraw.elbow(Rect2(r.end.x - 260, r.end.y - 120, 260, 120), "br", arm, bar, 28), bottom)
+	# the bars running on from each elbow, in blocks; the last one's end rounded
+	var run := r.size.x - 260.0 - gap
+	var seg := [0.62, 0.24, 0.14]
+	var x := r.position.x + 260.0 + gap
+	var cols := [top, edge, bottom]
+	for i in 3:
+		var sw: float = run * seg[i] - (gap if i < 2 else 0.0)
+		SkinDraw.fill(ci, SkinDraw.pill(Rect2(x, r.position.y, sw, bar), "right" if i == 2 else "none"), cols[i])
+		x += sw + gap
+	x = r.end.x - 260.0 - gap
+	cols = [bottom, edge, top]
+	for i in 3:
+		var sw: float = run * seg[i] - (gap if i < 2 else 0.0)
+		SkinDraw.fill(ci, SkinDraw.pill(Rect2(x - sw, r.end.y - bar, sw, bar), "left" if i == 2 else "none"), cols[i])
+		x -= sw + gap
+	ci.draw_rect(Rect2(r.position.x + 2, r.position.y + 120 + gap, 2, r.size.y - 120 - 2 * gap - bar), Color(edge, 0.7))
+	ci.draw_rect(Rect2(r.end.x - 4, r.position.y + bar + gap, 2, r.size.y - 120 - 2 * gap - bar), Color(edge, 0.7))
+
+
+## A jackpot meter: a tier-coloured cap on its outer end and a glass body (tab); a coloured pill; or glass.
+func _lcars_meter(ci: CanvasItem, id: String, r: Rect2, lit: bool) -> void:
+	var p := _part("meter")
+	var pal: Dictionary = skin.get("palette", {})
+	var tier: Color = Color(str(pal[id])) if pal.has(id) else TIERS[id]
+	var fill: Color = tier if p.get("fill", "tier") == "tier" else _sc(str(p.fill))
+	var value := Money.format(int(meter_now(id)))
+	if p.get("shape") == "pill":
+		SkinDraw.fill(ci, SkinDraw.pill(r), fill.lerp(Color.WHITE, 0.35) if lit else fill)
+		_text(ci, TIER_NAMES[id], Vector2(r.get_center().x, r.position.y + 18), 16, RYE, _sc("ink"), "center", 0, r.size.x - 40)
+		_text(ci, value, Vector2(r.get_center().x, r.position.y + 46), 32, COND, _sc("ink"), "center", 0, r.size.x - 40)
+		return
+	var body := r
+	if p.get("shape") == "glass":
+		_glass(ci, SkinDraw.rounded(r, 18), "glass", fill, 4.0 if lit else 2.0)
+	else:
+		var cap := 44.0
+		var gap := 5.0
+		var outer_left := r.position.x < 640.0
+		var cap_r := Rect2(r.position.x if outer_left else r.end.x - cap, r.position.y, cap, r.size.y)
+		body = Rect2(r.position.x + cap + gap if outer_left else r.position.x, r.position.y, r.size.x - cap - gap, r.size.y)
+		SkinDraw.fill(ci, SkinDraw.pill(cap_r, "left" if outer_left else "right"), fill.lerp(Color.WHITE, 0.45) if lit else fill)
+		var pts := PackedVector2Array([body.position, Vector2(body.end.x, body.position.y), body.end, Vector2(body.position.x, body.end.y)])
+		_glass(ci, pts, "glass", _sc("hl") if lit else fill, 3.0 if lit else 1.5)
+	_text(ci, TIER_NAMES[id], Vector2(body.get_center().x, body.position.y + 17), 16, RYE, fill, "center", 0, body.size.x - 16)
+	_text(ci, value, Vector2(body.get_center().x, body.position.y + 46), 32, COND, _sc(p.get("text", "goldHi")), "center", 0, body.size.x - 16)
+
+
+## A box (credit, bet, win; the feature list; the info boxes): a glass pill (rounded when tall), or glass. A lit
+## colour fills it instead.
+func _lcars_box(ci: CanvasItem, r: Rect2, lit := Color.TRANSPARENT, edge_w := -1.0) -> void:
+	var p := _part("box")
+	var pts := SkinDraw.rounded(r, minf(14.0 if p.get("shape") == "glass" else 22.0, r.size.y / 2.0)) if p.get("shape") == "glass" or r.size.y > 60.0 else SkinDraw.pill(r)
+	if lit.a > 0.0:
+		SkinDraw.fill(ci, pts, lit)
+		return
+	_glass(ci, pts, str(p.get("fill", "glass")), _sc(p.get("edge", "b")), edge_w)
+
+
+## The deck: dark glass under an LCARS rail, an elbow at its left end.
+func _lcars_deck(ci: CanvasItem) -> void:
+	var p := _part("deck")
+	var fill := _sc(p.get("fill", "d"))
+	var accent := _sc(p.get("accent", "a"))
+	var edge := _sc(p.get("edge", "hl"))
+	ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), Color(_sc("shade"), 0.9))
+	var bar := 6.0
+	if p.get("shape") == "bar":
+		SkinDraw.fill(ci, SkinDraw.pill(Rect2(4, DECK_TOP, 600, bar), "left"), accent)
+		ci.draw_rect(Rect2(608, DECK_TOP, 200, bar), edge)
+		SkinDraw.fill(ci, SkinDraw.pill(Rect2(812, DECK_TOP, W - 816, bar), "right"), fill)
+		return
+	SkinDraw.fill(ci, SkinDraw.elbow(Rect2(4, DECK_TOP, 140, H - DECK_TOP - 4), "tl", 12, bar, 26), accent)
+	ci.draw_rect(Rect2(148, DECK_TOP, 460, bar), fill)
+	ci.draw_rect(Rect2(612, DECK_TOP, 180, bar), edge)
+	SkinDraw.fill(ci, SkinDraw.pill(Rect2(796, DECK_TOP, W - 800, bar), "right"), fill)
+
+
+## The spin button: a pill across the gap between AUTO and CASH OUT, or a glass disc. Returns where it clicks.
+func _lcars_spin(ci: CanvasItem, label: String, spinning: bool, hov: bool) -> Rect2:
+	var p := _part("spin")
+	var f := _sc(p.get("fill", "hl"))
+	var tc := _sc(p.get("text", "ink"))
+	if p.get("shape") == "disc":
+		var c := SPIN_CENTRE
+		var disc := SkinDraw.rounded(Rect2(c - Vector2(46, 46), Vector2(92, 92)), 46)
+		_glass(ci, disc, "glass", f, 5.0 if hov else 3.0)
+		ci.draw_circle(c, 34, f.darkened(0.25) if spinning else f)
+		_text(ci, label, c + Vector2(0, 2), 22, RYE, tc, "center", 0, 62)
+		return Rect2(c - Vector2(46, 46), Vector2(92, 92))
+	var b := Rect2(1036, 628, 128, 72)
+	SkinDraw.fill(ci, SkinDraw.pill(b), f.darkened(0.25) if spinning else (f.lerp(Color.WHITE, 0.3) if hov else f))
+	_text(ci, label, b.get_center() + Vector2(0, 2), 28, RYE, tc, "center", 0, b.size.x - 28)
+	return b
+
+
+## Decor: the skin's free shapes, under the parts or over them.
+func _draw_decor(ci: CanvasItem, layer: String) -> void:
+	for d in skin.get("decor", []):
+		if str(d.get("layer", "under")) != layer or d.get("show", true) == false:
+			continue
+		var r := Rect2(float(d.x), float(d.y), float(d.w), float(d.h))
+		var col := Color(_sc(str(d.get("colour", "hl"))), float(d.get("alpha", 1.0)))
+		var font := COND if d.get("font") == "ui" else RYE
+		match str(d.kind):
+			"elbow":
+				SkinDraw.fill(ci, SkinDraw.elbow(r, str(d.corner), float(d.arm), float(d.bar), float(d.r)), col)
+			"bar", "pill":
+				SkinDraw.fill(ci, SkinDraw.pill(r, str(d.get("round", "both"))), col)
+				if d.kind == "pill" and str(d.get("text", "")) != "":
+					var al := str(d.get("align", "right"))
+					var tx := r.position.x + r.size.y / 2.0 + 4.0 if al == "left" else (r.end.x - r.size.y / 2.0 - 4.0 if al == "right" else r.get_center().x)
+					_text(ci, SkinDraw.tokens(str(d.text), str(rules.get("name", ""))), Vector2(tx, r.get_center().y + 1), int(d.size), font,
+						Color(_sc(str(d.get("text_colour", "ink"))), col.a), al, 0, r.size.x - r.size.y)
+			"text":
+				var al := str(d.get("align", "left"))
+				var tx := r.position.x if al == "left" else (r.end.x if al == "right" else r.get_center().x)
+				_text(ci, SkinDraw.tokens(str(d.text), str(rules.get("name", ""))), Vector2(tx, r.get_center().y), int(d.size), font, col, al, 0, r.size.x)
+			"readout":
+				var cells: Array = d.get("cells", [2, 5, 2])
+				var cols: Array = d.get("colours", ["hl"])
+				var total := 0.0
+				for n in cells:
+					total += float(n) + 1.2
+				var gap := 3.0
+				var unit := (r.size.x - gap * (cells.size() - 1)) / total
+				var x := r.position.x
+				var tick := float(d.get("tick", 2.0))
+				for i in cells.size():
+					var cw := unit * (float(cells[i]) + 1.2)
+					var epoch := int(floor(_now / tick + i * 0.37)) if tick > 0.0 else 0
+					var round := "left" if i == 0 else ("right" if i == cells.size() - 1 else "none")
+					SkinDraw.fill(ci, SkinDraw.pill(Rect2(x, r.position.y, cw, r.size.y), round), Color(_sc(str(cols[i % cols.size()])), col.a))
+					_text(ci, SkinDraw.readout_value(int(d.get("seed", 1)), i, epoch, int(cells[i])),
+						Vector2(x + cw - 4.0 - (r.size.y / 3.0 if i == cells.size() - 1 else 0.0), r.get_center().y + 1), int(r.size.y * 0.78), COND,
+						Color(_sc(str(d.get("text_colour", "ink"))), col.a), "right", 0, cw - 6.0)
+					x += cw + gap
+
+
 # ------------------------------------------------------------------ the chrome
 func _draw_background(ci: CanvasItem) -> void:
 	var bg := _tex("bg") if background else null
 	if bg:
 		ci.draw_texture_rect(bg, Rect2(0, 0, W, H), false)
 		ci.draw_rect(Rect2(0, 0, W, H), Color(SHADE.darkened(0.6), 0.2))
+		return
+	if _lc():   # no picture: deep space, not Armadillo's dusk
+		ci.draw_rect(Rect2(0, 0, W, H), Color.BLACK)
+		for i in 6:
+			ci.draw_circle(Vector2(640, 324), 900.0 - i * 140.0, Color(_sc("glass").lerp(Color.WHITE, 0.05), 0.22))
 		return
 	_vgrad(ci, Rect2(0, 0, W, 300), Color("1b1440"), Color("6a2c5c"))
 	_vgrad(ci, Rect2(0, 300, W, 150), Color("6a2c5c"), Color("e0663a"))
@@ -1021,6 +1267,9 @@ func _draw_top(ci: CanvasItem) -> void:
 	for spec in [["grand", 18.0, 250.0], ["major", 278.0, 210.0], ["minor", 792.0, 210.0], ["mini", 1012.0, 250.0]]:
 		var id: String = spec[0]
 		var r := Rect2(spec[1], 14, spec[2], 70)
+		if _lc():
+			_lcars_meter(ci, id, r, pick.get("lit", "") == id and int(_now * 6) % 2 == 1)
+			continue
 		_rr(ci, r, 18, SHADE)
 		_rr(ci, r.grow(-4), 15, Color(TIERS[id], 0.9))
 		_vgrad(ci, Rect2(r.position + Vector2(6, 6), Vector2(r.size.x - 12, 24)), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.0))
@@ -1045,6 +1294,9 @@ func _draw_logo(ci: CanvasItem) -> void:
 
 
 func _draw_frame(ci: CanvasItem) -> void:
+	if _lc():
+		_lcars_frame(ci)
+		return
 	_wood(ci, Rect2(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36), 18)
 	# Each reel shades dark at its edges to light down the middle, as the mockup's canvas gradient does.
 	var reel_bg: Array = {"wood": [Color("1c0e07"), Color("2e190d")], "metal": [Color("0d0f13"), Color("1d2128")]}.get(frame_style, [Color("05040f"), Color("100c26")])
@@ -1058,23 +1310,31 @@ func _draw_frame(ci: CanvasItem) -> void:
 
 func _draw_sides(ci: CanvasItem) -> void:
 	_wood(ci, Rect2(18, REEL_Y - 18, 224, REEL_H + 36), 16)
-	_text(ci, "RANDOM FEATURES", Vector2(130, REEL_Y + 8), 19, COND, GOLD_HI, "center", 0, 196)
+	var lc := _lc()
+	var cx := 134.0 if lc else 130.0
+	_text(ci, _t("features", "RANDOM FEATURES"), Vector2(cx, REEL_Y + 8), 19, RYE if lc else COND, _sc(_part("panel").get("title", "hl")) if lc else GOLD_HI, "center", 0, 196)
 	for i in feature_rows.size():
 		var id: String = feature_rows[i][0]
 		var y := REEL_Y + 32 + i * 52
 		var lit: bool = feature_lit.get(id, false)
 		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
-		_rr(ci, Rect2(34, y, 192, 42), 10, Color(WIN_COL.lerp(GOLD_HI, 0.5 + 0.5 * sin(_now * 8.0)), 0.95) if lit else deck.inset, 2, GOLD_HI if lit else deck.box_edge)
-		_text(ci, label, Vector2(130, y + 22), 20, COND, INK if lit else MUTED, "center", 0, 176)
-	_button(ci, "settings", Rect2(34, REEL_Y + 32 + 7 * 52 + 4, 192, 36), "SETTINGS", false, false, 18)
+		if lc:
+			_lcars_box(ci, Rect2(36, y, 196, 42), _sc("hl") if lit else Color.TRANSPARENT, 1.0)
+		else:
+			_rr(ci, Rect2(34, y, 192, 42), 10, Color(WIN_COL.lerp(GOLD_HI, 0.5 + 0.5 * sin(_now * 8.0)), 0.95) if lit else deck.inset, 2, GOLD_HI if lit else deck.box_edge)
+		_text(ci, label, Vector2(cx, y + 22), 20, COND, INK if lit else (_sc(_part("box").get("label", "c")) if lc else MUTED), "center", 0, 180 if lc else 176)
+	_button(ci, "settings", Rect2(36 if lc else 34, REEL_Y + 32 + 7 * 52 + 4, 196 if lc else 192, 36), _t("settings", "SETTINGS"), false, false, 18)
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
 	var busy := _running or not pick.is_empty() or not free.is_empty()
 	var by := REEL_Y + 6
-	var buy := Rect2(1052, by, 196, 178)
+	var buy := Rect2(1048, by, 200, 178) if lc else Rect2(1052, by, 196, 178)
 	var hov := _hover == "buy" and not busy
-	_rr(ci, buy, 14, deck.buy_hover if hov else deck.buy, 4 if hov else 3, GOLD)
+	if lc:
+		_glass(ci, SkinDraw.rounded(buy, 18), "glass", _sc("hl" if hov else "warn"), 3.0 if hov else 2.0)
+	else:
+		_rr(ci, buy, 14, deck.buy_hover if hov else deck.buy, 4 if hov else 3, GOLD)
 	var a := 0.45 if busy or not _can_buy() else 1.0
-	_text(ci, "BUY BONUS", Vector2(1150, by + 24), 26, COND, Color(GOLD_HI, a), "center", 0, 180)
+	_text(ci, _t("buy", "BUY BONUS"), Vector2(1150, by + 24), 26, RYE if lc else COND, Color(_sc("warn") if lc else GOLD_HI, a), "center", 0, 180)
 	var bs := _buy_icon()
 	if bs:
 		ci.draw_texture_rect(bs, Rect2(1098, by + 38, 104, 104), false, Color(1, 1, 1, a))
@@ -1088,7 +1348,10 @@ func _draw_sides(ci: CanvasItem) -> void:
 	for i in info.size():
 		# Each box: the symbol on the left, its two lines centred in the space to its right.
 		var box := Rect2(SIDE_INFO.position + Vector2(0, by + 196 + i * 116), SIDE_INFO.size)
-		_rr(ci, box, 12, deck.inset)
+		if lc:
+			_lcars_box(ci, Rect2(1048, box.position.y, 200, box.size.y), Color.TRANSPARENT, 1.0)
+		else:
+			_rr(ci, box, 12, deck.inset)
 		var icon := Rect2(box.position + Vector2(6, 14), Vector2(76, 76))
 		var t := _tex(info[i][0])
 		if t:
@@ -1096,39 +1359,50 @@ func _draw_sides(ci: CanvasItem) -> void:
 		var text_x := icon.end.x + 4.0
 		var text_w := box.end.x - 8.0 - text_x
 		var mid := text_x + text_w / 2.0
-		_text(ci, info[i][1], Vector2(mid, box.position.y + 40), 22, COND, GOLD_HI, "center", 0, text_w)
-		_text(ci, info[i][2], Vector2(mid, box.position.y + 66), 16, COND, CREAM, "center", 0, text_w)
+		_text(ci, info[i][1], Vector2(mid, box.position.y + 40), 17 if lc else 22, RYE if lc else COND, _sc("hl") if lc else GOLD_HI, "center", 0, text_w)
+		_text(ci, info[i][2], Vector2(mid, box.position.y + 66), 14 if lc else 16, COND, CREAM, "center", 0, text_w)
 
 
 func _draw_deck(ci: CanvasItem) -> void:
-	ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), deck.band)
-	ci.draw_rect(Rect2(0, DECK_TOP, W, 2), EDGE)
+	var lc := _lc()
+	if lc:
+		_lcars_deck(ci)
+	else:
+		ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), deck.band)
+		ci.draw_rect(Rect2(0, DECK_TOP, W, 2), EDGE)
 	_text(ci, message, Vector2(560, DECK_TOP + 15), 19, COND, GOLD_HI, "center", 0, 1000)
 	var top := DECK_ROW.position.y
 	var h := DECK_ROW.size.y
 	var credit := Session.shown_balance + _credit_adj
-	_deck_box(ci, Rect2(20, top, 210, h), "CREDIT", Money.format(credit), Color.WHITE)
-	_deck_box(ci, Rect2(242, top, 230, h), "BET", Money.format(_bet()), Color.WHITE, 112)
+	_deck_box(ci, Rect2(20, top, 210, h), _t("credit", "CREDIT"), Money.format(credit), Color.WHITE)
+	_deck_box(ci, Rect2(242, top, 230, h), _t("bet", "BET"), Money.format(_bet()), Color.WHITE, 112)
 	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and free.is_empty()
 	_button(ci, "bet-", Rect2(252, top + 36, 40, 38), "−", false, not idle or _bet_idx == 0, 30)
 	_button(ci, "bet+", Rect2(422, top + 36, 40, 38), "+", false, not idle or _bet_idx == _ladder.size() - 1, 30)
-	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else "WIN",
+	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else _t("win", "WIN"),
 		Money.format(int(win_shown)) if win_shown > 0 else "", WIN_COL)
 	var by := top + (h - 56.0) / 2.0
-	_button(ci, "info", Rect2(728, by, 92, 56), "INFO", false, not idle)
-	_button(ci, "turbo", Rect2(828, by, 92, 56), "TURBO", turbo)
-	_button(ci, "auto", Rect2(928, by, 92, 56), "STOP %d" % auto if auto > 0 else "AUTO", auto > 0 or auto_menu, not idle and auto == 0)
+	_button(ci, "info", Rect2(728, by, 92, 56), _t("info", "INFO"), false, not idle)
+	_button(ci, "turbo", Rect2(828, by, 92, 56), _t("turbo", "TURBO"), turbo)
+	_button(ci, "auto", Rect2(928, by, 92, 56), "STOP %d" % auto if auto > 0 else _t("auto", "AUTO"), auto > 0 or auto_menu, not idle and auto == 0)
 	var c := SPIN_CENTRE
 	var spinning := reels.any(func(x): return x.spinning or x.stopping)
 	var hov := _hover == "spin"
+	var label := _t("stop", "STOP") if spinning else (_t("fire", "FIRE") if not trail.is_empty() or not battle.is_empty() else (_t("sail", "SAIL") if not voyage.is_empty() else _t("spin", "SPIN")))
+	if lc:
+		_add_hit("spin", _lcars_spin(ci, label, spinning, hov))
+		_button(ci, "cashout", Rect2(1172, by, 96, 56), _t("cashout", "CASH OUT"), false, false, 18)
+		if auto_menu:
+			for n in 4:
+				_button(ci, "auto%d" % [10, 25, 50, 100][n], Rect2(924, top - 50 - n * 46, 100, 40), "%d SPINS" % [10, 25, 50, 100][n], false, false, 20, [GOLD_HI, SPIN_COL.darkened(0.4)])
+		return
 	ci.draw_circle(c, SPIN_R + 4.0, deck.ring)
 	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
 	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(GOLD_HI, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
-	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() or not battle.is_empty() else ("SAIL" if not voyage.is_empty() else "SPIN"))
 	_text(ci, label, c + Vector2(0, 2), 28, COND, INK, "center", 0, SPIN_R * 1.6)
 	_add_hit("spin", Rect2(c - Vector2(SPIN_R, SPIN_R), Vector2(SPIN_R, SPIN_R) * 2.0))
-	_button(ci, "cashout", Rect2(1172, by, 96, 56), "CASH OUT", false, false, 18)
+	_button(ci, "cashout", Rect2(1172, by, 96, 56), _t("cashout", "CASH OUT"), false, false, 18)
 	if auto_menu:
 		var n := 0
 		for count in [10, 25, 50, 100]:
@@ -1138,6 +1412,12 @@ func _draw_deck(ci: CanvasItem) -> void:
 
 ## A deck readout. `value_w` narrows the value (the bet sits between its − and + buttons).
 func _deck_box(ci: CanvasItem, r: Rect2, label: String, value: String, col: Color, value_w := 0.0) -> void:
+	if _lc():
+		_lcars_box(ci, r)
+		_text(ci, label, Vector2(r.get_center().x, r.position.y + 16), 16, RYE, _sc(_part("box").get("label", "c")), "center", 0, r.size.x - 40)
+		_text(ci, value, Vector2(r.get_center().x, r.position.y + r.size.y - 26), 34, COND, _sc(_part("box").get("value", "goldHi")) if col == Color.WHITE else col,
+			"center", 0, value_w if value_w > 0.0 else r.size.x - 50)
+		return
 	_rr(ci, r, 12, deck.box, 2, deck.box_edge)
 	_text(ci, label, Vector2(r.get_center().x, r.position.y + 16), 16, COND, MUTED, "center", 0, r.size.x - 16)
 	_text(ci, value, Vector2(r.get_center().x, r.position.y + r.size.y - 26), 34, COND, col, "center", 0,
@@ -1644,7 +1924,7 @@ func _draw_overlay(ci: CanvasItem) -> void:
 			_gold_text(ci, overlay.title, Vector2(640, 240), 54, 560)
 			_text(ci, overlay.sub, Vector2(640, 300), 24, COND, CREAM, "center", 0, 560)
 			_text(ci, Money.format(int(overlay.amount)), Vector2(640, 372), 76, COND, WIN_COL, "center", 8, 560)
-			_button(ci, "overlay", Rect2(560, 430, 160, 50), "COLLECT", false, false, 22, [GOLD_HI, SPIN_COL.darkened(0.4)])
+			_button(ci, "overlay", Rect2(560, 430, 160, 50), _t("collect", "COLLECT"), false, false, 22, [GOLD_HI, SPIN_COL.darkened(0.4)])
 			_text(ci, "collects itself in %d" % maxi(1, ceili(5.0 - (_now - float(overlay.t0)))), Vector2(640, 496), 16, COND, MUTED)
 		"buy":
 			_wood(ci, Rect2(360, 170, 560, 340), 22)
