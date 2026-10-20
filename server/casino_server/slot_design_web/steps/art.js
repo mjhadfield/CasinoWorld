@@ -35,7 +35,7 @@ export function render(ctx, body) {
         for (const s of C.data.symbols) { const r = rows.get(s.id); if (r) r.card.hidden = !visible(s); }
       }})));
   body.append(
-    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
+    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no image model); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to the image model; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
     el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
@@ -66,7 +66,7 @@ function draw(full, force) {
   els.gen.title = d.pending ? "Make the takes asked for on every symbol marked Reiterate (three for a newly added one)" : "Mark a symbol Reiterate, or add a New one, first";
   els.stop.textContent = `Cancel all (${d.art_jobs})`;
   els.stop.hidden = !d.art_jobs;
-  els.stop.title = "Cancel every Art job that's queued, waiting, being made or failed. The picture FLUX is drawing now is thrown away.";
+  els.stop.title = "Cancel every Art job that's queued, waiting, being made or failed. The picture being drawn now is thrown away.";
   const unused = d.symbols.filter(s => !s.hide && !s.in_use && !s.reiterate && !s.pending_new && !s.job).length;
   els.tidy.textContent = `Hide unused (${unused})`;
   els.tidy.disabled = !unused;
@@ -140,14 +140,14 @@ function redraw(sid) {
 async function generate() {
   try {
     const r = await C.api("POST", `/api/slot-design/${C.did}/generate`);
-    C.status(`Queued ${r.queued} job${r.queued === 1 ? "" : "s"}. The takes appear here as FLUX finishes them.`, "ok");
+    C.status(`Queued ${r.queued} job${r.queued === 1 ? "" : "s"}. The takes appear here as the image model finishes them.`, "ok");
     await C.refresh();
   } catch (e) { C.status(e.message, "warn"); }
 }
 
 async function cancelAll() {
   const n = C.data.art_jobs;
-  if (!confirm(`Cancel all ${n} Art job${n === 1 ? "" : "s"}? The picture FLUX is drawing now is thrown away; takes already made stay.`)) return;
+  if (!confirm(`Cancel all ${n} Art job${n === 1 ? "" : "s"}? The picture being drawn now is thrown away; takes already made stay.`)) return;
   try {
     const r = await C.api("DELETE", `/api/slot-design/${C.did}/jobs`);
     C.status(`Cancelled ${r.cancelled} job${r.cancelled === 1 ? "" : "s"}.`, "ok");
@@ -217,14 +217,14 @@ export function linker(ctx, onPath) {
 function jobBits(s) {
   const {el} = C, j = s.job;
   if (!j) return [];
-  const text = {queued: "Queued", waiting: "Waiting for FLUX", running: `Making ${j.done + 1} of ${j.count}`, failed: "Failed"}[j.status];
+  const text = {queued: "Queued", waiting: "Waiting for the image model", running: `Making ${j.done + 1} of ${j.count}`, failed: "Failed"}[j.status];
   const go = (method, tail) => async () => {
     try { await C.api(method, `/api/slot-design/${C.did}/jobs/${j.id}${tail}`); await C.refresh(s.id); }
     catch (e) { C.status(e.message, "warn"); }
   };
   return [el("span", {className: "tag " + (j.status === "failed" ? "warn" : "gold"), textContent: (j.action === "refine" ? "Refine: " : "") + text, title: j.error || ""}),
     j.status === "failed" ? el("button", {type: "button", textContent: "Retry", onclick: go("POST", "/retry")}) : null,
-    el("button", {type: "button", textContent: "Cancel", title: j.status === "running" ? "Stop: the picture FLUX is drawing now is thrown away" : "",
+    el("button", {type: "button", textContent: "Cancel", title: j.status === "running" ? "Stop: the picture being drawn now is thrown away" : "",
       onclick: go("DELETE", "")})];
 }
 
@@ -309,18 +309,18 @@ function symRow(s) {
       ariaPressed: String(s.reiterate ? n === s.takes : !n),
       onclick: () => patch(s, n ? {reiterate: true, takes: n} : {reiterate: false})})));
   const queue = s.reiterate || s.pending_new ? el("button", {type: "button", className: "primary", textContent: "Queue",
-    title: `Send ${s.name} to FLUX now, on its own (Generate sends everything marked)`, onclick: async () => {
+    title: `Send ${s.name} to the image model now, on its own (Generate sends everything marked)`, onclick: async () => {
       while (saving.get(s.id)) await new Promise(r => setTimeout(r, 50));   // the note just typed lands first
-      await act(s, "queue", {}, `Queued ${s.name}. The takes appear here as FLUX finishes them.`);
+      await act(s, "queue", {}, `Queued ${s.name}. The takes appear here as the image model finishes them.`);
     }}) : null;
   const re = el("div", {className: "dz-re"}, el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base, queue), note);
 
   let prompt = null;
   if (s.added || s.prompt) {
-    prompt = el("textarea", {rows: 2, value: s.prompt || "", ariaLabel: `Description of ${s.name}`, placeholder: "Describe it for FLUX"});
+    prompt = el("textarea", {rows: 2, value: s.prompt || "", ariaLabel: `Description of ${s.name}`, placeholder: "Describe it for the image model"});
     typed(s, "prompt", prompt);
   }
-  const failed = s.job && s.job.status === "failed" ? el("p", {className: "hint", textContent: "FLUX said: " + s.job.error}) : null;
+  const failed = s.job && s.job.status === "failed" ? el("p", {className: "hint", textContent: "Failed: " + s.job.error}) : null;
   const card = el("div", {className: "card dz-sym" + (s.keep ? " keep" : "")}, view,
     el("div", {className: "dz-main"}, head, failed, strip, panel, prompt, refs, linkBox, re));
   card.dataset.sid = s.id;
@@ -331,12 +331,12 @@ function refinePanel(s, v) {
   const {el} = C;
   const text = el("textarea", {rows: 2, ariaLabel: "What to change", placeholder: "One change, e.g. 'make his eyes brown' or 'remove the stray star top left'"});
   return el("div", {className: "dz-panel"},
-    el("p", {className: "hint", textContent: `Refine ${v.label}: FLUX keeps everything and changes only what you say. One new take.`}),
+    el("p", {className: "hint", textContent: `Refine ${v.label}: the image model keeps everything and changes only what you say. One new take.`}),
     text,
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Refine", onclick: async () => {
       if (!text.value.trim()) return C.status("Say what to change.", "warn");
       open.set(s.id, null);
-      await act(s, "refine", {variant: v.id, instruction: text.value}, `Refining ${s.name}: the new take appears when FLUX is done.`);
+      await act(s, "refine", {variant: v.id, instruction: text.value}, `Refining ${s.name}: the new take appears when the image model is done.`);
     }})));
 }
 
@@ -400,7 +400,7 @@ function draftForm(c) {
   kind.value = c.kind || "object";
   const key = el("select", {ariaLabel: "Background to key off"}, el("option", {value: "magenta", textContent: "Magenta (most art)"}),
     el("option", {value: "green", textContent: "Green (purple or pink art)"}));
-  const desc = el("textarea", {rows: 2, ariaLabel: "Description", placeholder: "Describe it for FLUX, e.g. 'a Starfleet shuttlecraft, three-quarter view'"});
+  const desc = el("textarea", {rows: 2, ariaLabel: "Description", placeholder: "Describe it for the image model, e.g. 'a Starfleet shuttlecraft, three-quarter view'"});
   const chosen = el("div", {className: "dz-refs"});
   const card = el("div", {className: "card dz-new"},
     el("div", {className: "card-head"}, el("h3", {textContent: "New symbol"}), el("span", {className: "tag", textContent: c.title})),
@@ -409,7 +409,7 @@ function draftForm(c) {
       el("label", {className: "field"}, el("span", {textContent: "Kind"}), kind),
       el("label", {className: "field"}, el("span", {textContent: "Background to key off"}), key),
       el("label", {className: "field", style: "grid-column: 1 / -1"}, el("span", {textContent: "Description"}), desc)),
-    el("div", {className: "field"}, el("span", {textContent: "Reference image (optional: with one, FLUX redraws it; without, it draws from the description)"}),
+    el("div", {className: "field"}, el("span", {textContent: "Reference image (optional: with one, the image model redraws it; without, it draws from the description)"}),
       linker(C, path => {
         ref = path;
         chosen.replaceChildren("Reference", el("span", {className: "dz-ref"}, el("img", {src: C.img(path), alt: "Reference"}),

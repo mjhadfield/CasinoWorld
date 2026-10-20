@@ -1,4 +1,4 @@
-// Step 1, Concept: the slot's name, the theme brief that leads every FLUX prompt, the tier shape (which sets how
+// Step 1, Concept: the slot's name, the theme brief that leads every image-model prompt, the tier shape (which sets how
 // many symbols the Art step needs), the target return and volatility, and the sheet cutter: upload a reference
 // sheet, drag a box round each symbol, name it, and cut them all into new symbols waiting for Generate.
 let C, cutter = null, sheetCard = null;
@@ -36,7 +36,7 @@ export function render(ctx, body) {
   };
 
   body.append(
-    el("p", {className: "lead", textContent: "What the slot is. The theme brief and style lead every picture FLUX makes for it, so the whole set belongs together. The tier shape sets how many symbols the Art step needs."}),
+    el("p", {className: "lead", textContent: "What the slot is. The theme brief and style lead every picture the image model makes for it, so the whole set belongs together. The tier shape sets how many symbols the Art step needs."}),
     el("div", {className: "two"},
       el("div", {className: "pane"},
         el("div", {className: "card"},

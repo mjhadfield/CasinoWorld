@@ -47,11 +47,29 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))
     monkeypatch.setenv("CASINO_NPCS", "0")
-    monkeypatch.setattr(art, "flux_ready", lambda: True)
+    monkeypatch.setattr(art, "image_model", lambda: "FLUX.2-klein-4B")
     monkeypatch.setattr(art, "flux_edit", _fake_flux)
     monkeypatch.setattr(art, "flux_generate", _fake_flux)
     with TestClient(app) as c:
         yield c, d
+
+
+@pytest.mark.parametrize("listed, model", [
+    (b'{"data":[{"id":"Qwen-Image-2.1","object":"model"}]}', "Qwen-Image-2.1"),  # any model will do, not just FLUX
+    (b'{"data":[{"id":"FLUX.2-klein-4B"}]}', "FLUX.2-klein-4B"),
+    (b'{"data":[]}', None),
+    (b'{"error":"Model not loaded"}', None),
+    (b"not json", None),
+])
+def test_any_loaded_image_model_is_ready(monkeypatch, listed, model):
+    monkeypatch.setattr(art, "_docker", lambda *a, **k: listed)
+    assert art.image_model() == model and art.flux_ready() is (model is not None)
+
+
+def test_status_names_the_model(board):
+    c, _ = board
+    st = c.get("/api/slot-design/demo/status").json()
+    assert st["flux"] is True and st["model"] == "FLUX.2-klein-4B"
 
 
 def _overview(c):

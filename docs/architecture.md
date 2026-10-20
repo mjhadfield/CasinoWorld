@@ -26,7 +26,7 @@ game result and every penny is decided on the server; the client only renders an
   per table plus the NPC director. Messages are handled one at a time on the event loop, so no state needs
   locks.
 - **The Slot design board (`slot_design.py`)** is on `app.state` too, with one background task of its own
-  (`run()`, cancelled when the app stops) that works through its generate queue, one FLUX picture at a time
+  (`run()`, cancelled when the app stops) that works through its generate queue, one picture from the image model (whichever Odysseus has loaded) at a time
   in a worker thread. The board is the only shared state touched from threads (request handlers in the
   threadpool and the worker), so it holds a lock; jobs are saved in each design's `design.json`, so a restart
   carries on where it stopped.

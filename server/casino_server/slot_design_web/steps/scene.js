@@ -106,10 +106,10 @@ function drawBg() {
         el("span", {className: "wz-none", textContent: "None"})),
       ...sc.backgrounds.map(p => take(p, sc.background === p, () => patch({background: p}, "Background chosen."), "wide"))),
     ...bin("backgrounds", "wide"),
-    ...jobs.map(j => el("p", {className: "hint", textContent: `Background: ${{queued: "queued", waiting: "waiting for FLUX", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
+    ...jobs.map(j => el("p", {className: "hint", textContent: `Background: ${{queued: "queued", waiting: "waiting for the image model", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
     el("label", {className: "field"}, el("span", {textContent: "Generate (three takes, about two minutes each)"}), desc),
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Generate", onclick: async () => {
-      try { await C.api("POST", `/api/slot-design/${C.did}/scene/backgrounds`, {description: desc.value}); desc.value = ""; C.status("Background queued: the takes appear here as FLUX finishes them.", "ok"); await C.refresh(); }
+      try { await C.api("POST", `/api/slot-design/${C.did}/scene/backgrounds`, {description: desc.value}); desc.value = ""; C.status("Background queued: the takes appear here as the image model finishes them.", "ok"); await C.refresh(); }
       catch (e) { C.status(e.message, "warn"); }
     }})),
     el("div", {className: "controls"}, file),
@@ -153,7 +153,7 @@ function drawLogo() {
     } catch (e) { C.status(e.message, "warn"); }
   });
   parts.logo.replaceChildren(
-    el("p", {className: "hint", textContent: "Lettering is rendered, not drawn by FLUX (it can't spell). The first line is the biggest."}),
+    el("p", {className: "hint", textContent: "Lettering is rendered, not drawn by the image model (most can't spell). The first line is the biggest."}),
     ...lines,
     el("div", {className: "grid2"}, el("label", {className: "field"}, el("span", {textContent: "Font"}), font),
       el("label", {className: "field"}, el("span", {textContent: "Emblem"}), emblem)),

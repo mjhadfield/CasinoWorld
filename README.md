@@ -87,27 +87,28 @@ and Tailscale. It has six tabs:
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
   wizard's UI is its own scripts in `casino_server/slot_design_web/`, which the tab loads; the server side is
-  `casino_server/slot_design.py` (the designs and their steps) and `slot_design_art.py` (FLUX, keying, the frame).
-  - **Concept:** the name, a theme brief and style notes that lead every FLUX prompt, the tier shape (how many
+  `casino_server/slot_design.py` (the designs and their steps) and `slot_design_art.py` (the image model, keying, the frame).
+  - **Concept:** the name, a theme brief and style notes that lead every image-model prompt, the tier shape (how many
     high, mid and low pays, which sets the Art step's counts), the target return and volatility, and the sheet
     cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols (Generate makes one faithful redraw of each).
   - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
     pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
     art on the board), **Reiterate** (1, 3 or 5 fresh takes from the chosen take or a reference, with a note; a reference redraw also
     goes by the symbol's description),
-    **Refine** (one FLUX edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
+    **Refine** (one image-model edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
     tile, previewed live; saved as a new take), **Split** (asks for a name, then moves the take shown into a new symbol of its own in the
     same section; the original goes to the Bin) and the **Bin** (✕ on a take; restorable, nothing is deleted).
     **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
-    everything marked to FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs
-    wait for it); a marked card's **Queue** sends just that symbol and sets its Reiterate back to No; **Cancel** on a card or **Cancel all** stops jobs, a running one included (the picture FLUX is
-    drawing is thrown away). A card's **Section** moves the symbol to another category. **Hide** takes a symbol that
+    everything marked to the image model in Odysseus: any diffusers model started from Odysseus's Cookbook with
+    CPU Offload ticked (FLUX.2-klein-4B, or Qwen-Image-2.1 with `--quantize nf4`). The board's bar names the model
+    loaded, and jobs wait while none is. Edits need a model that takes a reference image; a marked card's **Queue** sends just that symbol and sets its Reiterate back to No; **Cancel** on a card or **Cancel all** stops jobs, a running one included (the picture being
+    drawn is thrown away). A card's **Section** moves the symbol to another category. **Hide** takes a symbol that
     isn't in use (not in the final set, on the ladder or followed by an art slot) off the board, **Hide unused** does
     all of them at once, and **Hidden** shows them to unhide.
   - **Value ladder:** order the final set by value into the tiers of the tier shape (Wild, the bonus and
     free-spins scatters, then H1…, M1…, L1…), by dragging or click-to-place, with each tier's pays shown and the
     Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
-  - **Scene:** the background (FLUX, three takes; an upload; or art already on the board, fitted to 1280×720),
+  - **Scene:** the background (the image model, three takes; an upload; or art already on the board, fitted to 1280×720),
     the logo lettering (rendered by the server from a bundled or uploaded font, with gradient colours, an outline
     and an optional emblem), each with its own **Bin** like Art's (✕ on a background or logo; restorable), the reel frame's style and colour, and the deck's (the bottom bar, its readouts and
     every button: the frame's style by default, or its own style and a tint). The step shows the **mockup**: the real
@@ -231,7 +232,7 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
   - `slot_design.py`, `slot_design_steps.py`, `slot_design_build.py`, `slot_design_art.py`: the Slot design
-    wizard (designs, its steps, Build, and the FLUX/keying/frame pipeline; designs in `server/slot_designs/`), its
+    wizard (designs, its steps, Build, and the image-model/keying/frame pipeline; designs in `server/slot_designs/`), its
     UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars and the room.

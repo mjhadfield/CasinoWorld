@@ -259,20 +259,23 @@ class DesignBoard(StepsMixin, BuildMixin):
             for f in sorted(root.iterdir()):
                 if (f / "design.json").is_file():
                     self.designs[f.name] = Design(f)
-        self._flux = (0.0, False)
+        self._flux = (0.0, None)  # (checked at, the loaded image model's id or None)
 
     def design(self, did: str) -> Design:
         if did not in self.designs:
             raise DesignError(f"There's no design called {did!r}.")
         return self.designs[did]
 
-    def flux_ready(self, fresh: bool = False) -> bool:
-        """Cached for 15 s: the page polls while jobs run."""
-        at, ready = self._flux
+    def image_model(self, fresh: bool = False) -> str | None:
+        """The image model loaded in Odysseus (any model will do), cached for 15 s: the page polls while jobs run."""
+        at, model = self._flux
         if fresh or time.monotonic() - at > 15:
-            ready = art.flux_ready()
-            self._flux = (time.monotonic(), ready)
-        return ready
+            model = art.image_model()
+            self._flux = (time.monotonic(), model)
+        return model
+
+    def flux_ready(self, fresh: bool = False) -> bool:
+        return self.image_model(fresh) is not None
 
     # ------------------------------------------------------------- reading
     def listing(self) -> list[dict]:
@@ -320,7 +323,8 @@ class DesignBoard(StepsMixin, BuildMixin):
         with self.lock:
             jobs = self.design(did).data["jobs"]
             busy = any(j["status"] in ("queued", "waiting", "running") for j in jobs)
-        return {"flux": self.flux_ready(), "busy": busy}
+        model = self.image_model()
+        return {"flux": model is not None, "model": model, "busy": busy}
 
     # ------------------------------------------------------------- changing
     def update_symbol(self, did: str, sid: str, ch: dict) -> None:

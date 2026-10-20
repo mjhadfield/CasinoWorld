@@ -1,11 +1,14 @@
 """
-The image side of the Slot design board (slot_design.py): asking FLUX for art and turning what comes back
-into 512x512 symbols.
+The image side of the Slot design board (slot_design.py): asking the image model for art and turning what
+comes back into 512x512 symbols.
 
-FLUX.2-klein runs in Odysseus's diffusion server, inside its Docker container (Mike starts it from
-Odysseus's Cookbook, with CPU Offload ticked). Reference edits run at 512²: larger references run the
-12 GB card out of memory, because CPU offload keeps the ~8 GB text encoder on the GPU while the VAE
-encodes the reference. Text-only generations (a New symbol with no reference) run at 1024².
+The image model is whichever diffusers model Mike has started from Odysseus's Cookbook (FLUX.2-klein,
+Qwen-Image-2.1, ...): it runs in Odysseus's diffusion server, inside its Docker container, behind an
+OpenAI-style /v1/images API, so nothing here depends on which one. Edits need a model that takes a reference
+image; one that can't says so and the board shows it. (The code still says "flux" for the model, from when
+FLUX was the only one.) Reference edits run at 512²: with FLUX.2-klein, larger references ran the 12 GB card
+out of memory, because CPU offload keeps the ~8 GB text encoder on the GPU while the VAE encodes the
+reference. Text-only generations (a New symbol with no reference) run at 1024².
 
 Every picture is asked for on a flat magenta background (green for purple symbols) and keyed out here.
 Objects get the set's drop shadow; characters are drawn as a bust only and put into the board's shared
@@ -26,7 +29,7 @@ S = 512
 
 
 class FluxError(RuntimeError):
-    """FLUX isn't reachable or refused the request (shown on the board as-is)."""
+    """The image model isn't reachable or refused the request (shown on the board as-is)."""
 
 
 # ------------------------------------------------------------------ prompts
@@ -118,22 +121,27 @@ def _docker(args: list[str], data: bytes | None = None, timeout: float = 900) ->
     return r.stdout
 
 
-def flux_ready() -> bool:
-    """Is FLUX loaded in Odysseus right now?"""
+def image_model() -> str | None:
+    """The image model loaded in Odysseus right now (its id, e.g. "Qwen-Image-2.1"), or None."""
     try:
         out = _docker(["-m", "4", f"{FLUX_URL}/v1/models"], timeout=10)
-        return any("flux" in m.get("id", "").lower() for m in json.loads(out).get("data", []))
-    except (FluxError, ValueError, AttributeError):
-        return False
+        return next((m["id"] for m in json.loads(out).get("data", []) if m.get("id")), None)
+    except (FluxError, ValueError, AttributeError, TypeError, KeyError):
+        return None
+
+
+def flux_ready() -> bool:
+    """Is an image model loaded in Odysseus right now?"""
+    return image_model() is not None
 
 
 def _image(out: bytes) -> Image.Image:
     try:
         d = json.loads(out)
     except ValueError:
-        raise FluxError("FLUX failed (most likely out of GPU memory; see the Odysseus diffusion log)")
+        raise FluxError("The image model failed (most likely out of GPU memory; see the Odysseus diffusion log)")
     if "data" not in d:
-        raise FluxError(f"FLUX: {str(d)[:300]}")
+        raise FluxError(f"The image model said: {str(d)[:300]}")
     return Image.open(io.BytesIO(base64.b64decode(d["data"][0]["b64_json"]))).convert("RGB")
 
 
@@ -274,7 +282,7 @@ def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
     im = im if im.mode == "RGBA" else cutout(im)
     bbox = im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox()
     if not bbox:
-        raise FluxError("FLUX returned an empty picture")
+        raise FluxError("The image model returned an empty picture")
     im = im.crop(bbox)
     if f["rot"]:
         im = im.rotate(-f["rot"], resample=Image.BICUBIC, expand=True)
@@ -410,7 +418,7 @@ def _place(bust: Image.Image, fit: dict) -> np.ndarray:
     a = np.asarray(bust)[..., 3]
     ys, _ = np.nonzero(a > 24)
     if not len(ys):
-        raise FluxError("FLUX returned an empty picture")
+        raise FluxError("The image model returned an empty picture")
     top, bottom = ys.min(), ys.max()
     hx = np.nonzero(a[top:top + (bottom - top) * 2 // 5] > 24)[1].mean()  # centre on the head
     scale = (IN[3] + 12 - (IN[1] - POKE)) / (bottom - top) * fit["scale"]

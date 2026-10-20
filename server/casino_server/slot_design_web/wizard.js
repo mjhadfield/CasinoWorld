@@ -45,7 +45,7 @@ function buildShell() {
   const form = newDesignForm();
   shell = {
     tabs, form,
-    flux: el("span", {className: "tag", textContent: "FLUX…"}),
+    flux: el("span", {className: "tag", textContent: "Image model…"}),
     queue: el("span", {className: "hint"}),
     play: el("button", {type: "button", className: "wz-play", textContent: "▶ Play the mockup", onclick: () => playMockup(),
       title: "The base game with this design's art and scene (from the Scene step on)"}),
@@ -73,7 +73,7 @@ function newDesignForm() {
   const {el} = H;
   const name = el("input", {placeholder: "e.g. Pirates of the Spanish Main", ariaLabel: "Name"});
   const brief = el("textarea", {rows: 2, ariaLabel: "Theme brief",
-    placeholder: "The theme in a sentence: it leads every picture FLUX makes for this slot"});
+    placeholder: "The theme in a sentence: it leads every picture the image model makes for this slot"});
   return el("div", {className: "card wz-new", hidden: true},
     el("div", {className: "card-head"}, el("h3", {textContent: "New slot design"})),
     el("div", {className: "grid2"}, el("label", {className: "field"}, el("span", {textContent: "Name"}), name),
@@ -162,17 +162,17 @@ function drawBar() {
   const sceneAt = ctx.data.steps.findIndex(s => s.id === "scene");
   shell.play.hidden = !(ctx.data.steps.findIndex(s => s.id === ctx.step) >= sceneAt || ctx.data.steps[sceneAt].status !== "todo");
   shell.queue.textContent = [
-    r ? (r.status === "waiting" ? `Waiting for FLUX to make ${who}` : `Making ${who}: ${r.done + 1} of ${r.count}`) : "",
+    r ? (r.status === "waiting" ? `Waiting for the image model to make ${who}` : `Making ${who}: ${r.done + 1} of ${r.count}`) : "",
     ctx.data.queued ? `${ctx.data.queued} queued` : ""].filter(Boolean).join(" · ");
 }
 
 async function checkFlux() {
   try {
     const st = await H.api("GET", `/api/slot-design/${ctx.did}/status`);
-    shell.flux.textContent = st.flux ? "FLUX ready" : "FLUX off";
+    shell.flux.textContent = st.flux ? `${st.model} ready` : "Image model off";
     shell.flux.className = "tag " + (st.flux ? "ok" : "warn");
-    shell.flux.title = st.flux ? "FLUX.2-klein is loaded in Odysseus."
-      : "Start FLUX.2-klein from Odysseus's Cookbook, with CPU Offload ticked. Queued jobs wait for it.";
+    shell.flux.title = st.flux ? `${st.model} is loaded in Odysseus and makes the pictures.`
+      : "Start an image model (FLUX.2-klein, Qwen-Image-2.1, ...) from Odysseus's Cookbook, with CPU Offload ticked. Queued jobs wait for it.";
   } catch (e) {}
 }
 
@@ -197,7 +197,7 @@ async function playMockup(opts = {}) {
 }
 
 // While the tab is open: follow running jobs (and a step left showing older data, current.behind) every 4 s,
-// and check FLUX every 20 s otherwise.
+// and check the image model every 20 s otherwise.
 export function polling(on) {
   clearInterval(timer);
   if (on) timer = setInterval(async () => {
