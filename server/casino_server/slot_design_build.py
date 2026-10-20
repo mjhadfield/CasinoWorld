@@ -17,7 +17,7 @@ import subprocess
 from pathlib import Path
 
 from casino_server import slot_builds
-from casino_server.slot_design_steps import (FONTS_DIR, DesignError, _font_path, art_view, bonuses_view, ladder_view,
+from casino_server.slot_design_steps import (FONTS_DIR, DesignError, _font_path, art_view, deck_look, bonuses_view, ladder_view,
                                              signoff_view, sprites_view, variant_from_design)
 
 REPO = Path(__file__).resolve().parents[2]
@@ -91,7 +91,7 @@ class BuildMixin:
             fonts = {role: _font_path(d, name) for role, name in sp["fonts"].items()}
             theme = {
                 "colours": sp["colours"], "fonts": {role: f"{role}{p.suffix.lower()}" for role, p in fonts.items()},
-                "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}), "win": sp["win"], "labels": False,
+                "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}), "deck": deck_look(sc), "win": sp["win"], "labels": False,
                 "texts": {"tagline": "GOOD LUCK", "trail": b["trail"]["name"].upper(), "launcher": b["trail"]["launcher"].upper(),
                           "hint": b["trail"]["hint"], "free": b["free"]["name"].upper(),
                           "bonus_line": f"3+ {v.symbols.get('BS', 'BS').upper()}", "free_line": f"3+ {v.symbols.get('FS', 'FS').upper()}"},

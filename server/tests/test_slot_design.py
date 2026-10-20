@@ -323,6 +323,11 @@ def test_the_scene(board, monkeypatch):
     assert c.post("/api/slot-design/demo/scene/logo", json={"lines": [], "font": "Cinzel-SemiBold.ttf"}).status_code == 400
     assert c.patch("/api/slot-design/demo/scene", json={"frame": {"style": "neon", "colour": "#33ccff"}}).status_code == 200
     assert c.patch("/api/slot-design/demo/scene", json={"frame": {"style": "lace", "colour": "#33ccff"}}).status_code == 400
+    assert _overview(c)["scene"]["deck"] == {"style": "frame", "colour": None}   # the deck follows the frame until changed
+    assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "metal", "colour": "#224466"}}).status_code == 200
+    assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "frame", "colour": None}}).status_code == 200
+    assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "lace", "colour": None}}).status_code == 400
+    assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "wood", "colour": "brown"}}).status_code == 400
     assert c.put("/api/slot-design/demo/fonts/bad.ttf", content=b"nope").status_code == 400
     assert c.put("/api/slot-design/demo/fonts/notes.txt", content=b"nope").status_code == 400
     assert c.get("/slot-design-ui/slots_math.js").status_code == 200
@@ -553,7 +558,8 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
     assert r.json()["built"]["spot"] == "above_armadillo" and not r.json()["built"]["loaded"]
     out = tmp_path / "slot_builds" / "demo"
     v = from_json(out / "variant.json")
-    assert v.name == "Demo" and v.symbols["H1"] == "Sym H1" and v.theme["frame"]["style"] in ("metal", "wood", "neon", "glass")
+    assert v.name == "Demo" and v.symbols["H1"] == "Sym H1" and v.theme["frame"]["style"] in ("metal", "wood", "neon", "glass") \
+        and v.theme["deck"]["style"] == v.theme["frame"]["style"]
     assert {p.stem for p in (out / "art").glob("*.png")} >= set(v.pays) | {"BS", "FS", "armadillo", "t_coin"}
     assert sorted(p.name for p in (out / "fonts").iterdir()) == ["display.ttf", "ui.ttf"]
     assert "Red Alert" in (out / "IDEAS.md").read_text()

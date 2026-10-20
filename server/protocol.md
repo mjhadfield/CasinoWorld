@@ -221,7 +221,7 @@ A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `variant`
 (the random features it uses), `strips`, `free_strips`, `big_strip`, `buy_cost` (0: no Buy Bonus), `free_games`,
 `routes` (which bonuses each way in plays: {`BS`, `FS`, `buy`} -> [`trail`/`free`], one at random when there are
 several; an empty list means that way in plays nothing), the jackpot `tiers`, and for a built slot `theme`: {`colours`, `fonts`
-(display/ui, downloaded from the art manifest), `frame` {`style`, `colour`}, `win` (an animation per tier group),
+(display/ui, downloaded from the art manifest), `frame` {`style`, `colour`}, `deck` {`style`, `colour`: a tint, or null for the style's own}, `win` (an animation per tier group),
 `labels`, `texts` (bonus and free-game names, the launcher, the tagline), `rules` (the info screen's lines),
 `cabinet`, `background`}. Armadillo has no `theme`: the screen draws its own.
 

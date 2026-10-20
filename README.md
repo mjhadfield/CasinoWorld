@@ -105,7 +105,8 @@ and Tailscale. It has six tabs:
     Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
   - **Scene:** the background (FLUX, three takes; an upload; or art already on the board, fitted to 1280×720),
     the logo lettering (rendered by the server from a bundled or uploaded font, with gradient colours, an outline
-    and an optional emblem) and the reel frame's style and colour. The step shows the **mockup**: the real
+    and an optional emblem), the reel frame's style and colour, and the deck's (the bottom bar, its readouts and
+    every button: the frame's style by default, or its own style and a tint). The step shows the **mockup**: the real
     screen layout, playable, using the ladder's symbols. From here on, **Play the mockup** opens it from any step.
     The mockup is the signed-off Armadillo mockup made design-driven (`slot_design_web/mockup/`), running the
     shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.

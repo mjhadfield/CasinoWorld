@@ -1,4 +1,4 @@
-// Step 4, Scene: the background, the logo lettering and the reel frame, seen live in the base-game mockup (it plays:
+// Step 4, Scene: the background, the logo lettering, the reel frame and the deck (the bottom bar and buttons), seen live in the base-game mockup (it plays:
 // press Spin). The mockup uses the Value ladder's symbols and Armadillo's maths until the Maths step tunes this slot.
 import {createGame} from "../mockup/game.js";
 import {designConfig, loadMath} from "../mockup/design.js";
@@ -9,15 +9,16 @@ export function render(ctx, body) {
   C = ctx;
   const {el} = C;
   const canvas = el("canvas", {width: 1280, height: 720, className: "wz-canvas", ariaLabel: "The base-game mockup"});
-  parts = {bg: el("div", {className: "pane"}), logo: el("div", {className: "pane"}), frame: el("div", {className: "pane"}), note: el("p", {className: "hint"})};
+  parts = {bg: el("div", {className: "pane"}), logo: el("div", {className: "pane"}), frame: el("div", {className: "pane"}), deck: el("div", {className: "pane"}), note: el("p", {className: "hint"})};
   body.append(
-    el("p", {className: "lead", textContent: "The machine's look: background, logo and reel frame. The mockup below is the real screen layout and plays (click Spin), using the Value ladder's symbols."}),
+    el("p", {className: "lead", textContent: "The machine's look: background, logo, reel frame and deck. The mockup below is the real screen layout and plays (click Spin), using the Value ladder's symbols."}),
     el("div", {className: "card"}, canvas, parts.note),
     el("div", {className: "wz-cards"},
       el("div", {className: "card"}, el("h3", {textContent: "Background"}), parts.bg),
       el("div", {className: "card"}, el("h3", {textContent: "Logo"}), parts.logo),
-      el("div", {className: "card"}, el("h3", {textContent: "Reel frame"}), parts.frame)));
-  drawBg(); drawLogo(); drawFrame();
+      el("div", {className: "card"}, el("h3", {textContent: "Reel frame"}), parts.frame),
+      el("div", {className: "card"}, el("h3", {textContent: "Deck"}), parts.deck)));
+  drawBg(); drawLogo(); drawFrame(); drawDeck();
   loadMath().then(() => {
     if (game) game.destroy();
     game = createGame(canvas, designConfig(C.data, C.img));
@@ -34,7 +35,7 @@ export function update(ctx) {
   C = ctx;
   if (!document.body.contains(parts.bg)) { if (game) { game.destroy(); game = null; } return; }
   if (game) game.setConfig(designConfig(C.data, C.img));
-  drawBg(); drawFrame(); refreshLogoStrip(); note();
+  drawBg(); drawFrame(); drawDeck(); refreshLogoStrip(); note();
 }
 
 function note() {
@@ -155,4 +156,23 @@ function drawFrame() {
         onclick: () => patch({frame: {style: st, colour: fr.colour}})}))),
     el("label", {className: "controls"}, el("span", {className: "hint", textContent: "Edge colour"}), colour),
     el("p", {className: "hint", textContent: "Wood is Armadillo's. The frame's style also dresses the side panels and the pop-ups."}));
+}
+
+// ------------------------------------------------------------------ deck
+function drawDeck() {
+  const {el} = C, sc = C.data.scene, dk = sc.deck;
+  if (parts.deck.contains(document.activeElement) && document.activeElement.type === "color") return;
+  const shown = dk.style === "frame" ? sc.frame.style : dk.style;
+  const colour = el("input", {type: "color", value: dk.colour || {wood: "#6e4426", metal: "#5d6470", neon: "#2b2470", glass: "#5a6f96"}[shown],
+    ariaLabel: "Deck colour"});
+  colour.addEventListener("change", () => patch({deck: {style: dk.style, colour: colour.value}}));
+  parts.deck.replaceChildren(
+    el("span", {className: "seg", role: "group", ariaLabel: "Deck style"}, ...sc.deck_styles.map(st =>
+      el("button", {type: "button", textContent: st === "frame" ? "Match frame" : st[0].toUpperCase() + st.slice(1),
+        ariaPressed: String(dk.style === st), onclick: () => patch({deck: {style: st, colour: dk.colour}})}))),
+    el("div", {className: "controls"}, el("span", {className: "hint", textContent: "Colour"}), colour,
+      el("button", {type: "button", textContent: "Style's own", disabled: !dk.colour, title: "Drop the tint: the style's own colours",
+        onclick: () => patch({deck: {style: dk.style, colour: null}})})),
+    el("p", {className: "hint", textContent: "The bottom bar, its readouts and every button, plus the boxes inside the side panels. " +
+      "Its top line and button edges take the Sprites step's edge colour."}));
 }

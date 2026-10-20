@@ -67,6 +67,12 @@ export function designParams(data) {
   };
 }
 
+// The deck's look with "frame" (match the reel frame) resolved; slot_design_build does the same for a built slot.
+const deckOf = sc => {
+  const d = sc.deck || {style: "frame", colour: null};
+  return {style: d.style === "frame" ? (sc.frame || {}).style || "metal" : d.style, colour: d.colour || null};
+};
+
 export function designConfig(data, img) {
   const M = window.SlotMath, A = M.ARMADILLO, lad = data.ladder, b = data.bonuses, tr = b.trail;
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
@@ -85,6 +91,7 @@ export function designConfig(data, img) {
     logo: sc.logo && sc.logo.file ? img(sc.logo.file) : null,
     background: sc.background ? img(sc.background) : null,
     frame: sc.frame || {style: "metal", colour: "#c9a24a"},
+    deck: deckOf(sc),
     theme: {colours: data.sprites.colours,
             display: `"${fontFamily(data.id, data.sprites.fonts.display)}", Georgia, serif`,
             cond: `"${fontFamily(data.id, data.sprites.fonts.ui)}", "Arial Narrow", system-ui, sans-serif`},

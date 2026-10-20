@@ -4,7 +4,7 @@ so every method runs under the board's lock and saves through its Design.
 
   Value ladder   the chosen symbols ordered into the tiers (W, BS, FS, H1.., M1.., L1..) and the upgrade chain
   Scene          the background (FLUX or uploaded), the logo lettering (rendered here: FLUX can't spell) and the
-                 reel frame's style
+                 reel frame's style, and the deck's (the bottom bar, readouts and buttons: the frame's by default)
   Features       which of the library's random features the slot uses, their rates and value tables
   Bonus games    each library bonus (the Trail, the free games): on or off, the scatter that starts it, whether
                  Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
@@ -37,6 +37,14 @@ from casino_server.slots.variants.armadillo import VARIANT as ARMADILLO
 
 FONTS_DIR = Path(__file__).resolve().parents[2] / "client" / "assets" / "fonts"
 FRAME_STYLES = ("metal", "wood", "neon", "glass")
+DECK_STYLES = ("frame",) + FRAME_STYLES   # "frame": match the reel frame's style
+
+
+def deck_look(sc: dict) -> dict:
+    """The deck's style and tint as a built slot and the mockup draw it: "frame" resolved, no tint as None."""
+    d = sc.get("deck") or {"style": "frame", "colour": None}
+    style = d["style"] if d["style"] != "frame" else sc.get("frame", {}).get("style", "metal")
+    return {"style": style, "colour": d.get("colour")}
 MAX_FONT = 8 * 1024 * 1024
 
 
@@ -322,7 +330,8 @@ def scene_view(d) -> dict:
     listed = lambda pattern: sorted((f"scene/{p.name}" for p in folder.glob(pattern)),
                                     key=lambda p: int(Path(p).stem.split("_")[-1])) if folder.is_dir() else []
     return {"background": sc.get("background"), "logo": sc.get("logo", {}), "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}),
-            "backgrounds": listed("bg_*.png"), "logos": listed("logo_*.png"), "fonts": _fonts(d), "frame_styles": list(FRAME_STYLES)}
+            "deck": sc.get("deck", {"style": "frame", "colour": None}), "backgrounds": listed("bg_*.png"), "logos": listed("logo_*.png"),
+            "fonts": _fonts(d), "frame_styles": list(FRAME_STYLES), "deck_styles": list(DECK_STYLES)}
 
 
 class StepsMixin:
@@ -817,6 +826,10 @@ class StepsMixin:
                     if not isinstance(v, dict) or v.get("style") not in FRAME_STYLES or not art.is_colour(v.get("colour")):
                         raise DesignError(f"A frame is a style ({', '.join(FRAME_STYLES)}) and a colour like #c9a24a.")
                     sc["frame"] = {"style": v["style"], "colour": v["colour"]}
+                elif k == "deck":
+                    if not isinstance(v, dict) or v.get("style") not in DECK_STYLES or not (v.get("colour") is None or art.is_colour(v["colour"])):
+                        raise DesignError(f"A deck is a style ({', '.join(DECK_STYLES)}) and a colour like #c9a24a, or none.")
+                    sc["deck"] = {"style": v["style"], "colour": v.get("colour")}
                 else:
                     raise DesignError(f"Can't change {k!r}.")
             d.save()

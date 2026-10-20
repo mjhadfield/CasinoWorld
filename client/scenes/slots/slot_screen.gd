@@ -80,6 +80,8 @@ var tips: Array = ARMADILLO_TIPS
 var labels := true                  # WILD / BONUS / FREE SPINS lettered on those symbols (a built slot's art has its own)
 var frame_style := "wood"
 var frame_colour := Color("d9a54a")
+## The deck's look (the wizard's Scene step): the bottom bar, readout boxes and buttons. See _deck_look.
+var deck := {}
 var win_anims := {}                 # tier group -> {preset, strength, colour}: what a symbol does while its line win shows
 var feature_rows: Array = []
 var background := false
@@ -254,6 +256,8 @@ func _apply_theme() -> void:
 	var fr: Dictionary = theme.get("frame", {})
 	frame_style = str(fr.get("style", "wood"))
 	frame_colour = Color(str(fr.get("colour", "d9a54a")))
+	var dk: Dictionary = theme.get("deck", {})
+	deck = _deck_look(str(dk.get("style", frame_style)), dk.get("colour"))
 	win_anims = theme.get("win", {})
 	background = bool(theme.get("background", false))
 	var on: Array = rules.get("features", [])
@@ -713,6 +717,20 @@ func _vgrad(ci: CanvasItem, r: Rect2, top: Color, bottom: Color) -> void:
 		PackedColorArray([top, top, bottom, bottom]))
 
 
+## Wood untinted is Armadillo's browns; any other style or a tint derives the set from one base colour (the wizard's
+## mockup, game.js deckLook, matches).
+func _deck_look(style: String, tint: Variant) -> Dictionary:
+	if style == "wood" and tint == null:
+		return {"band": Color(0.05, 0.02, 0.01, 0.86), "box": Color("1a0c05"), "box_edge": Color("7a5a36"),
+			"inset": Color(0.08, 0.035, 0.015, 0.65), "buy": Color(0.16, 0.07, 0.02, 0.85), "buy_hover": Color(0.35, 0.16, 0.04, 0.95),
+			"btn": [Color("6e4426"), Color("2c1609")], "ring": Color("1a0b03")}
+	var b := Color(str(tint)) if tint != null else Color({"wood": "6e4426", "neon": "2b2470", "glass": "5a6f96"}.get(style, "5d6470"))
+	var glass := style == "glass"
+	return {"band": Color(b.darkened(0.75), 0.62) if glass else Color(b.darkened(0.9), 0.88), "box": Color(b.darkened(0.82), 0.6 if glass else 1.0),
+		"box_edge": frame_colour if style == "neon" else b.lerp(Color.WHITE, 0.12), "inset": Color(b.darkened(0.8), 0.65),
+		"buy": Color(b.darkened(0.7), 0.85), "buy_hover": Color(b.darkened(0.45), 0.95), "btn": [b, b.darkened(0.6)], "ring": b.darkened(0.85)}
+
+
 ## A panel in the slot's frame style: wood (Armadillo's), metal, neon or glass, edged in its colour.
 func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
 	if frame_style != "wood":
@@ -742,7 +760,7 @@ func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
 
 func _button(ci: CanvasItem, id: String, r: Rect2, label: String, on := false, disabled := false, size := 22, colour: Array = []) -> void:
 	var hover := _hover == id and not disabled
-	var cols: Array = colour if not colour.is_empty() else ([Color("ffe08a"), Color("8a5410")] if on else [Color("6e4426"), Color("2c1609")])
+	var cols: Array = colour if not colour.is_empty() else ([Color("ffe08a"), Color("8a5410")] if on else deck.btn)
 	var a := 0.4 if disabled else 1.0
 	_rr(ci, r, r.size.y * 0.28, Color(cols[1], a), 3 if hover else 2, Color(GOLD_HI if hover else EDGE, a))
 	_vgrad(ci, Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, r.size.y * 0.5 - 3)), Color(cols[0], 0.75 * a), Color(cols[0], 0.0))
@@ -904,7 +922,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 		var y := REEL_Y + 32 + i * 52
 		var lit: bool = feature_lit.get(id, false)
 		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
-		_rr(ci, Rect2(34, y, 192, 42), 10, Color(1, 0.8 + 0.1 * sin(_now * 8.0), 0.35, 0.95) if lit else Color(0.08, 0.035, 0.015, 0.65), 2, GOLD_HI if lit else Color("7a5a36"))
+		_rr(ci, Rect2(34, y, 192, 42), 10, Color(1, 0.8 + 0.1 * sin(_now * 8.0), 0.35, 0.95) if lit else deck.inset, 2, GOLD_HI if lit else deck.box_edge)
 		_text(ci, label, Vector2(130, y + 22), 20, COND, INK if lit else MUTED, "center", 0, 176)
 	_button(ci, "settings", Rect2(34, REEL_Y + 32 + 7 * 52 + 4, 192, 36), "SETTINGS", false, false, 18)
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
@@ -912,7 +930,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 	var by := REEL_Y + 6
 	var buy := Rect2(1052, by, 196, 178)
 	var hov := _hover == "buy" and not busy
-	_rr(ci, buy, 14, Color(0.35, 0.16, 0.04, 0.95) if hov else Color(0.16, 0.07, 0.02, 0.85), 4 if hov else 3, GOLD)
+	_rr(ci, buy, 14, deck.buy_hover if hov else deck.buy, 4 if hov else 3, GOLD)
 	var a := 0.45 if busy or not _can_buy() else 1.0
 	_text(ci, "BUY BONUS", Vector2(1150, by + 24), 26, COND, Color(GOLD_HI, a), "center", 0, 180)
 	var bs := _buy_icon()
@@ -928,7 +946,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 	for i in info.size():
 		# Each box: the symbol on the left, its two lines centred in the space to its right.
 		var box := Rect2(SIDE_INFO.position + Vector2(0, by + 196 + i * 116), SIDE_INFO.size)
-		_rr(ci, box, 12, Color(0.08, 0.035, 0.015, 0.65))
+		_rr(ci, box, 12, deck.inset)
 		var icon := Rect2(box.position + Vector2(6, 14), Vector2(76, 76))
 		var t := _tex(info[i][0])
 		if t:
@@ -941,7 +959,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 
 
 func _draw_deck(ci: CanvasItem) -> void:
-	ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), Color(0.05, 0.02, 0.01, 0.86))
+	ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), deck.band)
 	ci.draw_rect(Rect2(0, DECK_TOP, W, 2), EDGE)
 	_text(ci, message, Vector2(560, DECK_TOP + 15), 19, COND, GOLD_HI, "center", 0, 1000)
 	var top := DECK_ROW.position.y
@@ -961,7 +979,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var c := SPIN_CENTRE
 	var spinning := reels.any(func(x): return x.spinning or x.stopping)
 	var hov := _hover == "spin"
-	ci.draw_circle(c, SPIN_R + 4.0, Color("1a0b03"))
+	ci.draw_circle(c, SPIN_R + 4.0, deck.ring)
 	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
 	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(1, 0.95, 0.7, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
@@ -978,7 +996,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 
 ## A deck readout. `value_w` narrows the value (the bet sits between its − and + buttons).
 func _deck_box(ci: CanvasItem, r: Rect2, label: String, value: String, col: Color, value_w := 0.0) -> void:
-	_rr(ci, r, 12, Color("1a0c05"), 2, Color("7a5a36"))
+	_rr(ci, r, 12, deck.box, 2, deck.box_edge)
 	_text(ci, label, Vector2(r.get_center().x, r.position.y + 16), 16, COND, MUTED, "center", 0, r.size.x - 16)
 	_text(ci, value, Vector2(r.get_center().x, r.position.y + r.size.y - 26), 34, COND, col, "center", 0,
 		value_w if value_w > 0.0 else r.size.x - 20)

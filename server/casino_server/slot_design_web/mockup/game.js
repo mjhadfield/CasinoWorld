@@ -22,6 +22,22 @@ export function createGame(cv, cfg) {
   C.ink = "#2b1004";
   const C0 = Object.assign({}, C);   // Armadillo's look: a design's theme (Sprites step) is laid over it
   let FRAME = { style: "wood", colour: C.edge }, TEXT = {}, LABELS = true;
+  // The deck's look (Scene step): the bottom bar, the readout boxes and the buttons. Wood untinted is Armadillo's
+  // browns; any other style or a tint derives the set from one base colour (slot_screen.gd's _deck_look matches).
+  const DECK_BASE = { wood: "#6e4426", metal: "#5d6470", neon: "#2b2470", glass: "#5a6f96" };
+  const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const dark = (h, t, a = 1) => `rgba(${hexRgb(h).map((v) => Math.round(v * (1 - t))).join(",")},${a})`;
+  const light = (h, t) => `rgb(${hexRgb(h).map((v) => Math.round(v + (255 - v) * t)).join(",")})`;
+  function deckLook(d, frameColour) {
+    if (d.style === "wood" && !d.colour) return { band: "rgba(12,5,2,0.86)", box: "#1a0c05", boxEdge: "#7a5a36",
+      inset: "rgba(20,9,4,0.65)", buy: "rgba(40,18,6,0.85)", buyHover: "rgba(90,40,10,0.95)",
+      btn: ["#6e4426", "#4a2a14", "#2c1609"], ring: "#1a0b03" };
+    const b = d.colour || DECK_BASE[d.style] || DECK_BASE.metal, glass = d.style === "glass";
+    return { band: glass ? dark(b, 0.75, 0.62) : dark(b, 0.9, 0.88), box: dark(b, 0.82, glass ? 0.6 : 1),
+      boxEdge: d.style === "neon" ? frameColour : light(b, 0.12), inset: dark(b, 0.8, 0.65),
+      buy: dark(b, 0.7, 0.85), buyHover: dark(b, 0.45, 0.95), btn: [b, dark(b, 0.33), dark(b, 0.6)], ring: dark(b, 0.85) };
+  }
+  let DECK = deckLook({ style: "wood" }, C.edge);
   // Win animations by tier group (Sprites step): what a symbol does while its line win shows.
   const WIN0 = { wild: { preset: "glow", strength: 1, colour: C.win }, high: { preset: "none" }, mid: { preset: "none" },
                  low: { preset: "none" }, scatter: { preset: "none" } };
@@ -54,6 +70,7 @@ export function createGame(cv, cfg) {
     Object.assign(C, C0, t.colours || {});
     WIN = Object.assign({}, WIN0, c.win || {});
     FRAME = Object.assign({ style: "wood", colour: C.edge }, c.frame || {});
+    DECK = deckLook(c.deck || { style: FRAME.style }, FRAME.colour);
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
                            pistol: "THE PISTOL", freeName: "COMBO FREE GAMES" }, c.texts || {});
@@ -173,7 +190,7 @@ export function createGame(cv, cfg) {
   function button(id, x, y, w, h, label, opts = {}) {
     const on = opts.on, disabled = opts.disabled, hover = S.hover === id && !disabled;
     const g = ctx.createLinearGradient(0, y, 0, y + h);
-    const base = opts.colour || (on ? ["#ffe08a", "#d99a28", "#8a5410"] : ["#6e4426", "#4a2a14", "#2c1609"]);
+    const base = opts.colour || (on ? ["#ffe08a", "#d99a28", "#8a5410"] : DECK.btn);
     g.addColorStop(0, base[0]); g.addColorStop(0.55, base[1]); g.addColorStop(1, base[2]);
     ctx.save(); if (disabled) ctx.globalAlpha = 0.4;
     rr(x, y, w, h, h * 0.28); ctx.fillStyle = g; ctx.fill();
@@ -259,8 +276,8 @@ export function createGame(cv, cfg) {
     names.forEach(([id, label], i) => {
       const y = REEL_Y + 32 + i * step, lit = S.featureLit[id];
       rr(34, y, 192, 42, 10);
-      ctx.fillStyle = lit ? `rgba(255,${200 + Math.sin(S.now * 8) * 30},90,0.95)` : "rgba(20,9,4,0.65)"; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : "#7a5a36"; ctx.stroke();
+      ctx.fillStyle = lit ? `rgba(255,${200 + Math.sin(S.now * 8) * 30},90,0.95)` : DECK.inset; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : DECK.boxEdge; ctx.stroke();
       text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, 130, y + 22, 20, COND, lit ? C.ink : C.muted);
     });
     // Right: Buy Bonus and the two ways in.
@@ -271,7 +288,7 @@ export function createGame(cv, cfg) {
     S.hits.push(...(busy ? [] : [{ id: "buy", x: 1052, y: by, w: 196, h: 178 }]));
     rr(1052, by, 196, 178, 14);
     const hov = S.hover === "buy" && !busy;
-    ctx.fillStyle = hov ? "rgba(90,40,10,0.95)" : "rgba(40,18,6,0.85)"; ctx.fill();
+    ctx.fillStyle = hov ? DECK.buyHover : DECK.buy; ctx.fill();
     ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = C.gold; ctx.stroke();
     ctx.save(); if (busy) ctx.globalAlpha = 0.45;
     text("BUY BONUS", 1150, by + 24, 26, COND, C.goldHi);
@@ -283,7 +300,7 @@ export function createGame(cv, cfg) {
       .map((s) => [s, (s === "BS" ? TEXT.bonus : TEXT.free)[0], routes(s).length > 1 ? "A RANDOM BONUS" : plays(routes(s))]);
     info.forEach(([sym, a, b], i) => {
       const y = by + 196 + i * 116;
-      rr(1052, y, 196, 104, 12); ctx.fillStyle = "rgba(20,9,4,0.65)"; ctx.fill();
+      rr(1052, y, 196, 104, 12); ctx.fillStyle = DECK.inset; ctx.fill();
       // the symbol on the left, its two lines centred in the space to its right
       drawImg(img(sym), 1058, y + 14, 76, 76);
       const tx = 1138, tw = 1248 - 8 - tx, mid = tx + tw / 2;
@@ -292,12 +309,12 @@ export function createGame(cv, cfg) {
   }
   function drawDeck() {
     const y = 618;
-    ctx.fillStyle = "rgba(12,5,2,0.86)"; ctx.fillRect(0, y - 26, W, H - y + 26);
+    ctx.fillStyle = DECK.band; ctx.fillRect(0, y - 26, W, H - y + 26);
     ctx.fillStyle = C.edge; ctx.fillRect(0, y - 26, W, 2);
     // the message bar
     text(S.message, 640, y - 12, 19, COND, C.goldHi);
     const box = (x, w, label, value, col = "#fff") => {
-      rr(x, y + 10, w, 82, 12); ctx.fillStyle = "#1a0c05"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#7a5a36"; ctx.stroke();
+      rr(x, y + 10, w, 82, 12); ctx.fillStyle = DECK.box; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = DECK.boxEdge; ctx.stroke();
       text(label, x + w / 2, y + 28, 16, COND, C.muted); text(value, x + w / 2, y + 64, 36, COND, col);
     };
     const credit = S.balance - (S.pendingCredit || 0);
@@ -317,7 +334,7 @@ export function createGame(cv, cfg) {
     const hov = S.hover === "spin";
     const g = ctx.createRadialGradient(cx - 14, cy - 18, 6, cx, cy, r);
     g.addColorStop(0, C.goldHi); g.addColorStop(0.5, spinning ? "#c9871c" : C.spin); g.addColorStop(1, "#7a420c");
-    ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = "#1a0b03"; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = DECK.ring; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
     text(spinning ? "STOP" : S.mode === "trail" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, C.ink);
