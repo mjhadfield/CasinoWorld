@@ -286,7 +286,8 @@ func _apply_theme() -> void:
 	if skin.get("texts", {}).has("tagline"):
 		texts["tagline"] = str(skin.texts.tagline)
 	var on: Array = rules.get("features", [])
-	feature_rows = FEATURE_ROWS.filter(func(f): return on.is_empty() or on.has(f[0]))
+	var names: Dictionary = theme.get("texts", {}).get("feature_names", {})
+	feature_rows = FEATURE_ROWS.filter(func(f): return on.is_empty() or on.has(f[0])).map(func(f): return [f[0], str(names.get(f[0], f[1]))])
 
 
 func close(to_rect: Rect2) -> void:
@@ -1317,7 +1318,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 		var id: String = feature_rows[i][0]
 		var y := REEL_Y + 32 + i * 52
 		var lit: bool = feature_lit.get(id, false)
-		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
+		var label: String = "%s ×%d" % [feature_rows[i][1], multiplier] if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
 		if lc:
 			_lcars_box(ci, Rect2(36, y, 196, 42), _sc("hl") if lit else Color.TRANSPARENT, 1.0)
 		else:

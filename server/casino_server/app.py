@@ -544,6 +544,12 @@ async def slot_design_scene_restore(design: str, request: Request):
     return {"ok": True}
 
 
+@app.post("/api/slot-design/{design}/scene/logo/generate")
+async def slot_design_logo_job(design: str, request: Request):
+    body = await _json_body(request, "{how: stylise|generate, lines, font, style}")
+    return {"job": await run_in_threadpool(_design_call, request.app.state.slot_design.queue_logo, design, body)}
+
+
 @app.post("/api/slot-design/{design}/scene/logo")
 async def slot_design_logo(design: str, request: Request):
     body = await _json_body(request, "{lines, font, top, bottom, outline, emblem}")

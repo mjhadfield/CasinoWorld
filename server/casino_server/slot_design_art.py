@@ -150,6 +150,42 @@ def background_prompt(description: str) -> str:
             "no people in the foreground.")
 
 
+MAGENTA = (255, 0, 255)
+
+
+def _words(lines: list[str]) -> str:
+    return " / ".join(f'"{l}"' for l in lines)
+
+
+def logo_generate_prompt(lines: list[str], style: str, font_name: str) -> str:
+    """The image model draws the whole logo (the newer models spell well), on a key colour to cut it out."""
+    rows = "on one line" if len(lines) == 1 else f"on {len(lines)} lines, the first biggest"
+    return (f"A slot machine game logo: the words {_words(lines)} {rows}, spelled exactly as written, in lettering like the "
+            f"{font_name} typeface. {style.strip().rstrip('.') + '. ' if style.strip() else ''}Large, crisp, centred and "
+            "legible, filling most of the width. On a flat, solid, pure magenta (#ff00ff) background: no scenery, no frame, "
+            "no shadow on the background, no other text.")
+
+
+def logo_stylise_prompt(style: str) -> str:
+    """The image model restyles lettering rendered in the slot's font: the letters keep the font's shapes."""
+    return ("Restyle this slot machine logo lettering" + (f": {style.strip().rstrip('.')}." if style.strip() else " as a polished, premium slot game logo.") +
+            " Keep exactly the same words and letters, the same letter shapes and the same layout. Keep the flat, solid, pure "
+            "magenta background around it, with nothing else on it.")
+
+
+def logo_reference(lines: list[str], font_path) -> Image.Image:
+    """The words rendered in the font, light on the key colour: what Style the lettering redraws."""
+    im = render_logo(lines, font_path, "#ffffff", "#c8d8e8", "#1a1a1a")
+    return fit_square(im, 1024, MAGENTA)
+
+
+def logo_from_raw(raw: Image.Image) -> Image.Image:
+    """A logo take cut off its key colour and trimmed to the lettering."""
+    cut = cutout(raw)
+    box = cut.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox()
+    return cut.crop(box) if box else cut
+
+
 def themed(prompt: str, theme: str = "") -> str:
     """Lead with the design's theme brief (Concept), so every picture belongs to the same slot."""
     return f"Theme: {theme.strip().rstrip('.')}. {prompt}" if theme and theme.strip() else prompt

@@ -511,7 +511,8 @@ export function createGame(cv, cfg) {
     woodPanel(18, REEL_Y - 18, 224, REEL_H + 36, 16);
     text(T("features", "RANDOM FEATURES"), lc() ? 134 : 130, REEL_Y + 8, 19, lc() ? DISPLAY : COND, lc() ? sc(part("panel").title || "hl") : C.goldHi, "center", lc() ? "400" : "700", 0, 196);
     const names = [["wilds", "RANDOM WILDS"], ["wildReels", "WILD REELS"], ["colossal", "COLOSSAL REELS"], ["multiplier", "MULTIPLIER"],
-      ["upgrade", "SYMBOL UPGRADE"], ["repeat", "REPEAT WIN"], ["instant", "INSTANT WIN"]].filter(([id]) => V.features.includes(id));
+      ["upgrade", "SYMBOL UPGRADE"], ["repeat", "REPEAT WIN"], ["instant", "INSTANT WIN"]].filter(([id]) => V.features.includes(id))
+      .map(([id, n]) => [id, (cfg.featureNames && cfg.featureNames[id]) || n]);
     const step = Math.min(52, 364 / Math.max(1, names.length));
     names.forEach(([id, label], i) => {
       const y = REEL_Y + 32 + i * step, lit = S.featureLit[id];
@@ -522,7 +523,7 @@ export function createGame(cv, cfg) {
         ctx.fillStyle = lit ? litCol : DECK.inset; ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : DECK.boxEdge; ctx.stroke();
       }
-      text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, lc() ? 134 : 130, y + 22, 20, COND,
+      text(id === "multiplier" && S.multiplier > 1 ? `${label} \u00d7${S.multiplier}` : label, lc() ? 134 : 130, y + 22, 20, COND,
            lit ? C.ink : lc() ? sc(part("box").label || "c") : C.muted, "center", "700", 0, 180);
     });
     // Right: Buy Bonus and the two ways in.

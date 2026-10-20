@@ -1056,6 +1056,8 @@ class DesignBoard(StepsMixin, SceneMixin, BuildMixin):
         """One FLUX picture for a job, keyed and saved; returns the raw file's name."""
         if job["out"] == "background":
             return self._make_background(d, job)
+        if job["out"] == "logo":
+            return self._make_logo(d, job)
         out = job["out"]
         with self.lock:
             s = d.symbol(job["symbol"])
@@ -1138,6 +1140,29 @@ class DesignBoard(StepsMixin, SceneMixin, BuildMixin):
             out = self._next_scene(d, "bg")
             art.fit_cover(im, (1280, 720)).save(d.folder / out)
             d.data.setdefault("scene", {}).setdefault("background", out)
+        return Path(out).stem
+
+    def _make_logo(self, d: Design, job: dict) -> str:
+        from PIL import ImageFont
+        with self.lock:
+            c = d.data["concept"]
+            theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
+            font = d.font(job["font"])
+        if job["how"] == "stylise":
+            raw = art.flux_edit(art.logo_reference(job["lines"], font), art.themed(art.logo_stylise_prompt(job["text"]), theme))
+        else:
+            name = " ".join(ImageFont.truetype(str(font), 20).getname())
+            raw = art.flux_generate(art.themed(art.logo_generate_prompt(job["lines"], job["text"], name), theme), "1344x768")
+        logo = art.logo_from_raw(raw)
+        with self.lock:
+            if not _live(d, job):
+                raise Cancelled()
+            out = self._next_scene(d, "logo")
+            (d.folder / "raw").mkdir(exist_ok=True)
+            raw.save(d.folder / f"raw/scene_{Path(out).stem}.png")
+            logo.save(d.folder / out)
+            lg = d.data.setdefault("scene", {}).setdefault("logo", {})
+            lg.setdefault("file", out)
         return Path(out).stem
 
     async def run(self):

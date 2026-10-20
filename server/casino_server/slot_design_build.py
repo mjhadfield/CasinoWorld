@@ -19,7 +19,7 @@ from pathlib import Path
 from casino_server import slot_builds
 from casino_server.slot_design_art import web_font
 from casino_server.slot_design_scene import bake_glass, look
-from casino_server.slot_design_steps import (FONTS_DIR, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view,
+from casino_server.slot_design_steps import (FONTS_DIR, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view, features_view,
                                              ladder_view, signoff_view, sprites_view, variant_from_design)
 
 REPO = Path(__file__).resolve().parents[2]
@@ -104,7 +104,8 @@ class BuildMixin:
                           "enemy": b["battle"]["enemy"].upper(), "boss": b["battle"]["boss_name"].upper(),
                           **{f"voyage_{k}": b["voyage"][k] if k == "hint" else b["voyage"][k].upper() for k in VOYAGE_WORDS},
                           "voyage_artefacts": [x.upper() for x in b["voyage"]["artefacts"]],
-                          "bonus_line": f"3+ {v.symbols.get('BS', 'BS').upper()}", "free_line": f"3+ {v.symbols.get('FS', 'FS').upper()}"},
+                          "bonus_line": f"3+ {v.symbols.get('BS', 'BS').upper()}", "free_line": f"3+ {v.symbols.get('FS', 'FS').upper()}",
+                          "feature_names": features_view(d)["names"]},
                 "rules": signoff_view(d)["rules"], "cabinet": sp["cabinet"], "background": "bg" in pictures}
             data = json.loads(json.dumps(dataclasses.asdict(v)))
             data.update(theme=theme, extras={"assets": labels, "floor": {"spot": spot, "bank": bank, "count": len(slot_builds.BANKS[bank]["cabinets"])},

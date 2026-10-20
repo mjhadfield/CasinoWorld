@@ -23,8 +23,11 @@ export function render(ctx, body) {
     const base = pct(f.rates[id]), free = pct(f.free_rates[id]);
     base.ariaLabel = `${name}: chance on a paid spin, %`; free.ariaLabel = `${name}: chance in a free game, %`;
     const values = table ? el("input", {value: tableText(f.tables[table]), ariaLabel: `${name}: ${unit}, value:weight`, title: `${unit}: value:weight pairs`}) : null;
-    return {id, on, base, free, table, values, tr: el("tr", {},
-      el("td", {}, el("label", {className: "confirm"}, on, el("b", {textContent: name})), el("div", {className: "hint", textContent: about})),
+    const shown = el("input", {value: f.names[id] === f.default_names[id] ? "" : f.names[id], placeholder: f.default_names[id], maxLength: 22,
+      ariaLabel: `${name}: what the screen calls it`, title: "What the side panel calls it (blank: the house name)"});
+    return {id, on, base, free, table, values, shown, tr: el("tr", {},
+      el("td", {}, el("label", {className: "confirm"}, on, el("b", {textContent: name})), el("div", {className: "hint", textContent: about}),
+        el("label", {className: "field"}, el("span", {textContent: "On the screen"}), shown)),
       el("td", {}, base), el("td", {}, free),
       el("td", {}, values ? el("label", {className: "field"}, el("span", {textContent: unit}), values) : el("span", {className: "hint", textContent: "—"})),
       el("td", {}, el("button", {type: "button", textContent: "▶ Show me", title: "Play the mockup with this feature forced on the next spin",
@@ -37,7 +40,9 @@ export function render(ctx, body) {
       if (r.table) tables[r.table] = parseTable(r.values.value);
     }
     try {
-      await C.api("PATCH", `/api/slot-design/${C.did}/features`, {enabled: rows.filter(r => r.on.checked).map(r => r.id), rates, free_rates, tables});
+      await C.api("PATCH", `/api/slot-design/${C.did}/features`, {names: Object.fromEntries(rows.map(r => [r.id, r.shown.value]))});
+      if (!C.data.signed_off)   // (a signed-off slot's maths is locked; its names aren't)
+        await C.api("PATCH", `/api/slot-design/${C.did}/features`, {enabled: rows.filter(r => r.on.checked).map(r => r.id), rates, free_rates, tables});
       if (C.data.steps.find(s => s.id === "features").status === "todo") await C.setStep("features", "doing"); else await C.refresh();
       C.status("Features saved.", "ok");
     } catch (e) { C.status(e.message, "warn"); }

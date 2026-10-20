@@ -1,12 +1,9 @@
-// Step 7, Sprites: how symbols move on a win (a preset per tier group), the screen's colours and fonts, and the
-// cabinet on the casino floor. The mockup shows it live; "Show a win" lays a five-of-a-kind on the middle line.
+// Step 7, Sprites: how symbols move on a win (a preset per tier group) and the cabinet on the casino floor (both start
+// from the scene's colours; the screen's colours and fonts are the Scene step's). The mockup shows it live; "Show a win" lays a five-of-a-kind on the middle line.
 import {createGame} from "../mockup/game.js";
 import {designConfig, loadMath} from "../mockup/design.js";
 
 const GROUPS = [["wild", "Wild"], ["high", "High pays"], ["mid", "Mid pays"], ["low", "Low pays (royals)"], ["scatter", "Scatters"]];
-const COLOURS = [["gold", "Accent (titles, borders)"], ["goldHi", "Highlight"], ["goldLo", "Accent shadow (coins, gold ends)"],
-  ["edge", "Panel edges"], ["cream", "Text"], ["muted", "Quiet text"], ["ink", "Text on gold, outlines"],
-  ["shade", "Shade (banners, pop-ups, dimming)"], ["win", "Win amounts"], ["spin", "Spin button"], ["alert", "Alerts (free games, fire)"]];
 let C, game = null, parts = {};
 
 export function render(ctx, body) {
@@ -17,13 +14,13 @@ export function render(ctx, body) {
     .map(t => el("option", {value: t, textContent: `${t}: ${(C.data.symbols.find(s => s.id === C.data.ladder.slots[t]) || {}).name || "—"}`})));
   parts = {win: el("div", {className: "pane"}), theme: el("div", {className: "pane"}), cab: el("div", {className: "pane"})};
   body.append(
-    el("p", {className: "lead", textContent: "How the machine moves and feels: what each symbol does on a win, the screen's colours and fonts, and the cabinet players walk up to on the floor."}),
+    el("p", {className: "lead", textContent: "How the machine moves: what each symbol does on a win, and the cabinet players walk up to on the floor."}),
     el("div", {className: "card"}, canvas, el("div", {className: "controls"}, el("span", {className: "hint", textContent: "Show a win:"}), tier,
       el("button", {type: "button", textContent: "▶ Show it", onclick: () => game && game.demoWin(tier.value)}),
       el("span", {className: "hint", textContent: "or click Spin on the screen."}))),
     el("div", {className: "wz-cards"},
       el("div", {className: "card"}, el("h3", {textContent: "Win animations"}), parts.win),
-      el("div", {className: "card"}, el("h3", {textContent: "Colours and fonts"}), parts.theme),
+      el("div", {className: "card"}, el("h3", {textContent: "Colours"}), parts.theme),
       el("div", {className: "card"}, el("h3", {textContent: "Floor cabinet"}), parts.cab)));
   draw();
   loadMath().then(() => {
@@ -63,26 +60,11 @@ function draw() {
     preset.addEventListener("change", send); strength.addEventListener("change", send); colour.addEventListener("change", send);
     return el("div", {className: "wz-row"}, el("b", {textContent: label}), preset, strength, colour);
   }));
-  if (!held(parts.theme)) {
-    const fontSel = (key, label) => {
-      const s = el("select", {ariaLabel: label}, ...sp.font_list.map(f => el("option", {value: f, textContent: f.replace(/\.(ttf|otf)$/i, "")})));
-      s.value = sp.fonts[key];
-      s.addEventListener("change", () => patch({fonts: {[key]: s.value}}));
-      return el("label", {className: "field"}, el("span", {textContent: label}), s);
-    };
-    parts.theme.replaceChildren(
-      el("div", {className: "wz-swatches"}, ...COLOURS.map(([k, label]) => {
-        const i = el("input", {type: "color", value: sp.colours[k], ariaLabel: label});
-        i.addEventListener("change", () => patch({colours: {[k]: i.value}}));
-        const same = sp.colours[k].toLowerCase() === sp.armadillo_colours[k];
-        return el("label", {className: "wz-swatch", title: same ? "Still Armadillo's colour" : ""}, i,
-          el("span", {textContent: label}, ...(same ? [el("em", {className: "wz-inherited", textContent: "Armadillo's"})] : [])));
-      })),
-      el("p", {className: "hint", textContent: "Every colour on the slot screen comes from these. One still marked Armadillo's hasn't been picked for this slot."}),
-      el("div", {className: "grid2"}, fontSel("display", "Display font (banners, titles)"), fontSel("ui", "Interface font (numbers, buttons)")),
-      el("p", {className: "hint", textContent: "Fonts come from the game's set or any added on the Scene step."}),
-      el("button", {type: "button", textContent: "Back to Armadillo's colours", onclick: () => patch({colours: sp.armadillo_colours})}));
-  }
+  if (!held(parts.theme)) parts.theme.replaceChildren(
+    el("p", {className: "hint"}, "The screen's colours, fonts and words are the scene's now: ",
+      el("a", {href: `#design/${C.did}/scene`, textContent: "the Scene step"}), "."),
+    el("button", {type: "button", textContent: "Every glow in the scene's highlight",
+      onclick: () => patch({win: Object.fromEntries(GROUPS.map(([g]) => [g, {...sp.win[g], colour: sp.match.glow}]))})}));
   if (!parts.cab.contains(document.activeElement) || document.activeElement.type === "color") drawCabinet();
 }
 
@@ -93,8 +75,10 @@ function drawCabinet() {
   const colour = (k, label) => { const i = el("input", {type: "color", value: cab[k], ariaLabel: label}); i.addEventListener("change", () => patch({cabinet: {[k]: i.value}})); return el("label", {className: "wz-swatch"}, i, el("span", {textContent: label})); };
   const lines = [0, 1].map(i => el("input", {value: cab.lines[i] || "", maxLength: 12, placeholder: i ? "optional" : "TOPPER", ariaLabel: `Topper line ${i + 1}`}));
   const save = el("button", {type: "button", textContent: "Save the topper", onclick: () => patch({cabinet: {lines: lines.map(i => i.value).filter(Boolean)}})});
+  const match = el("button", {type: "button", textContent: "Match the scene", title: "Body, trim and lettering in the scene's colours",
+    onclick: () => patch({cabinet: C.data.sprites.match.cabinet})});
   parts.cab.replaceChildren(el("div", {className: "wz-cabrow"}, cv, el("div", {className: "pane"},
-    colour("body", "Body"), colour("trim", "Trim"), colour("title", "Topper lettering"), ...lines, save,
+    colour("body", "Body"), colour("trim", "Trim"), colour("title", "Topper lettering"), match, ...lines, save,
     el("p", {className: "hint", textContent: "Its little screen shows each spin on the floor."}))));
   paintCabinet(cv, cab);
 }

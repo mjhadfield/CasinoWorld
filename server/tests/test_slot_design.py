@@ -685,6 +685,49 @@ def test_scene_skins(board):
     assert _overview(c)["scene"]["frame"] == {"style": "neon", "colour": "#33ccff"}
 
 
+
+def test_logo_from_the_image_model(board, monkeypatch):
+    """Style the lettering redraws the words rendered in the font; Generate draws it whole. Both cut out on magenta."""
+    c, d = board
+    seen = {}
+    def edit(ref, prompt):
+        seen["ref"], seen["edit"] = ref.size, prompt
+        im = Image.new("RGB", (512, 512), (255, 0, 255))
+        ImageDraw.Draw(im).rectangle((60, 200, 450, 300), fill=(150, 220, 255))
+        return im
+    def gen(prompt, size="1024x1024"):
+        seen["gen"], seen["size"] = prompt, size
+        im = Image.new("RGB", (1344, 768), (255, 0, 255))
+        ImageDraw.Draw(im).rectangle((200, 300, 1100, 460), fill=(150, 220, 255))
+        return im
+    monkeypatch.setattr(art, "flux_edit", edit)
+    monkeypatch.setattr(art, "flux_generate", gen)
+    assert c.post("/api/slot-design/demo/scene/logo/generate", json={"how": "sketch", "lines": ["DEMO"]}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/logo/generate", json={"how": "stylise", "lines": []}).status_code == 400
+    job = c.post("/api/slot-design/demo/scene/logo/generate", json={"how": "stylise", "lines": ["DEMO", "SLOT"], "font": "Cinzel-SemiBold.ttf",
+                                                                    "style": "glowing glass"}).json()["job"]
+    assert job["out"] == "logo" and job["symbol"] is None
+    _wait_idle(c)
+    assert seen["ref"] == (1024, 1024) and "glowing glass" in seen["edit"] and "same letter shapes" in seen["edit"]
+    sc = _overview(c)["scene"]
+    assert sc["logos"] == ["scene/logo_1.png", "scene/logo_2.png", "scene/logo_3.png"] and sc["logo"]["file"] == "scene/logo_1.png"
+    assert sc["logo"]["lines"] == ["DEMO", "SLOT"] and sc["logo"]["style"] == "glowing glass"
+    logo = Image.open(d / "scene/logo_1.png")
+    assert logo.mode == "RGBA" and logo.size == (391, 101)   # cut off the magenta, trimmed to the lettering
+    c.post("/api/slot-design/demo/scene/logo/generate", json={"how": "generate", "lines": ["DEMO"], "font": "Cinzel-SemiBold.ttf"})
+    _wait_idle(c)
+    assert '"DEMO"' in seen["gen"] and "Cinzel" in seen["gen"] and seen["size"] == "1344x768"
+    assert _overview(c)["scene"]["logo"]["file"] == "scene/logo_1.png"   # new takes don't replace the chosen one
+
+
+def test_feature_names(board):
+    c, d = board
+    f = _overview(c)["features"]
+    assert f["names"]["wilds"] == "RANDOM WILDS"
+    assert c.patch("/api/slot-design/demo/features", json={"names": {"wilds": "photon wilds", "repeat": ""}}).status_code == 200
+    assert _overview(c)["features"]["names"]["wilds"] == "PHOTON WILDS"
+    assert c.patch("/api/slot-design/demo/features", json={"names": {"warp": "X"}}).status_code == 400
+
 def test_scene_brief_for_claude(board):
     c, d = board
     ref = c.put("/api/slot-design/demo/scene/brief/lcars.png", content=_png(size=(900, 600))).json()["path"]

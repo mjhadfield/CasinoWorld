@@ -3,8 +3,9 @@ The Slot design wizard's later steps (slot_design.py has the designs, Concept an
 so every method runs under the board's lock and saves through its Design.
 
   Value ladder   the chosen symbols ordered into the tiers (W, BS, FS, H1.., M1.., L1..) and the upgrade chain
-  Scene          the background (FLUX or uploaded), the logo lettering (rendered here: FLUX can't spell) and the
-                 reel frame's style, and the deck's (the bottom bar, readouts and buttons: the frame's by default)
+  Scene          the screen's look as skins (slot_design_scene.py: shapes, palette, colours, fonts, words, decor),
+                 the background (the image model or uploaded) and the logo (rendered in a font, the rendered lettering
+                 restyled by the image model, or drawn whole by it)
   Features       which of the library's random features the slot uses, their rates and value tables
   Bonus games    each library bonus (the Trail, the free games, the wave battle, the island voyage): on or off, the scatter that starts it, whether
                  Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
@@ -13,7 +14,7 @@ so every method runs under the board's lock and saves through its Design.
   Art slots      the pictures the game draws outside the reels (shared by Features and Bonus games): a board
                  image, or "sym:<id>" to follow a symbol's chosen take
   Specs          a new feature or bonus type, described for building (Build lists them as code tasks)
-  Sprites        win animations per tier group, the screen's colours and fonts (its "theme"), the floor cabinet
+  Sprites        win animations per tier group and the floor cabinet (their colours start from the scene's)
   Sounds         the slot's own sound for any slot moment (sounds.py); the rest play "Every slot machine"'s.
                  Kept in the design until Build makes the slot's sound set (slots.<id>).
   Maths          the pays and per-reel symbol counts; the browser simulates and tunes (slots_math.js in a Web
@@ -132,10 +133,17 @@ def _rate(v, what: str) -> float:
     return round(float(v), 4)
 
 
+# What the side panel calls each feature, unless the design names it (Features step).
+FEATURE_NAMES = {"wilds": "RANDOM WILDS", "wildReels": "WILD REELS", "colossal": "COLOSSAL REELS", "multiplier": "MULTIPLIER",
+                 "upgrade": "SYMBOL UPGRADE", "repeat": "REPEAT WIN", "instant": "INSTANT WIN"}
+
+
 def features_view(d) -> dict:
     f = d.data.get("features", {})
     A = ARMADILLO
     return {"library": list(base.FEATURES), "enabled": f.get("enabled", list(base.FEATURES)),
+            "names": {k: f.get("names", {}).get(k) or FEATURE_NAMES.get(k, k.upper()) for k in base.FEATURES},
+            "default_names": FEATURE_NAMES,
             "rates": {**A.rates, **f.get("rates", {})}, "free_rates": {**A.free_rates, **f.get("free_rates", {})},
             "tables": {t: f.get("tables", {}).get(t, [list(p) for p in getattr(A, t)]) for t in TABLES},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "feature"]}
@@ -193,7 +201,7 @@ def sprites_view(d) -> dict:
     lines = (d.data.get("scene", {}).get("logo", {}).get("lines") or [d.data.get("name", "")])[:2]
     lk = look(d)
     return {"win": win, "presets": list(WIN_PRESETS), "colours": lk["colours"], "armadillo_colours": THEME_DEFAULTS,
-            "fonts": lk["fonts"], "font_list": _fonts(d),
+            "fonts": lk["fonts"], "font_list": _fonts(d), "match": {"glow": glow, "cabinet": cab},
             "cabinet": {**cab, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
 
 
@@ -613,8 +621,15 @@ class StepsMixin:
     def update_features(self, did: str, ch: dict) -> None:
         with self.lock:
             d = self.design(did)
-            self._unlocked(d)
+            if set(ch) - {"names"}:   # (the names are words on the screen: they don't change how it pays)
+                self._unlocked(d)
             f = d.data.setdefault("features", {})
+            if "names" in ch:
+                names = ch["names"] or {}
+                if not isinstance(names, dict) or set(names) - set(base.FEATURES):
+                    raise DesignError("Names are {feature: name} for the library's features.")
+                f["names"] = {**f.get("names", {}), **{k: " ".join(str(v or "").upper().split())[:22] for k, v in names.items()}}
+                f["names"] = {k: v for k, v in f["names"].items() if v and v != FEATURE_NAMES.get(k)}
             if "enabled" in ch:
                 on = ch["enabled"]
                 if not isinstance(on, list) or any(x not in base.FEATURES for x in on):
@@ -978,6 +993,26 @@ class StepsMixin:
         folder.mkdir(exist_ok=True)
         ns = [int(p.stem.split("_")[-1]) for p in folder.glob(f"{kind}_*.png") if p.stem.split("_")[-1].isdigit()]
         return f"scene/{kind}_{max(ns, default=0) + 1}.png"
+
+    def queue_logo(self, did: str, spec: dict) -> dict:
+        """Three logo takes from the image model: "stylise" (the words rendered in the font, restyled) or "generate"
+        (drawn whole from a prompt)."""
+        how = spec.get("how")
+        if how not in ("stylise", "generate"):
+            raise DesignError("A logo is styled from the lettering (stylise) or generated.")
+        lines = [str(x).strip()[:30] for x in (spec.get("lines") or []) if str(x).strip()][:3]
+        if not lines:
+            raise DesignError("Type the logo's words.")
+        style = str(spec.get("style") or "").strip()[:400]
+        with self.lock:
+            d = self.design(did)
+            font = _font_path(d, spec.get("font") or "Cinzel-SemiBold.ttf")
+            job = self._queue(d, None, {"how": how, "src": None, "text": style, "lines": lines, "font": font.name,
+                                        "out": "logo", "action": "logo"})
+            lg = d.data.setdefault("scene", {}).setdefault("logo", {})
+            lg.update(lines=lines, style=style)
+            d.save()
+            return job
 
     def render_logo(self, did: str, spec: dict) -> str:
         lines = [str(x).strip()[:30] for x in (spec.get("lines") or []) if str(x).strip()][:3]
