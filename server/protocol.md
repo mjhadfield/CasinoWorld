@@ -218,16 +218,17 @@ null). Grid cells are numbered `reel * 4 + row` (row 0 at the top); a reel shows
 
 A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `variant`, `name`, `symbols` (tier -> name),
 `lines`, `pays` (line bets for 3/4/5, its own tiers: W, H1.., M1.., L1..), `upgrades`, `ladder` (pence), `features`
-(the random features it uses), `strips`, `free_strips`, `big_strip`, `buy_cost` (0: no Buy Bonus), `free_games`, `battle` (the wave battle's settings),
-`routes` (which bonuses each way in plays: {`BS`, `FS`, `buy`} -> [`trail`/`free`/`battle`], one at random when there are
+(the random features it uses), `strips`, `free_strips`, `big_strip`, `buy_cost` (0: no Buy Bonus), `free_games`, `battle` (the wave battle's settings), `voyage` (the island voyage's),
+`routes` (which bonuses each way in plays: {`BS`, `FS`, `buy`} -> [`trail`/`free`/`battle`/`voyage`], one at random when there are
 several; an empty list means that way in plays nothing), the jackpot `tiers`, and for a built slot `theme`: {`colours`, `fonts`
 (display/ui, downloaded from the art manifest), `frame` {`style`, `colour`}, `deck` {`style`, `colour`: a tint, or null for the style's own}, `win` (an animation per tier group),
-`labels`, `texts` (bonus and free-game names, the launcher, the tagline, the battle's name, hint, enemy and boss), `rules` (the info screen's lines),
+`labels`, `texts` (bonus and free-game names, the launcher, the tagline, the battle's name, hint, enemy and boss, the voyage's name, hint, start and final island, island names and artefacts), `rules` (the info screen's lines),
 `cabinet`, `background`}. Armadillo has no `theme`: the screen draws its own.
 
 Messages: `spin` {`bet`} (one of `ladder`; may cut the last spin's presentation short after 1s),
 `buy_bonus` {`bet`} (`buy_cost` bets: straight to one of `routes.buy`'s bonuses, at random if there are several), `trail_fire`, `jackpot_pick` {`index`
-0-11}, `battle_fire` {`index`: a ship still there; ignored for the boss}. `bet`/`ready`/`rebet` aren't used.
+0-11}, `battle_fire` {`index`: a ship still there; ignored for the boss}, `voyage_choose` {`choice`: one of the voyage's
+`options`: an island's row 0-2 on the next leg, `final`, or at Port Royal `artefact`/`key`/`spins`/`sell`/`leave`}. `bet`/`ready`/`rebet` aren't used.
 
 A paid spin's win is credited at once (the wallet follows the `spin` event; the client holds the
 balance until the reels stop). A feature's win is credited when it ends. A player who stands up
@@ -235,8 +236,8 @@ or disconnects mid-feature has it played out and paid (those events carry `finis
 
 | kind | fields | when |
 |---|---|---|
-| `spin` | `seat`, `outcome` {`bet`, `free`, `stops`, `landed`, `after_colossal`, `pre_grid`, `grid`, `trigger` (trail/free/battle/null), `colossal` {`start`, `k`, `stop`, `offset`}, `wild_reels`, `wilds`, `multiplier`, `upgrade` {`from`, `to`, `cells`}, `wins` [{`line`, `sym`, `count`, `mult`, `cells`, `pence`}], `line_win`, `repeat`, `instant`, `total`, `features`, `scatters`}, `meters`, `secs` (how long the screen takes), `features_next` (pick/trail/free/battle still to come) | A paid spin. |
-| `bonus_bought` | `bet`, `cost` | Buy Bonus; `trail_start`, `battle_start` or `free_start` follows. |
+| `spin` | `seat`, `outcome` {`bet`, `free`, `stops`, `landed`, `after_colossal`, `pre_grid`, `grid`, `trigger` (trail/free/battle/voyage/null), `colossal` {`start`, `k`, `stop`, `offset`}, `wild_reels`, `wilds`, `multiplier`, `upgrade` {`from`, `to`, `cells`}, `wins` [{`line`, `sym`, `count`, `mult`, `cells`, `pence`}], `line_win`, `repeat`, `instant`, `total`, `features`, `scatters`}, `meters`, `secs` (how long the screen takes), `features_next` (pick/trail/free/battle/voyage still to come) | A paid spin. |
+| `bonus_bought` | `bet`, `cost` | Buy Bonus; `trail_start`, `battle_start`, `voyage_start` or `free_start` follows. |
 | `jackpot_start` | `coins` (12) | The Jackpot Pick begins. |
 | `jackpot_reveal` | `index`, `tier`, `auto` | A coin turns over (picked, or picked for an idle player). |
 | `slot_jackpot_won` | `tier`, `amount`, `name`, `coins` (every coin's tier), `meters` | Third match: paid, the meter resets (a `slot_jackpots` message goes to everyone). |
@@ -246,13 +247,16 @@ or disconnects mid-feature has it played out and paid (those events carry `finis
 | `battle_start` | `bought`, `battle` {`bet`, `wave`, `waves`, `ships` (one bool a ship: still there), `shields`, `max_shields`, `boss_hp` (null until the boss), `boss_max`, `total`, `spins`, `shots`, `cleared`, `won`, `done`} | The wave battle begins. |
 | `battle_shot` | `shot` {`target` (a ship's index, or "boss"), `answered`, `events` [{`kind` return_fire {`ship`, `shields`} / shields_down / destroyed {`ship`, `pence` or `spins`} / wave_clear {`wave`, `pence`} / wave_start {`wave`, `ships`, `shields`} / boss_start {`hp`, `shields`} / boss_hit {`hp`} / boss_destroyed {`pence`}}], `done`}, `total`, `spins`, `shields`, `auto`, `secs` | A shot fired (by the player, or by itself after 8s). |
 | `battle_end` | `total`, `spins`, `cleared`, `won`, `shots` | Paid. If its ships gave free spins, `free_start` (with that many) follows. |
-| `free_start` | `of`, `bet`, `bought`, `source` (scatter/battle) | Combo Free Spins begin. |
+| `voyage_start` | `bought`, `voyage` {`bet`, `map` (a list of legs, each three islands top to bottom: treasure/wreck/skull/port/cove), `legs`, `leg` (-1 at the start port), `row`, `route` (the row taken on each leg), `relics`, `keys`, `artefacts` (one bool each), `spins`, `total`, `awaiting` (sail/trade/null), `sunk`, `treasure` (the final island's pay, once there), `steps`, `done`, `options` (what `voyage_choose` takes now)} | The island voyage begins. |
+| `voyage_step` | `step` {`action` (sail/trade/final), `choice`, `events` [{`kind` arrive {`leg`, `row`, `island`} / treasure, skull, cove {`pence`} / relics {`n`} / key / artefact {`i`} / unlock / sunk / port {`deals`} / bought {`deal`, `cost`} / sold {`n`, `pence`} / leave / final {`chest`, `parts`, `legend`, `relics`, `pence`}}], `done`}, `voyage` (as `voyage_start`, after the step), `auto`, `secs` | A choice made (by the player, or for them after 12s). |
+| `voyage_end` | `total`, `spins`, `sunk`, `treasure`, `steps` | Paid. If it bought free games, `free_start` (with that many) follows. |
+| `free_start` | `of`, `bet`, `bought`, `source` (scatter/battle/voyage) | Combo Free Spins begin. |
 | `free_game` | `n`, `of`, `outcome` (as `spin`), `total`, `secs` | Each free game, played by the clock. |
 | `free_end` | `total` | Paid. |
 | `features_done` | | Back to idle. |
 
 The slots `table_state` adds `variant`, `bet`, `last` (the last spin's outcome), `pending`,
-`pick` {`coins`, `done`, `tier` (once won)}, `trail` (as `trail_start`), `trail_ready_in`, `battle` (as `battle_start`), `battle_ready_in`, `free`
+`pick` {`coins`, `done`, `tier` (once won)}, `trail` (as `trail_start`), `trail_ready_in`, `battle` (as `battle_start`), `battle_ready_in`, `voyage` (as `voyage_start`), `voyage_ready_in`, `free`
 {`bet`, `n`, `of`, `total`}, `meters` and `timer`. Server -> client `slot_jackpots` {`meters`
 {mini, minor, major, grand}} comes on join, on resync and after every slot jackpot; between those,
 every `spin` event carries the meters.

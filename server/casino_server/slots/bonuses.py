@@ -9,9 +9,16 @@ The bonus games. Each is a small state machine the cabinet steps through:
   destroys its ship, which reveals a prize or free spins (banked, played as Combo Free Games afterwards), or is
   answered (the ship cloaks and fires back: shields -1). Shields at 0 end it; clearing a wave pays its reward and
   restores them. After the last wave a boss takes `boss_hits` hits and pays a big prize.
+- The island voyage, Dead Man's Map (any way in a design gives it): a map of `legs` columns of three islands, all
+  in view. From each island you choose the next (the one level with it or either side); what it gives is drawn when
+  you land. Treasure Island pays, a Shipwreck gives relics (and maybe a key or an artefact), Skull Island pays big
+  or sinks you (the voyage ends short of the final island), Port Royal trades relics, and a Hidden Cove needs a key.
+  The final island pays the treasure chest, a part for each artefact held, the legend for all of them, and any
+  relics left. Free games bought at Port Royal are banked and played as Combo Free Games afterwards.
 
-Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames / battleShot), draw for draw.
+Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames / battleShot / voyageStep), draw for draw.
 """
+import json
 import math
 
 from casino_server.slots.outcome import spin_outcome
@@ -300,3 +307,186 @@ _BATTLE_SECONDS = {"return_fire": 1.0, "shields_down": 1.6, "destroyed": 0.9, "w
 
 def battle_shot_seconds(shot: dict) -> float:
     return 0.6 + sum(_BATTLE_SECONDS.get(e["kind"], 0.5) for e in shot["events"])
+
+
+# ------------------------------------------------------------------ the island voyage (Dead Man's Map)
+def voyage_map(v, rng) -> list:
+    """The map, drawn up front: a list of legs, each three islands (top to bottom). No Port Royal on the first leg
+    (there are no relics to trade yet); then each Hidden Cove takes an island on a leg of its own, from the second."""
+    y = v.voyage
+    first = [k for k in y["kinds"] if k[0] != "port"]
+    legs = [[_draw(rng, first if leg == 0 else y["kinds"]) for _ in range(3)] for leg in range(y["legs"])]
+    open_legs = list(range(1, y["legs"]))
+    for _ in range(min(y["coves"], len(open_legs))):
+        leg = open_legs.pop(randint(rng, len(open_legs)))
+        legs[leg][randint(rng, 3)] = "cove"
+    return legs
+
+
+def voyage_start(v, bet: int, rng, chart=None) -> dict:
+    """A fresh voyage at the start port (leg -1), its map drawn."""
+    return {"bet": bet, "map": chart or voyage_map(v, rng), "leg": -1, "row": None, "route": [], "relics": 0, "keys": 0,
+            "artefacts": [False] * len(v.voyage["parts"]), "spins": 0, "total": 0, "awaiting": "sail", "sunk": False,
+            "treasure": None, "steps": 0, "done": False}
+
+
+def voyage_deals(v, st: dict) -> list:
+    """Port Royal's deals you can afford, in the screen's order."""
+    y, n = v.voyage, st["relics"]
+    out = []
+    if n >= y["artefact_price"] and not all(st["artefacts"]):
+        out.append("artefact")
+    if n >= y["key_price"]:
+        out.append("key")
+    if n >= y["spins_price"]:
+        out.append("spins")
+    if n:
+        out.append("sell")
+    return out
+
+
+def voyage_options(v, st: dict) -> list:
+    """What can be chosen now: the open islands on the next leg (their rows; a cove needs a key), "final" after the
+    last leg, or at Port Royal the deals you can afford and "leave"."""
+    if st["done"]:
+        return []
+    if st["awaiting"] == "trade":
+        return voyage_deals(v, st) + ["leave"]
+    if st["leg"] == len(st["map"]) - 1:
+        return ["final"]
+    nxt = st["map"][st["leg"] + 1]
+    rows = range(3) if st["leg"] < 0 else range(max(0, st["row"] - 1), min(2, st["row"] + 1) + 1)
+    return [r for r in rows if nxt[r] != "cove" or st["keys"] > 0]
+
+
+def voyage_auto(v, st: dict, rng):
+    """The choice made for a player who waits (and for NPCs and the simulator): a random open island; at Port Royal
+    an artefact if it can, else free games, else sell up."""
+    opts = voyage_options(v, st)
+    if st["awaiting"] == "trade":
+        return next(d for d in ("artefact", "spins", "sell", "leave") if d in opts)
+    return opts[0] if len(opts) == 1 else opts[randint(rng, len(opts))]
+
+
+def _missing(st: dict) -> list:
+    return [i for i, held in enumerate(st["artefacts"]) if not held]
+
+
+def _find_artefact(st: dict, rng, ev: list) -> None:
+    gone = _missing(st)
+    if gone:
+        i = gone[randint(rng, len(gone))]
+        st["artefacts"][i] = True
+        ev.append({"kind": "artefact", "i": i})
+
+
+def voyage_step(v, st: dict, rng, choice=None) -> dict:
+    """One choice; `st` advances. `choice` is one of voyage_options (anything else, or None, is chosen for you by
+    voyage_auto). Returns {action (sail/trade/final), choice, events, done}. Events: arrive {leg, row, island},
+    treasure/skull/cove {pence}, relics {n}, key, artefact {i}, unlock, sunk, port {deals}, bought {deal, cost},
+    sold {n, pence}, leave, final {chest, parts, legend, relics, pence}."""
+    y, ev = v.voyage, []
+    opts = voyage_options(v, st)
+    if choice not in opts or isinstance(choice, bool):
+        choice = voyage_auto(v, st, rng)
+    st["steps"] += 1
+    if st["awaiting"] == "trade":
+        st["awaiting"] = "sail"
+        if choice == "sell":
+            n, pence = st["relics"], bet_pence(st["relics"] * y["relic_value"], st["bet"])
+            st["relics"] = 0
+            st["total"] += pence
+            ev.append({"kind": "sold", "n": n, "pence": pence})
+        elif choice == "leave":
+            ev.append({"kind": "leave"})
+        else:
+            cost = y[f"{choice}_price"]
+            st["relics"] -= cost
+            ev.append({"kind": "bought", "deal": choice, "cost": cost})
+            if choice == "artefact":
+                _find_artefact(st, rng, ev)
+            elif choice == "key":
+                st["keys"] += 1
+                ev.append({"kind": "key"})
+            else:
+                st["spins"] += y["spins_games"]
+        return {"action": "trade", "choice": choice, "events": ev, "done": False}
+    if choice == "final":
+        held = st["artefacts"]
+        t = {"chest": bet_pence(y["chest"], st["bet"]), "parts": [bet_pence(p, st["bet"]) if h else 0 for p, h in zip(y["parts"], held)],
+             "legend": bet_pence(y["legend"], st["bet"]) if all(held) else 0, "relics": bet_pence(st["relics"] * y["relic_value"], st["bet"])}
+        t["pence"] = t["chest"] + sum(t["parts"]) + t["legend"] + t["relics"]
+        st["total"] += t["pence"]
+        st["treasure"] = t
+        st["relics"] = 0
+        st["leg"] += 1
+        st["done"] = True
+        ev.append({"kind": "final", **t})
+        return {"action": "final", "choice": choice, "events": ev, "done": True}
+    st["leg"] += 1
+    st["row"] = choice
+    st["route"].append(choice)
+    island = st["map"][st["leg"]][choice]
+    ev.append({"kind": "arrive", "leg": st["leg"], "row": choice, "island": island})
+
+    def pay(kind, table):
+        pence = bet_pence(_draw(rng, y[table]), st["bet"])
+        st["total"] += pence
+        ev.append({"kind": kind, "pence": pence})
+    if island == "treasure":
+        pay("treasure", "treasure")
+    elif island == "wreck":
+        n = _draw(rng, y["relics"])
+        st["relics"] += n
+        ev.append({"kind": "relics", "n": n})
+        if rng() < y["item_chance"]:
+            if not _missing(st) or rng() < y["key_chance"]:
+                st["keys"] += 1
+                ev.append({"kind": "key"})
+            else:
+                _find_artefact(st, rng, ev)
+    elif island == "skull":
+        if rng() < y["sink"]:
+            st["sunk"] = st["done"] = True
+            st["awaiting"] = None
+            ev.append({"kind": "sunk"})
+        else:
+            pay("skull", "skull")
+    elif island == "port":
+        deals = voyage_deals(v, st)
+        ev.append({"kind": "port", "deals": deals})
+        if deals:
+            st["awaiting"] = "trade"
+    elif island == "cove":
+        st["keys"] -= 1
+        ev.append({"kind": "unlock"})
+        pay("cove", "cove")
+        _find_artefact(st, rng, ev)
+    return {"action": "sail", "choice": choice, "events": ev, "done": st["done"]}
+
+
+def voyage_play_out(v, st: dict, rng) -> list:
+    """A player who leaves mid-voyage (and the simulator): every choice made by voyage_auto, to the end."""
+    steps = []
+    for _ in range(100):
+        if st["done"]:
+            break
+        steps.append(voyage_step(v, st, rng))
+    return steps
+
+
+def voyage_view(v, st: dict) -> dict:
+    """The voyage as clients see it, with what can be chosen now."""
+    out = json.loads(json.dumps(st))
+    out["options"] = voyage_options(v, st)
+    out["legs"] = len(st["map"])
+    return out
+
+
+# How long the screen takes to play each part of a step (game.js / slot_screen.gd), so the server waits for it.
+_VOYAGE_SECONDS = {"arrive": 1.4, "treasure": 1.0, "relics": 0.8, "key": 0.8, "artefact": 1.2, "unlock": 0.8, "sunk": 2.2,
+                   "skull": 1.2, "port": 0.6, "cove": 1.2, "bought": 0.6, "sold": 0.9, "leave": 0.3, "final": 4.5}
+
+
+def voyage_step_seconds(step: dict) -> float:
+    return 0.3 + sum(_VOYAGE_SECONDS.get(e["kind"], 0.5) for e in step["events"])

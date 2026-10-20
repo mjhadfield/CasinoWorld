@@ -5,7 +5,11 @@ export const STAND_IN = key => `/slot-art/armadillo/flux2/${key}.png`;
 export const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder: "Bonus launcher", t_coin: "Trail coins",
   t_gold: "Trail prizepot", t_snake: "Trail hazard", t_heart: "Trail heart", t_forward: "Trail forward", t_lightning: "Trail lightning",
   t_crate: "Trail coin crate", t_upgrade: "Trail moves doubled", t_double: "Trail coins doubled",
-  b_hero: "Battle: your ship", b_enemy: "Battle: enemy ship", b_boss: "Battle: boss"};
+  b_hero: "Battle: your ship", b_enemy: "Battle: enemy ship", b_boss: "Battle: boss",
+  v_ship: "Voyage: your ship", v_treasure: "Voyage: Treasure Island", v_wreck: "Voyage: Shipwreck", v_skull: "Voyage: Skull Island",
+  v_port: "Voyage: Port Royal", v_cove: "Voyage: Hidden Cove", v_final: "Voyage: final island", v_chest: "Voyage: the treasure",
+  v_relic: "Voyage: relic", v_key: "Voyage: key", v_art1: "Voyage: artefact 1", v_art2: "Voyage: artefact 2", v_art3: "Voyage: artefact 3",
+  v_art4: "Voyage: artefact 4"};
 
 // Hand tweaks on top of the picture: the server bakes them in (adj/), so the mockup and the built game draw the
 // tweaked picture. The preview here is the same transform in CSS, live while the sliders move.

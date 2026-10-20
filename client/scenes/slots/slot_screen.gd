@@ -73,7 +73,11 @@ const ARMADILLO_TEXTS := {
 	"launcher_up": "moves 2 spaces per bullet", "free": "COMBO FREE GAMES", "free_banner": "COMBO FREE GAME %d OF %d",
 	"free_summary": "FREE GAMES", "free_sub": "%d combo free games at %s", "bonus_line": "3+ WAGONS", "free_line": "3+ PISTOLS",
 	"buy_text": "Go straight to the Trail Bonus for %s", "buy_sub": "%d × your %s bet. Trail wins pay at %s.",
-	"battle": "RED ALERT", "battle_hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss": "FLAGSHIP"}
+	"battle": "RED ALERT", "battle_hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss": "FLAGSHIP",
+	"voyage_name": "DEAD MAN'S MAP", "voyage_hint": "choose your next island", "voyage_start": "TORTUGA", "voyage_final": "ISLA DE MUERTA",
+	"voyage_treasure": "TREASURE ISLAND", "voyage_wreck": "SHIPWRECK", "voyage_skull": "SKULL ISLAND", "voyage_port": "PORT ROYAL",
+	"voyage_cove": "HIDDEN COVE", "voyage_relic": "RELIC", "voyage_chest": "LEGENDARY TREASURE", "voyage_legend": "THE LEGEND",
+	"voyage_artefacts": ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"]}
 const ARMADILLO_TIPS := ["Wild stands in for everything except the Wagon and the Pistols. Pays left to right on 25 lines; the longest match on each line pays.",
 	"Random features can hit any spin. Wilds, Wild Reels, Colossal Reels and the Multiplier land before the reels stop;",
 	"Symbol Upgrade, Repeat Win and Instant Win come after. 3+ Wagons: Trail Bonus. 3+ Pistols: 3 Combo Free Games.",
@@ -167,6 +171,7 @@ var colossal := {}
 var free := {}
 var trail := {}
 var battle := {}
+var voyage := {}
 var pick := {}
 var auto := 0
 var auto_menu := false
@@ -259,6 +264,12 @@ func _apply_theme() -> void:
 			"buy_text": "Go straight to the " + trail_name.capitalize() + " for %s", "buy_sub": "%d × your %s bet. Bonus wins pay at %s.",
 			"battle": str(t.get("battle", "RED ALERT")), "battle_hint": str(t.get("battle_hint", "tap a ship to fire")),
 			"enemy": str(t.get("enemy", "ENEMY SHIP")), "boss": str(t.get("boss", "FLAGSHIP"))}, true)
+		# the voyage's words (Build writes voyage_<word>; the islands, chest and legend as voyage_<word>_name)
+		for k in ["name", "hint", "start", "final", "relic"]:
+			texts["voyage_" + k] = str(t.get("voyage_" + k, ARMADILLO_TEXTS["voyage_" + k]))
+		for k in ["treasure", "wreck", "skull", "port", "cove", "chest", "legend"]:
+			texts["voyage_" + k] = str(t.get("voyage_%s_name" % k, ARMADILLO_TEXTS["voyage_" + k]))
+		texts["voyage_artefacts"] = t.get("voyage_artefacts", ARMADILLO_TEXTS.voyage_artefacts)
 	tips = theme.get("rules", ARMADILLO_TIPS)
 	labels = bool(theme.get("labels", true))
 	var fr: Dictionary = theme.get("frame", {})
@@ -308,6 +319,7 @@ func _reset_state() -> void:
 	free = {}
 	trail = {}
 	battle = {}
+	voyage = {}
 	pick = {}
 	landed = true
 	win_shown = 0.0
@@ -341,6 +353,12 @@ func apply_snapshot(state: Dictionary) -> void:
 				_begin_battle(state.battle)
 				battle.waiting = float(state.get("battle_ready_in", 0.0)) <= 0.0
 				battle.auto_at = _now + float(state.get("timer", 8.0) if state.get("timer") != null else 8.0)
+		"voyage":
+			if state.get("voyage") != null:
+				_begin_voyage(_voyage_view(state.voyage))
+				if float(state.get("voyage_ready_in", 0.0)) <= 0.0 and not bool(state.voyage.done):
+					_voyage_ready()
+					voyage.auto_at = _now + float(state.get("timer", 12.0) if state.get("timer") != null else 12.0)
 		"free_games":
 			if state.get("free") != null:
 				free = {"n": int(state.free.n), "of": int(state.free.of), "total": int(state.free.total)}
@@ -488,6 +506,45 @@ func _handle(ev: Dictionary) -> void:
 			win_shown = float(ev.total)
 			win_target = win_shown
 			message = "%s PAID %s" % [texts.battle, Money.format(int(ev.total))]
+		"voyage_start":
+			_begin_voyage(_voyage_view(ev.voyage))
+			_sfx("voyage_start")
+			await _banner(texts.voyage_name, "bought for %s" % Money.format(int(ev.voyage.bet) * int(rules.get("buy_cost", 45)))
+				if ev.get("bought", false) else texts.voyage_hint, 2.6)
+			if ep != _epoch:
+				return
+			_voyage_ready()
+		"voyage_step":
+			if not voyage.is_empty():
+				voyage.waiting = false
+				await _animate_voyage(ev.step)
+				if ep != _epoch:
+					return
+				voyage.st = _voyage_view(ev.voyage)
+				if not ev.step.done:
+					_voyage_ready()
+		"voyage_end":
+			await _wait(0.8)
+			if ep != _epoch:
+				return
+			_credit_adj += int(ev.total)
+			var v_bet := int(voyage.get("bet", 100))
+			var v_games := " · %d free game%s to come" % [int(ev.spins), "" if int(ev.spins) == 1 else "s"] if int(ev.spins) > 0 else ""
+			var sunk := bool(ev.get("sunk", false))
+			var found := 0 if sunk else (ev.treasure.parts as Array).filter(func(p): return int(p) > 0).size()
+			await _summary(texts.voyage_name if sunk else "%s!" % texts.voyage_chest,
+				("sunk on the way" if sunk else "%d of 4 artefacts" % found) + v_games, int(ev.total))
+			if ep != _epoch:
+				return
+			if int(ev.total) >= 10 * v_bet:
+				await _big_win(int(ev.total), v_bet)
+			if ep != _epoch:
+				return
+			voyage = {}
+			_clear_wins()
+			win_shown = float(ev.total)
+			win_target = win_shown
+			message = "%s PAID %s" % [texts.voyage_name, Money.format(int(ev.total))]
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
 			_sfx("bonus_trigger")
@@ -496,6 +553,8 @@ func _handle(ev: Dictionary) -> void:
 				sub = "bought for %s" % Money.format(int(ev.bet) * int(rules.get("buy_cost", 45)))
 			elif str(ev.get("source", "")) == "battle":
 				sub = "%d won in %s  ·  a random feature every spin" % [int(ev.of), texts.battle.to_lower()]
+			elif str(ev.get("source", "")) == "voyage":
+				sub = "%d bought on %s  ·  a random feature every spin" % [int(ev.of), texts.voyage_name.to_lower()]
 			await _banner(texts.free, sub, 2.2)
 		"free_game":
 			free.n = int(ev.n)
@@ -627,6 +686,8 @@ func _process(delta: float) -> void:
 		trail.waiting = false   # the server fires it itself; its roll is on the way
 	if not battle.is_empty() and battle.get("waiting", false) and _now >= float(battle.get("auto_at", 1e9)) + 1.0:
 		battle.waiting = false   # ...and the same for the battle's shot
+	if not voyage.is_empty() and voyage.get("waiting", false) and _now >= float(voyage.get("auto_at", 1e9)) + 1.0:
+		voyage.waiting = false   # ...and the voyage's choice
 	_place_layers()
 	_under.queue_redraw()
 	_reels_layer.queue_redraw()
@@ -703,17 +764,21 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 				_draw_trail(ci)
 			elif not battle.is_empty():
 				_draw_battle(ci)
+			elif not voyage.is_empty():
+				_draw_voyage(ci)
 			else:
 				_draw_sides(ci)
 				_draw_frame(ci)
 		"reels":
-			if trail.is_empty() and battle.is_empty():
+			if trail.is_empty() and battle.is_empty() and voyage.is_empty():
 				_draw_reels(ci)
 		"over":
 			if not trail.is_empty():
 				_draw_trail_hud(ci)
 			elif not battle.is_empty():
 				_draw_battle_hud(ci)
+			elif not voyage.is_empty():
+				_draw_voyage_hud(ci)
 			else:
 				_draw_reel_overlay(ci)
 				_draw_wins(ci)
@@ -867,7 +932,11 @@ func _can_buy() -> bool:
 func _plays(kinds: Array) -> String:
 	var names := []
 	for k in kinds:
-		names.append(texts.trail if k == "trail" else (texts.battle if k == "battle" else "%d %s" % [int(rules.get("free_games", 3)), texts.free]))
+		match str(k):
+			"trail": names.append(texts.trail)
+			"battle": names.append(texts.battle)
+			"voyage": names.append(texts.voyage_name)
+			_: names.append("%d %s" % [int(rules.get("free_games", 3)), texts.free])
 	return " OR ".join(names)
 
 
@@ -1040,7 +1109,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var credit := Session.shown_balance + _credit_adj
 	_deck_box(ci, Rect2(20, top, 210, h), "CREDIT", Money.format(credit), Color.WHITE)
 	_deck_box(ci, Rect2(242, top, 230, h), "BET", Money.format(_bet()), Color.WHITE, 112)
-	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and free.is_empty()
 	_button(ci, "bet-", Rect2(252, top + 36, 40, 38), "−", false, not idle or _bet_idx == 0, 30)
 	_button(ci, "bet+", Rect2(422, top + 36, 40, 38), "+", false, not idle or _bet_idx == _ladder.size() - 1, 30)
 	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else "WIN",
@@ -1056,7 +1125,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
 	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(GOLD_HI, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
-	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() or not battle.is_empty() else "SPIN")
+	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() or not battle.is_empty() else ("SAIL" if not voyage.is_empty() else "SPIN"))
 	_text(ci, label, c + Vector2(0, 2), 28, COND, INK, "center", 0, SPIN_R * 1.6)
 	_add_hit("spin", Rect2(c - Vector2(SPIN_R, SPIN_R), Vector2(SPIN_R, SPIN_R) * 2.0))
 	_button(ci, "cashout", Rect2(1172, by, 96, 56), "CASH OUT", false, false, 18)
@@ -2365,6 +2434,391 @@ func _draw_battle_hud(ci: CanvasItem) -> void:
 		_text(ci, "fires itself in %d" % ceili(maxf(0.0, float(b.auto_at) - _now)), Vector2(1150, REEL_Y + 402), 16, COND, MUTED)
 
 
+# ------------------------------------------------------------------ the island voyage (Dead Man's Map)
+# A sea chart filling the trail's area: the start port on the left, a column of three islands a leg, the final island
+# on the right, dotted sea lanes between neighbours. Click one of the lit islands to sail there (a cove needs a key);
+# at Port Royal the panel's deals trade relics. The panel keeps the hold: relics, keys, artefacts, free games. The
+# wizard's mockup (game.js drawVoyage) is the same scene; the timings match bonuses.py _VOYAGE_SECONDS.
+const ISLE_ART := {"treasure": "v_treasure", "wreck": "v_wreck", "skull": "v_skull", "port": "v_port", "cove": "v_cove"}
+const ROW_Y := [228.0, 352.0, 476.0]
+const DEALS := ["artefact", "key", "spins", "sell", "leave"]
+
+
+func _v_step(legs: int) -> float:
+	return 860.0 / (legs + 1)
+
+
+## Where an island sits: leg -1 is the start port, `legs` the final island.
+func _isle_pos(leg: int, row: int, legs: int) -> Vector2:
+	var x := 90.0 + (leg + 1) * _v_step(legs)
+	return Vector2(x, 352.0 if leg < 0 or leg >= legs else float(ROW_Y[row]))
+
+
+## What the screen shows of the voyage: it follows the events, so a find shows when it's animated, not before.
+static func _voyage_shown(v: Dictionary) -> Dictionary:
+	return {"relics": int(v.relics), "keys": int(v.keys), "artefacts": (v.artefacts as Array).duplicate(), "spins": int(v.spins),
+		"total": int(v.total), "leg": int(v.leg), "row": -1 if v.row == null else int(v.row), "route": (v.route as Array).duplicate(),
+		"awaiting": str(v.awaiting) if v.awaiting != null else "", "sunk": bool(v.sunk)}
+
+
+func _begin_voyage(v: Dictionary) -> void:
+	var legs := (v.map as Array).size()
+	var sh := _voyage_shown(v)
+	var at := _isle_pos(sh.leg, maxi(0, sh.row), legs)
+	voyage = {"st": v, "legs": legs, "bet": int(v.bet), "shown": sh, "ship": {"x": at.x, "y": at.y - 34.0, "rot": 0.0, "sink": 0.0, "a": 1.0},
+		"waiting": false, "auto_at": 1e9, "reveal": {}}
+	_clear_wins()
+
+
+func _voyage_ready() -> void:
+	var st: Dictionary = voyage.st
+	voyage.shown = _voyage_shown(st)
+	voyage.waiting = true
+	voyage.auto_at = _now + 12.0
+	if str(st.awaiting) == "trade":
+		message = "%s: TRADE YOUR %sS, OR SET SAIL" % [texts.voyage_port, texts.voyage_relic]
+	elif int(st.leg) == int(voyage.legs) - 1:
+		message = "SAIL TO %s" % texts.voyage_final
+	else:
+		message = "CHOOSE YOUR NEXT ISLAND  ·  CLICK ONE"
+
+
+## Choose an island's row, "final" or a deal; anything else (or null) lets the server choose.
+func _choose_voyage(choice) -> void:
+	if voyage.is_empty() or not voyage.get("waiting", false):
+		return
+	var opts: Array = voyage.st.options
+	if choice == null or not opts.has(choice):
+		choice = opts[randi() % opts.size()] if str(voyage.st.awaiting) == "sail" else _voyage_auto_deal(opts)
+	voyage.waiting = false
+	Net.send("voyage_choose", {"choice": choice})
+
+
+## A voyage view from the server, its rows made whole numbers (JSON gives floats) so they match the islands' ids.
+static func _voyage_view(v: Dictionary) -> Dictionary:
+	var out := v.duplicate(true)
+	out.options = (v.options as Array).map(func(o): return int(o) if typeof(o) == TYPE_FLOAT else o)
+	out.route = (v.route as Array).map(func(r): return int(r))
+	return out
+
+
+static func _voyage_auto_deal(opts: Array) -> String:
+	for d in ["artefact", "spins", "sell", "leave"]:
+		if opts.has(d):
+			return d
+	return "leave"
+
+
+func _voyage_pop(txt: String, colour: Color, at: Vector2, size := 36) -> void:
+	_battle_pop(txt, colour, at, size)
+
+
+## An artefact (or a relic or key) flying from where it was found into the hold.
+func _to_hold(art: String, from: Vector2, to: Vector2) -> void:
+	var f := _flyer({"img": art, "x": from.x, "y": from.y, "size": 90.0, "s": 0.3})
+	await _tw(f, {"s": 1.2, "y": from.y - 50.0}, 0.35, "back")
+	await _tw(f, {"x": to.x, "y": to.y, "s": 0.45}, 0.55, "inout")
+	f.dead = true
+
+
+func _art_slot(i: int) -> Vector2:   # the hold's artefacts, a row of four
+	return Vector2(1078 + i * 48, REEL_Y + 160)
+
+
+func _animate_voyage(step: Dictionary) -> void:
+	var Y := voyage
+	var sh: Dictionary = Y.shown
+	var ep := _epoch
+	var legs := int(Y.legs)
+	await _wait(0.3)
+	for e in step.events:
+		if ep != _epoch:
+			return
+		var here := _isle_pos(int(sh.leg), maxi(0, int(sh.row)), legs)
+		match str(e.kind):
+			"arrive":
+				var to := _isle_pos(int(e.leg), int(e.row), legs)
+				Y.ship.rot = atan2(to.y - float(Y.ship.y), to.x - float(Y.ship.x)) * 0.3
+				_sfx("voyage_sail")
+				await _tw(Y.ship, {"x": to.x, "y": to.y - 34.0}, 1.1, "inout")
+				Y.ship.rot = 0.0
+				sh.leg = int(e.leg)
+				sh.row = int(e.row)
+				(sh.route as Array).append(int(e.row))
+				await _wait(0.3)
+			"treasure", "skull", "cove":
+				sh.total = int(sh.total) + int(e.pence)
+				win_target = float(sh.total)
+				roller = maxf(float(e.pence) * 1.4, float(_bet()))
+				_sfx("voyage_find")
+				_voyage_pop(Money.format(int(e.pence)), WIN_COL, here + Vector2(0, -40), 36 if str(e.kind) == "treasure" else 46)
+				_coin_burst(here.x, here.y, 14 if str(e.kind) == "treasure" else 26, 0.8)
+				await _wait(1.0 if str(e.kind) == "treasure" else 1.2)
+			"relics":
+				sh.relics = int(sh.relics) + int(e.n)
+				_to_hold("v_relic", here, Vector2(1072, REEL_Y + 92))
+				_voyage_pop("+%d %s%s" % [int(e.n), texts.voyage_relic, "S" if int(e.n) > 1 else ""], GOLD_HI, here + Vector2(0, -30), 30)
+				await _wait(0.8)
+			"key":
+				sh.keys = int(sh.keys) + 1
+				_sfx("voyage_find")
+				_to_hold("v_key", here, Vector2(1162, REEL_Y + 92))
+				_voyage_pop("+1 KEY", GOLD_HI, here + Vector2(0, -30), 30)
+				await _wait(0.8)
+			"artefact":
+				var i := int(e.i)
+				_sfx("voyage_find")
+				_to_hold("v_art%d" % (i + 1), here, _art_slot(i))
+				_voyage_pop(str(texts.voyage_artefacts[i]), GOLD_HI, here + Vector2(0, -70), 34)
+				await _wait(0.9)
+				sh.artefacts[i] = true
+				await _wait(0.3)
+			"unlock":
+				sh.keys = int(sh.keys) - 1
+				_voyage_pop("UNLOCKED", GOLD_HI, here + Vector2(0, -30), 32)
+				await _wait(0.8)
+			"sunk":
+				sh.sunk = true
+				_sfx("voyage_sink")
+				_voyage_pop("SUNK!", Color("ff5a48"), here + Vector2(0, -60), 52)
+				shake = 1.0
+				await _tw(Y.ship, {"rot": 0.5, "sink": 1.0, "a": 0.0}, 2.0, "inout")
+				await _wait(0.2)
+			"port":
+				sh.awaiting = "trade" if not (e.deals as Array).is_empty() else "sail"
+				await _wait(0.6)
+			"bought":
+				sh.relics = int(sh.relics) - int(e.cost)
+				sh.awaiting = "sail"
+				_sfx("voyage_trade")
+				if str(e.deal) == "spins":
+					var n := int(rules.get("voyage", {}).get("spins_games", 1))
+					sh.spins = int(sh.spins) + n
+					_voyage_pop("+%d FREE GAME%s" % [n, "S" if n > 1 else ""], Color("7fd0ff"), here + Vector2(0, -30), 30)
+				await _wait(0.6)
+			"sold":
+				sh.relics = 0
+				sh.awaiting = "sail"
+				sh.total = int(sh.total) + int(e.pence)
+				win_target = float(sh.total)
+				roller = maxf(float(e.pence), float(_bet()))
+				_sfx("voyage_trade")
+				_voyage_pop("SOLD %s" % Money.format(int(e.pence)), WIN_COL, here + Vector2(0, -30), 34)
+				await _wait(0.9)
+			"leave":
+				sh.awaiting = "sail"
+				await _wait(0.3)
+			"final":
+				var to := _isle_pos(legs, 1, legs)
+				_sfx("voyage_sail")
+				await _tw(Y.ship, {"x": to.x - 70.0, "y": to.y - 20.0}, 0.9, "inout")
+				Y.reveal = {"t0": _now, "shown": -1, "e": e}
+				var parts := [int(e.chest)]
+				for p in e.parts:
+					parts.append(int(p))
+				parts.append_array([int(e.legend), int(e.relics)])
+				for k in 7:   # the chest, four parts, the legend, the relics: 0.5s each
+					if ep != _epoch:
+						return
+					Y.reveal.shown = k
+					if parts[k] > 0:
+						sh.total = int(sh.total) + parts[k]
+						win_target = float(sh.total)
+						roller = maxf(float(parts[k]), float(_bet()))
+						_sfx("voyage_chest")
+					if k == 5 and parts[k] > 0:
+						_coin_rain(60)
+						shake = 0.6
+					await _wait(0.9 if k == 5 and parts[k] > 0 else 0.5)
+				_coin_burst(523, 330, 40, 1.2)
+				await _wait(0.6)
+
+
+func _draw_voyage(ci: CanvasItem) -> void:
+	var Y := voyage
+	var st: Dictionary = Y.st
+	var sh: Dictionary = Y.shown
+	var A := B_AREA
+	var legs := int(Y.legs)
+	var size := minf(104.0, _v_step(legs) * 0.84)
+	var open: Array = st.options if Y.waiting and str(st.awaiting) == "sail" else []
+	# the sea, a dim wash of the slot's background, the chart's grid and the swell
+	_rr(ci, A, 18, Color("0b3550"))
+	_vgrad(ci, A.grow(-4), Color("0e4a66"), Color("08263c"))
+	var bg := _tex("bg") if background else null
+	if bg:
+		ci.draw_texture_rect(bg, A.grow(-4), false, Color(1, 1, 1, 0.18))
+	var x := A.position.x + 40.0
+	while x < A.end.x:
+		ci.draw_line(Vector2(x, A.position.y + 4), Vector2(x, A.end.y - 4), Color(1, 1, 1, 0.05), 1)
+		x += 80.0
+	var y := A.position.y + 40.0
+	while y < A.end.y:
+		ci.draw_line(Vector2(A.position.x + 4, y), Vector2(A.end.x - 4, y), Color(1, 1, 1, 0.05), 1)
+		y += 80.0
+	for k in 14:
+		var wx := A.position.x + fmod(k * 173.0 + _now * 14.0, A.size.x)
+		var wy := A.position.y + 30.0 + fmod(k * 97.0, A.size.y - 60.0)
+		ci.draw_arc(Vector2(wx, wy), 16, PI * 1.15, PI * 1.85, 12, Color(0.75, 0.9, 1.0, 0.10), 2, true)
+	# the sea lanes: faint between neighbours, red where you've sailed, gold to where you can go now
+	for leg in range(-1, legs):
+		for r in ([1] if leg < 0 else [0, 1, 2]):
+			var a := _isle_pos(leg, r, legs)
+			var nexts := [1] if leg == legs - 1 else ([0, 1, 2] if leg < 0 else [r - 1, r, r + 1].filter(func(n): return n >= 0 and n <= 2))
+			for n in nexts:
+				ci.draw_dashed_line(a, _isle_pos(leg + 1, n, legs), Color(1, 0.94, 0.78, 0.16), 2, 6)
+	var px := _isle_pos(-1, 1, legs)
+	var leg_i := 0
+	for r in sh.route:
+		var q := _isle_pos(leg_i, int(r), legs)
+		ci.draw_dashed_line(px, q, Color("d8432f"), 4, 12)
+		px = q
+		leg_i += 1
+	if not (Y.reveal as Dictionary).is_empty():
+		ci.draw_dashed_line(px, _isle_pos(legs, 1, legs), Color("d8432f"), 4, 12)
+	var pulse := 0.55 + 0.45 * sin(_now * 5.0)
+	for o in open:
+		var q := _isle_pos(legs, 1, legs) if str(o) == "final" else _isle_pos(int(sh.leg) + 1, int(o), legs)
+		ci.draw_dashed_line(px, q, Color(GOLD_HI, pulse), 3, 12)
+	# the islands
+	var s0 := _isle_pos(-1, 1, legs)
+	_isle(ci, "v_port", s0, size * 0.9, 1.0 if int(sh.leg) < 0 else 0.55, texts.voyage_start, "", false, pulse, legs)
+	for leg in legs:
+		for r in 3:
+			var kind := str(st.map[leg][r])
+			var q := _isle_pos(leg, r, legs)
+			var lit := int(sh.leg) == leg - 1 and open.has(r)
+			var passed := leg <= int(sh.leg) and not (leg == int(sh.leg) and r == int(sh.row))
+			var locked := kind == "cove" and not (int(sh.leg) == leg and int(sh.row) == r) and not (leg > int(sh.leg) and int(sh.keys) > 0)
+			_isle(ci, ISLE_ART[kind], q, size, 0.35 if passed else (0.6 if locked else 1.0), texts["voyage_" + kind], "isle%d" % r if lit else "", lit, pulse, legs)
+			if locked and not passed:   # a padlock over a cove you've no key for
+				var lp := q + Vector2(size * 0.3, -size * 0.32)
+				ci.draw_arc(lp, 8, PI, TAU, 12, Color("c8c8cc"), 4, true)
+				_rr(ci, Rect2(lp.x - 12, lp.y, 24, 18), 4, GOLD)
+	var fq := _isle_pos(legs, 1, legs)
+	var final_lit := open.has("final")
+	_isle(ci, "v_final", fq, minf(150.0, size * 1.4), 1.0, texts.voyage_final, "final" if final_lit else "", final_lit, pulse, legs)
+	# the ship
+	var sp: Dictionary = Y.ship
+	var ship := _tex("v_ship")
+	if ship:
+		ci.draw_set_transform(Vector2(float(sp.x), float(sp.y) + sin(_now * 2.0) * 3.0 + float(sp.sink) * 40.0), float(sp.rot))
+		ci.draw_texture_rect(ship, Rect2(-46, -46, 92, 92), false, Color(1, 1, 1, float(sp.a)))
+		ci.draw_set_transform(Vector2.ZERO)
+
+
+func _isle(ci: CanvasItem, art: String, at: Vector2, s: float, a: float, label: String, id: String, lit: bool, pulse: float, legs: int) -> void:
+	var bob := sin(_now * 2.4 + at.x) * 3.0 if lit else 0.0
+	var c := at + Vector2(0, bob)
+	if lit:
+		for k in 5:   # a soft glow behind it
+			ci.draw_circle(c, s * 0.7 * (1.0 - k * 0.16), Color(GOLD_HI, 0.09 * pulse))
+	var tex := _tex(art)
+	if tex:
+		ci.draw_texture_rect(tex, Rect2(c - Vector2(s, s) / 2.0, Vector2(s, s)), false, Color(1, 1, 1, a))
+	if id != "" and _hover == id:
+		ci.draw_arc(c, s * 0.56, 0, TAU, 48, GOLD_HI, 3, true)
+	_text(ci, label, at + Vector2(0, s / 2.0 + 8.0), 13, COND, Color(GOLD_HI if lit else CREAM, a), "center", 4, _v_step(legs) - 8.0)
+	if id != "":
+		_add_hit(id, Rect2(at - Vector2(s, s) / 2.0, Vector2(s, s)))
+
+
+func _draw_voyage_hud(ci: CanvasItem) -> void:
+	var Y := voyage
+	var st: Dictionary = Y.st
+	var sh: Dictionary = Y.shown
+	if not (Y.reveal as Dictionary).is_empty():
+		_draw_reveal(ci, Y.reveal)
+	_text(ci, "%s WIN %s" % [texts.voyage_name, Money.format(int(sh.total))], Vector2(523, REEL_Y + 14), 32, COND, WIN_COL, "center", 6, 600)
+	# the panel: where you are, the hold, and the deals or the next island
+	var P: Dictionary = rules.get("voyage", {})
+	var cx := 1150.0
+	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
+	_text(ci, texts.voyage_name, Vector2(cx, REEL_Y + 10), 24, COND, GOLD_HI, "center", 0, 200)
+	var stage := ""
+	if not (Y.reveal as Dictionary).is_empty():
+		stage = texts.voyage_final
+	elif sh.sunk:
+		stage = "SUNK"
+	elif str(sh.awaiting) == "trade":
+		stage = texts.voyage_port
+	elif int(sh.leg) >= int(Y.legs) - 1:
+		stage = "ON TO %s" % texts.voyage_final
+	else:
+		stage = "LEG %d OF %d" % [int(sh.leg) + 2, int(Y.legs)]
+	_text(ci, stage, Vector2(cx, REEL_Y + 40), 20, COND, CREAM, "center", 0, 200)
+	var relic := _tex("v_relic")
+	if relic:
+		ci.draw_texture_rect(relic, Rect2(1052, REEL_Y + 72, 40, 40), false)
+	_text(ci, "× %d" % int(sh.relics), Vector2(1096, REEL_Y + 92), 20, COND, CREAM, "left", 0, 50)
+	var key := _tex("v_key")
+	if key:
+		ci.draw_texture_rect(key, Rect2(1142, REEL_Y + 72, 40, 40), false)
+	_text(ci, "× %d" % int(sh.keys), Vector2(1186, REEL_Y + 92), 20, COND, CREAM, "left", 0, 50)
+	var held := (sh.artefacts as Array).filter(func(h): return h).size()
+	_text(ci, "ARTEFACTS %d OF 4" % held, Vector2(cx, REEL_Y + 128), 16, COND, GOLD_HI, "center", 0, 200)
+	for i in 4:
+		var t := _tex("v_art%d" % (i + 1))
+		if t:
+			ci.draw_texture_rect(t, Rect2(_art_slot(i) - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 1.0 if sh.artefacts[i] else 0.2))
+	_text(ci, "FREE GAMES %d" % int(sh.spins), Vector2(cx, REEL_Y + 200), 16, COND, Color("7fd0ff"), "center", 0, 200)
+	if not Y.waiting:
+		return
+	var left := maxf(0.0, float(Y.auto_at) - _now)
+	var relics := "%sS" % texts.voyage_relic
+	if str(st.awaiting) == "trade":
+		var opts: Array = st.options
+		var games := int(P.get("spins_games", 1))
+		for i in DEALS.size():
+			var d: String = DEALS[i]
+			var label := ""
+			match d:
+				"artefact": label = "ARTEFACT · %d %s" % [int(P.get("artefact_price", 3)), relics]
+				"key": label = "KEY · %d %s" % [int(P.get("key_price", 2)), relics]
+				"spins": label = "%s · %d %s" % ["%d FREE GAMES" % games if games > 1 else "FREE GAME", int(P.get("spins_price", 4)), relics]
+				"sell": label = "SELL · %s" % Money.format(floori(int(st.relics) * float(P.get("relic_value", 1)) * int(st.bet) + 0.5))
+				_: label = "SET SAIL"
+			_button(ci, "deal-" + d, Rect2(1054, REEL_Y + 220 + i * 44, 192, 38), label, false, not opts.has(d), 16,
+				[GOLD_HI, SPIN_COL] if d == "leave" else [])
+		_text(ci, "chooses itself in %d" % ceili(left), Vector2(cx, REEL_Y + 448), 16, COND, MUTED)
+	else:
+		if int(st.leg) == int(Y.legs) - 1:
+			_button(ci, "final", Rect2(1060, REEL_Y + 300, 180, 52), "SAIL TO %s" % texts.voyage_final, false, false, 18, [GOLD_HI, SPIN_COL])
+		else:
+			_text(ci, texts.voyage_hint, Vector2(cx, REEL_Y + 320), 16, COND, CREAM, "center", 0, 200)
+		_text(ci, "chooses itself in %d" % ceili(left), Vector2(cx, REEL_Y + 370), 16, COND, MUTED)
+
+
+func _draw_reveal(ci: CanvasItem, R: Dictionary) -> void:
+	var e: Dictionary = R.e
+	var k := int(R.shown)
+	var cx := 523.0
+	_rr(ci, B_AREA, 18, Color(SHADE, minf(0.8, (_now - float(R.t0)) * 2.0)))
+	_gold_text(ci, texts.voyage_chest, Vector2(cx, REEL_Y + 64), 40, 700)
+	var s := 200.0 + 12.0 * sin(_now * 2.0)
+	var chest := _tex("v_chest")
+	if chest:
+		ci.draw_texture_rect(chest, Rect2(cx - s / 2.0, 300 - s / 2.0, s, s), false)
+	if k >= 0:
+		_text(ci, Money.format(int(e.chest)), Vector2(cx, 410), 30, COND, WIN_COL, "center", 5)
+	for i in 4:
+		var x := cx + (i - 1.5) * 150.0
+		var held := int(e.parts[i]) > 0
+		var on := k >= i + 1
+		var a := (1.0 if held else 0.3) if on else 0.12
+		var t := _tex("v_art%d" % (i + 1))
+		if t:
+			ci.draw_texture_rect(t, Rect2(x - 34, 444, 68, 68), false, Color(1, 1, 1, a))
+		_text(ci, str(texts.voyage_artefacts[i]), Vector2(x, 520), 15, COND, Color(CREAM, a), "center", 4, 140)
+		if on:
+			_text(ci, "+%s" % Money.format(int(e.parts[i])) if held else "MISSING", Vector2(x, 542), 20 if held else 15, COND,
+				WIN_COL if held else MUTED, "center", 4)
+	if k >= 5 and int(e.legend) > 0:
+		_text(ci, "%s +%s" % [texts.voyage_legend, Money.format(int(e.legend))], Vector2(cx, 180), 44, COND, GOLD_HI, "center", 7, 800)
+	if k >= 6 and int(e.relics) > 0:
+		_text(ci, "%sS SOLD +%s" % [texts.voyage_relic, Money.format(int(e.relics))], Vector2(cx, 440), 18, COND, CREAM, "center", 4)
+
+
 # ------------------------------------------------------------------ input
 func _virtual(p: Vector2) -> Vector2:
 	var r := _canvas_rect()
@@ -2420,6 +2874,9 @@ func _act(id: String) -> void:
 	if not battle.is_empty() and (id.begins_with("ship") or id == "boss"):
 		_fire_battle(int(id.substr(4)) if id.begins_with("ship") else -1)
 		return
+	if not voyage.is_empty() and (id.begins_with("isle") or id.begins_with("deal-") or id == "final"):
+		_choose_voyage(int(id.substr(4)) if id.begins_with("isle") else (id.substr(5) if id.begins_with("deal-") else "final"))
+		return
 	if id.begins_with("coin"):
 		var i := int(id.substr(4))
 		if not pick.is_empty() and not pick.done and pick.coins[i].tier == "" and not pick.coins[i].asked:
@@ -2428,7 +2885,7 @@ func _act(id: String) -> void:
 		return
 	if id != "auto" and not id.begins_with("auto"):
 		auto_menu = false
-	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and free.is_empty()
 	match id:
 		"spin":
 			_spin_or_stop()
@@ -2478,7 +2935,7 @@ func _bet_changed() -> void:
 
 func _cash_out() -> void:
 	auto = 0
-	if not pick.is_empty() or not trail.is_empty() or not battle.is_empty() or not free.is_empty():
+	if not pick.is_empty() or not trail.is_empty() or not battle.is_empty() or not voyage.is_empty() or not free.is_empty():
 		overlay = {"kind": "cashout"}
 	else:
 		_sfx("cash_out")
@@ -2494,6 +2951,8 @@ func _spin_or_stop() -> void:
 		return _fire()
 	if not battle.is_empty():
 		return _fire_battle(-1)
+	if not voyage.is_empty():
+		return _choose_voyage(null)
 	if reels.any(func(x): return x.spinning or x.stopping):
 		_hurry = true
 		return

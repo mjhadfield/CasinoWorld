@@ -1,6 +1,6 @@
 /* The Slot design wizard's mockup: the signed-off Armadillo mockup (docs/slots/mockup/game.js) made to play any
    design. The full-screen slot game: reels, feature choreography, wins, the deck, the shared meters, and the four
-   bonus scenes (Trail, Combo Free Games, the wave battle, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
+   bonus scenes (Trail, Combo Free Games, the wave battle, the island voyage, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
    SlotScreen is. createGame(canvas, cfg) plays cfg.variant (a SlotMath variant) with cfg's art, logo, background,
    frame, theme and texts (design.js builds cfg from a design); setConfig swaps them live, destroy stops it. */
 export function createGame(cv, cfg) {
@@ -20,6 +20,9 @@ export function createGame(cv, cfg) {
   };
   const C0 = Object.assign({}, C);   // Armadillo's look: a design's theme (Sprites step) is laid over it
   let FRAME = { style: "wood", colour: C.edge }, TEXT = {}, LABELS = true;
+  const VOYAGE_TEXT = { name: "DEAD MAN'S MAP", hint: "choose your next island", start: "TORTUGA", final: "ISLA DE MUERTA",
+    treasure: "TREASURE ISLAND", wreck: "SHIPWRECK", skull: "SKULL ISLAND", port: "PORT ROYAL", cove: "HIDDEN COVE", relic: "RELIC",
+    chest: "LEGENDARY TREASURE", legend: "THE LEGEND", artefacts: ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"] };
   // The deck's look (Scene step): the bottom bar, the readout boxes and the buttons. Wood untinted is Armadillo's
   // browns; any other style or a tint derives the set from one base colour (slot_screen.gd's _deck_look matches).
   const DECK_BASE = { wood: "#6e4426", metal: "#5d6470", neon: "#2b2470", glass: "#5a6f96" };
@@ -79,7 +82,7 @@ export function createGame(cv, cfg) {
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
                            pistol: "THE PISTOL", freeName: "COMBO FREE GAMES", battle: "RED ALERT", battleHint: "tap a ship to fire",
-                           enemy: "ENEMY SHIP", boss: "FLAGSHIP" }, c.texts || {});
+                           enemy: "ENEMY SHIP", boss: "FLAGSHIP", voyage: VOYAGE_TEXT }, c.texts || {});
     LABELS = c.labels !== false;
   }
   setConfig(cfg);
@@ -90,7 +93,7 @@ export function createGame(cv, cfg) {
     grid: null, landed: false, wins: [], showLines: [], cycle: 0, cycleAt: 0, winShown: 0, winTarget: 0,
     message: "25 LINES \u00b7 " + TEXT.tagline, featureLit: {}, multiplier: 1, cellFx: {}, banner: null,
     overlay: null, particles: [], tweens: [], waits: [], hurry: false, hits: [], free: null, colossal: null,
-    trail: null, battle: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
+    trail: null, battle: null, voyage: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
     meters: {}, metersShown: {}, now: 0, hover: null, roller: null,
   };
   for (const t of M.JACKPOT_TIERS) {
@@ -343,7 +346,7 @@ export function createGame(cv, cfg) {
     ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = DECK.ring; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
-    text(spinning ? "STOP" : S.mode === "trail" || S.mode === "battle" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, C.ink);
+    text(spinning ? "STOP" : S.mode === "trail" || S.mode === "battle" ? "FIRE" : S.mode === "voyage" ? "SAIL" : "SPIN", cx, cy + 2, 28, COND, C.ink);
     S.hits.push({ id: "spin", x: cx - r, y: cy - r, w: r * 2, h: r * 2 });
     button("cashout", 1172, y + 22, 96, 56, "CASH OUT", { size: 18, disabled: S.busy || S.mode !== "reels" });
     if (S.autoMenu) {
@@ -647,6 +650,7 @@ export function createGame(cv, cfg) {
     if (o.trigger === "trail") await trailBonus(b, false);
     else if (o.trigger === "free") await freeGames(b);
     else if (o.trigger === "battle") await battleBonus(b, false);
+    else if (o.trigger === "voyage") await voyageBonus(b, false);
     S.busy = false;
     const stopAuto = o.trigger || jackpot || o.total >= 25 * b;
     if (S.auto > 0) { S.auto = stopAuto ? 0 : S.auto - 1; if (S.auto > 0) setTimeout(() => spin(), 450 / pace()); }
@@ -792,16 +796,18 @@ export function createGame(cv, cfg) {
   // ------------------------------------------------------------------ ways in
   // Which bonuses a way in plays ("BS", "FS" or "buy"); several means one of them at random.
   const routes = (way) => (V.routes || M.ROUTES)[way] || [];
-  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : k === "battle" ? TEXT.battle : TEXT.free[1]).join(" OR ");
+  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : k === "battle" ? TEXT.battle : k === "voyage" ? TEXT.voyage.name : TEXT.free[1]).join(" OR ");
   const buyIcon = () => M.SCATTERS.find((s) => routes("buy").some((k) => routes(s).includes(k))) || "BS";
-  function playBonus(kind, b, bought) { return kind === "free" ? freeGames(b, bought) : kind === "battle" ? battleBonus(b, bought) : trailBonus(b, bought); }
+  function playBonus(kind, b, bought) {
+    return kind === "free" ? freeGames(b, bought) : kind === "battle" ? battleBonus(b, bought) : kind === "voyage" ? voyageBonus(b, bought) : trailBonus(b, bought);
+  }
 
   // ------------------------------------------------------------------ Combo Free Games
-  // `games`: how many (a battle's ships give their own number; otherwise the slot's).
-  async function freeGames(b, bought = false, games = 0) {
+  // `games`: how many (a battle's ships and a voyage's Port Royal give their own number, won in `from`; otherwise the slot's).
+  async function freeGames(b, bought = false, games = 0, from = TEXT.battle) {
     const n = games || V.freeGames;
     S.free = { n: 0, of: n, total: 0 };
-    await banner(TEXT.freeName, bought ? "bought for " + money(b * V.buyCost) : games ? `${n} won in ${TEXT.battle.toLowerCase()} \u00b7 a random feature every spin` : `${n} games \u00b7 a random feature every spin`, 2.2);
+    await banner(TEXT.freeName, bought ? "bought for " + money(b * V.buyCost) : games ? `${n} won in ${from.toLowerCase()} \u00b7 a random feature every spin` : `${n} games \u00b7 a random feature every spin`, 2.2);
     for (let i = 1; i <= n; i++) {
       S.free.n = i; S.message = `FREE GAME ${i} OF ${n}`;
       clearWins(); S.winShown = S.winTarget = S.free.total;
@@ -1303,6 +1309,265 @@ export function createGame(cv, cfg) {
     }
   }
 
+  // ------------------------------------------------------------------ the island voyage (Dead Man's Map)
+  // A sea chart filling the trail's area: the start port on the left, a column of three islands a leg, the final
+  // island on the right, dotted sea lanes between neighbours. Click one of the lit islands to sail there (a cove
+  // needs a key); at Port Royal the panel's deals trade relics. The panel keeps the hold: relics, keys, artefacts,
+  // free games. Its timings match bonuses.py _VOYAGE_SECONDS (0.3s, then each event's own).
+  const VT = () => TEXT.voyage;
+  const ISLE_ART = { treasure: "v_treasure", wreck: "v_wreck", skull: "v_skull", port: "v_port", cove: "v_cove" };
+  const isleName = (kind) => VT()[kind];
+  const ROW_Y = [228, 352, 476];
+  const vStep = (legs) => 860 / (legs + 1);
+  function islePos(leg, row, legs) {   // leg -1 is the start port, `legs` the final island
+    const x = 90 + (leg + 1) * vStep(legs);
+    return { x, y: leg < 0 || leg >= legs ? 352 : ROW_Y[row] };
+  }
+  async function voyageBonus(b, bought) {
+    const st = M.voyageStart(V, b, rng), legs = st.map.length, p0 = islePos(-1, 1, legs);
+    S.mode = "voyage";
+    S.voyage = { st, legs, shown: voyageShown(st), ship: { x: p0.x, y: p0.y - 34, rot: 0, sink: 0, a: 1 }, waiting: false, autoAt: 0,
+                 reveal: null };
+    await banner(VT().name, bought ? "bought for " + money(b * V.buyCost) : VT().hint, 2.6);
+    while (!st.done) {
+      const Y = S.voyage;
+      Y.shown = voyageShown(st);
+      Y.waiting = true; Y.autoAt = S.now + 12;
+      S.message = st.awaiting === "trade" ? `${VT().port}: TRADE YOUR ${VT().relic}S, OR SET SAIL`
+        : st.leg === legs - 1 ? `SAIL TO ${VT().final}` : "CHOOSE YOUR NEXT ISLAND · CLICK ONE";
+      const choice = await new Promise((res) => (Y.choose = res));
+      Y.waiting = false;
+      await animateVoyage(M.voyageStep(V, st, rng, choice));
+    }
+    await wait(0.8);
+    const total = st.total;
+    S.balance += total;
+    const games = st.spins ? ` · ${st.spins} free game${st.spins > 1 ? "s" : ""} to come` : "";
+    const sub = st.sunk ? `sunk on the way${games}` : `${st.artefacts.filter(Boolean).length} of 4 artefacts${games}`;
+    await summary(st.sunk ? VT().name : `${VT().chest}!`, sub, total);
+    if (total >= 10 * b) await bigWin(total, b);
+    S.mode = "reels"; S.voyage = null; clearWins(); S.winShown = S.winTarget = total;
+    S.message = `${VT().name} PAID ${money(total)}`;
+    if (st.spins) await freeGames(b, false, st.spins, VT().name);
+  }
+  // What the screen shows of the voyage: it follows the events, so a find shows when it's animated, not before.
+  const voyageShown = (st) => ({ relics: st.relics, keys: st.keys, artefacts: st.artefacts.slice(), spins: st.spins, total: st.total,
+                                 leg: st.leg, row: st.row, route: st.route.slice(), awaiting: st.awaiting });
+  function chooseVoyage(choice) {
+    const Y = S.voyage;
+    if (!Y || !Y.waiting || !Y.choose) return;
+    const f = Y.choose; Y.choose = null; f(choice);   // anything not open (or null) is chosen for you
+  }
+  function voyagePop(txt, colour, x, y, size = 36) { battlePop(txt, colour, x, y, size); }
+  // An artefact (or a relic or key) flying from where it was found into the hold.
+  function toHold(art, x, y, to) {
+    const f = flyer({ img: art, x, y, size: 90, s: 0.3 });
+    tween(f, { s: 1.2, y: y - 50 }, 0.35, ease.back).then(() => tween(f, { x: to.x, y: to.y, s: 0.45 }, 0.55, ease.inOut)).then(() => (f.dead = true));
+  }
+  const ART_SLOT = (i) => ({ x: 1078 + i * 48, y: REEL_Y + 160 });   // the hold's artefacts, a row of four
+  async function animateVoyage(step) {
+    const Y = S.voyage, sh = Y.shown;
+    await wait(0.3);
+    for (const e of step.events) {
+      const here = islePos(sh.leg, sh.row, Y.legs);
+      switch (e.kind) {
+        case "arrive": {
+          const to = islePos(e.leg, e.row, Y.legs);
+          Y.ship.rot = Math.atan2(to.y - Y.ship.y, to.x - Y.ship.x) * 0.3;
+          await tween(Y.ship, { x: to.x, y: to.y - 34 }, 1.1, ease.inOut);
+          Y.ship.rot = 0; sh.leg = e.leg; sh.row = e.row; sh.route.push(e.row);
+          await wait(0.3); break;
+        }
+        case "treasure": case "skull": case "cove":
+          sh.total += e.pence; S.winTarget = sh.total; S.roller = Math.max(e.pence * 1.4, bet());
+          voyagePop(money(e.pence), C.win, here.x, here.y - 40, e.kind === "treasure" ? 36 : 46);
+          coinBurst(here.x, here.y, e.kind === "treasure" ? 14 : 26, 0.8);
+          await wait(e.kind === "treasure" ? 1.0 : 1.2); break;
+        case "relics":
+          sh.relics += e.n; toHold("v_relic", here.x, here.y, { x: 1072, y: REEL_Y + 92 });
+          voyagePop(`+${e.n} ${VT().relic}${e.n > 1 ? "S" : ""}`, C.goldHi, here.x, here.y - 30, 30);
+          await wait(0.8); break;
+        case "key":
+          sh.keys += 1; toHold("v_key", here.x, here.y, { x: 1162, y: REEL_Y + 92 });
+          voyagePop("+1 KEY", C.goldHi, here.x, here.y - 30, 30);
+          await wait(0.8); break;
+        case "artefact":
+          toHold(`v_art${e.i + 1}`, here.x, here.y, ART_SLOT(e.i));
+          voyagePop(VT().artefacts[e.i], C.goldHi, here.x, here.y - 70, 34);
+          await wait(0.9); sh.artefacts[e.i] = true; await wait(0.3); break;
+        case "unlock":
+          sh.keys -= 1; voyagePop("UNLOCKED", C.goldHi, here.x, here.y - 30, 32);
+          await wait(0.8); break;
+        case "sunk":
+          sh.sunk = true; voyagePop("SUNK!", "#ff5a48", here.x, here.y - 60, 52); S.shake = 1;
+          await tween(Y.ship, { rot: 0.5, sink: 1, a: 0 }, 2.0, ease.inOut);
+          await wait(0.2); break;
+        case "port":
+          sh.awaiting = e.deals.length ? "trade" : "sail";
+          await wait(0.6); break;
+        case "bought":
+          sh.relics -= e.cost; sh.awaiting = "sail";
+          if (e.deal === "spins") { sh.spins += V.voyage.spinsGames; voyagePop(`+${V.voyage.spinsGames} FREE GAME${V.voyage.spinsGames > 1 ? "S" : ""}`, "#7fd0ff", here.x, here.y - 30, 30); }
+          await wait(0.6); break;
+        case "sold":
+          sh.relics = 0; sh.awaiting = "sail"; sh.total += e.pence; S.winTarget = sh.total; S.roller = Math.max(e.pence, bet());
+          voyagePop(`SOLD ${money(e.pence)}`, C.win, here.x, here.y - 30, 34);
+          await wait(0.9); break;
+        case "leave":
+          sh.awaiting = "sail"; await wait(0.3); break;
+        case "final": {
+          const to = islePos(Y.legs, 1, Y.legs);
+          await tween(Y.ship, { x: to.x - 70, y: to.y - 20 }, 0.9, ease.inOut);
+          Y.reveal = { t0: S.now, shown: -1, e };
+          const parts = [e.chest, ...e.parts, e.legend, e.relics];
+          for (let k = 0; k < 7; k++) {   // the chest, four parts, the legend, the relics: 0.5s each
+            Y.reveal.shown = k;
+            if (parts[k]) { sh.total += parts[k]; S.winTarget = sh.total; S.roller = Math.max(parts[k], bet()); }
+            if (k === 5 && e.legend) { coinRain(60); S.shake = 0.6; }
+            await wait(k === 5 && e.legend ? 0.9 : 0.5);
+          }
+          coinBurst(523, 330, 40, 1.2);
+          await wait(0.6); break;
+        }
+      }
+    }
+  }
+  function dashed(x0, y0, x1, y1, colour, width, dash) {
+    ctx.save(); ctx.setLineDash(dash); ctx.lineWidth = width; ctx.strokeStyle = colour;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.restore();
+  }
+  function drawVoyage() {
+    const Y = S.voyage, st = Y.st, sh = Y.shown, A = B_AREA, legs = Y.legs, size = Math.min(104, vStep(legs) * 0.84);
+    const open = Y.waiting && st.awaiting === "sail" ? M.voyageOptions(V, st) : [];
+    ctx.save();
+    rr(A.x, A.y, A.w, A.h, 18); ctx.clip();
+    const sea = ctx.createLinearGradient(0, A.y, 0, A.y + A.h);
+    sea.addColorStop(0, "#0e4a66"); sea.addColorStop(1, "#08263c");
+    ctx.fillStyle = sea; ctx.fillRect(A.x, A.y, A.w, A.h);
+    if (bgImg && ok(bgImg)) { ctx.globalAlpha = 0.18; ctx.drawImage(bgImg, A.x, A.y, A.w, A.h); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 1;   // the chart's grid, and the swell
+    for (let x = A.x + 40; x < A.x + A.w; x += 80) { ctx.beginPath(); ctx.moveTo(x, A.y); ctx.lineTo(x, A.y + A.h); ctx.stroke(); }
+    for (let y = A.y + 40; y < A.y + A.h; y += 80) { ctx.beginPath(); ctx.moveTo(A.x, y); ctx.lineTo(A.x + A.w, y); ctx.stroke(); }
+    ctx.strokeStyle = "rgba(190,230,255,0.10)"; ctx.lineWidth = 2;
+    for (let k = 0; k < 14; k++) {
+      const wx = A.x + ((k * 173 + S.now * 14) % A.w), wy = A.y + 30 + ((k * 97) % (A.h - 60));
+      ctx.beginPath(); ctx.arc(wx, wy, 16, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+    }
+    // the sea lanes: faint between neighbours, red where you've sailed, gold to where you can go now
+    const at = (leg, row) => islePos(leg, row, legs);
+    for (let leg = -1; leg < legs; leg++) {
+      for (const r of leg < 0 ? [1] : [0, 1, 2]) {
+        const a = at(leg, r);
+        const nexts = leg === legs - 1 ? [1] : leg < 0 ? [0, 1, 2] : [r - 1, r, r + 1].filter((x) => x >= 0 && x <= 2);
+        for (const n of nexts) { const b2 = at(leg + 1, n); dashed(a.x, a.y, b2.x, b2.y, "rgba(255,240,200,0.16)", 2, [4, 8]); }
+      }
+    }
+    let px = at(-1, 1);
+    sh.route.forEach((r, leg) => { const q = at(leg, r); dashed(px.x, px.y, q.x, q.y, "#d8432f", 4, [10, 7]); px = q; });
+    if (Y.reveal) { const q = at(legs, 1); dashed(px.x, px.y, q.x, q.y, "#d8432f", 4, [10, 7]); }
+    const pulse = 0.55 + 0.45 * Math.sin(S.now * 5);
+    for (const o of open) {
+      const q = o === "final" ? at(legs, 1) : at(sh.leg + 1, o);
+      dashed(px.x, px.y, q.x, q.y, alpha(C.goldHi, pulse), 3, [10, 7]);
+    }
+    // the islands
+    const isle = (art, x, y, s, a, label, id, lit) => {
+      ctx.save(); ctx.globalAlpha = a;
+      const bob = lit ? Math.sin(S.now * 2.4 + x) * 3 : 0;
+      if (lit) {
+        const g = ctx.createRadialGradient(x, y + bob, 4, x, y + bob, s * 0.7);
+        g.addColorStop(0, alpha(C.goldHi, 0.45 * pulse)); g.addColorStop(1, alpha(C.goldHi, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y + bob, s * 0.7, 0, 7); ctx.fill();
+      }
+      drawImg(img(art), x - s / 2, y - s / 2 + bob, s, s);
+      if (id && S.hover === id) { ctx.lineWidth = 3; ctx.strokeStyle = C.goldHi; ctx.beginPath(); ctx.arc(x, y + bob, s * 0.56, 0, 7); ctx.stroke(); }
+      text(label, x, y + s / 2 + 8, 13, COND, lit ? C.goldHi : C.cream, "center", "700", 4, vStep(legs) - 8);
+      ctx.restore();
+      if (id) S.hits.push({ id, x: x - s / 2, y: y - s / 2, w: s, h: s });
+    };
+    const s0 = at(-1, 1);
+    isle("v_port", s0.x, s0.y, size * 0.9, sh.leg < 0 ? 1 : 0.55, VT().start, null, false);
+    st.map.forEach((col, leg) => col.forEach((kind, r) => {
+      const q = at(leg, r), lit = sh.leg === leg - 1 && open.includes(r);
+      const passed = leg <= sh.leg && !(leg === sh.leg && r === sh.row);
+      const locked = kind === "cove" && !(sh.leg === leg && sh.row === r) && !(leg > sh.leg && sh.keys > 0);
+      isle(ISLE_ART[kind], q.x, q.y, size, passed ? 0.35 : locked ? 0.6 : 1, isleName(kind), lit ? "isle" + r : null, lit);
+      if (locked && !passed) {   // a padlock over a cove you've no key for
+        ctx.save(); ctx.lineWidth = 4; ctx.strokeStyle = "#c8c8cc";
+        ctx.beginPath(); ctx.arc(q.x + size * 0.3, q.y - size * 0.32, 8, Math.PI, 0); ctx.stroke();
+        rr(q.x + size * 0.3 - 12, q.y - size * 0.32, 24, 18, 4); ctx.fillStyle = C.gold; ctx.fill(); ctx.restore();
+      }
+    }));
+    const fq = at(legs, 1), finalLit = open.includes("final");
+    isle("v_final", fq.x, fq.y, Math.min(150, size * 1.4), 1, VT().final, finalLit ? "final" : null, finalLit);
+    // the ship
+    const sp = Y.ship, bob = Math.sin(S.now * 2) * 3;
+    ctx.save(); ctx.globalAlpha = sp.a; ctx.translate(sp.x, sp.y + bob + sp.sink * 40); ctx.rotate(sp.rot);
+    drawImg(img("v_ship"), -46, -46, 92, 92); ctx.restore();
+    // the final island's treasure, revealed part by part
+    if (Y.reveal) drawReveal(Y.reveal);
+    ctx.restore();
+    // the top: the voyage's win
+    text(`${VT().name} WIN ${money(sh.total)}`, 523, REEL_Y + 14, 32, COND, C.win, "center", "700", 6, 600);
+    drawVoyagePanel(Y, st, sh);
+  }
+  function drawReveal(R) {
+    const e = R.e, k = R.shown, cx = 523;
+    ctx.fillStyle = alpha(C.shade, Math.min(0.8, (S.now - R.t0) * 2)); ctx.fillRect(B_AREA.x, B_AREA.y, B_AREA.w, B_AREA.h);
+    text(VT().chest, cx, REEL_Y + 64, 40, DISPLAY, C.goldHi, "center", "400", 6, 700);
+    const s = 200 + 12 * Math.sin(S.now * 2);
+    drawImg(img("v_chest"), cx - s / 2, 300 - s / 2, s, s);
+    if (k >= 0) text(money(e.chest), cx, 410, 30, COND, C.win, "center", "700", 5);
+    for (let i = 0; i < 4; i++) {
+      const x = cx + (i - 1.5) * 150, y = 490, held = e.parts[i] > 0, on = k >= i + 1;
+      ctx.save(); ctx.globalAlpha = on ? (held ? 1 : 0.3) : 0.12;
+      drawImg(img(`v_art${i + 1}`), x - 34, y - 46, 68, 68);
+      text(VT().artefacts[i], x, y + 30, 15, COND, C.cream, "center", "700", 4, 140);
+      ctx.restore();
+      if (on) text(held ? `+${money(e.parts[i])}` : "MISSING", x, y + 52, held ? 20 : 15, COND, held ? C.win : C.muted, "center", "700", 4);
+    }
+    if (k >= 5 && e.legend) text(`${VT().legend} +${money(e.legend)}`, cx, 180, 44, COND, C.goldHi, "center", "700", 7, 800);
+    if (k >= 6 && e.relics) text(`${VT().relic}S SOLD +${money(e.relics)}`, cx, 440, 18, COND, C.cream, "center", "700", 4);
+  }
+  const DEALS = [["artefact", "artefactPrice"], ["key", "keyPrice"], ["spins", "spinsPrice"], ["sell", null], ["leave", null]];
+  function drawVoyagePanel(Y, st, sh) {
+    const P = V.voyage, x0 = 1038, cx = 1150;
+    woodPanel(x0, REEL_Y - 18, 224, REEL_H + 36, 16);
+    text(VT().name, cx, REEL_Y + 10, 24, COND, C.goldHi, "center", "700", 0, 200);
+    const stage = Y.reveal ? VT().final : sh.sunk ? "SUNK" : sh.awaiting === "trade" ? VT().port
+      : sh.leg >= Y.legs - 1 ? `ON TO ${VT().final}` : `LEG ${sh.leg + 2} OF ${Y.legs}`;
+    text(stage, cx, REEL_Y + 40, 20, COND, C.cream, "center", "700", 0, 200);
+    // the hold: relics and keys, the four artefacts (faint until found), free games
+    drawImg(img("v_relic"), 1052, REEL_Y + 72, 40, 40);
+    text(`× ${sh.relics}`, 1096, REEL_Y + 92, 20, COND, C.cream, "left", "700", 0, 50);
+    drawImg(img("v_key"), 1142, REEL_Y + 72, 40, 40);
+    text(`× ${sh.keys}`, 1186, REEL_Y + 92, 20, COND, C.cream, "left", "700", 0, 50);
+    text(`ARTEFACTS ${sh.artefacts.filter(Boolean).length} OF 4`, cx, REEL_Y + 128, 16, COND, C.goldHi, "center", "700", 0, 200);
+    for (let i = 0; i < 4; i++) {
+      const p = ART_SLOT(i);
+      ctx.save(); ctx.globalAlpha = sh.artefacts[i] ? 1 : 0.2;
+      drawImg(img(`v_art${i + 1}`), p.x - 22, p.y - 22, 44, 44);
+      ctx.restore();
+    }
+    text(`FREE GAMES ${sh.spins}`, cx, REEL_Y + 200, 16, COND, "#7fd0ff", "center", "700", 0, 200);
+    if (!Y.waiting) return;
+    const left = Math.max(0, Y.autoAt - S.now);
+    if (st.awaiting === "trade") {
+      const opts = M.voyageOptions(V, st);
+      DEALS.forEach(([d, price], i) => {
+        const label = d === "artefact" ? `ARTEFACT · ${P[price]} ${VT().relic}S` : d === "key" ? `KEY · ${P[price]} ${VT().relic}S`
+          : d === "spins" ? `${P.spinsGames > 1 ? P.spinsGames + " FREE GAMES" : "FREE GAME"} · ${P[price]} ${VT().relic}S` : d === "sell" ? `SELL · ${money(M.betPence(st.relics * P.relicValue, st.bet))}` : "SET SAIL";
+        button("deal-" + d, 1054, REEL_Y + 220 + i * 44, 192, 38, label, { size: 16, disabled: !opts.includes(d), colour: d === "leave" ? spinBtn() : undefined });
+      });
+      text(`chooses itself in ${Math.ceil(left)}`, cx, REEL_Y + 448, 16, COND, C.muted);
+    } else {
+      if (st.leg === Y.legs - 1) button("final", 1060, REEL_Y + 300, 180, 52, `SAIL TO ${VT().final}`, { colour: spinBtn(), size: 18 });
+      else text(VT().hint, cx, REEL_Y + 320, 16, COND, C.cream, "center", "700", 0, 200);
+      text(`chooses itself in ${Math.ceil(left)}`, cx, REEL_Y + 370, 16, COND, C.muted);
+    }
+    if (left <= 0) chooseVoyage(null);
+  }
+
   // ------------------------------------------------------------------ the frame loop
   let last = performance.now(), running = true;
   // One frame. A design can be half-made (missing pictures, odd settings), so a drawing error is reported and the
@@ -1323,6 +1588,7 @@ export function createGame(cv, cfg) {
     drawTop();
     if (S.mode === "trail" && S.trail) drawTrail();
     else if (S.mode === "battle" && S.battle) drawBattle();
+    else if (S.mode === "voyage" && S.voyage) drawVoyage();
     else {
       drawSides();
       drawFrame();
@@ -1370,6 +1636,11 @@ export function createGame(cv, cfg) {
     }
     if (id && id.startsWith("coin")) return pickCoin(+id.slice(4));
     if (S.mode === "battle") { if (id && id.startsWith("ship")) return fireBattle(+id.slice(4)); if (id === "boss" || id === "fire") return fireBattle(null); }
+    if (S.mode === "voyage") {
+      if (id && id.startsWith("isle")) return chooseVoyage(+id.slice(4));
+      if (id && id.startsWith("deal-")) return chooseVoyage(id.slice(5));
+      if (id === "final") return chooseVoyage("final");
+    }
     if (id !== "auto" && !(id && id.startsWith("auto"))) S.autoMenu = false;
     switch (id) {
       case "spin": return spinOrStop();
@@ -1389,6 +1660,7 @@ export function createGame(cv, cfg) {
   function spinOrStop() {
     if (S.mode === "trail") return fire();
     if (S.mode === "battle") return fireBattle(null);
+    if (S.mode === "voyage") return chooseVoyage(null);
     if (S.busy) { if (reels.some((x) => x.spinning || x.stopping)) S.hurry = true; return; }
     spin();
   }

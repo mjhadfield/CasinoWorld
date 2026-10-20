@@ -25,7 +25,8 @@ export function fontFamily(did, name) {
 // Feature and bonus pictures the base game and bonuses draw. Until a design gives its own (Features and Bonus
 // games steps), Armadillo's painted set stands in.
 export const EXTRA_ART = ["barrel", "armadillo", "cylinder", "t_coin", "t_double", "t_forward", "t_heart", "t_lightning",
-  "t_crate", "t_upgrade", "t_gold", "t_snake", "b_hero", "b_enemy", "b_boss"];
+  "t_crate", "t_upgrade", "t_gold", "t_snake", "b_hero", "b_enemy", "b_boss", "v_ship", "v_treasure", "v_wreck", "v_skull", "v_port",
+  "v_cove", "v_final", "v_chest", "v_relic", "v_key", "v_art1", "v_art2", "v_art3", "v_art4"];
 const armadillo = id => `/slot-art/armadillo/flux2/${id}.png`;
 
 // Armadillo's per-reel symbol counts stretched to another tier shape: a tier Armadillo has keeps its count; an
@@ -49,7 +50,7 @@ export function designParams(data) {
   const paying = lad.tiers.filter(t => !["BS", "FS"].includes(t));
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
-  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail, bt = b.battle;
+  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail, bt = b.battle, vy = b.voyage;
   // every tier's count (a scatter that starts no bonus is on the Value ladder's tiers no more, and stays at 0)
   const all = [...lad.tiers, ...b.unused_scatters];
   const counts = (maths.counts || stretch(A.counts, all)).map(c => ({...c, ...Object.fromEntries(b.unused_scatters.map(s => [s, 0]))}));
@@ -65,6 +66,10 @@ export function designParams(data) {
             doubleChance: tr.double_chance, coins: tr.coins, crateRadius: tr.crate_radius},
     battle: {waves: bt.waves, shields: bt.shields, returnFire: bt.return_fire, prizes: bt.prizes, spinsChance: bt.spins_chance,
              spins: bt.spins, clear: bt.clear, bossHits: bt.boss_hits, bossFire: bt.boss_fire, boss: bt.boss},
+    voyage: {legs: vy.legs, kinds: vy.kinds, coves: vy.coves, treasure: vy.treasure, relics: vy.relics, itemChance: vy.item_chance,
+             keyChance: vy.key_chance, skull: vy.skull, sink: vy.sink, cove: vy.cove, relicValue: vy.relic_value,
+             artefactPrice: vy.artefact_price, keyPrice: vy.key_price, spinsPrice: vy.spins_price, spinsGames: vy.spins_games,
+             chest: vy.chest, parts: vy.parts, legend: vy.legend},
     freeGames: b.free.games, buyCost: b.routes.buy.length ? b.buy.cost : 0, routes: b.routes,
   };
 }
@@ -105,6 +110,14 @@ export function designConfig(data, img) {
             free: [`3+ ${(symbols.FS || "FS").toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
             freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint,
             battle: b.battle.name.toUpperCase(), battleHint: b.battle.hint, enemy: b.battle.enemy.toUpperCase(),
-            boss: b.battle.boss_name.toUpperCase()},
+            boss: b.battle.boss_name.toUpperCase(), voyage: voyageTexts(b.voyage)},
   };
+}
+
+// The voyage's words as the mockup's screen uses them (the built game's are theme.texts voyage_*).
+export function voyageTexts(v) {
+  const up = s => String(s).toUpperCase();
+  return {name: up(v.name), hint: v.hint, start: up(v.start), final: up(v.final), treasure: up(v.treasure_name), wreck: up(v.wreck_name),
+          skull: up(v.skull_name), port: up(v.port_name), cove: up(v.cove_name), relic: up(v.relic), chest: up(v.chest_name),
+          legend: up(v.legend_name), artefacts: v.artefacts.map(up)};
 }

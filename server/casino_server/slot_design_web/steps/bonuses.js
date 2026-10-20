@@ -1,4 +1,5 @@
-// Step 6, Bonus games: one column, a row per bonus (the Trail bonus, the free games, the wave battle, then Buy Bonus
+// Step 6, Bonus games: one column, a row per bonus (the Trail bonus, the free games, the wave battle, the island
+// voyage, then Buy Bonus
 // and the shared Jackpot Pick). A row shows its switch, how players get in and Try it; its settings open under it,
 // on or off (an off bonus keeps them for when it's switched back on): its ways in, its pictures (each with an Adjust
 // panel: size, position, rotation, mirror, colour) and how it plays. "Try it" plays the mockup straight into a bonus.
@@ -7,6 +8,9 @@ import {STAND_IN, SHORT, artSlot, parseTable, specs, tableText, typing} from "./
 const SPACES = [["snake", "Hazards"], ["heart", "Hearts"], ["forward", "Forward"], ["back", "Back"], ["lightning", "Lightning rolls"], ["crate", "Coin crates"]];
 const TRAIL_ART = ["armadillo", "cylinder", "t_coin", "t_gold", "t_snake", "t_heart", "t_forward", "t_lightning", "t_crate", "t_upgrade", "t_double"];
 const BATTLE_ART = ["b_hero", "b_enemy", "b_boss"];
+const VOYAGE_ART = ["v_ship", "v_treasure", "v_wreck", "v_skull", "v_port", "v_cove", "v_final", "v_chest", "v_relic", "v_key",
+  "v_art1", "v_art2", "v_art3", "v_art4"];
+const ISLANDS = [["treasure", "Treasure Island"], ["wreck", "Shipwreck"], ["skull", "Skull Island"], ["port", "Port Royal"]];
 const SCATTERS = [["BS", "bonus scatter"], ["FS", "free-spins scatter"]];
 let C, picked = null;          // the picture open for changing
 const opened = new Set();      // rows and <details> left open, kept across redraws
@@ -17,7 +21,7 @@ export function render(ctx, body) {
   body.append(
     el("p", {className: "lead", textContent: "The bonus games: switch each on or off, and open one (▸) for how players get in, its pictures and how it plays. Its settings can be changed whether it's on or off. Bonuses that share a way in take turns at random; what they're worth is measured on the Maths step."}),
     el("div", {className: "wz-bonuses"},
-      waysCard(), trailRow(b.trail), freeRow(b.free), battleRow(b.battle), buyRow(b.buy), pickRow(),
+      waysCard(), trailRow(b.trail), freeRow(b.free), battleRow(b.battle), voyageRow(b.voyage), buyRow(b.buy), pickRow(),
       folded("ideas", "New bonus ideas", ideas())));
 }
 
@@ -36,7 +40,7 @@ function ideas() {
 }
 
 // ------------------------------------------------------------------ helpers
-const TITLE = {trail: "The trail bonus", free: "The free games", battle: "The battle bonus"};
+const TITLE = {trail: "The trail bonus", free: "The free games", battle: "The battle bonus", voyage: "The voyage bonus"};
 const field = (label, input) => C.el("label", {className: "field"}, C.el("span", {textContent: label}), input);
 const num = (v, min, max, step = 1, label = "") => C.el("input", {type: "number", min, max, step, value: v, className: "wz-num", ariaLabel: label});
 const txt = (v, label = "") => C.el("input", {value: v, ariaLabel: label});
@@ -149,7 +153,7 @@ function pictures(keys) {
     ariaPressed: String(k === picked), title: art[k].label,
     onclick: () => { picked = picked === k ? null : k; update(C); }},
     el("img", {src: art[k].file ? C.img(art[k].file) : STAND_IN(k), alt: "", className: art[k].file ? "" : "standin"}),
-    el("span", {textContent: (SHORT[k] || k).replace(/^(Trail |Battle: )/, "")})));
+    el("span", {textContent: (SHORT[k] || k).replace(/^(Trail |Battle: |Voyage: )/, "")})));
   const own = keys.filter(k => art[k].file).length;
   return section("Pictures",
     el("p", {className: "hint", textContent: (own === keys.length ? "All its own. " : `${keys.length - own} of ${keys.length} still Armadillo's stand-ins (faded). `)
@@ -232,6 +236,57 @@ function battleRow(x) {
           waves: parseList(T.waves.value), shields: +T.shields.value, return_fire: parseList(T.fire.value).map(v => v / 100),
           clear: parseList(T.clear.value), prizes: parseTable(T.prizes.value), spins_chance: +T.spinsChance.value / 100,
           spins: parseTable(T.spins.value), boss_hits: +T.bossHits.value, boss_fire: +T.bossFire.value / 100, boss: parseTable(T.boss.value)}}, "Battle saved.")))];
+  });
+}
+
+// ------------------------------------------------------------------ the island voyage (Dead Man's Map)
+function voyageRow(x) {
+  return bonusRow("voyage", x, "Voyage bonus", "sail a map of islands to a legendary treasure", VOYAGE_ART, () => {
+    const {el} = C, words = ["name", "hint", "start", "final", "treasure_name", "wreck_name", "skull_name", "port_name", "cove_name",
+      "relic", "chest_name", "legend_name"];
+    const W = Object.fromEntries(words.map(k => [k, txt(x[k], k)]));
+    const A = x.artefacts.map((a, i) => txt(a, `Artefact ${i + 1}`));
+    const T = {legs: num(x.legs, 2, 8, 1, "Legs"), coves: num(x.coves, 0, 7, 1, "Hidden Coves"),
+      kinds: ISLANDS.map(([k, label]) => num(x.kinds.find(r => r[0] === k)?.[1] ?? 0, 0, 1000, 1, label)),
+      treasure: txt(tableText(x.treasure), "Treasure Island prizes"), relics: txt(tableText(x.relics), "Shipwreck relics"),
+      item: num(+(x.item_chance * 100).toFixed(1), 0, 100, 1, "Item chance"), key: num(+(x.key_chance * 100).toFixed(1), 0, 100, 1, "Key chance"),
+      skull: txt(tableText(x.skull), "Skull Island prizes"), sink: num(+(x.sink * 100).toFixed(1), 0, 90, 1, "Sinking chance"),
+      cove: txt(tableText(x.cove), "Hidden Cove prizes"), relicValue: num(x.relic_value, 0, 10000, 0.5, "Relic value"),
+      artefactPrice: num(x.artefact_price, 1, 20, 1, "Artefact price"), keyPrice: num(x.key_price, 1, 20, 1, "Key price"),
+      spinsPrice: num(x.spins_price, 1, 20, 1, "Free games price"), spinsGames: num(x.spins_games, 1, 20, 1, "Free games bought"),
+      chest: num(x.chest, 0, 10000, 1, "Chest"), parts: txt(list(x.parts), "Parts"), legend: num(x.legend, 0, 10000, 1, "Legend")};
+    const free = C.data.bonuses.free.name.toLowerCase();
+    return [
+      el("p", {className: "hint", textContent: `A map of ${x.legs} legs of three islands, all in view, from ${x.start} to ${x.final}. Players choose each next island (level or either side). Treasure Island pays; a Shipwreck gives relics and maybe a key or an artefact; Skull Island pays big or sinks the ship (the voyage ends short of the final island); Port Royal trades relics for an artefact, a key, ${free} (played after) or cash; a Hidden Cove needs a key. The final island pays the chest, a part for each artefact held, and the legend for all four. It's tuned so careful, bold and collecting routes pay about the same on average.`}),
+      waysIn("voyage", x),
+      pictures(VOYAGE_ART),
+      section("How it plays",
+        el("div", {className: "grid2"}, field("Its name", W.name), field("Hint on its banner", W.hint),
+          field("The start port", W.start), field("The final island", W.final)),
+        folded("v_words", "Names: the islands, the relics, the treasure and the artefacts",
+          el("div", {className: "grid2"}, ...ISLANDS.map(([k, label]) => field(label, W[`${k}_name`])), field("Hidden Cove", W.cove_name),
+            field("A relic", W.relic), field("The treasure", W.chest_name), field("All four artefacts", W.legend_name),
+            ...A.map((input, i) => field(`Artefact ${i + 1}`, input)))),
+        folded("v_map", "The map and its islands",
+          el("div", {className: "grid2"}, field("Legs", T.legs), field("Hidden Coves (one a leg)", T.coves),
+            ...ISLANDS.map(([, label], i) => field(`${label}: how often (weight)`, T.kinds[i])),
+            field("Treasure Island (× bet, value:weight)", T.treasure), field("Skull Island (× bet, value:weight)", T.skull),
+            field("Skull Island sinks the ship, %", T.sink), field("Hidden Cove (× bet, value:weight)", T.cove),
+            field("Shipwreck relics (value:weight)", T.relics), field("A Shipwreck holds an item, %", T.item),
+            field("...of those, a key (else an artefact), %", T.key))),
+        folded("v_port", "Port Royal and the treasure",
+          el("div", {className: "grid2"}, field("A relic sells for (× bet)", T.relicValue), field("An artefact costs (relics)", T.artefactPrice),
+            field("A key costs (relics)", T.keyPrice), field(`${C.data.bonuses.free.name} cost (relics)`, T.spinsPrice),
+            field("...and that buys (games)", T.spinsGames), field("The chest (× bet, always)", T.chest),
+            field("Each artefact's part (× bet, four)", T.parts), field("All four: the legend (× bet)", T.legend))),
+        saveRow("Save the voyage", () => save({voyage: {
+          ...Object.fromEntries(words.map(k => [k, W[k].value])), artefacts: A.map(a => a.value),
+          legs: +T.legs.value, coves: +T.coves.value, kinds: ISLANDS.map(([k], i) => [k, +T.kinds[i].value]),
+          treasure: parseTable(T.treasure.value), relics: parseTable(T.relics.value), item_chance: +T.item.value / 100,
+          key_chance: +T.key.value / 100, skull: parseTable(T.skull.value), sink: +T.sink.value / 100, cove: parseTable(T.cove.value),
+          relic_value: +T.relicValue.value, artefact_price: +T.artefactPrice.value, key_price: +T.keyPrice.value,
+          spins_price: +T.spinsPrice.value, spins_games: +T.spinsGames.value, chest: +T.chest.value, parts: parseList(T.parts.value),
+          legend: +T.legend.value}}, "Voyage saved.")))];
   });
 }
 

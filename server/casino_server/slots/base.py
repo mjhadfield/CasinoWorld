@@ -21,7 +21,8 @@ PAYS = {
     "L1": (4, 8, 20), "L2": (4, 8, 20), "L3": (4, 8, 20), "L4": (4, 8, 20),
 }
 SCATTERS = ("BS", "FS")   # the bonus scatter and the free-spin scatter: never substituted, pay nothing
-BONUSES = ("trail", "free", "battle")   # the library's bonus games: the Trail Bonus, Combo Free Games, the wave battle
+# The library's bonus games: the Trail Bonus, Combo Free Games, the wave battle, the island voyage.
+BONUSES = ("trail", "free", "battle", "voyage")
 # Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus). With more than one, it's one of them at random.
 ROUTES = {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]}
 # The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize are in bets.
@@ -36,6 +37,26 @@ BATTLE = {
     "boss_hits": 6,
     "boss_fire": 0.3,
     "boss": [[100, 50], [200, 30], [300, 12], [500, 6], [1000, 2]],
+}
+# The island voyage (Dead Man's Map): `legs` columns of three islands between the start and the final island. Prizes,
+# relic values and the treasure's parts are in bets; prices are in relics.
+VOYAGE = {
+    "legs": 6,
+    "kinds": [["treasure", 34], ["wreck", 30], ["skull", 20], ["port", 16]],   # what an island is (no port on leg 1)
+    "coves": 1,                                      # locked Hidden Coves on the map (a key opens one), legs 2 on
+    "treasure": [[3, 30], [4, 25], [5, 20], [8, 12], [12, 8], [20, 4], [40, 1]],
+    "relics": [[1, 50], [2, 35], [3, 15]],           # a Shipwreck's relics
+    "item_chance": 0.55,                             # ...and the chance it holds a key or an artefact
+    "key_chance": 0.3,                               # of those, a key (else an artefact you're missing)
+    "skull": [[8, 30], [12, 30], [20, 20], [30, 12], [60, 6], [120, 2]],
+    "sink": 0.24,                                    # Skull Island sinks you: the voyage ends without the final island
+    "cove": [[10, 40], [15, 30], [25, 20], [50, 10]],   # a Hidden Cove's prize (and an artefact you're missing)
+    "relic_value": 1,                                # a relic sold at Port Royal, or left over at the final island
+    "artefact_price": 3, "key_price": 2,             # Port Royal's prices in relics
+    "spins_price": 4, "spins_games": 1,              # ...and free games: this many for that price
+    "chest": 12,                                     # the final island: the chest's base, always
+    "parts": [4, 5, 8, 12],                          # each artefact's part of the treasure
+    "legend": 90,                                    # all four artefacts: the legend on top
 }
 UPGRADES = {"L1": "M3", "L2": "M3", "L3": "M4", "L4": "M4", "M3": "M1", "M4": "M2", "M1": "H2", "M2": "H2", "H2": "H1"}
 LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500]   # total bet in pence (a whole-pence line bet)

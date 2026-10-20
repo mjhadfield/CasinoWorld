@@ -7,6 +7,7 @@ import pytest
 from casino_server import floor
 from casino_server.casino import Casino
 from casino_server.slots import base, jackpots
+from casino_server.slots.bonuses import voyage_options
 from casino_server.slots.rng import mulberry32
 from casino_server.store import Store
 from casino_server.tables.base import TableError
@@ -173,6 +174,76 @@ def test_standing_mid_battle_plays_it_out_and_pays():
     end = next(e for e in ev if e["kind"] == "battle_end")
     assert end["finished_for_you"] and (end["total"], "battle bonus") in p.log
     assert m.phase == "idle" and m.battle is None and not m.pending
+
+
+def voyage_cabinet(seed=1):
+    import dataclasses
+    m, p = cabinet(seed, voyage_auto=12.0, present=1.0)
+    m.variant = dataclasses.replace(m.variant, routes={"BS": ["voyage"], "FS": ["free"], "buy": ["voyage"]})
+    return m, p
+
+
+def test_voyage_waits_for_a_choice_and_pays_at_the_end():
+    m, p = voyage_cabinet()
+    m.rig = {"trigger": "voyage"}
+    assert m.spin(0, 100, now=0.0)[0]["features_next"] == ["voyage"]
+    ev, now = run(m, 0.0, until=lambda m: m.phase == "voyage")
+    start = next(e for e in ev if e["kind"] == "voyage_start")["voyage"]
+    assert len(start["map"]) == 6 and start["leg"] == -1 and start["options"] == [r for r in range(3) if start["map"][0][r] != "cove"]
+    with pytest.raises(TableError):
+        m.voyage_choose(0, 5, now=now)               # not an island
+    steps = 0
+    while m.phase == "voyage":
+        now = max(now, m.voyage_ready_at)
+        opts = voyage_options(m.variant, m.voyage)
+        ev = m.voyage_choose(0, opts[-1], now=now)    # the bottom island, the last deal ("leave"), the final island
+        steps += 1
+        assert ev[0]["kind"] == "voyage_step" and ev[0]["step"]["choice"] == opts[-1] and not ev[0]["auto"]
+        if not ev[0]["step"]["done"]:
+            with pytest.raises(TableError):
+                m.voyage_choose(0, opts[-1], now=now)  # wait for the ship
+    end = next(e for e in ev if e["kind"] == "voyage_end")
+    assert (end["total"], "voyage bonus") in p.log and end["steps"] == steps
+    assert end["sunk"] or end["treasure"]["pence"] >= 1200
+
+
+def test_voyage_chooses_itself():
+    m, p = voyage_cabinet(seed=5)
+    m.rig = {"trigger": "voyage"}
+    m.spin(0, 100, now=0.0)
+    ev, _ = run(m, 0.0)
+    end = next(e for e in ev if e["kind"] == "voyage_end")
+    assert m.phase == "idle" and all(e["auto"] for e in ev if e["kind"] == "voyage_step")
+    assert (end["total"], "voyage bonus") in p.log
+
+
+def test_free_games_bought_on_a_voyage_follow_it():
+    for seed in range(1, 400):
+        m, p = voyage_cabinet(seed)
+        m.buy_bonus(0, 100, now=0.0)
+        now, ev = 0.0, []
+        while m.phase == "voyage":
+            now = max(now, m.voyage_ready_at)
+            opts = voyage_options(m.variant, m.voyage)
+            ev += m.voyage_choose(0, "spins" if "spins" in opts else opts[0], now=now)
+        end = next(e for e in ev if e["kind"] == "voyage_end")
+        if end["spins"]:
+            ev, _ = run(m, now)
+            start = next(e for e in ev if e["kind"] == "free_start")
+            assert start["of"] == end["spins"] and start["source"] == "voyage"
+            assert len([e for e in ev if e["kind"] == "free_game"]) == end["spins"]
+            return
+    pytest.fail("no voyage bought free games")
+
+
+def test_standing_mid_voyage_plays_it_out_and_pays():
+    m, p = voyage_cabinet(seed=3)
+    m.buy_bonus(0, 100, now=0.0)
+    assert m.phase == "voyage"
+    ev = m.stand(0, now=3.0, reason="")
+    end = next(e for e in ev if e["kind"] == "voyage_end")
+    assert end["finished_for_you"] and (end["total"], "voyage bonus") in p.log
+    assert m.phase == "idle" and m.voyage is None and not m.pending
 
 
 def test_free_games_play_by_the_clock_and_pay_the_total():

@@ -442,6 +442,33 @@ def test_battle_bonus(board):
     assert steps.battle_maths(bt)["waves"] == [3, 4, 5] and "name" not in steps.battle_maths(bt)
 
 
+def test_voyage_bonus(board):
+    """The island voyage is off until switched on (then shares the bonus scatter); its words and settings are
+    checked, and switching it on changes what a freeze measured."""
+    from casino_server import slot_design_steps as steps
+    c, _ = board
+    api = "/api/slot-design/demo/bonuses"
+    b = _overview(c)["bonuses"]
+    assert not b["voyage"]["enabled"] and b["voyage"]["name"] == "DEAD MAN'S MAP" and b["voyage"]["legs"] == 6
+    assert b["voyage"]["artefacts"] == ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"]
+    assert not _overview(c)["art"]["v_ship"]["used"]
+    assert c.patch(api, json={"voyage": {"enabled": True}, "trail": {"enabled": False}}).status_code == 200
+    o = _overview(c)
+    assert o["bonuses"]["routes"] == {"BS": ["voyage"], "FS": ["free"], "buy": ["voyage"]} and o["art"]["v_art4"]["used"]
+    assert any("DEAD MAN'S MAP" in line for line in o["signoff"]["rules"])
+    assert c.patch(api, json={"voyage": {"name": "Treasure Hunt", "artefacts": ["Key", "", "Map", "Idol"], "legs": 4, "coves": 2,
+                                         "sink": 0.3, "parts": [1, 2, 3, 40], "relics": [[1, 1], [4, 1]]}}).status_code == 200
+    vy = _overview(c)["bonuses"]["voyage"]
+    assert (vy["name"], vy["artefacts"], vy["legs"], vy["coves"], vy["parts"]) == ("Treasure Hunt", ["Key", "MEDALLION", "Map", "Idol"], 4, 2, [1, 2, 3, 40])
+    before = _overview(c)["bonuses"]
+    for body in [{"legs": 1}, {"coves": 4}, {"sink": 0.95}, {"parts": [1, 2, 3]}, {"relics": [[1.5, 1]]}, {"artefacts": ["a"]},
+                 {"kinds": [["treasure", 1], ["wreck", 1]]}, {"kinds": [["treasure", 0], ["wreck", 0], ["skull", 0], ["port", 5]]},
+                 {"artefact_price": 0}, {"treasure": "lots"}]:
+        assert c.patch(api, json={"voyage": body}).status_code == 400, body
+        assert _overview(c)["bonuses"] == before, body
+    assert steps.voyage_maths(vy)["legs"] == 4 and "name" not in steps.voyage_maths(vy) and "artefacts" not in steps.voyage_maths(vy)
+
+
 def test_art_slots_and_specs(board):
     c, _ = board
     a = _overview(c)["art"]

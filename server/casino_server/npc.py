@@ -48,6 +48,7 @@ from casino_server.engines import three_card_poker as tcp
 from casino_server.engines import ultimate_texas_holdem as uth
 from casino_server.participants import NpcParticipant
 from casino_server.slots import base as slot_base
+from casino_server.slots.bonuses import voyage_options
 from casino_server.slots.outcome import presentation_seconds
 from casino_server.tables import slot_machine as slots
 from casino_server.tables.base import TableError, say
@@ -766,9 +767,9 @@ class NpcDirector:
     SLOT_ROUND = 10     # spins that count as one "round" toward a visit's length
 
     def _play_slot(self, npc: Npc, m, runner, now: float):
-        """Spin at a pace that lets the screen finish, fire the trail or on a battle's ships and pick coins after a
-        moment's thought, and leave only with nothing on screen. A Gambler sometimes buys the
-        bonus."""
+        """Spin at a pace that lets the screen finish, fire the trail or on a battle's ships, choose a voyage's islands
+        (or a Port Royal deal) and pick coins after a moment's thought, and leave only with nothing on screen. A
+        Gambler sometimes buys the bonus."""
         def after_thought(lo, hi):
             if npc.decide_at is None:
                 npc.decide_at = now + self.rng.uniform(lo, hi) * self.pace
@@ -789,6 +790,14 @@ class NpcDirector:
                 ships = [i for i, there in enumerate(m.battle["ships"]) if there]
                 try:
                     runner.act("battle_fire", npc.seat, self.rng.choice(ships) if ships else None)
+                except TableError:
+                    pass
+            return
+        if m.phase == "voyage":
+            if m.voyage and not m.voyage["done"] and now >= m.voyage_ready_at and after_thought(1.2, 3.0):
+                opts = voyage_options(m.variant, m.voyage)
+                try:
+                    runner.act("voyage_choose", npc.seat, self.rng.choice(opts))
                 except TableError:
                     pass
             return

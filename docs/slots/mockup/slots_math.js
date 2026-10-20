@@ -22,7 +22,7 @@
   };
   const PAYING = Object.keys(PAYS);
   const SCATTERS = ["BS", "FS"];
-  const BONUSES = ["trail", "free", "battle"];
+  const BONUSES = ["trail", "free", "battle", "voyage"];
   // Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus); with more than one, it's one of them at random.
   const ROUTES = { BS: ["trail"], FS: ["free"], buy: ["trail"] };
   // The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize in bets.
@@ -31,6 +31,17 @@
     prizes: [[0.2, 30], [0.4, 26], [0.6, 18], [1, 12], [2, 8], [5, 4], [10, 1.5], [25, 0.5]],
     spinsChance: 0.015, spins: [[1, 60], [2, 30], [3, 10]], clear: [2, 4, 6, 12, 25],
     bossHits: 6, bossFire: 0.3, boss: [[100, 50], [200, 30], [300, 12], [500, 6], [1000, 2]],
+  };
+  // The island voyage (Dead Man's Map): `legs` columns of three islands between the start and the final island.
+  // Prizes, relic values and the treasure's parts in bets; prices in relics.
+  const VOYAGE = {
+    legs: 6, kinds: [["treasure", 34], ["wreck", 30], ["skull", 20], ["port", 16]], coves: 1,
+    treasure: [[3, 30], [4, 25], [5, 20], [8, 12], [12, 8], [20, 4], [40, 1]],
+    relics: [[1, 50], [2, 35], [3, 15]], itemChance: 0.55, keyChance: 0.3,
+    skull: [[8, 30], [12, 30], [20, 20], [30, 12], [60, 6], [120, 2]], sink: 0.24,
+    cove: [[10, 40], [15, 30], [25, 20], [50, 10]],
+    relicValue: 1, artefactPrice: 3, keyPrice: 2, spinsPrice: 4, spinsGames: 1,
+    chest: 12, parts: [4, 5, 8, 12], legend: 90,
   };
   const UPGRADES = { L1: "M3", L2: "M3", L3: "M4", L4: "M4", M3: "M1", M4: "M2", M1: "H2", M2: "H2", H2: "H1" };
   const LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500];
@@ -473,6 +484,132 @@
     return { st, total: st.total + (st.spins ? freeGames(V, bet, rng, st.spins).reduce((a, g) => a + g.total, 0) : 0) };
   }
 
+  // ------------------------------------------------------------------ the island voyage (Dead Man's Map)
+  /* A map of `legs` columns of three islands, all in view. From each island you choose the next (level with it or
+     either side); what it gives is drawn when you land. Skull Island can sink you short of the final island, Port
+     Royal trades relics, a Hidden Cove needs a key; the final island pays the chest, a part per artefact held, the
+     legend for all of them, and any relics left. Free games bought are played as Combo Free Games afterwards. */
+  function voyageMap(V, rng) {
+    const Y = V.voyage, first = Y.kinds.filter(k => k[0] !== "port");
+    const legs = [];
+    for (let leg = 0; leg < Y.legs; leg++) legs.push([0, 1, 2].map(() => weighted(rng, leg === 0 ? first : Y.kinds)));
+    const open = [];
+    for (let leg = 1; leg < Y.legs; leg++) open.push(leg);
+    for (let c = Math.min(Y.coves, open.length); c > 0; c--) {
+      const leg = open.splice(int(rng, open.length), 1)[0];
+      legs[leg][int(rng, 3)] = "cove";
+    }
+    return legs;
+  }
+  function voyageStart(V, bet, rng, chart) {
+    return { bet, map: chart || voyageMap(V, rng), leg: -1, row: null, route: [], relics: 0, keys: 0,
+             artefacts: V.voyage.parts.map(() => false), spins: 0, total: 0, awaiting: "sail", sunk: false,
+             treasure: null, steps: 0, done: false };
+  }
+  function voyageDeals(V, st) {   // Port Royal's deals you can afford, in the screen's order
+    const Y = V.voyage, n = st.relics, out = [];
+    if (n >= Y.artefactPrice && !st.artefacts.every(Boolean)) out.push("artefact");
+    if (n >= Y.keyPrice) out.push("key");
+    if (n >= Y.spinsPrice) out.push("spins");
+    if (n) out.push("sell");
+    return out;
+  }
+  function voyageOptions(V, st) {   // open islands on the next leg (rows), "final", or Port Royal's deals and "leave"
+    if (st.done) return [];
+    if (st.awaiting === "trade") return [...voyageDeals(V, st), "leave"];
+    if (st.leg === st.map.length - 1) return ["final"];
+    const next = st.map[st.leg + 1], out = [];
+    const lo = st.leg < 0 ? 0 : Math.max(0, st.row - 1), hi = st.leg < 0 ? 2 : Math.min(2, st.row + 1);
+    for (let r = lo; r <= hi; r++) if (next[r] !== "cove" || st.keys > 0) out.push(r);
+    return out;
+  }
+  function voyageAuto(V, st, rng) {   // a random open island; at Port Royal an artefact, else free games, else sell
+    const opts = voyageOptions(V, st);
+    if (st.awaiting === "trade") return ["artefact", "spins", "sell", "leave"].find(d => opts.includes(d));
+    return opts.length === 1 ? opts[0] : opts[int(rng, opts.length)];
+  }
+  function findArtefact(st, rng, ev) {
+    const gone = st.artefacts.flatMap((held, i) => held ? [] : [i]);
+    if (gone.length) {
+      const i = gone[int(rng, gone.length)];
+      st.artefacts[i] = true;
+      ev.push({ kind: "artefact", i });
+    }
+  }
+  function voyageStep(V, st, rng, choice) {
+    const Y = V.voyage, ev = [];
+    if (!voyageOptions(V, st).includes(choice)) choice = voyageAuto(V, st, rng);
+    st.steps++;
+    if (st.awaiting === "trade") {
+      st.awaiting = "sail";
+      if (choice === "sell") {
+        const n = st.relics, pence = betPence(st.relics * Y.relicValue, st.bet);
+        st.relics = 0; st.total += pence;
+        ev.push({ kind: "sold", n, pence });
+      } else if (choice === "leave") ev.push({ kind: "leave" });
+      else {
+        const cost = Y[choice + "Price"];
+        st.relics -= cost;
+        ev.push({ kind: "bought", deal: choice, cost });
+        if (choice === "artefact") findArtefact(st, rng, ev);
+        else if (choice === "key") { st.keys++; ev.push({ kind: "key" }); }
+        else st.spins += Y.spinsGames;
+      }
+      return { action: "trade", choice, events: ev, done: false };
+    }
+    if (choice === "final") {
+      const held = st.artefacts;
+      const t = { chest: betPence(Y.chest, st.bet), parts: Y.parts.map((p, i) => held[i] ? betPence(p, st.bet) : 0),
+                  legend: held.every(Boolean) ? betPence(Y.legend, st.bet) : 0, relics: betPence(st.relics * Y.relicValue, st.bet) };
+      t.pence = t.chest + t.parts.reduce((a, b) => a + b, 0) + t.legend + t.relics;
+      st.total += t.pence; st.treasure = t; st.relics = 0; st.leg++; st.done = true;
+      ev.push({ kind: "final", ...t });
+      return { action: "final", choice, events: ev, done: true };
+    }
+    st.leg++; st.row = choice; st.route.push(choice);
+    const island = st.map[st.leg][choice];
+    ev.push({ kind: "arrive", leg: st.leg, row: choice, island });
+    const pay = (kind, table) => {
+      const pence = betPence(weighted(rng, Y[table]), st.bet);
+      st.total += pence;
+      ev.push({ kind, pence });
+    };
+    if (island === "treasure") pay("treasure", "treasure");
+    else if (island === "wreck") {
+      const n = weighted(rng, Y.relics);
+      st.relics += n;
+      ev.push({ kind: "relics", n });
+      if (rng() < Y.itemChance) {
+        if (st.artefacts.every(Boolean) || rng() < Y.keyChance) { st.keys++; ev.push({ kind: "key" }); }
+        else findArtefact(st, rng, ev);
+      }
+    } else if (island === "skull") {
+      if (rng() < Y.sink) { st.sunk = st.done = true; st.awaiting = null; ev.push({ kind: "sunk" }); }
+      else pay("skull", "skull");
+    } else if (island === "port") {
+      const deals = voyageDeals(V, st);
+      ev.push({ kind: "port", deals });
+      if (deals.length) st.awaiting = "trade";
+    } else if (island === "cove") {
+      st.keys--;
+      ev.push({ kind: "unlock" });
+      pay("cove", "cove");
+      findArtefact(st, rng, ev);
+    }
+    return { action: "sail", choice, events: ev, done: st.done };
+  }
+  function voyagePlayOut(V, st, rng) {   // a player who leaves mid-voyage (and the simulator): voyageAuto to the end
+    const steps = [];
+    for (let i = 0; i < 100 && !st.done; i++) steps.push(voyageStep(V, st, rng));
+    return steps;
+  }
+  /* One voyage sailed to the end, plus the free games it bought, in pence. */
+  function voyageValue(V, bet, rng) {
+    const st = voyageStart(V, bet, rng);
+    voyagePlayOut(V, st, rng);
+    return { st, total: st.total + (st.spins ? freeGames(V, bet, rng, st.spins).reduce((a, g) => a + g.total, 0) : 0) };
+  }
+
   // ------------------------------------------------------------------ the shared progressives
   const JACKPOT_TIERS = [
     // seed in pence, share of every bet, and how often it's won (1 in N pence wagered)
@@ -506,7 +643,8 @@
   function simulate(V, spins, bet, seed) {
     const rng = mulberry32(seed);
     const r = { spins, bet, staked: spins * bet, plain: 0, featured: 0, repeatExtra: 0, instant: 0, trail: 0, free: 0,
-                battle: 0, hits: 0, trails: 0, frees: 0, battles: 0, featureSpins: 0, featureCounts: {}, max: 0, sumSq: 0,
+                battle: 0, voyage: 0, hits: 0, trails: 0, frees: 0, battles: 0, voyages: 0, featureSpins: 0, featureCounts: {},
+                max: 0, sumSq: 0,
                 prizepots: 0 };
     for (let i = 0; i < spins; i++) {
       const o = spinOutcome(V, bet, rng);
@@ -529,6 +667,9 @@
       } else if (o.trigger === "battle") {
         const b = battleValue(V, bet, rng).total;
         r.battles++; r.battle += b; won += b;
+      } else if (o.trigger === "voyage") {
+        const y = voyageValue(V, bet, rng).total;
+        r.voyages++; r.voyage += y; won += y;
       }
       if (won > 0) r.hits++;
       r.max = Math.max(r.max, won);
@@ -537,8 +678,8 @@
     }
     const pct = (v) => (100 * v) / r.staked;
     r.rtp = { plain: pct(r.plain), featured: pct(r.featured), repeat: pct(r.repeatExtra), instant: pct(r.instant),
-              trail: pct(r.trail), free: pct(r.free), battle: pct(r.battle), jackpot: 100 * jackpotRtp() };
-    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle;
+              trail: pct(r.trail), free: pct(r.free), battle: pct(r.battle), voyage: pct(r.voyage), jackpot: 100 * jackpotRtp() };
+    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle + r.rtp.voyage;
     r.rtp.total = r.rtp.game + r.rtp.jackpot;
     const mean = r.rtp.game / 100;
     r.sd = Math.sqrt(r.sumSq / spins - mean * mean);
@@ -553,6 +694,7 @@
       const kind = pickBonus(rng, routes);
       if (kind === "free") total = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
       else if (kind === "battle") total = battleValue(V, bet, rng).total;
+      else if (kind === "voyage") total = voyageValue(V, bet, rng).total;
       else {
         const s = trailStart(V, bet, rng);
         trailPlayOut(V, s, rng);
@@ -585,6 +727,18 @@
       if (b.st.won) bosses++;
     }
     return { n, mean: won / n / bet, bosses };
+  }
+  /* The mean island voyage win (its free games included), in bets, from `n` voyages on their own. */
+  function simulateVoyage(V, n, bet, seed) {
+    const rng = mulberry32(seed);
+    let won = 0, finals = 0, legends = 0, sunk = 0;
+    for (let i = 0; i < n; i++) {
+      const y = voyageValue(V, bet, rng);
+      won += y.total;
+      if (y.st.sunk) sunk++;
+      else if (y.st.treasure) { finals++; if (y.st.treasure.legend) legends++; }
+    }
+    return { n, mean: won / n / bet, finals, legends, sunk };
   }
   /* What the progressives return: every bet's share, plus each seed paid out once per win. */
   function jackpotRtp() { return JACKPOT_TIERS.reduce((a, t) => a + t.rate + t.seed / t.every, 0); }
@@ -620,6 +774,7 @@
     V.features = p.features || FEATURES;
     V.routes = p.routes || ROUTES;
     V.battle = Object.assign({}, BATTLE, p.battle || {});
+    V.voyage = Object.assign({}, VOYAGE, p.voyage || {});
     V.strips = p.strips || p.counts.map((c, i) => buildStrip(c, 1000 + i));
     V.freeStrips = p.freeStrips || p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
     V.bigStrip = p.bigStrip || buildStrip(p.bigCounts, 3000);
@@ -654,9 +809,10 @@
     freeGames: 3,
   });
 
-  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, BATTLE, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
+  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, BATTLE, VOYAGE, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
     mulberry32, weighted, buildStrip, evaluate, countScatters, exactLineRtp, spinOutcome, gridFromStops,
-    makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, battleStart, battleShot, battlePlayOut, battleValue, simulateBattle, betPence, jackpotTrigger, pickSequence, presentationSeconds,
+    makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, battleStart, battleShot, battlePlayOut, battleValue, simulateBattle, betPence,
+    voyageMap, voyageStart, voyageDeals, voyageOptions, voyageAuto, voyageStep, voyagePlayOut, voyageValue, simulateVoyage, jackpotTrigger, pickSequence, presentationSeconds,
     simulate, simulateBuy, simulateTrail, pickBonus, jackpotRtp,
     makeVariant, ARMADILLO };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

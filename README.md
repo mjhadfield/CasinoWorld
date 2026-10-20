@@ -117,17 +117,21 @@ and Tailscale. It has six tabs:
     them): its ways in (started by either scatter or neither, ticked if Buy Bonus can give it), its pictures, and how
     it plays: the Trail bonus (its name, launcher, length, prizepot, special spaces and coin values), the free games,
     and the battle bonus (Red Alert: off until switched on; its name, hint, enemy and boss names, ships per wave,
-    shields, return fire, ship prizes, free spins, wave rewards and the boss). Bonuses sharing a way in play one at
+    shields, return fire, ship prizes, free spins, wave rewards and the boss), and the voyage bonus (Dead Man's Map:
+    off until switched on; its words, the four artefacts' names, legs and Hidden Coves, how often each island comes
+    up, each island's prizes, Skull Island's sinking chance, Port Royal's prices, the chest, the parts and the
+    legend). Bonuses sharing a way in play one at
     random; a scatter that starts nothing comes off the reels and the Value ladder (its reel counts go to 0, so
     re-freeze the maths). Then Buy Bonus's price and the always-on Jackpot Pick.
   - **Art slots:** the pictures drawn outside the reels: the mascot (Wild Reels and the trail's token) and the
-    Instant Win prize on Features; the launcher and the trail's spaces under the Trail bonus, and your ship,
-    the enemy ship and the boss under the battle, as a strip of tiles (pick one to change it). Each follows a symbol's chosen take or uses any image on the board, or **Make
+    Instant Win prize on Features; the launcher and the trail's spaces under the Trail bonus, your ship,
+    the enemy ship and the boss under the battle, and the voyage's ship, islands, chest, relic, key and four
+    artefacts under the voyage, as a strip of tiles (pick one to change it). Each follows a symbol's chosen take or uses any image on the board, or **Make
     one** adds it to Bonus screens and generates it. **Adjust** tweaks it by hand: size, left/right, up/down,
     rotate (±90° buttons too), mirror, flip, brightness and colour, previewed live in its box. Saved adjustments are
     baked into `adj/<slot>_<hash>.png` in the design folder (the art view's `file`; `src` is the untouched picture),
     so the mockup and Build use the tweaked one. Until set, the mockup shows Armadillo's (the battle's
-    are plain vector stand-ins, `docs/slots/tools/battle_standins.py`), which can't be adjusted; a picture for
+    and the voyage's are plain vector stand-ins, `docs/slots/tools/battle_standins.py` and `voyage_standins.py`), which can't be adjusted; a picture for
     something switched off isn't counted as missing.
   - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
     code tasks, and once built they join the library.

@@ -1,7 +1,7 @@
 /* Writes the fixture tests/test_slots_parity.py checks the Python engine against: seeded
    outcomes from the signed-off mockup maths. node make_parity_fixture.js > ../../../server/tests/fixtures/slots_parity.json */
 const M = require("../mockup/slots_math.js"), V = M.ARMADILLO;
-const out = { rng: [], spins: [], free: [], rigged: [], trails: [], battles: [], picks: [], triggers: [], sim: null, buy: null, battleSim: null, exact: M.exactLineRtp(V.strips) };
+const out = { rng: [], spins: [], free: [], rigged: [], trails: [], battles: [], voyages: [], picks: [], triggers: [], sim: null, buy: null, battleSim: null, voyageSim: null, exact: M.exactLineRtp(V.strips) };
 const r0 = M.mulberry32(12345); for (let i = 0; i < 20; i++) out.rng.push(r0());
 const pick = (o) => ({ stops: o.stops, grid: o.grid, landed: o.landed, after_colossal: o.afterColossal, trigger: o.trigger, colossal: o.colossal,
   wild_reels: o.wildReels, wilds: o.wilds, multiplier: o.multiplier, upgrade: o.upgrade, repeat: o.repeat, instant: o.instant,
@@ -31,6 +31,21 @@ const VB = Object.assign({}, V, { routes: { BS: ["battle"], FS: ["free", "battle
 for (let s = 1; s <= 10; s++) out.rigged.push({ seed: s, trigger: "battle", o: pick(M.spinOutcome(VB, 100, M.mulberry32(s), { rig: { trigger: "battle" } })) });
 const bs = M.simulate(VB, 20000, 100, 7), bb = M.simulateBuy(VB, 2000, 100, 9);
 out.battleSim = { battle: bs.battle, battles: bs.battles, free: bs.free, frees: bs.frees, hits: bs.hits, buyMean: bb.mean, mean: M.simulateBattle(VB, 2000, 100, 9).mean };
+// Voyages: the odd seeds let it choose (voyageAuto), the even ones take a different option each step (Port Royal's
+// keys and free games included).
+for (let s = 1; s <= 200; s++) {
+  const rng = M.mulberry32(s), bet = M.LADDER[s % 9], st = M.voyageStart(V, bet, rng), steps = [], map = st.map.map(l => l.slice());
+  while (!st.done) {
+    const opts = M.voyageOptions(V, st);
+    const r = M.voyageStep(V, st, rng, s % 2 ? undefined : opts[st.steps % opts.length]);
+    steps.push([r.action, r.choice, r.events]);
+  }
+  out.voyages.push({ seed: s, bet, map, steps, total: st.total, spins: st.spins, sunk: st.sunk, artefacts: st.artefacts });
+}
+const VY = Object.assign({}, V, { routes: { BS: ["voyage"], FS: ["free", "voyage"], buy: ["voyage"] } });
+for (let s = 1; s <= 10; s++) out.rigged.push({ seed: s, trigger: "voyage", o: pick(M.spinOutcome(VY, 100, M.mulberry32(s), { rig: { trigger: "voyage" } })) });
+const ys = M.simulate(VY, 20000, 100, 7), yb = M.simulateBuy(VY, 2000, 100, 9);
+out.voyageSim = { voyage: ys.voyage, voyages: ys.voyages, free: ys.free, frees: ys.frees, hits: ys.hits, buyMean: yb.mean, mean: M.simulateVoyage(VY, 2000, 100, 9).mean };
 for (let s = 1; s <= 50; s++) { const rng = M.mulberry32(s); const t = ["mini", "minor", "major", "grand"][s % 4]; out.picks.push({ seed: s, tier: t, p: M.pickSequence(t, rng) }); }
 for (let s = 1; s <= 200; s++) { const rng = M.mulberry32(s); out.triggers.push(M.jackpotTrigger(M.LADDER[s % 9] * 400, rng)); }
 const sim = M.simulate(V, 20000, 100, 7); out.sim = { plain: sim.plain, featured: sim.featured, trail: sim.trail, free: sim.free, instant: sim.instant, repeatExtra: sim.repeatExtra, trails: sim.trails, frees: sim.frees, hits: sim.hits };

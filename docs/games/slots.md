@@ -30,6 +30,25 @@ Sitting at a cabinet opens a full-screen game that grows out of its little scree
   its reward (2x, 4x, 6x, 12x, 25x) and restores the shields. After the last wave the boss takes 6 hits and pays
   100x to 1,000x. The free games its ships gave play afterwards as Combo Free Games, that many of them. It's
   worth about 43x the bet on average with the defaults; about 7% of battles reach the boss and 4% destroy it.
+- **Dead Man's Map (the voyage bonus):** in the library for any built slot, off until its design switches it on
+  (built from the Pirates design's spec). A sea chart, all of it in view: the start port, six legs of three islands,
+  then the final island. Click a lit island to sail there: the one level with yours on the next leg, or either side
+  (it chooses for you, at random, after 12 seconds). What an island gives is drawn when you land:
+  - **Treasure Island** pays 3x to 40x the bet.
+  - **Shipwreck** gives 1 to 3 relics, and 55% of the time a key (30% of those) or an artefact you're missing.
+  - **Skull Island** pays 8x to 120x, but 24% of the time it sinks the ship: the voyage ends there, you keep what
+    you've won, and the final island and your relics are lost.
+  - **Port Royal** (never on the first leg) trades relics, one deal a visit: an artefact you're missing (3 relics),
+    a key (2), a free game (4), or sell them all (1x the bet each); or just set sail. Waiting buys an artefact if it
+    can, else a free game, else sells.
+  - **Hidden Cove** (one a map, from the second leg) is locked: a key opens it for 10x to 50x and an artefact.
+  - **The final island** pays the legendary treasure: the chest (12x) always, each artefact's part (Compass 4x,
+    Medallion 5x, Spyglass 8x, Cutlass 12x), the legend (90x) for all four, and 1x a relic left over.
+
+  Free games bought play afterwards as Combo Free Games. The choices are real but balanced: with the defaults a
+  voyage is worth about 45x choosing at random, and careful (avoiding Skull Island), bold (seeking it) and
+  collecting routes all pay within about 7% of that; careful routes swing least, bold ones most (about a quarter
+  of random voyages sink, nearly half of bold ones), and a collector gets all four artefacts about 8% of the time.
 - **Jackpot Pick:** a random trigger on any spin, more likely the bigger the bet. Pick coins from a board of
   12 until three match, and win that meter: Mini, Minor, Major or Grand. The four meters are shared by every
   cabinet, grow from every bet (players' and NPCs'), and are separate from the card tables' jackpot. It picks
@@ -50,7 +69,8 @@ Only the four progressive meters persist.
 
 ## NPCs
 
-NPCs play the slots too (firing on the trail and a battle's ships after a moment's thought), and always leave
+NPCs play the slots too (firing on the trail and a battle's ships, and choosing a voyage's islands and deals at
+random, after a moment's thought), and always leave
 at least two cabinets of the bank free for real players.
 
 ## Admin

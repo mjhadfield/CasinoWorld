@@ -6,7 +6,7 @@ so every method runs under the board's lock and saves through its Design.
   Scene          the background (FLUX or uploaded), the logo lettering (rendered here: FLUX can't spell) and the
                  reel frame's style, and the deck's (the bottom bar, readouts and buttons: the frame's by default)
   Features       which of the library's random features the slot uses, their rates and value tables
-  Bonus games    each library bonus (the Trail, the free games, the wave battle): on or off, the scatter that starts it, whether
+  Bonus games    each library bonus (the Trail, the free games, the wave battle, the island voyage): on or off, the scatter that starts it, whether
                  Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
                  (which bonuses each way in plays, one at random when there are several). A scatter that
                  starts nothing comes off the reels and the Value ladder.
@@ -63,20 +63,42 @@ ART_SLOTS = {
     "b_hero": ("Battle: your ship", "bonuses"),
     "b_enemy": ("Battle: an enemy ship (cloaks, fires back, reveals prizes)", "bonuses"),
     "b_boss": ("Battle: the boss ship after the last wave", "bonuses"),
+    "v_ship": ("Voyage: your ship, sailing the map", "bonuses"),
+    "v_treasure": ("Voyage island: Treasure Island (a sure prize)", "bonuses"),
+    "v_wreck": ("Voyage island: a Shipwreck (relics, maybe a key or an artefact)", "bonuses"),
+    "v_skull": ("Voyage island: Skull Island (a big prize, or it sinks you)", "bonuses"),
+    "v_port": ("Voyage island: Port Royal (trade relics), and the start port", "bonuses"),
+    "v_cove": ("Voyage island: a Hidden Cove (a key opens it)", "bonuses"),
+    "v_final": ("Voyage: the final island", "bonuses"),
+    "v_chest": ("Voyage: the legendary treasure (a chest with four locks)", "bonuses"),
+    "v_relic": ("Voyage: a relic", "bonuses"), "v_key": ("Voyage: a key", "bonuses"),
+    "v_art1": ("Voyage: the first artefact", "bonuses"), "v_art2": ("Voyage: the second artefact", "bonuses"),
+    "v_art3": ("Voyage: the third artefact", "bonuses"), "v_art4": ("Voyage: the fourth artefact", "bonuses"),
 }
+VOYAGE_ART = ("v_ship", "v_treasure", "v_wreck", "v_skull", "v_port", "v_cove", "v_final", "v_chest", "v_relic", "v_key",
+              "v_art1", "v_art2", "v_art3", "v_art4")
 TRAIL_SPACES = ("snake", "heart", "forward", "back", "lightning", "crate")
 # Each bonus's way in, as Armadillo has it: the trail from the bonus scatter or Buy Bonus, the free games from theirs.
 BONUS_WAYS = {"trail": {"enabled": True, "scatter": "BS", "buyable": True},
               "free": {"enabled": True, "scatter": "FS", "buyable": False},
-              "battle": {"enabled": False, "scatter": "BS", "buyable": True}}   # not Armadillo's: off until switched on
-BONUS_TITLES = {"trail": "The trail bonus", "free": "The free games", "battle": "The battle bonus"}
+              "battle": {"enabled": False, "scatter": "BS", "buyable": True},   # not Armadillo's: off until switched on
+              "voyage": {"enabled": False, "scatter": "BS", "buyable": True}}
+BONUS_TITLES = {"trail": "The trail bonus", "free": "The free games", "battle": "The battle bonus", "voyage": "The voyage bonus"}
 TRAIL_WORDS = ("name", "launcher", "hint")   # the trail's words: not part of its maths
 BATTLE_WORDS = {"name": "RED ALERT", "hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss_name": "FLAGSHIP"}
 BATTLE_PAIRS = ("prizes", "spins", "boss")   # the battle's value tables
+# The voyage's words (Dead Man's Map's, from the Pirates design's spec): its name, the islands, the treasure.
+VOYAGE_WORDS = {"name": "DEAD MAN'S MAP", "hint": "choose your next island", "start": "TORTUGA", "final": "ISLA DE MUERTA",
+                "treasure_name": "TREASURE ISLAND", "wreck_name": "SHIPWRECK", "skull_name": "SKULL ISLAND",
+                "port_name": "PORT ROYAL", "cove_name": "HIDDEN COVE", "relic": "RELIC", "chest_name": "LEGENDARY TREASURE",
+                "legend_name": "THE LEGEND"}
+VOYAGE_ARTEFACTS = ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"]
+VOYAGE_PAIRS = ("treasure", "relics", "skull", "cove")   # the voyage's value tables
+VOYAGE_KINDS = ("treasure", "wreck", "skull", "port")    # what a map island can be (coves are placed apart)
 WAYS = tuple(BONUS_WAYS["trail"])
 # What each art slot is drawn for: a feature, or a bonus (a picture for something switched off isn't needed).
 ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",),
-           "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",)}
+           "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",), **{k: ("voyage",) for k in VOYAGE_ART}}
 WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
 WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
 # The screen's colours (the mockup's names; Armadillo's values) and fonts. Every tone the slot screen draws comes
@@ -128,8 +150,10 @@ def bonuses_view(d) -> dict:
     t.setdefault("launcher", "THE LAUNCHER")
     t.setdefault("hint", "fire to move along the trail")
     bt = {**BONUS_WAYS["battle"], **json.loads(json.dumps(base.BATTLE)), **BATTLE_WORDS, **b.get("battle", {})}
+    vy = {**BONUS_WAYS["voyage"], **json.loads(json.dumps(base.VOYAGE)), **VOYAGE_WORDS, "artefacts": list(VOYAGE_ARTEFACTS),
+          **b.get("voyage", {})}
     view = {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **BONUS_WAYS["free"], **b.get("free", {})},
-            "battle": bt,
+            "battle": bt, "voyage": vy,
             "buy": {"enabled": True, "cost": ARMADILLO.buy_cost, **b.get("buy", {})},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "bonus"]}
     view["routes"] = routes_of(view)
@@ -170,6 +194,11 @@ def battle_maths(x: dict) -> dict:
     return {k: x[k] for k in base.BATTLE}
 
 
+def voyage_maths(x: dict) -> dict:
+    """The voyage's settings the engine uses (not its words or its way in)."""
+    return {k: x[k] for k in base.VOYAGE}
+
+
 def _paying(tiers) -> list:
     return [t for t in tiers if t not in ("BS", "FS")]
 
@@ -182,6 +211,8 @@ def _settings_hash(d) -> str:
             "routes": b["routes"]}
     if b["battle"]["enabled"]:   # (only when it's on, so switching the library's new bonus in doesn't stale a freeze)
         blob["battle"] = battle_maths(b["battle"])
+    if b["voyage"]["enabled"]:
+        blob["voyage"] = voyage_maths(b["voyage"])
     return hashlib.sha1(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:12]
 
 
@@ -217,7 +248,7 @@ def variant_from_design(d):
         trail={**trail_maths(b["trail"]), "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
         buy_cost=b["buy"]["cost"] if b["routes"]["buy"] else 0, free_games=b["free"]["games"], routes=b["routes"],
         pays={k: tuple(v) for k, v in lad["pays"].items() if k in _paying(lad["tiers"])}, upgrades=lad["upgrades"],
-        features=f["enabled"], battle=battle_maths(b["battle"]))
+        features=f["enabled"], battle=battle_maths(b["battle"]), voyage=voyage_maths(b["voyage"]))
 
 
 def default_rules(d) -> list[str]:
@@ -229,7 +260,8 @@ def default_rules(d) -> list[str]:
     for frm, to in lad["upgrades"].items():
         ups.setdefault(to, []).append(nm(frm))
     r = b["routes"]
-    title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}", "battle": b["battle"]["name"]}
+    title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}", "battle": b["battle"]["name"],
+             "voyage": b["voyage"]["name"]}
     plays = lambda ks: title[ks[0]] if len(ks) == 1 else " or ".join(title[k] for k in ks) + ", at random"
     scatters = [s for s in base.SCATTERS if r[s]]
     ways = [f"3+ {nm(s)}: {plays(r[s])}." for s in scatters]
@@ -680,6 +712,8 @@ class StepsMixin:
             b["trail"] = cur
         if "battle" in ch:
             b["battle"] = StepsMixin._battle_settings(d, ch["battle"], dict(b.get("battle", {})))
+        if "voyage" in ch:
+            b["voyage"] = StepsMixin._voyage_settings(d, ch["voyage"], dict(b.get("voyage", {})))
         if "free" in ch:
             fr = ch["free"]
             cur = dict(b.get("free", {}))
@@ -747,6 +781,65 @@ class StepsMixin:
         n = len(x["waves"])
         if len(x["return_fire"]) != n or len(x["clear"]) != n:
             raise DesignError(f"Give return fire and a reward for each of the {n} waves.")
+        return cur
+
+    @staticmethod
+    def _voyage_settings(d, t: dict, cur: dict) -> dict:
+        """The voyage's words and settings, checked. Four artefacts, so four parts of the treasure."""
+        if not isinstance(t, dict):
+            raise DesignError("The voyage's settings are an object.")
+        now = bonuses_view(d)["voyage"]
+        for k in VOYAGE_WORDS:
+            if k in t:
+                cur[k] = str(t[k] or "").strip()[:40] or now[k]
+        if "artefacts" in t:
+            a = t["artefacts"]
+            if not isinstance(a, list) or len(a) != 4:
+                raise DesignError("Name the four artefacts.")
+            cur["artefacts"] = [str(x or "").strip()[:24] or now["artefacts"][i] for i, x in enumerate(a)]
+        if "legs" in t:
+            if not isinstance(t["legs"], int) or not 2 <= t["legs"] <= 8:
+                raise DesignError("The map has 2 to 8 legs.")
+            cur["legs"] = t["legs"]
+        if "kinds" in t:
+            k = t["kinds"]
+            if (not isinstance(k, list) or [r[0] if isinstance(r, list) and r else None for r in k] != list(VOYAGE_KINDS)
+                    or any(len(r) != 2 or not isinstance(r[1], (int, float)) or r[1] < 0 for r in k) or not any(r[1] for r in k[:3])):
+                raise DesignError("Islands: a weight from 0 for each of " + ", ".join(VOYAGE_KINDS) + " (not all of the first three 0).")
+            cur["kinds"] = [[r[0], r[1]] for r in k]
+        if "coves" in t:
+            if not isinstance(t["coves"], int) or not 0 <= t["coves"] <= 7:
+                raise DesignError("Hidden Coves: 0 to 7.")
+            cur["coves"] = t["coves"]
+        for k in VOYAGE_PAIRS:
+            if k in t:
+                cur[k] = _pairs(t[k], {"treasure": "Treasure Island", "relics": "Shipwreck relics", "skull": "Skull Island",
+                                       "cove": "Hidden Cove"}[k])
+                if k == "relics" and any(not float(v).is_integer() or v > 10 for v, _ in cur[k]):
+                    raise DesignError("Shipwreck relics: whole numbers, up to 10.")
+        for k in ("item_chance", "key_chance", "sink"):
+            if k in t:
+                cur[k] = _rate(t[k], {"item_chance": "item chance", "key_chance": "key chance", "sink": "sinking chance"}[k])
+        for k in ("artefact_price", "key_price", "spins_price", "spins_games"):
+            if k in t:
+                if not isinstance(t[k], int) or not 1 <= t[k] <= 20:
+                    raise DesignError("Port Royal: prices of 1 to 20 relics, and 1 to 20 free games.")
+                cur[k] = t[k]
+        for k in ("relic_value", "chest", "legend"):
+            if k in t:
+                if not isinstance(t[k], (int, float)) or not 0 <= t[k] <= 10000:
+                    raise DesignError("Relic value, the chest and the legend: 0 to 10,000 times the bet.")
+                cur[k] = t[k]
+        if "parts" in t:
+            p = t["parts"]
+            if not isinstance(p, list) or len(p) != 4 or any(not isinstance(x, (int, float)) or not 0 <= x <= 10000 for x in p):
+                raise DesignError("The treasure's parts: four values (one an artefact), 0 to 10,000 times the bet.")
+            cur["parts"] = p
+        x = {**now, **cur}
+        if x["sink"] > 0.9:
+            raise DesignError("Sinking tops out at 0.9: Skull Island needs a chance of paying.")
+        if x["coves"] > x["legs"] - 1:
+            raise DesignError(f"Hidden Coves: at most one a leg, from the second ({x['legs'] - 1} here).")
         return cur
 
     # ------------------------------------------------------------- art slots and specs
