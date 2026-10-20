@@ -280,7 +280,7 @@ class DesignBoard(StepsMixin, BuildMixin):
         """The image model loaded in Odysseus (any model will do), cached for 15 s: the page polls while jobs run."""
         at, model = self._flux
         if fresh or time.monotonic() - at > 15:
-            model = art.image_model()
+            model = art.image_model(model)
             self._flux = (time.monotonic(), model)
         return model
 

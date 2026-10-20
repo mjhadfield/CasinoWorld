@@ -32,6 +32,11 @@ class FluxError(RuntimeError):
     """The image model isn't reachable or refused the request (shown on the board as-is)."""
 
 
+class FluxBusy(FluxError):
+    """The image model's server is there but didn't answer in time: it's drawing (its server answers nothing else
+    while a picture is being made, ~50 s with Qwen-Image), not gone."""
+
+
 # ------------------------------------------------------------------ prompts
 STYLES = {
     1: "Redraw this exact slot machine symbol, keeping its design, colours, shape and pose, in crisp high-detail glossy casino slot game art.",
@@ -121,16 +126,21 @@ def _docker(args: list[str], data: bytes | None = None, timeout: float = 900) ->
         r = subprocess.run(cmd, input=data, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise FluxError(f"Couldn't reach Odysseus: {e}")
+    if r.returncode == 28:  # curl's timeout: connected, no answer yet
+        raise FluxBusy("The image model is busy")
     if r.returncode != 0:
         raise FluxError((r.stderr.decode(errors="replace").strip() or "docker exec failed")[-300:])
     return r.stdout
 
 
-def image_model() -> str | None:
-    """The image model loaded in Odysseus right now (its id, e.g. "Qwen-Image-2.1"), or None."""
+def image_model(last: str | None = None) -> str | None:
+    """The image model loaded in Odysseus right now (its id, e.g. "Qwen-Image-2.1"), or None. A server too busy
+    drawing to answer is still loaded: that gives `last`, the model seen before."""
     try:
         out = _docker(["-m", "4", f"{FLUX_URL}/v1/models"], timeout=10)
         return next((m["id"] for m in json.loads(out).get("data", []) if m.get("id")), None)
+    except FluxBusy:
+        return last
     except (FluxError, ValueError, AttributeError, TypeError, KeyError):
         return None
 

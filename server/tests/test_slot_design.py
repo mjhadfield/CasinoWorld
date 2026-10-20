@@ -47,7 +47,7 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))
     monkeypatch.setenv("CASINO_NPCS", "0")
-    monkeypatch.setattr(art, "image_model", lambda: "FLUX.2-klein-4B")
+    monkeypatch.setattr(art, "image_model", lambda last=None: "FLUX.2-klein-4B")
     monkeypatch.setattr(art, "flux_edit", _fake_flux)
     monkeypatch.setattr(art, "flux_generate", _fake_flux)
     with TestClient(app) as c:
@@ -64,6 +64,17 @@ def board(tmp_path, monkeypatch):
 def test_any_loaded_image_model_is_ready(monkeypatch, listed, model):
     monkeypatch.setattr(art, "_docker", lambda *a, **k: listed)
     assert art.image_model() == model and art.flux_ready() is (model is not None)
+
+
+def test_a_busy_image_model_is_still_loaded(monkeypatch):
+    def busy(*a, **k):
+        raise art.FluxBusy("busy")
+    monkeypatch.setattr(art, "_docker", busy)
+    assert art.image_model("Qwen-Image-2.1") == "Qwen-Image-2.1" and art.image_model() is None
+    def gone(*a, **k):
+        raise art.FluxError("connection refused")
+    monkeypatch.setattr(art, "_docker", gone)
+    assert art.image_model("Qwen-Image-2.1") is None
 
 
 def test_status_names_the_model(board):
