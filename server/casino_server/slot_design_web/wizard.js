@@ -195,13 +195,14 @@ async function playMockup(opts = {}) {
   }
 }
 
-// While the tab is open: follow running jobs every 4 s, and check FLUX every 20 s otherwise.
+// While the tab is open: follow running jobs (and a step left showing older data, current.behind) every 4 s,
+// and check FLUX every 20 s otherwise.
 export function polling(on) {
   clearInterval(timer);
   if (on) timer = setInterval(async () => {
     if (!ctx.data || document.hidden) return;
     ticks++;
-    if (ctx.data.running || ctx.data.queued) { await refresh().catch(() => {}); checkFlux(); }
+    if (ctx.data.running || ctx.data.queued || current?.behind?.()) { await refresh().catch(() => {}); checkFlux(); }
     else if (ticks % 5 === 0) checkFlux();
   }, 4000);
 }

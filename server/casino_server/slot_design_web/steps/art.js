@@ -1,13 +1,15 @@
 // Step 2, Art: a section per category (with how many the main game needs) and a card per symbol. Cycle the takes,
 // pick a frame colour, tick the final set, link references, Reiterate, Refine, Fit, and bin what's not wanted.
-// Polling only redraws cards that changed, and never one you're typing in.
+// Polling only redraws cards that changed, and never one you're typing in or saving: that card is left behind
+// (behind(), which keeps the wizard polling) and catches up once you've left it.
 const HUE = {gold: "#d39a26", red: "#d0562e", blue: "#3a7be0", purple: "#9550d8", silver: "#9aa4b2", green: "#3fae4c"};
 let C, filter = "all", lastDid = null;
-const rows = new Map();     // symbol id -> {card, json}
+const rows = new Map();     // symbol id -> {card, json, behind}
 const cats = new Map();     // category id -> {list, box, count, need}
 const drafts = new Map();   // category id -> New forms not yet added (they stack)
 const open = new Map();     // symbol id -> which tool panel is open (refine | fit | bin)
 const timers = {};
+const saving = new Map();   // symbol id -> PATCHes in flight
 let els = {};
 
 const sym = sid => `/api/slot-design/${C.did}/symbols/${encodeURIComponent(sid)}`;
@@ -36,6 +38,9 @@ export function render(ctx, body) {
 }
 
 export function update(ctx, force) { C = ctx; draw(false, force); }
+
+// Is a card showing older data than the last load? The wizard keeps refreshing until it isn't.
+export const behind = () => [...rows.values()].some(r => r.behind);
 
 const countTag = c => C.el("span", {
   className: "tag " + (c.required == null ? "" : c.in_set === c.required ? "ok" : c.in_set > c.required ? "warn" : "gold"),
@@ -93,10 +98,13 @@ function draw(full, force) {
         const card = symRow(s);
         cat.list.append(card);
         rows.set(s.id, {card, json});
-      } else if (s.id === force || (row.json !== json && !row.card.contains(document.activeElement))) {
-        const card = symRow(s);
-        row.card.replaceWith(card);
-        rows.set(s.id, {card, json});
+      } else if (s.id === force || row.json !== json) {
+        row.behind = s.id !== force && (row.card.contains(document.activeElement) || !!saving.get(s.id));
+        if (!row.behind) {
+          const card = symRow(s);
+          row.card.replaceWith(card);
+          rows.set(s.id, {card, json});
+        }
       }
       rows.get(s.id).card.hidden = !visible(s);
     }
@@ -124,10 +132,19 @@ async function generate() {
 }
 
 async function patch(s, body, redraw = true) {
-  try {
-    await C.api("PATCH", sym(s.id), body);
-    if (redraw) await C.refresh(s.id);
-  } catch (e) { C.status(e.message, "warn"); }
+  saving.set(s.id, (saving.get(s.id) || 0) + 1);
+  try { await C.api("PATCH", sym(s.id), body); }
+  catch (e) { return C.status(e.message, "warn"); }
+  finally { saving.set(s.id, saving.get(s.id) - 1); }
+  if (redraw) await C.refresh(s.id).catch(e => C.status(e.message, "warn"));
+}
+
+// A text box that saves half a second after you stop typing, and at once when you leave it.
+function typed(s, field, box) {
+  const key = field + ":" + s.id;
+  const save = () => { clearTimeout(timers[key]); timers[key] = null; patch(s, {[field]: box.value}, false); };
+  box.addEventListener("input", () => { clearTimeout(timers[key]); timers[key] = setTimeout(save, 500); });
+  box.addEventListener("change", () => { if (timers[key]) save(); });
 }
 
 async function act(s, action, body, msg) {
@@ -231,10 +248,7 @@ function symRow(s) {
 
   const note = el("textarea", {rows: 2, value: s.note || "", disabled: !s.reiterate, ariaLabel: `What to change on ${s.name}`,
     placeholder: "What to change (optional), e.g. 'more gold trim, less glow'"});
-  note.addEventListener("input", () => {
-    clearTimeout(timers[s.id]);
-    timers[s.id] = setTimeout(() => patch(s, {note: note.value}, false), 500);
-  });
+  typed(s, "note", note);
   const base = el("select", {disabled: !s.reiterate, ariaLabel: "Start the new takes from"},
     el("option", {value: "", textContent: "From the chosen take"}),
     ...s.refs.map((r, k) => el("option", {value: r, textContent: `From reference ${k + 1}`})));
@@ -247,10 +261,7 @@ function symRow(s) {
   let prompt = null;
   if (s.added || s.prompt) {
     prompt = el("textarea", {rows: 2, value: s.prompt || "", ariaLabel: `Description of ${s.name}`, placeholder: "Describe it for FLUX"});
-    prompt.addEventListener("input", () => {
-      clearTimeout(timers["p" + s.id]);
-      timers["p" + s.id] = setTimeout(() => patch(s, {prompt: prompt.value}, false), 500);
-    });
+    typed(s, "prompt", prompt);
   }
   const failed = s.job && s.job.status === "failed" ? el("p", {className: "hint", textContent: "FLUX said: " + s.job.error}) : null;
   const card = el("div", {className: "card dz-sym" + (s.keep ? " keep" : "")}, view,

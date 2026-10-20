@@ -658,14 +658,16 @@ class DesignBoard(StepsMixin, BuildMixin):
 
     def _reiterate_job(self, d: Design, s: dict) -> dict:
         note = s.get("note", "")
+        # Redrawing a reference or drawing from scratch goes by the symbol's description (a New symbol's) as well;
+        # a variation of a take already has it.
+        described = " ".join(x.strip().rstrip(".") + "." for x in (s.get("prompt", ""), note) if x.strip())
         if s.get("base"):  # a linked reference: redraw it as this symbol
-            return {"how": "redraw", "src": s["base"], "text": note, "out": s["kind"], "action": "reiterate"}
+            return {"how": "redraw", "src": s["base"], "text": described, "out": s["kind"], "action": "reiterate"}
         v = d.chosen(s)
         if not v:
             if s.get("refs"):
-                return {"how": "redraw", "src": s["refs"][0], "text": note, "out": s["kind"], "action": "reiterate"}
-            return {"how": "text", "src": None, "text": f"{s.get('prompt', '')} {note}".strip(), "out": s["kind"],
-                    "action": "reiterate"}
+                return {"how": "redraw", "src": s["refs"][0], "text": described, "out": s["kind"], "action": "reiterate"}
+            return {"how": "text", "src": None, "text": described, "out": s["kind"], "action": "reiterate"}
         src, _ = d.raw_of(s, v["id"])  # a framed character varies the bust it was made from
         return {"how": "variation", "src": src, "text": note, "out": "character" if "hues" in v else "object",
                 "action": "reiterate"}

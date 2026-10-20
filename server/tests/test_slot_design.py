@@ -151,6 +151,19 @@ def test_generate_makes_three_takes_per_job(board):
     assert jobs[new]["how"] == "text" and all(j["status"] == "done" for j in jobs.values())
 
 
+def test_reiterating_from_a_reference_uses_the_description(board):
+    c, _ = board
+    sid = c.post("/api/slot-design/demo/symbols", json={"name": "Wheel", "category": "bonus", "prompt": "a prize wheel"}).json()["id"]
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    c.patch(f"/api/slot-design/demo/symbols/{sid}", json={"add_ref": "ref/ship.png", "base": "ref/ship.png", "reiterate": True,
+                                                         "prompt": "a prize wheel, keep the word BONUS", "note": "more gold"})
+    c.post("/api/slot-design/demo/generate")
+    job = _sym(_overview(c), sid)["job"]
+    assert job["how"] == "redraw" and job["text"] == "a prize wheel, keep the word BONUS. more gold."
+    _wait_idle(c)
+
+
 def test_a_failed_job_can_be_retried(board, monkeypatch):
     c, _ = board
     def broken(*_):

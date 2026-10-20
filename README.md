@@ -93,7 +93,8 @@ and Tailscale. It has six tabs:
     cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols.
   - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
     pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
-    art on the board), **Reiterate** (three fresh takes from the chosen take or a reference, with a note),
+    art on the board), **Reiterate** (three fresh takes from the chosen take or a reference, with a note; a reference redraw also
+    goes by the symbol's description),
     **Refine** (one FLUX edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
     tile, previewed live; saved as a new take) and the **Bin** (✕ on a take; restorable, nothing is deleted).
     **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
