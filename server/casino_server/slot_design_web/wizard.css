@@ -132,3 +132,13 @@
 .wz-slot select { max-width: 100%; }
 .wz-spec { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 6px; }
 .wz-spec p { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+/* Sprites and Sounds */
+.wz-row { display: grid; grid-template-columns: minmax(90px, 1fr) auto minmax(80px, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.wz-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.wz-swatch { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.wz-swatch input[type=color] { width: 34px; height: 28px; padding: 1px; flex: none; }
+.wz-cabrow { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; align-items: start; }
+.wz-cab { width: 160px; height: auto; background: var(--stage); border-radius: 8px; }
+.snd-list { display: grid; gap: 4px; }
+.snd-pick { margin-top: 8px; grid-column: 1 / -1; }
+.snd-pick .list { max-height: 320px; }

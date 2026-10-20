@@ -76,6 +76,7 @@ async def lifespan(app: FastAPI):
     app.state.slot_art = SlotArtBoard(data_dir)
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
+    app.state.slot_design.sounds = app.state.sounds
     design_worker = asyncio.create_task(app.state.slot_design.run())
     app.state.looks = looks
     await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
@@ -542,6 +543,32 @@ async def slot_design_add_spec(design: str, request: Request):
 @app.delete("/api/slot-design/{design}/specs/{spec_id}")
 def slot_design_remove_spec(design: str, spec_id: int, request: Request):
     _design_call(request.app.state.slot_design.remove_spec, design, spec_id)
+    return {"ok": True}
+
+
+@app.patch("/api/slot-design/{design}/sprites")
+async def slot_design_sprites(design: str, request: Request):
+    body = await _json_body(request, "{win, colours, fonts, cabinet}")
+    _design_call(request.app.state.slot_design.update_sprites, design, body)
+    return {"ok": True}
+
+
+@app.get("/slot-design-font/{design}/{name}")
+def slot_design_font_file(design: str, name: str, request: Request):
+    path = _design_call(request.app.state.slot_design.font_file, design, name)
+    return FileResponse(path, media_type="font/otf" if name.lower().endswith(".otf") else "font/ttf")
+
+
+@app.put("/api/slot-design/{design}/sounds/{key}")
+async def slot_design_sound(design: str, key: str, request: Request):
+    body = await _json_body(request, "{files: [sound ids], gain_db}")
+    _design_call(request.app.state.slot_design.set_sound, design, key, body.get("files"), body.get("gain_db", 0.0))
+    return {"ok": True}
+
+
+@app.delete("/api/slot-design/{design}/sounds/{key}")
+def slot_design_sound_inherit(design: str, key: str, request: Request):
+    _design_call(request.app.state.slot_design.inherit_sound, design, key)
     return {"ok": True}
 
 

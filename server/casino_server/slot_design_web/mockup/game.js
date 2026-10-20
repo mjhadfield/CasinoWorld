@@ -17,8 +17,16 @@ export function createGame(cv, cfg) {
     gold: "#f4c94f", goldHi: "#fff1b0", goldLo: "#9a6614", ink: "#2b1608", wood: "#6b3d1d", woodHi: "#a8703f",
     woodLo: "#3c200d", cream: "#f6ead0", red: "#d8362a", teal: "#35c1b4", panel: "rgba(24,12,6,0.78)",
     tiers: { mini: "#4fb3ff", minor: "#55d07a", major: "#c768ff", grand: "#ff5a48" },
+    edge: "#d9a54a", muted: "#b89b74", win: "#ffe27a", spin: "#f0b43a", alert: "#7d130c",
   };
-  let FRAME = { style: "wood", colour: "#d9a54a" }, TEXT = {}, LABELS = true;
+  C.ink = "#2b1004";
+  const C0 = Object.assign({}, C);   // Armadillo's look: a design's theme (Sprites step) is laid over it
+  let FRAME = { style: "wood", colour: C.edge }, TEXT = {}, LABELS = true;
+  // Win animations by tier group (Sprites step): what a symbol does while its line win shows.
+  const WIN0 = { wild: { preset: "glow", strength: 1, colour: C.win }, high: { preset: "none" }, mid: { preset: "none" },
+                 low: { preset: "none" }, scatter: { preset: "none" } };
+  let WIN = WIN0;
+  const groupOf = (sym) => sym === "W" ? "wild" : sym === "BS" || sym === "FS" ? "scatter" : sym[0] === "H" ? "high" : sym[0] === "M" ? "mid" : "low";
   const LINE_COLOURS = ["#ffd54a", "#ff7a59", "#5fd4ff", "#9cff6b", "#ff6bd5", "#ffb347", "#6b9dff", "#d0ff4a", "#ff4a6e",
     "#4affc3", "#ffe0a3", "#b38bff", "#ff9e4a", "#4ad2ff", "#e3ff7a", "#ff7ab8", "#7affd9", "#ffcf4a", "#a6b8ff",
     "#ff6a4a", "#4aff8f", "#ffa6e1", "#c6ff4a", "#4a9eff", "#ffd1a6"];
@@ -43,8 +51,9 @@ export function createGame(cv, cfg) {
     const t = c.theme || {};
     if (t.display) DISPLAY = t.display;
     if (t.cond) COND = t.cond;
-    Object.assign(C, t.colours || {});
-    FRAME = Object.assign({ style: "wood", colour: "#d9a54a" }, c.frame || {});
+    Object.assign(C, C0, t.colours || {});
+    WIN = Object.assign({}, WIN0, c.win || {});
+    FRAME = Object.assign({ style: "wood", colour: C.edge }, c.frame || {});
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
                            pistol: "THE PISTOL", freeName: "COMBO FREE GAMES" }, c.texts || {});
@@ -132,8 +141,8 @@ export function createGame(cv, cfg) {
   function goldText(str, x, y, size, font = DISPLAY) {
     ctx.font = `400 ${size}px ${font}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     const g = ctx.createLinearGradient(0, y - size / 2, 0, y + size / 2);
-    g.addColorStop(0, "#fff6c2"); g.addColorStop(0.45, "#f4c94f"); g.addColorStop(1, "#a8651a");
-    ctx.lineJoin = "round"; ctx.lineWidth = size * 0.16; ctx.strokeStyle = "#2b1004"; ctx.strokeText(str, x, y);
+    g.addColorStop(0, C.goldHi); g.addColorStop(0.45, C.gold); g.addColorStop(1, "#a8651a");
+    ctx.lineJoin = "round"; ctx.lineWidth = size * 0.16; ctx.strokeStyle = C.ink; ctx.strokeText(str, x, y);
     ctx.fillStyle = g; ctx.fillText(str, x, y);
   }
   // Panels in the design's frame style (Scene step): wood (Armadillo's), metal, neon or glass, edged in its colour.
@@ -145,7 +154,7 @@ export function createGame(cv, cfg) {
     ctx.save(); ctx.clip(); ctx.globalAlpha = 0.12; ctx.strokeStyle = "#1e0d04"; ctx.lineWidth = 1.2;
     for (let i = 0; i < h; i += 7) { ctx.beginPath(); ctx.moveTo(x, y + i + Math.sin(i) * 2); ctx.bezierCurveTo(x + w * 0.3, y + i + 4, x + w * 0.7, y + i - 3, x + w, y + i + 1); ctx.stroke(); }
     ctx.restore();
-    rr(x + 3, y + 3, w - 6, h - 6, r - 3); ctx.lineWidth = 3; ctx.strokeStyle = "#d9a54a"; ctx.stroke();
+    rr(x + 3, y + 3, w - 6, h - 6, r - 3); ctx.lineWidth = 3; ctx.strokeStyle = C.edge; ctx.stroke();
     rr(x, y, w, h, r); ctx.lineWidth = 2; ctx.strokeStyle = "#1a0b03"; ctx.stroke();
   }
   function stylePanel(x, y, w, h, r) {
@@ -168,8 +177,8 @@ export function createGame(cv, cfg) {
     g.addColorStop(0, base[0]); g.addColorStop(0.55, base[1]); g.addColorStop(1, base[2]);
     ctx.save(); if (disabled) ctx.globalAlpha = 0.4;
     rr(x, y, w, h, h * 0.28); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = hover ? 3 : 2; ctx.strokeStyle = hover ? "#fff1b0" : "#d9a54a"; ctx.stroke();
-    text(label, x + w / 2, y + h / 2 + 1, opts.size || 22, COND, on || opts.colour ? "#2b1004" : C.cream);
+    ctx.lineWidth = hover ? 3 : 2; ctx.strokeStyle = hover ? C.goldHi : C.edge; ctx.stroke();
+    text(label, x + w / 2, y + h / 2 + 1, opts.size || 22, COND, on || opts.colour ? C.ink : C.cream);
     ctx.restore();
     if (!disabled) S.hits.push({ id, x, y, w, h });
   }
@@ -214,9 +223,9 @@ export function createGame(cv, cfg) {
       rr(x, y, w, h, 18); ctx.fillStyle = "#1a0d06"; ctx.fill();
       rr(x + 4, y + 4, w - 8, h - 8, 15); ctx.fillStyle = col; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
       ctx.fillStyle = g; ctx.fill();
-      rr(x, y, w, h, 18); ctx.lineWidth = 3; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
+      rr(x, y, w, h, 18); ctx.lineWidth = 3; ctx.strokeStyle = C.gold; ctx.stroke();
       const lit = S.pick && S.pick.lit === id && Math.floor(S.now * 6) % 2;
-      if (lit) { rr(x - 4, y - 4, w + 8, h + 8, 22); ctx.lineWidth = 5; ctx.strokeStyle = "#fff6c2"; ctx.stroke(); }
+      if (lit) { rr(x - 4, y - 4, w + 8, h + 8, 22); ctx.lineWidth = 5; ctx.strokeStyle = C.goldHi; ctx.stroke(); }
       text(t.name, x + w / 2, y + 18, 18, COND, "#fff", "center", "700", 4);
       text(moneyShort(Math.floor(S.metersShown[id])), x + w / 2, y + 46, 32, COND, "#fff", "center", "700", 6);
     }
@@ -251,8 +260,8 @@ export function createGame(cv, cfg) {
       const y = REEL_Y + 32 + i * step, lit = S.featureLit[id];
       rr(34, y, 192, 42, 10);
       ctx.fillStyle = lit ? `rgba(255,${200 + Math.sin(S.now * 8) * 30},90,0.95)` : "rgba(20,9,4,0.65)"; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = lit ? "#fff6c2" : "#7a5a36"; ctx.stroke();
-      text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, 130, y + 22, 20, COND, lit ? "#2b1004" : "#b89b74");
+      ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : "#7a5a36"; ctx.stroke();
+      text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, 130, y + 22, 20, COND, lit ? C.ink : C.muted);
     });
     // Right: Buy Bonus and the two ways in.
     woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
@@ -263,7 +272,7 @@ export function createGame(cv, cfg) {
     rr(1052, by, 196, 178, 14);
     const hov = S.hover === "buy" && !busy;
     ctx.fillStyle = hov ? "rgba(90,40,10,0.95)" : "rgba(40,18,6,0.85)"; ctx.fill();
-    ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
+    ctx.lineWidth = hov ? 4 : 3; ctx.strokeStyle = C.gold; ctx.stroke();
     ctx.save(); if (busy) ctx.globalAlpha = 0.45;
     text("BUY BONUS", 1150, by + 24, 26, COND, C.goldHi);
     drawImg(img("BS"), 1150 - 52, by + 38, 104, 104);
@@ -283,12 +292,12 @@ export function createGame(cv, cfg) {
   function drawDeck() {
     const y = 618;
     ctx.fillStyle = "rgba(12,5,2,0.86)"; ctx.fillRect(0, y - 26, W, H - y + 26);
-    ctx.fillStyle = "#d9a54a"; ctx.fillRect(0, y - 26, W, 2);
+    ctx.fillStyle = C.edge; ctx.fillRect(0, y - 26, W, 2);
     // the message bar
     text(S.message, 640, y - 12, 19, COND, C.goldHi);
     const box = (x, w, label, value, col = "#fff") => {
       rr(x, y + 10, w, 82, 12); ctx.fillStyle = "#1a0c05"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#7a5a36"; ctx.stroke();
-      text(label, x + w / 2, y + 28, 16, COND, "#b89b74"); text(value, x + w / 2, y + 64, 36, COND, col);
+      text(label, x + w / 2, y + 28, 16, COND, C.muted); text(value, x + w / 2, y + 64, 36, COND, col);
     };
     const credit = S.balance - (S.pendingCredit || 0);
     box(20, 210, "CREDIT", money(credit));
@@ -296,7 +305,7 @@ export function createGame(cv, cfg) {
     const canBet = !S.busy && S.mode === "reels";
     button("bet-", 252, y + 46, 40, 38, "\u2212", { disabled: !canBet || S.betIdx === 0, size: 30 });
     button("bet+", 422, y + 46, 40, 38, "+", { disabled: !canBet || S.betIdx === M.LADDER.length - 1, size: 30 });
-    box(484, 230, S.free ? "FREE GAMES WIN" : "WIN", S.winShown > 0 ? money(Math.floor(S.winShown)) : "", "#ffe27a");
+    box(484, 230, S.free ? "FREE GAMES WIN" : "WIN", S.winShown > 0 ? money(Math.floor(S.winShown)) : "", C.win);
     const deckBusy = S.mode !== "reels" || S.overlay;
     button("info", 730, y + 22, 92, 56, "INFO", { disabled: deckBusy || S.busy });
     button("turbo", 832, y + 22, 92, 56, "TURBO", { on: S.turbo });
@@ -306,15 +315,15 @@ export function createGame(cv, cfg) {
     const cx = 1112, cy = 664, r = 46, spinning = reels.some((x) => x.spinning);
     const hov = S.hover === "spin";
     const g = ctx.createRadialGradient(cx - 14, cy - 18, 6, cx, cy, r);
-    g.addColorStop(0, "#fff1b0"); g.addColorStop(0.5, spinning ? "#c9871c" : "#f0b43a"); g.addColorStop(1, "#7a420c");
+    g.addColorStop(0, C.goldHi); g.addColorStop(0.5, spinning ? "#c9871c" : C.spin); g.addColorStop(1, "#7a420c");
     ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = "#1a0b03"; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = "#fff6c2"; ctx.stroke();
-    text(spinning ? "STOP" : S.mode === "trail" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, "#2b1004");
+    ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
+    text(spinning ? "STOP" : S.mode === "trail" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, C.ink);
     S.hits.push({ id: "spin", x: cx - r, y: cy - r, w: r * 2, h: r * 2 });
     button("cashout", 1172, y + 22, 96, 56, "CASH OUT", { size: 18, disabled: S.busy || S.mode !== "reels" });
     if (S.autoMenu) {
-      [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 934 + i * 0 - 4, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: ["#fff1b0", "#f0b43a", "#9a5a10"] }));
+      [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 934 + i * 0 - 4, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: [C.goldHi, C.spin, "#9a5a10"] }));
     }
   }
 
@@ -323,19 +332,30 @@ export function createGame(cv, cfg) {
   function drawSymbol(sym, x, y, w, h, fx) {
     const im = img(sym);
     if (!ok(im)) return;
-    let s = 0.92 * (fx && fx.scale || 1);
-    const flip = fx && fx.flip != null ? Math.abs(Math.cos(fx.flip * Math.PI)) : 1;
+    const a = fx && fx.anim, k = a ? a.strength || 1 : 0, t = S.now;
+    let s = 0.92 * (fx && fx.scale || 1), dy = 0;
+    let flip = fx && fx.flip != null ? Math.abs(Math.cos(fx.flip * Math.PI)) : 1;
+    if (a && a.preset === "pulse") s *= 1 + 0.08 * k * (0.5 + 0.5 * Math.sin(t * 7));
+    if (a && a.preset === "bounce") dy = -10 * k * Math.abs(Math.sin(t * 6));
+    if (a && a.preset === "spin") flip = Math.max(0.08, Math.abs(Math.cos(t * 3 * k)));
     const size = Math.min(w, h) * s;
-    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(flip, 1);
-    if (fx && fx.glow) { ctx.shadowColor = fx.glowColour || "#ffe27a"; ctx.shadowBlur = 26 * fx.glow; }
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2 + dy); ctx.scale(flip, 1);
+    if (fx && fx.glow) { ctx.shadowColor = fx.glowColour || C.win; ctx.shadowBlur = 26 * fx.glow; }
+    if (a && a.preset === "glow") { ctx.shadowColor = a.colour || C.win; ctx.shadowBlur = 24 * k * (0.6 + 0.4 * Math.sin(t * 6)); }
     ctx.drawImage(im, -size / 2, -size / 2, size, size);
+    if (a && a.preset === "shine") {   // a light band sweeping across the symbol
+      const p = ((t * 0.9) % 1.4) - 0.2, band = ctx.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
+      band.addColorStop(Math.max(0, p - 0.12), "rgba(255,255,255,0)"); band.addColorStop(Math.min(1, Math.max(0, p)), `rgba(255,255,255,${0.5 * Math.min(1, k)})`);
+      band.addColorStop(Math.min(1, Math.max(0, p + 0.12)), "rgba(255,255,255,0)");
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = band; ctx.fillRect(-size / 2, -size / 2, size, size);
+    }
     ctx.restore();
     if (LABELS && (sym === "W" || sym === "BS" || sym === "FS")) {
       const label = sym === "W" ? "WILD" : sym === "BS" ? "BONUS" : "FREE SPINS";
       const size2 = sym === "FS" ? 17 : 21;
       ctx.save(); ctx.translate(x + w / 2, y + h - 18); ctx.scale(flip, 1);
-      rr(-w * 0.36, -12, w * 0.72, 24, 6); ctx.fillStyle = sym === "W" ? "#7d130c" : "#2b1004"; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
+      rr(-w * 0.36, -12, w * 0.72, 24, 6); ctx.fillStyle = sym === "W" ? C.alert : C.ink; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = C.gold; ctx.stroke();
       text(label, 0, 1, size2, DISPLAY, C.goldHi, "center", "400");
       ctx.restore();
     }
@@ -355,7 +375,7 @@ export function createGame(cv, cfg) {
     // anticipation glow
     for (const x of reels) if (x.glow > 0) {
       ctx.save(); ctx.globalAlpha = x.glow * (0.6 + 0.4 * Math.sin(S.now * 12));
-      ctx.lineWidth = 8; ctx.strokeStyle = "#ffe27a"; ctx.strokeRect(REEL_X + x.r * CELL_W + 4, REEL_Y + 4, CELL_W - 8, REEL_H - 8); ctx.restore();
+      ctx.lineWidth = 8; ctx.strokeStyle = C.win; ctx.strokeRect(REEL_X + x.r * CELL_W + 4, REEL_Y + 4, CELL_W - 8, REEL_H - 8); ctx.restore();
     }
     ctx.restore();
     // reel dividers
@@ -414,6 +434,8 @@ export function createGame(cv, cfg) {
         if (same) drawSymbol(now, REEL_X + col.start * CELL_W + (wPx - size * 1.05) / 2, y, size * 1.05, size, fx && fx.big ? fx : null);
       }
     }
+    const shown = S.landed && S.wins.length ? (S.busy || S.cycle === 0 ? S.wins : [S.wins[S.cycle - 1]]) : [];
+    const winning = new Set(shown.flatMap((w) => w.cells));
     for (let c = 0; c < 20; c++) {
       const r = Math.floor(c / 4);
       if (col && r >= col.start && r < col.start + col.k) {
@@ -423,7 +445,8 @@ export function createGame(cv, cfg) {
         if (block.every((q) => S.grid[q] === S.grid[block[0]])) continue;
       }
       const { x, y } = cellRect(c);
-      drawSymbol(S.grid[c], x, y, CELL_W, CELL_H, S.cellFx[c]);
+      const anim = winning.has(c) ? WIN[groupOf(S.grid[c])] : null;
+      drawSymbol(S.grid[c], x, y, CELL_W, CELL_H, anim && anim.preset !== "none" ? Object.assign({}, S.cellFx[c], { anim }) : S.cellFx[c]);
     }
   }
   function drawWins() {
@@ -470,7 +493,7 @@ export function createGame(cv, cfg) {
     const s = t < 0.15 ? 0.6 + 0.4 * ease.back(t / 0.15) : 1;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(640, REEL_Y + REEL_H / 2); ctx.scale(s, s);
     rr(-420, -66, 840, b.sub ? 132 : 100, 22); ctx.fillStyle = "rgba(24,10,3,0.88)"; ctx.fill();
-    ctx.lineWidth = 4; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
+    ctx.lineWidth = 4; ctx.strokeStyle = C.gold; ctx.stroke();
     goldText(b.text, 0, b.sub ? -16 : -16, 58);
     if (b.sub) text(b.sub, 0, 40, 26, COND, C.cream);
     ctx.restore();
@@ -490,7 +513,7 @@ export function createGame(cv, cfg) {
       const sx = Math.cos(p.spin);
       ctx.save(); ctx.translate(p.x, p.y); ctx.scale(Math.max(0.12, Math.abs(sx)), 1);
       const g = ctx.createRadialGradient(-p.r * 0.3, -p.r * 0.3, 1, 0, 0, p.r);
-      g.addColorStop(0, "#fff6c2"); g.addColorStop(0.5, sx > 0 ? "#f4c94f" : "#d9a030"); g.addColorStop(1, "#8a5410");
+      g.addColorStop(0, C.goldHi); g.addColorStop(0.5, sx > 0 ? C.gold : "#d9a030"); g.addColorStop(1, "#8a5410");
       ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 7); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#5a3505"; ctx.stroke();
       ctx.restore();
     }
@@ -521,24 +544,24 @@ export function createGame(cv, cfg) {
       goldText(o.title, 0, -40, 120);
       text(money(Math.floor(o.shown)), 0, 70, 84, COND, "#fff", "center", "700", 10);
       ctx.restore();
-      text("Click to continue", 640, 520, 20, COND, "#b89b74");
+      text("Click to continue", 640, 520, 20, COND, C.muted);
       S.hits.push({ id: "overlay", x: 0, y: 0, w: W, h: H });
     } else if (o.kind === "summary") {
       woodPanel(340, 170, 600, 330, 22);
       goldText(o.title, 640, 240, 54);
       text(o.sub || "", 640, 300, 24, COND, C.cream);
-      text(money(o.amount), 640, 372, 76, COND, "#ffe27a", "center", "700", 8);
-      button("overlay", 560, 430, 160, 50, "COLLECT", { colour: ["#fff1b0", "#f0b43a", "#9a5a10"] });
+      text(money(o.amount), 640, 372, 76, COND, C.win, "center", "700", 8);
+      button("overlay", 560, 430, 160, 50, "COLLECT", { colour: [C.goldHi, C.spin, "#9a5a10"] });
       const left = 5 - (S.now - o.t0);
-      text(`collects itself in ${Math.max(1, Math.ceil(left))}`, 640, 486 + 10, 16, COND, "#b89b74");
+      text(`collects itself in ${Math.max(1, Math.ceil(left))}`, 640, 486 + 10, 16, COND, C.muted);
       if (left <= 0 && o.done) { const d = o.done; o.done = null; d(); }
     } else if (o.kind === "buy") {
       woodPanel(360, 170, 560, 340, 22);
       goldText("BUY BONUS", 640, 228, 50);
       drawImg(img("BS"), 640 - 60, 256, 120, 120);
       text(`Go straight to the ${TEXT.bonus[1].toLowerCase()} for ${money(bet() * V.buyCost)}`, 640, 400, 26, COND, C.cream);
-      text(`${V.buyCost} \u00d7 your ${money(bet())} bet. Bonus wins pay at ${money(bet())}.`, 640, 430, 19, COND, "#b89b74");
-      button("buy-yes", 470, 450, 160, 48, "BUY", { colour: ["#fff1b0", "#f0b43a", "#9a5a10"], disabled: S.balance < bet() * V.buyCost });
+      text(`${V.buyCost} \u00d7 your ${money(bet())} bet. Bonus wins pay at ${money(bet())}.`, 640, 430, 19, COND, C.muted);
+      button("buy-yes", 470, 450, 160, 48, "BUY", { colour: [C.goldHi, C.spin, "#9a5a10"], disabled: S.balance < bet() * V.buyCost });
       button("buy-no", 650, 450, 160, 48, "CANCEL");
     } else if (o.kind === "info") {
       drawInfo();
@@ -806,7 +829,7 @@ export function createGame(cv, cfg) {
       const face = c.tier && c.flip >= 0.5 ? C.tiers[c.tier] : null;
       const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 4, 0, 0, r);
       if (face) { g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, face); g.addColorStop(1, "#1a0b03"); }
-      else { g.addColorStop(0, "#fff6c2"); g.addColorStop(0.5, hover ? "#ffd970" : "#f4c94f"); g.addColorStop(1, "#8a5410"); }
+      else { g.addColorStop(0, C.goldHi); g.addColorStop(0.5, hover ? "#ffd970" : C.gold); g.addColorStop(1, "#8a5410"); }
       ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fillStyle = g; ctx.fill();
       ctx.lineWidth = 4; ctx.strokeStyle = P.done && c.tier === P.lit && !c.dim ? "#fff" : "#5a3505"; ctx.stroke();
       if (face) text(M.JACKPOT_TIERS.find((q) => q.id === c.tier).name, 0, 2, 26, COND, "#fff", "center", "700", 5);
@@ -892,7 +915,7 @@ export function createGame(cv, cfg) {
     };
     switch (e.kind) {
       case "coin": case "prizepot":
-        pop(money(e.pence), "#ffe27a"); coinBurst(sx, sy - 30, e.kind === "prizepot" ? 80 : 12, 0.6);
+        pop(money(e.pence), C.win); coinBurst(sx, sy - 30, e.kind === "prizepot" ? 80 : 12, 0.6);
         T.total += e.pence; S.winTarget = T.total; S.roller = Math.max(e.pence * 1.4, bet());
         await wait(e.kind === "prizepot" ? 1.6 : 0.55); break;
       case "heart": pop("+1 HEART", "#ff8a80"); T.hearts++; await wait(0.6); break;
@@ -936,7 +959,7 @@ export function createGame(cv, cfg) {
       const light = T.lightningAt && S.now - T.lightningAt < 1.2 && i > T.token.i - 7 && i <= T.token.i;
       rr(x - sz / 2, y - sz / 2, sz, sz, 12);
       ctx.fillStyle = sp.type === "snake" ? "#5e1d12" : end ? "#5a3a08" : "#4a2a14"; ctx.fill();
-      ctx.lineWidth = crate || light ? 4 : 2; ctx.strokeStyle = crate ? "#ffb347" : light ? "#ffe14a" : "#d9a54a"; ctx.stroke();
+      ctx.lineWidth = crate || light ? 4 : 2; ctx.strokeStyle = crate ? "#ffb347" : light ? "#ffe14a" : C.edge; ctx.stroke();
       const icon = { coin: "t_coin", snake: "t_snake", heart: "t_heart", forward: "t_forward", back: "t_forward", lightning: "t_lightning",
                      crate: "t_crate", upgrade: "t_upgrade", double: "t_double", prizepot: "t_gold" }[sp.type];
       if (icon) {
@@ -967,7 +990,7 @@ export function createGame(cv, cfg) {
     rr(40, REEL_Y - 8, 900 * prog, 18, 9); ctx.fillStyle = "#d8ae74"; ctx.fill();
     drawImg(img("t_gold"), 930, REEL_Y - 28, 50, 50);
     drawImg(img("armadillo"), 40 + 900 * prog - 20, REEL_Y - 34, 44, 44);
-    text(`TRAIL WIN ${money(T.total)}`, 640, REEL_Y + 34, 34, COND, "#ffe27a", "center", "700", 6);
+    text(`TRAIL WIN ${money(T.total)}`, 640, REEL_Y + 34, 34, COND, C.win, "center", "700", 6);
     for (let h = 0; h < T.hearts; h++) drawImg(img("t_heart"), 40 + h * 46, REEL_Y + 18, 44, 44);
     let cx = 40 + Math.max(1, T.hearts) * 46 + 10;
     if (st.upgraded) { rr(cx, REEL_Y + 24, 150, 32, 8); ctx.fillStyle = "#1d6b62"; ctx.fill(); text("MOVES \u00d72", cx + 75, REEL_Y + 41, 20, COND, "#fff"); cx += 160; }
@@ -981,13 +1004,13 @@ export function createGame(cv, cfg) {
       const a = -Math.PI / 2 + (k * Math.PI) / 3;
       ctx.beginPath(); ctx.arc(Math.cos(a) * 35, Math.sin(a) * 35, 13, 0, 7);
       const g = ctx.createRadialGradient(Math.cos(a) * 35 - 4, Math.sin(a) * 35 - 4, 2, Math.cos(a) * 35, Math.sin(a) * 35, 13);
-      g.addColorStop(0, "#fff1b0"); g.addColorStop(1, "#b07a1c"); ctx.fillStyle = g; ctx.fill();
+      g.addColorStop(0, C.goldHi); g.addColorStop(1, "#b07a1c"); ctx.fillStyle = g; ctx.fill();
     }
     ctx.restore();
     if (T.waiting) {
       const left = Math.max(0, T.autoAt - S.now);
-      button("fire", cyx - 80, cyy + 100, 160, 58, "FIRE", { colour: ["#ffb4a6", "#e2402f", "#7d130c"], size: 32 });
-      text(`fires itself in ${Math.ceil(left)}`, cyx, cyy + 176, 16, COND, "#b89b74");
+      button("fire", cyx - 80, cyy + 100, 160, 58, "FIRE", { colour: ["#ffb4a6", "#e2402f", C.alert], size: 32 });
+      text(`fires itself in ${Math.ceil(left)}`, cyx, cyy + 176, 16, COND, C.muted);
       if (left <= 0) fire();
     }
   }
@@ -1014,7 +1037,7 @@ export function createGame(cv, cfg) {
       if (S.mode === "pick" && S.pick) drawPick();
     }
     if (S.free) {
-      rr(440, REEL_Y - 16, 400, 34, 10); ctx.fillStyle = "#7d130c"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
+      rr(440, REEL_Y - 16, 400, 34, 10); ctx.fillStyle = C.alert; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.gold; ctx.stroke();
       text(`${TEXT.freeName} ${S.free.n} OF ${S.free.of}`, 640, REEL_Y + 1, 22, COND, C.goldHi, "center", "700", 0, 380);
     }
     drawDeck();
@@ -1099,6 +1122,16 @@ export function createGame(cv, cfg) {
     topUp() { S.balance = Math.max(S.balance, 100000); },
     rig(r) { S.rig = r; },
     spin: () => act("spin"),
+    // Show a five-of-a-kind of `tier` on the middle line, as if it had just landed (the Sprites step's preview).
+    demoWin(tier) {
+      if (S.busy || S.mode !== "reels") return;
+      const g = S.grid.slice();
+      for (let r = 0; r < 5; r++) g[r * 4 + 1] = tier;
+      clearWins(); S.grid = g; S.landed = true; S.colossal = null;
+      S.wins = M.evaluate(g, V.pays).map((w) => ({ ...w, pence: Math.floor(w.mult * bet() / 25) }));
+      S.cycle = 0; S.cycleAt = S.now + 3;
+      S.message = `5 \u00d7 ${(V.symbols[tier] || tier).toUpperCase()}`;
+    },
     state: S,
     bet,
     destroy() {

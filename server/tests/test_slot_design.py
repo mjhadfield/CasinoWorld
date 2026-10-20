@@ -360,3 +360,36 @@ def test_art_slots_and_specs(board):
     assert spec["status"] == "spec" and _overview(c)["features"]["specs"][0]["name"] == "Red Alert"
     assert c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "X"}).status_code == 400
     assert c.delete(f"/api/slot-design/demo/specs/{spec['id']}").status_code == 200 and not _overview(c)["features"]["specs"]
+
+
+# ------------------------------------------------------------------ Sprites and Sounds (Phase 5)
+def test_sprites(board):
+    c, _ = board
+    sp = _overview(c)["sprites"]
+    assert sp["win"]["high"]["preset"] == "shine" and sp["colours"]["gold"] == "#f4c94f" and sp["fonts"]["display"] == "Rye-Regular.ttf"
+    assert sp["cabinet"]["lines"] == ["DEMO"] and "Cinzel-SemiBold.ttf" in sp["font_list"]
+    assert c.patch("/api/slot-design/demo/sprites", json={"win": {"high": {"preset": "bounce", "strength": 1.5, "colour": "#33ccff"}},
+        "colours": {"gold": "#33ccff"}, "fonts": {"display": "Cinzel-SemiBold.ttf"},
+        "cabinet": {"trim": "#00aaff", "lines": ["star", "trek"]}}).status_code == 200
+    sp = _overview(c)["sprites"]
+    assert sp["win"]["high"] == {"preset": "bounce", "strength": 1.5, "colour": "#33ccff"} and sp["colours"]["gold"] == "#33ccff"
+    assert sp["cabinet"]["lines"] == ["STAR", "TREK"] and sp["cabinet"]["trim"] == "#00aaff" and sp["fonts"]["display"] == "Cinzel-SemiBold.ttf"
+    for body in [{"win": {"high": {"preset": "wobble"}}}, {"win": {"high": {"strength": 9}}}, {"colours": {"teal": "#000000"}},
+                 {"colours": {"gold": "gold"}}, {"fonts": {"display": "Comic.ttf"}}, {"cabinet": {"lines": ["A", "B", "C"]}}]:
+        assert c.patch("/api/slot-design/demo/sprites", json=body).status_code == 400, body
+    assert c.get("/slot-design-font/demo/Cinzel-SemiBold.ttf").status_code == 200
+    assert c.get("/slot-design-font/demo/..%2Fapp.py").status_code in (400, 404)
+
+
+def test_sounds(board):
+    c, _ = board
+    rows = {r["key"]: r for r in _overview(c)["sounds"]["moments"]}
+    assert "reel_stop" in rows and rows["reel_stop"]["own"] is None and rows["reel_stop"]["inherited"]["from"] in ("slots", "casino")
+    some = c.get("/api/sounds").json()["library"][0]["id"]
+    assert c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [some], "gain_db": -3}).status_code == 200
+    assert {r["key"]: r for r in _overview(c)["sounds"]["moments"]}["reel_stop"]["own"] == {"files": [some], "gain_db": -3.0}
+    assert c.put("/api/slot-design/demo/sounds/deal", json={"files": [some]}).status_code == 400          # a card table's
+    assert c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": ["nope.ogg"]}).status_code == 400
+    assert c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [], "gain_db": 40}).status_code == 400
+    assert c.delete("/api/slot-design/demo/sounds/reel_stop").status_code == 200
+    assert {r["key"]: r for r in _overview(c)["sounds"]["moments"]}["reel_stop"]["own"] is None

@@ -11,6 +11,17 @@ export function loadMath() {
   });
 }
 
+// The design's two fonts (Sprites step), served by the server and added to the page so the canvas can use them.
+const fontsLoaded = new Map();
+export function fontFamily(did, name) {
+  const family = "sd-" + (did + "-" + name).replace(/[^a-z0-9]+/gi, "-");
+  if (!fontsLoaded.has(family)) {
+    const face = new FontFace(family, `url(/slot-design-font/${did}/${encodeURIComponent(name)})`);
+    fontsLoaded.set(family, face.load().then(f => { document.fonts.add(f); return f; }).catch(() => null));
+  }
+  return family;
+}
+
 // Feature and bonus pictures the base game and bonuses draw. Until a design gives its own (Features and Bonus
 // games steps), Armadillo's painted set stands in.
 export const EXTRA_ART = ["barrel", "armadillo", "cylinder", "t_coin", "t_double", "t_forward", "t_heart", "t_lightning",
@@ -63,7 +74,10 @@ export function designConfig(data, img) {
     logo: sc.logo && sc.logo.file ? img(sc.logo.file) : null,
     background: sc.background ? img(sc.background) : null,
     frame: sc.frame || {style: "metal", colour: "#c9a24a"},
-    theme: (data.sprites && data.sprites.theme) || {},
+    theme: {colours: data.sprites.colours,
+            display: `"${fontFamily(data.id, data.sprites.fonts.display)}", Georgia, serif`,
+            cond: `"${fontFamily(data.id, data.sprites.fonts.ui)}", "Arial Narrow", system-ui, sans-serif`},
+    win: data.sprites.win,
     labels: false,
     texts: {title: logoLines.map(l => l.toUpperCase()), tagline: "GOOD LUCK",
             bonus: [`3+ ${symbols.BS.toUpperCase()}`, tr.name.toUpperCase()],

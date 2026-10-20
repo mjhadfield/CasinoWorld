@@ -117,6 +117,12 @@ and Tailscale. It has six tabs:
     shows Armadillo's.
   - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
     code tasks, and once built they join the library.
+  - **Sprites:** win animations per tier group (pulse, bounce, shine, glow or spin, with a strength and glow
+    colour), the screen's nine theme colours and two fonts (any bundled or added font), and the floor cabinet
+    (body, trim, topper lettering and its words), previewed live: **Show it** lays a five-of-a-kind on the mockup.
+  - **Sounds:** the 30 slot moments, each playing what every slot machine plays until given this slot's own
+    (from the Sounds tab's library or an upload, several at random, with a volume trim). Kept in the design until
+    Build gives the slot its sound set.
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads

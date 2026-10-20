@@ -10,6 +10,9 @@ so every method runs under the board's lock and saves through its Design.
   Art slots      the pictures the game draws outside the reels (shared by Features and Bonus games): a board
                  image, or "sym:<id>" to follow a symbol's chosen take
   Specs          a new feature or bonus type, described for building (Build lists them as code tasks)
+  Sprites        win animations per tier group, the screen's colours and fonts (its "theme"), the floor cabinet
+  Sounds         the slot's own sound for any slot moment (sounds.py); the rest play "Every slot machine"'s.
+                 Kept in the design until Build makes the slot's sound set (slots.<id>).
 """
 import io
 from pathlib import Path
@@ -39,6 +42,13 @@ ART_SLOTS = {
     "t_double": ("Trail space: all coins doubled", "bonuses"),
 }
 TRAIL_SPACES = ("snake", "heart", "forward", "back", "lightning", "crate")
+WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
+WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
+# The screen's colours (the mockup's names; Armadillo's values) and fonts.
+THEME_DEFAULTS = {"gold": "#f4c94f", "goldHi": "#fff1b0", "edge": "#d9a54a", "cream": "#f6ead0", "muted": "#b89b74",
+                  "ink": "#2b1004", "win": "#ffe27a", "spin": "#f0b43a", "alert": "#7d130c"}
+FONT_DEFAULTS = {"display": "Rye-Regular.ttf", "ui": "BarlowCondensed-Bold.ttf"}
+CABINET_DEFAULTS = {"body": "#4a2c18", "trim": "#ffb347", "title": "#e8a33a"}
 
 
 def _pairs(v, what: str, lo: float = 0.0) -> list:
@@ -83,6 +93,33 @@ def bonuses_view(d) -> dict:
     return {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **b.get("free", {})},
             "buy": {"enabled": True, "cost": ARMADILLO.buy_cost, **b.get("buy", {})},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "bonus"]}
+
+
+def sprites_view(d) -> dict:
+    sp = d.data.get("sprites", {})
+    win = {g: {"preset": p, "strength": 1.0, "colour": "#ffe27a", **sp.get("win", {}).get(g, {})} for g, p in WIN_DEFAULTS.items()}
+    lines = (d.data.get("scene", {}).get("logo", {}).get("lines") or [d.data.get("name", "")])[:2]
+    return {"win": win, "presets": list(WIN_PRESETS), "colours": {**THEME_DEFAULTS, **sp.get("colours", {})},
+            "fonts": {**FONT_DEFAULTS, **sp.get("fonts", {})}, "font_list": _fonts(d),
+            "cabinet": {**CABINET_DEFAULTS, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
+
+
+def machine_moments() -> dict:
+    """The sound moments a slot machine's own set can change (sounds.shows for a machine's set)."""
+    from casino_server import sounds
+    return {k: m for k, m in sounds.MOMENTS.items() if m["uses"] in ("all", "slots") and m["home"] in ("casino", "slots")}
+
+
+def sounds_view(d, board) -> dict:
+    if board is None:
+        return {"moments": []}
+    own = d.data.get("sounds", {})
+    rows = []
+    for k, m in machine_moments().items():
+        inherited, src = board.resolve("slots", k)
+        rows.append({"key": k, **{x: m[x] for x in ("title", "when", "section", "loop")},
+                     "inherited": {**inherited, "from": src}, "own": own.get(k)})
+    return {"moments": rows}
 
 
 def art_view(d) -> dict:
@@ -143,6 +180,82 @@ def scene_view(d) -> dict:
 
 
 class StepsMixin:
+    sounds = None   # the casino's SoundBoard (app.py sets it), for the Sounds step's library and defaults
+
+    # ------------------------------------------------------------- Sprites
+    def update_sprites(self, did: str, ch: dict) -> None:
+        with self.lock:
+            d = self.design(did)
+            sp = d.data.setdefault("sprites", {})
+            if "win" in ch:
+                win = dict(sp.get("win", {}))
+                for g, v in (ch["win"] or {}).items():
+                    if g not in WIN_DEFAULTS or not isinstance(v, dict):
+                        raise DesignError(f"Win animations are set per {', '.join(WIN_DEFAULTS)}.")
+                    if v.get("preset", "none") not in WIN_PRESETS:
+                        raise DesignError(f"A win animation is one of {', '.join(WIN_PRESETS)}.")
+                    strength = v.get("strength", 1.0)
+                    if not isinstance(strength, (int, float)) or not 0.25 <= strength <= 2:
+                        raise DesignError("Animation strength is 0.25 to 2.")
+                    if not art.is_colour(v.get("colour", "#ffe27a")):
+                        raise DesignError("A glow colour is like #ffe27a.")
+                    win[g] = {"preset": v.get("preset", "none"), "strength": float(strength), "colour": v.get("colour", "#ffe27a")}
+                sp["win"] = win
+            if "colours" in ch:
+                cols = ch["colours"] or {}
+                if set(cols) - set(THEME_DEFAULTS) or not all(art.is_colour(c) for c in cols.values()):
+                    raise DesignError("Theme colours are " + ", ".join(THEME_DEFAULTS) + ", each like #f4c94f.")
+                sp["colours"] = {**sp.get("colours", {}), **cols}
+            if "fonts" in ch:
+                fonts = ch["fonts"] or {}
+                if set(fonts) - set(FONT_DEFAULTS):
+                    raise DesignError("The fonts are display and ui.")
+                for f in fonts.values():
+                    _font_path(d, f)
+                sp["fonts"] = {**sp.get("fonts", {}), **fonts}
+            if "cabinet" in ch:
+                cab = dict(sp.get("cabinet", {}))
+                for k, v in (ch["cabinet"] or {}).items():
+                    if k in CABINET_DEFAULTS:
+                        if not art.is_colour(v):
+                            raise DesignError(f"The cabinet's {k} colour is like #ffb347.")
+                        cab[k] = v
+                    elif k == "lines":
+                        if not isinstance(v, list) or not 1 <= len(v) <= 2:
+                            raise DesignError("The topper has one or two lines.")
+                        cab[k] = [str(x).upper().strip()[:12] for x in v]
+                    else:
+                        raise DesignError(f"Can't change the cabinet's {k!r}.")
+                sp["cabinet"] = cab
+            d.save()
+
+    def font_file(self, did: str, name: str) -> Path:
+        with self.lock:
+            return _font_path(self.design(did), name)
+
+    # ------------------------------------------------------------- Sounds
+    def set_sound(self, did: str, key: str, files, gain_db=0.0) -> None:
+        if key not in machine_moments():
+            raise DesignError(f"{key!r} isn't a slot machine sound.")
+        if not isinstance(files, list) or len(files) > 12:
+            raise DesignError("A moment has up to 12 sounds (one plays at random).")
+        if self.sounds is not None:
+            for f in files:
+                if not self.sounds.file_path(f):
+                    raise DesignError(f"There's no sound {f!r} in the library.")
+        if not isinstance(gain_db, (int, float)) or not -30 <= gain_db <= 12:
+            raise DesignError("Volume trim is -30 to +12 dB.")
+        with self.lock:
+            d = self.design(did)
+            d.data.setdefault("sounds", {})[key] = {"files": list(files), "gain_db": float(gain_db)}
+            d.save()
+
+    def inherit_sound(self, did: str, key: str) -> None:
+        with self.lock:
+            d = self.design(did)
+            d.data.get("sounds", {}).pop(key, None)
+            d.save()
+
     # ------------------------------------------------------------- Features
     def update_features(self, did: str, ch: dict) -> None:
         with self.lock:
