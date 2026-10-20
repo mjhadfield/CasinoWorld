@@ -1,0 +1,36 @@
+# Slot design wizard
+
+**Branch:** `main`
+
+## Goal
+Turn the admin page's Slot design tab into a wizard that builds a slot machine from art to a playable cabinet:
+one tab per design (plus New), eleven steps (Concept, Art, Value ladder, Scene, Features, Bonus games, Sprites,
+Sounds, Maths & payouts, Mockup & sign-off, Build), a mockup to tweak before building, and Star Trek taken all
+the way through as the first. The full plan, agreed with Mike on 2026-10-20, is
+`~/.claude/plans/updates-to-the-slot-snappy-cat.md`.
+
+## Files
+- `server/casino_server/slot_design.py`, `slot_design_art.py`, `slot_design_web/` (the wizard's UI), the Slot
+  design tab in `maintenance.html`, `server/slot_designs/`
+- the slot engine: `server/casino_server/slots/`, `docs/slots/mockup/slots_math.js`
+- the client's slots: `client/scenes/slots/`, `client/autoload/slot_art.gd`, the floor's cabinets
+
+## Done when
+- [x] Phase 1: design tabs + New, step rail, Concept (sheet cutter), Art (Bin, Refine, Fit, theme brief)
+- [ ] Phase 2: Value ladder, Scene, engine generalisation (Armadillo parity unchanged)
+- [ ] Phase 3: base-game mockup from design data
+- [ ] Phase 4: Features and Bonus games
+- [ ] Phase 5: Sprites and Sounds
+- [ ] Phase 6: Maths & payouts (simulate, auto-tune, freeze)
+- [ ] Phase 7: Mockup & sign-off
+- [ ] Phase 8: Build, data variants, client generalisation
+- [ ] Phase 9: Star Trek playable on the floor
+- [ ] `tools/dev.sh test` passes (and `--all` after any maths change)
+
+## Handoff
+- **State:** Phase 1 done; Phase 2 (Value ladder, Scene, engine generalisation) next.
+- **Changed:** Phase 1: `slot_design_web/` (wizard.js, wizard.css, steps/concept.js, art.js, later.js), routes in app.py, migrations in `Design._migrate`.
+- **Checked:** Phase 1: tests in test_slot_design.py; headless run of every Phase 1 control on the dev copy (one real FLUX Refine).
+- **Questions for Mike:** the Value ladder order and the floor spot for Star Trek's cabinets come up in Phase 9.
+- **Rule:** the live server keeps each design in memory and saves over `design.json`, so data changes to a design
+  are migrations in `Design.__init__` (applied on restart), never hand edits while it runs.

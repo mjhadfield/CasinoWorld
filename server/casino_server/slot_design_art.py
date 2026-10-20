@@ -88,6 +88,18 @@ def variation_prompt(kind: str, key: str, note: str = "") -> str:
             "No extra text, no border.")
 
 
+def refine_prompt(kind: str, key: str, instruction: str) -> str:
+    """A targeted edit of one image: everything stays except what the instruction names."""
+    what = "character portrait" if kind == "character" else "slot machine symbol"
+    return (f"Keep this {what} exactly as it is: the same subject, pose, style, colours and composition. Change only "
+            f"this: {instruction.strip().rstrip('.')}. {_bg(key)}, as it is now. No text, no border.")
+
+
+def themed(prompt: str, theme: str = "") -> str:
+    """Lead with the design's theme brief (Concept), so every picture belongs to the same slot."""
+    return f"Theme: {theme.strip().rstrip('.')}. {prompt}" if theme and theme.strip() else prompt
+
+
 # ------------------------------------------------------------------ FLUX
 def _docker(args: list[str], data: bytes | None = None, timeout: float = 900) -> bytes:
     cmd = ["docker", "exec", "-i", "-u", "odysseus", "-e", "HOME=/app", CONTAINER, "curl", "-s", *args]
@@ -180,17 +192,33 @@ def _shadow(im: Image.Image, dy: int) -> Image.Image:
     return Image.alpha_composite(shadow, im)
 
 
-def symbol(im: Image.Image) -> Image.Image:
-    """A keyed object, trimmed, fitted to 86% of 512² and given the set's drop shadow."""
-    im = cutout(im)
+FIT = {"scale": 1.0, "dx": 0.0, "dy": 0.0, "rot": 0.0}
+
+
+def fit_values(fit: dict | None) -> dict:
+    """A Fit (Art step): scale 0.5-1.6, nudge ±160 px, rotate ±45°; anything else is clamped."""
+    f = {**FIT, **{k: float(v) for k, v in (fit or {}).items() if k in FIT}}
+    f["scale"] = min(1.6, max(0.5, f["scale"]))
+    f["dx"], f["dy"] = (min(160.0, max(-160.0, f[k])) for k in ("dx", "dy"))
+    f["rot"] = min(45.0, max(-45.0, f["rot"]))
+    return f
+
+
+def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
+    """A keyed object, trimmed, fitted to 86% of 512² and given the set's drop shadow. An RGBA picture is taken
+    as already keyed (a tile with no raw FLUX picture behind it)."""
+    f = fit_values(fit)
+    im = im if im.mode == "RGBA" else cutout(im)
     bbox = im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox()
     if not bbox:
         raise FluxError("FLUX returned an empty picture")
     im = im.crop(bbox)
-    scale = 0.86 * S / max(im.size)
+    if f["rot"]:
+        im = im.rotate(-f["rot"], resample=Image.BICUBIC, expand=True)
+    scale = 0.86 * S / max(im.size) * f["scale"]
     im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
     layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    layer.paste(im, ((S - im.width) // 2, (S - im.height) // 2 - 6))
+    layer.paste(im, (round((S - im.width) / 2 + f["dx"]), round((S - im.height) / 2 - 6 + f["dy"])))
     return _shadow(layer, 14)
 
 
@@ -267,28 +295,29 @@ def _over(dst, src):
     return np.dstack([(src[..., :3] * sa + dst[..., :3] * da * (1 - sa)) / np.maximum(oa, 1e-6), oa * 255])
 
 
-def _place(bust: Image.Image) -> np.ndarray:
-    """Scale the bust so the head pokes POKE px above the window and the shoulders run off the bottom."""
+def _place(bust: Image.Image, fit: dict) -> np.ndarray:
+    """Scale the bust so the head pokes POKE px above the window and the shoulders run off the bottom; a Fit
+    scales it about that and nudges it."""
     a = np.asarray(bust)[..., 3]
     ys, _ = np.nonzero(a > 24)
     if not len(ys):
         raise FluxError("FLUX returned an empty picture")
     top, bottom = ys.min(), ys.max()
     hx = np.nonzero(a[top:top + (bottom - top) * 2 // 5] > 24)[1].mean()  # centre on the head
-    scale = (IN[3] + 12 - (IN[1] - POKE)) / (bottom - top)
+    scale = (IN[3] + 12 - (IN[1] - POKE)) / (bottom - top) * fit["scale"]
     im = bust.resize((round(bust.width * scale), round(bust.height * scale)), Image.LANCZOS)
     canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    canvas.paste(im, (round(S / 2 - hx * scale), round(IN[1] - POKE - top * scale)), im)
+    canvas.paste(im, (round(S / 2 - hx * scale + fit["dx"]), round(IN[1] - POKE - top * scale + fit["dy"])), im)
     return np.asarray(canvas).astype(np.float32)
 
 
-def compose_character(raw: Image.Image) -> dict[str, Image.Image]:
-    """A FLUX bust in the shared frame, in every frame colour."""
-    char = _place(cutout(raw))
+def compose_character(raw: Image.Image, fit: dict | None = None, hues=None) -> dict[str, Image.Image]:
+    """A FLUX bust in the shared frame, in every frame colour (or just `hues`)."""
+    char = _place(cutout(raw), fit_values(fit))
     above = char.copy()
     above[..., 3] *= np.mgrid[0:S, 0:S][0] < IN[1] + 2
     out = {}
-    for hue in HUES:
+    for hue in hues or HUES:
         border, inner = _frame(hue)
         inside = char.copy()
         inside[..., 3] *= inner
@@ -299,14 +328,16 @@ def compose_character(raw: Image.Image) -> dict[str, Image.Image]:
 
 if __name__ == "__main__":
     # python -m casino_server.slot_design_art rebuild <design>: redo every framed character from its raw bust
-    # (after changing the frame, or on a fresh checkout, where chars/ isn't kept).
+    # and its Fit (after changing the frame, or on a fresh checkout, where chars/ isn't kept).
     import sys
     from pathlib import Path
     if sys.argv[1:2] != ["rebuild"] or len(sys.argv) != 3:
         sys.exit("usage: python -m casino_server.slot_design_art rebuild <design>")
     root = Path(os.environ.get("CASINO_DESIGNS_DIR") or Path(__file__).resolve().parents[1] / "slot_designs") / sys.argv[2]
     (root / "chars").mkdir(exist_ok=True)
+    fits = {vid: f["fit"] for s in json.loads((root / "design.json").read_text())["symbols"]
+            for vid, f in s.get("fits", {}).items()}
     for p in sorted((root / "raw").glob("bust_*.png")):
-        for hue, im in compose_character(Image.open(p)).items():
+        for hue, im in compose_character(Image.open(p).convert("RGB"), fits.get(f"bust/{p.stem[5:]}")).items():
             im.save(root / f"chars/{p.stem[5:]}_{hue}.png", optimize=True)
         print(p.stem, flush=True)

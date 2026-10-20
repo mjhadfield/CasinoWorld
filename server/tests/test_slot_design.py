@@ -172,3 +172,97 @@ def test_keying_and_the_shared_frame():
     assert corner[3] == 0  # outside the frame is clear
     sym = art.symbol(_fake_flux())
     assert sym.size == (512, 512) and sym.getpixel((256, 256))[:3] == (240, 150, 60)
+
+
+# ------------------------------------------------------------------ the wizard (Phase 1)
+def test_old_designs_are_migrated(board):
+    c, d = board
+    o = _overview(c)
+    assert o["concept"]["tiers"] == {"high": 2, "mid": 4, "low": 4} and o["concept"]["target_rtp"] == 91.5
+    assert [s["id"] for s in o["steps"]][:3] == ["concept", "art", "ladder"] and len(o["steps"]) == 11
+    assert {s["id"]: s["status"] for s in o["steps"]}["art"] == "doing"
+    ship = _sym(o, "ship")
+    assert [v["id"] for v in ship["binned"]] == ["cut/ship_2.png"]  # round 1's hidden takes are in the Bin
+    saved = json.loads((d / "design.json").read_text())
+    assert "hidden" not in saved["symbols"][0]
+    assert {k["id"]: k["role"] for k in saved["categories"]} == {"set1": "high", "set2": "mid", "bonus": None}
+
+
+def test_new_design_and_the_concept(board):
+    c, _ = board
+    did = c.post("/api/slot-design", json={"name": "Pirate Gold", "brief": "pirates of the Caribbean"}).json()["id"]
+    assert did == "pirate_gold" and c.post("/api/slot-design", json={"name": " "}).status_code == 400
+    o = c.get(f"/api/slot-design/{did}").json()
+    assert o["concept"]["brief"] == "pirates of the Caribbean"
+    royals = [s["id"] for s in o["symbols"] if s["category"] == "royals"]
+    assert royals == ["a", "k", "q", "j"] and o["pending"] == 7  # four royals and three specials wait for Generate
+    assert c.patch(f"/api/slot-design/{did}/concept", json={"tiers": {"high": 3, "mid": 4, "low": 5}}).status_code == 200
+    req = {k["role"]: k["required"] for k in c.get(f"/api/slot-design/{did}").json()["categories"]}
+    assert req == {"low": 5, "high": 3, "mid": 4, "specials": 3, None: None}
+    assert c.patch(f"/api/slot-design/{did}/concept", json={"tiers": {"high": 0, "mid": 4, "low": 5}}).status_code == 400
+    assert c.patch(f"/api/slot-design/{did}/concept", json={"target_rtp": 120}).status_code == 400
+    assert c.put(f"/api/slot-design/{did}/steps/concept", json={"status": "done"}).status_code == 200
+    assert c.put(f"/api/slot-design/{did}/steps/concept", json={"status": "nearly"}).status_code == 400
+    assert c.get("/api/slot-design").json()["designs"][1]["name"] == "Pirate Gold"
+
+
+def test_the_sheet_cutter(board):
+    c, d = board
+    sheet = c.put("/api/slot-design/demo/sources/My Sheet.png", content=_png(size=(400, 200))).json()["path"]
+    assert sheet == "source/my_sheet.png" and _overview(c)["sources"] == [sheet]
+    made = c.post("/api/slot-design/demo/cuts", json={"sheet": sheet, "boxes": [
+        {"x": 0, "y": 0, "w": 200, "h": 200, "name": "Moon", "category": "set2"},
+        {"x": 200, "y": 0, "w": 200, "h": 100, "name": "Ship", "category": "set1", "key": "green"}]}).json()["made"]
+    assert made == ["moon", "ship_2"]
+    assert Image.open(d / "ref/ship_2.png").size == (1024, 1024)
+    o = _overview(c)
+    assert _sym(o, "ship_2")["kind"] == "character" and _sym(o, "ship_2")["key"] == "green" and o["pending"] == 2
+    bad = {"sheet": sheet, "boxes": [{"x": 0, "y": 0, "w": 8, "h": 8, "name": "Tiny", "category": "set2"}]}
+    assert c.post("/api/slot-design/demo/cuts", json=bad).status_code == 400
+    assert c.post("/api/slot-design/demo/cuts", json={"sheet": "ref/ship.png", "boxes": bad["boxes"]}).status_code == 400
+
+
+def test_bin_and_restore(board):
+    c, _ = board
+    assert c.post("/api/slot-design/demo/symbols/ship/bin", json={"variant": "cut/ship_4.png"}).status_code == 200
+    ship = _sym(_overview(c), "ship")
+    assert [v["id"] for v in ship["variants"]] == ["cut/ship_1.png"]
+    assert [v["id"] for v in ship["binned"]] == ["cut/ship_2.png", "cut/ship_4.png"]
+    assert c.post("/api/slot-design/demo/symbols/ship/restore", json={"variant": "cut/ship_2.png"}).status_code == 200
+    assert [v["id"] for v in _sym(_overview(c), "ship")["variants"]] == ["cut/ship_1.png", "cut/ship_2.png"]
+    assert c.post("/api/slot-design/demo/symbols/ship/restore", json={"variant": "cut/ship_1.png"}).status_code == 400
+    assert c.post("/api/slot-design/demo/symbols/ship/bin", json={"variant": "cut/nope.png"}).status_code == 400
+
+
+def test_refine_is_one_targeted_take_led_by_the_theme(board, monkeypatch):
+    c, _ = board
+    prompts = []
+    monkeypatch.setattr(art, "flux_edit", lambda im, p: prompts.append(p) or _fake_flux())
+    c.patch("/api/slot-design/demo/concept", json={"brief": "Deep-space salvage crews"})
+    job = c.post("/api/slot-design/demo/symbols/ship/refine", json={"variant": "cut/ship_4.png", "instruction": "paint it red"}).json()["job"]
+    assert job["count"] == 1 and job["src"] == "raw/ship_4.png"
+    assert c.post("/api/slot-design/demo/symbols/ship/refine", json={"variant": "cut/ship_4.png", "instruction": ""}).status_code == 400
+    _wait_idle(c)
+    ship = _sym(_overview(c), "ship")
+    assert ship["variants"][-1] == {"id": "cut/ship_5.png", "label": "Take 4, refined", "src": "cut/ship_5.png"}
+    assert prompts[0].startswith("Theme: Deep-space salvage crews. Keep this slot machine symbol exactly") and "paint it red" in prompts[0]
+
+
+def test_fit_previews_and_saves_a_new_take(board):
+    c, d = board
+    (d / "raw/ship_4.png").write_bytes(io.BytesIO(_png()).getvalue())
+    _fake_flux().save(d / "raw/ship_4.png")
+    r = c.post("/api/slot-design/demo/symbols/ship/fit-preview", json={"variant": "cut/ship_4.png", "fit": {"scale": 0.6}})
+    assert r.headers["content-type"] == "image/png" and Image.open(io.BytesIO(r.content)).size == (512, 512)
+    new = c.post("/api/slot-design/demo/symbols/ship/fit", json={"variant": "cut/ship_4.png", "fit": {"scale": 0.6, "dx": 500}}).json()["variant"]
+    assert new == "cut/ship_5.png"
+    ship = _sym(_overview(c), "ship")
+    assert ship["choice"] == new and ship["fits"][new] == {"src": "raw/ship_4.png", "fit": {"scale": 0.6, "dx": 160.0, "dy": 0.0, "rot": 0.0}}
+    assert ship["variants"][-1]["label"] == "Take 4, fitted"
+    # a Fit of a Fit starts again from the original picture
+    again = c.post("/api/slot-design/demo/symbols/ship/fit", json={"variant": new, "fit": {"scale": 1.2}}).json()["variant"]
+    assert _sym(_overview(c), "ship")["fits"][again]["src"] == "raw/ship_4.png"
+    # characters are refitted inside the frame, in every colour
+    _fake_flux().save(d / "raw/bust_hero_1.png")
+    hero = c.post("/api/slot-design/demo/symbols/hero/fit", json={"variant": "bust/hero_1", "fit": {"scale": 0.8, "dy": 20}}).json()["variant"]
+    assert hero == "bust/hero_2" and all((d / f"chars/hero_2_{h}.png").exists() for h in art.HUES)

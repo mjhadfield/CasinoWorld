@@ -1,17 +1,23 @@
 """
-The admin page's Slot design tab: a working board for a slot machine's art, from reference sheets to the
-final symbol set. Star Trek is the first design; any later slot starts as a new folder.
+The admin page's Slot design tab: a wizard that builds a slot machine, one design per folder, in steps (STEPS):
+Concept, Art, Value ladder, Scene, Features, Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off
+and Build. Star Trek is the first design; New design starts another from TEMPLATE.
 
 A design is a folder under server/slot_designs/<id>/ (CASINO_DESIGNS_DIR moves it, for tests and the dev
 instance):
-  design.json      the board: categories (with how many symbols the main game needs), symbols, choices, jobs
-  source/          the reference sheets the design started from
-  ref/             one reference crop per symbol (docs/slots/tools/startrek_crop.py made Star Trek's)
+  design.json      the design: concept, step statuses, categories (with how many symbols the main game needs),
+                   symbols and their choices, jobs, and each later step's settings
+  source/          reference sheets (uploaded on the Concept step, where the sheet cutter cuts them up)
+  ref/             one reference crop per symbol
   links/           reference images linked on the page (uploaded or fetched from a URL)
   raw/             what FLUX returned, before keying: <id>_<n>.png (objects), bust_<id>_<n>.png (characters)
   cut/             objects, keyed and fitted to 512²: <id>_<n>.png
   chars/           characters in the shared frame, one per frame colour: <id>_<n>_<hue>.png
-A symbol's variants are found from those files, so anything added by hand shows up too.
+A symbol's variants are found from those files, so anything added by hand shows up too; binned ones (the Art
+step's Bin) are hidden until restored, and nothing is ever deleted.
+
+The live server keeps each design in memory and saves over design.json, so changes to the format are
+migrations in Design._migrate (applied when the server loads a design), never hand edits.
 
 Generate queues a job per symbol marked Reiterate or newly added; one background task (run(), on
 app.state for the server's lifespan) works through them with FLUX in Odysseus (slot_design_art.py).
@@ -26,6 +32,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from PIL import Image, UnidentifiedImageError
+
 from casino_server import slot_design_art as art
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
@@ -34,6 +42,37 @@ MAX_IMAGE = 12 * 1024 * 1024
 TAKES = 3  # images per job
 KINDS = ("object", "character")
 KEYS = ("magenta", "green")
+STEPS = [("concept", "Concept"), ("art", "Art"), ("ladder", "Value ladder"), ("scene", "Scene"),
+         ("features", "Features"), ("bonuses", "Bonus games"), ("sprites", "Sprites"), ("sounds", "Sounds"),
+         ("maths", "Maths & payouts"), ("mockup", "Mockup & sign-off"), ("build", "Build")]
+STATUSES = ("todo", "doing", "done")
+VOLATILITY = ("low", "medium", "high")
+# The house standard (Armadillo Goes West): 2 high pays, 4 mid, 4 low, a Wild and two scatters.
+TIER_SHAPE = {"high": 2, "mid": 4, "low": 4}
+TIER_LIMITS = {"high": (1, 6), "mid": (1, 8), "low": (2, 8)}
+ROLE_TITLES = {"low": "Royals", "high": "Symbol set 1 · high pays", "mid": "Symbol set 2 · mid pays",
+               "specials": "Specials · wild & scatters", None: "Bonus screens"}
+ROYALS = ["A", "K", "Q", "J", "10", "9", "8", "7"]
+SPECIALS = [("wild", "Wild", "word WILD", "the WILD symbol: the word WILD on an emblem of the theme"),
+            ("bonus_scatter", "Bonus scatter", "word BONUS", "the bonus scatter symbol: the word BONUS on a badge of the theme"),
+            ("free_spins", "Free-spins scatter", "words FREE SPINS", "the free-spins scatter symbol: the words FREE SPINS on a badge of the theme")]
+
+
+def _template(name: str, brief: str) -> dict:
+    """A new design: the house standard's categories, and starter royals and specials waiting for Generate."""
+    cats = [{"id": cid, "title": ROLE_TITLES[role], "role": role, "kind": kind,
+             "required": TIER_SHAPE[role] if role in TIER_SHAPE else 3 if role == "specials" else None}
+            for cid, role, kind in (("royals", "low", "object"), ("set1", "high", "character"), ("set2", "mid", "object"),
+                                    ("specials", "specials", "object"), ("bonus", None, "object"))]
+    symbols = [{"id": _slug(r), "name": r, "category": "royals", "kind": "object", "key": "magenta",
+                "keep_text": f"{'number' if r.isdigit() else 'letter'} {r}", "refs": [], "added": True,
+                "pending_new": True, "hue": "gold",
+                "prompt": f"the {'number' if r.isdigit() else 'letter'} {r} as a royal (card rank) symbol"}
+               for r in ROYALS[:TIER_SHAPE["low"]]]
+    symbols += [{"id": sid, "name": nm, "category": "specials", "kind": "object", "key": "magenta", "keep_text": keep,
+                 "refs": [], "added": True, "pending_new": True, "hue": "gold", "prompt": prompt}
+                for sid, nm, keep, prompt in SPECIALS]
+    return {"name": name, "concept": {"brief": brief}, "categories": cats, "symbols": symbols, "jobs": []}
 
 
 class DesignError(ValueError):
@@ -59,9 +98,34 @@ class Design:
         self.folder = folder
         self.id = folder.name
         self.data = json.loads((folder / "design.json").read_text())
-        for job in self.data.setdefault("jobs", []):
+        before = json.dumps(self.data, sort_keys=True)
+        self._migrate()
+        for job in self.data["jobs"]:
             if job["status"] in ("running", "waiting"):
                 job["status"] = "queued"  # the server stopped mid-job: carry on
+        if json.dumps(self.data, sort_keys=True) != before:
+            self.save()
+
+    def _migrate(self):
+        """Bring an older design.json up to date (see the module docstring)."""
+        d = self.data
+        d.setdefault("jobs", [])
+        roles = {"royals": "low", "set1": "high", "set2": "mid", "specials": "specials"}
+        for c in d.setdefault("categories", []):
+            c.setdefault("role", roles.get(c["id"]))
+        req = {c["role"]: c.get("required") for c in d["categories"] if c.get("role") in TIER_SHAPE}
+        concept = d.setdefault("concept", {})
+        concept.setdefault("brief", "")
+        concept.setdefault("style", "")
+        concept.setdefault("tiers", {k: req.get(k) or v for k, v in TIER_SHAPE.items()})
+        concept.setdefault("target_rtp", 91.5)
+        concept.setdefault("volatility", "medium")
+        steps = d.setdefault("steps", {})
+        for sid, _ in STEPS:
+            steps.setdefault(sid, "doing" if sid == "art" and d.get("symbols") else "todo")
+        for s in d.setdefault("symbols", []):
+            if "hidden" in s:  # round 1's unpicked takes: into the Bin, where they can be restored
+                s["binned"] = list(dict.fromkeys(s.get("binned", []) + s.pop("hidden")))
 
     def save(self):
         tmp = self.folder / "design.json.tmp"
@@ -87,20 +151,48 @@ class Design:
         return path
 
     # ------------------------------------------------------------- variants
-    def variants(self, s: dict) -> list[dict]:
+    def all_variants(self, s: dict) -> list[dict]:
+        """Every variant on disk, binned or not, with any label a Refine or Fit gave it."""
         sid, out = s["id"], []
         fav = s.get("favourite")
-        hidden = set(s.get("hidden", [])) | {fav}
         if fav and self.path(fav):
             out.append({"id": fav, "label": "Favourite", "fav": True, "src": fav})
         for n, p in _numbered(self.folder / "cut", sid).items():
-            if f"cut/{p.name}" not in hidden:
+            if f"cut/{p.name}" != fav:
                 out.append({"id": f"cut/{p.name}", "label": f"Take {n}", "src": f"cut/{p.name}"})
         for n in _numbered(self.folder / "raw", f"bust_{sid}"):
             hues = {h: f"chars/{sid}_{n}_{h}.png" for h in art.HUES if (self.folder / f"chars/{sid}_{n}_{h}.png").exists()}
-            if hues and f"bust/{sid}_{n}" not in hidden:
+            if hues:
                 out.append({"id": f"bust/{sid}_{n}", "label": f"Framed {n}", "hues": hues})
+        labels = s.get("labels", {})
+        for v in out:
+            v["label"] = labels.get(v["id"], v["label"])
         return out
+
+    def variants(self, s: dict) -> list[dict]:
+        binned = set(s.get("binned", []))
+        return [v for v in self.all_variants(s) if v["id"] not in binned]
+
+    def binned(self, s: dict) -> list[dict]:
+        binned = set(s.get("binned", []))
+        return [v for v in self.all_variants(s) if v["id"] in binned]
+
+    def variant(self, s: dict, vid: str) -> dict:
+        v = next((v for v in self.all_variants(s) if v["id"] == vid), None)
+        if not v:
+            raise DesignError(f"{vid!r} isn't one of {s['id']}'s variants.")
+        return v
+
+    def raw_of(self, s: dict, vid: str) -> tuple[str, dict]:
+        """The picture a variant was made from (relative path) and the Fit it was made with: a Fit or Refine
+        starts from there, not from the finished tile."""
+        fit = s.get("fits", {}).get(vid)
+        if fit:
+            return fit["src"], fit["fit"]
+        if vid.startswith("bust/"):
+            return f"raw/bust_{vid.split('/', 1)[1]}.png", {}
+        raw = "raw/" + Path(vid).name
+        return (raw if (self.folder / raw).is_file() else vid), {}
 
     def chosen(self, s: dict) -> dict | None:
         vs = self.variants(s)
@@ -157,14 +249,19 @@ class DesignBoard:
                     **{k: s.get(k) for k in ("id", "name", "category", "kind", "key", "keep_text", "prompt", "hue", "note", "base")},
                     "keep": bool(s.get("keep")), "reiterate": bool(s.get("reiterate")), "added": bool(s.get("added")),
                     "pending_new": bool(s.get("pending_new")), "refs": s.get("refs", []),
-                    "variants": d.variants(s), "choice": v["id"] if v else None, "file": d.chosen_file(s),
+                    "variants": d.variants(s), "binned": d.binned(s), "fits": s.get("fits", {}),
+                    "choice": v["id"] if v else None, "file": d.chosen_file(s),
                     "job": active[-1] if active else None})
             categories = []
             for c in d.data["categories"]:
                 mine = [s for s in d.data["symbols"] if s["category"] == c["id"]]
                 categories.append({**c, "count": len(mine), "in_set": sum(bool(s.get("keep")) for s in mine)})
             running = next((j for j in jobs if j["status"] in ("running", "waiting")), None)
+            sources = sorted(f"source/{p.name}" for p in (d.folder / "source").glob("*.png")) \
+                if (d.folder / "source").is_dir() else []
             return {"id": d.id, "name": d.data.get("name", d.id), "note": d.data.get("note", ""),
+                    "concept": d.data["concept"], "sources": sources, "signed_off": d.data.get("signed_off"),
+                    "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),
                     "pending": sum(bool(s.get("reiterate") or s.get("pending_new")) for s in d.data["symbols"]),
                     "queued": sum(j["status"] == "queued" for j in jobs), "running": running}
@@ -238,12 +335,7 @@ class DesignBoard:
                 raise DesignError(f"Not on the board: {ref}")
             if not prompt and not ref:
                 raise DesignError("Describe the new symbol, or link a reference image for it (or both).")
-            base, sid, i = _slug(name) or "symbol", None, 1
-            taken = {s["id"] for s in d.data["symbols"]}
-            sid = base
-            while sid in taken:
-                i += 1
-                sid = f"{base}_{i}"
+            sid = self._new_id(d, name)
             d.data["symbols"].append({"id": sid, "name": name, "category": category, "kind": kind,
                                       "key": body.get("key") if body.get("key") in KEYS else "magenta",
                                       "prompt": prompt, "refs": [ref] if ref else [], "added": True, "pending_new": True,
@@ -280,29 +372,11 @@ class DesignBoard:
     # ------------------------------------------------------------- linking reference images
     def link_image(self, did: str, filename: str, data: bytes) -> str:
         """Store an uploaded (or fetched) image under links/, fitted within 1024²."""
-        from PIL import Image, UnidentifiedImageError
         d = self.design(did)
-        if not data:
-            raise DesignError("That file is empty.")
-        if len(data) > MAX_IMAGE:
-            raise DesignError("That image is over 12 MB.")
-        try:
-            im = Image.open(io.BytesIO(data))
-            im.load()
-        except (UnidentifiedImageError, OSError):
-            raise DesignError("That isn't an image the server can read (use PNG, JPEG or WebP).")
-        im = im.convert("RGBA")
+        im = self._read_image(data)
         im.thumbnail((1024, 1024), Image.LANCZOS)
-        stem = _slug(Path(filename).stem) or "image"
         with self.lock:
-            folder = d.folder / "links"
-            folder.mkdir(exist_ok=True)
-            n, name = 1, f"{stem}.png"
-            while (folder / name).exists():
-                n += 1
-                name = f"{stem}_{n}.png"
-            im.save(folder / name)
-        return f"links/{name}"
+            return self._save_unique(im, d.folder / "links", _slug(Path(filename).stem) or "image", "links")
 
     def link_url(self, did: str, url: str) -> str:
         if not re.match(r"https?://", url or ""):
@@ -316,13 +390,239 @@ class DesignBoard:
         name = Path(url.split("?")[0].rstrip("/")).name or "web-image"
         return self.link_image(did, name, data)
 
+    # ------------------------------------------------------------- designs, Concept and step statuses
+    def create_design(self, name: str, brief: str = "") -> str:
+        name = str(name or "").strip()[:40]
+        if not name:
+            raise DesignError("Give the new slot a name.")
+        with self.lock:
+            did, i = _slug(name) or "slot", 1
+            base = did
+            while did in self.designs or (self.root / did).exists():
+                i += 1
+                did = f"{base}_{i}"
+            folder = self.root / did
+            for sub in ("source", "ref", "links", "raw", "cut", "chars"):
+                (folder / sub).mkdir(parents=True)
+            (folder / "design.json").write_text(json.dumps(_template(name, str(brief or "").strip()[:600]), indent=1))
+            self.designs[did] = Design(folder)
+            return did
+
+    def update_concept(self, did: str, ch: dict) -> None:
+        with self.lock:
+            d = self.design(did)
+            c = d.data["concept"]
+            for k, v in ch.items():
+                if k == "name":
+                    if not str(v).strip():
+                        raise DesignError("The slot needs a name.")
+                    d.data["name"] = str(v).strip()[:40]
+                elif k in ("brief", "style"):
+                    c[k] = str(v or "").strip()[:600]
+                elif k == "target_rtp":
+                    if not isinstance(v, (int, float)) or not 85 <= v <= 98:
+                        raise DesignError("The target return is a percentage from 85 to 98.")
+                    c[k] = round(float(v), 2)
+                elif k == "volatility":
+                    if v not in VOLATILITY:
+                        raise DesignError("Volatility is low, medium or high.")
+                    c[k] = v
+                elif k == "tiers":
+                    if not isinstance(v, dict) or set(v) != set(TIER_SHAPE):
+                        raise DesignError("The tier shape gives how many high, mid and low pays.")
+                    for tier, n in v.items():
+                        lo, hi = TIER_LIMITS[tier]
+                        if not isinstance(n, int) or not lo <= n <= hi:
+                            raise DesignError(f"{tier.title()} pays: a whole number from {lo} to {hi}.")
+                    c["tiers"] = dict(v)
+                    for cat in d.data["categories"]:  # the Art step's counts follow the shape
+                        if cat.get("role") in v:
+                            cat["required"] = v[cat["role"]]
+                else:
+                    raise DesignError(f"Can't change {k!r}.")
+            d.save()
+
+    def set_step(self, did: str, step: str, status: str) -> None:
+        if step not in dict(STEPS) or status not in STATUSES:
+            raise DesignError("A step is todo, doing or done.")
+        with self.lock:
+            d = self.design(did)
+            d.data["steps"][step] = status
+            d.save()
+
+    def add_source(self, did: str, filename: str, data: bytes) -> str:
+        """A reference sheet for the sheet cutter (kept up to 4096 px)."""
+        im = self._read_image(data)
+        im.thumbnail((4096, 4096), Image.LANCZOS)
+        with self.lock:
+            d = self.design(did)
+            return self._save_unique(im, d.folder / "source", _slug(Path(filename).stem) or "sheet", "source")
+
+    def cut_sheet(self, did: str, sheet: str, boxes: list) -> list[str]:
+        """Cut boxes out of a sheet, each into a new symbol with its reference crop, waiting for Generate."""
+        with self.lock:
+            d = self.design(did)
+            path = d.path(sheet, ("source",))
+            if not path:
+                raise DesignError(f"There's no sheet {sheet!r}.")
+            if not isinstance(boxes, list) or not boxes:
+                raise DesignError("Draw at least one box on the sheet.")
+            im = Image.open(path).convert("RGB")
+            made = []
+            for b in boxes:
+                try:
+                    x, y, w, h = (int(round(float(b[k]))) for k in ("x", "y", "w", "h"))
+                except (KeyError, TypeError, ValueError):
+                    raise DesignError("Each box needs x, y, w and h.")
+                x, y = max(0, x), max(0, y)
+                w, h = min(w, im.width - x), min(h, im.height - y)
+                if w < 16 or h < 16:
+                    raise DesignError("A box is too small (16 px at least).")
+                name = str(b.get("name") or "").strip()[:40]
+                if not name:
+                    raise DesignError("Name every box.")
+                category = b.get("category")
+                if category not in d.category_ids():
+                    raise DesignError(f"There's no category {category!r}.")
+                kind = b.get("kind") or next(c.get("kind", "object") for c in d.data["categories"] if c["id"] == category)
+                if kind not in KINDS:
+                    raise DesignError("A symbol is an object or a character.")
+                sid = self._new_id(d, name)
+                (d.folder / "ref").mkdir(exist_ok=True)
+                art.fit_square(im.crop((x, y, x + w, y + h)), 1024).save(d.folder / f"ref/{sid}.png")
+                d.data["symbols"].append({"id": sid, "name": name, "category": category, "kind": kind,
+                                          "key": b.get("key") if b.get("key") in KEYS else "magenta", "prompt": "",
+                                          "refs": [f"ref/{sid}.png"], "added": True, "pending_new": True, "hue": "gold"})
+                made.append(sid)
+            d.save()
+            return made
+
+    def _new_id(self, d: Design, name: str) -> str:
+        taken = {s["id"] for s in d.data["symbols"]}
+        base = sid = _slug(name) or "symbol"
+        i = 1
+        while sid in taken:
+            i += 1
+            sid = f"{base}_{i}"
+        return sid
+
+    def _read_image(self, data: bytes) -> Image.Image:
+        if not data:
+            raise DesignError("That file is empty.")
+        if len(data) > MAX_IMAGE:
+            raise DesignError("That image is over 12 MB.")
+        try:
+            im = Image.open(io.BytesIO(data))
+            im.load()
+        except (UnidentifiedImageError, OSError):
+            raise DesignError("That isn't an image the server can read (use PNG, JPEG or WebP).")
+        return im.convert("RGBA")
+
+    def _save_unique(self, im, folder: Path, stem: str, prefix: str) -> str:
+        folder.mkdir(exist_ok=True)
+        n, name = 1, f"{stem}.png"
+        while (folder / name).exists():
+            n += 1
+            name = f"{stem}_{n}.png"
+        im.save(folder / name)
+        return f"{prefix}/{name}"
+
+    # ------------------------------------------------------------- Art: Bin, Refine and Fit
+    def bin_variant(self, did: str, sid: str, vid: str) -> None:
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+            d.variant(s, vid)
+            if vid not in s.setdefault("binned", []):
+                s["binned"].append(vid)
+            if s.get("choice") == vid:
+                s.pop("choice")
+            d.save()
+
+    def restore_variant(self, did: str, sid: str, vid: str) -> None:
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+            if vid not in s.get("binned", []):
+                raise DesignError(f"{vid!r} isn't in the Bin.")
+            s["binned"].remove(vid)
+            d.save()
+
+    def refine(self, did: str, sid: str, vid: str, instruction: str) -> dict:
+        """Queue one targeted FLUX edit of a variant: everything kept but what the instruction names."""
+        instruction = str(instruction or "").strip()[:400]
+        if not instruction:
+            raise DesignError("Say what to change.")
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+            v = d.variant(s, vid)
+            src, _ = d.raw_of(s, vid)
+            if not d.path(src, SERVED + ("raw",)):
+                raise DesignError("There's no picture behind that variant to refine.")
+            job = self._queue(d, s, {"how": "refine", "src": src, "text": instruction, "action": "refine",
+                                     "out": "character" if "hues" in v else "object",
+                                     "label": f"{v['label']}, refined"}, count=1)
+            d.save()
+            return job
+
+    def _fit_render(self, d: Design, s: dict, vid: str, fit: dict, hues=None):
+        v = d.variant(s, vid)
+        src, _ = d.raw_of(s, vid)
+        path = d.path(src, SERVED + ("raw",))
+        if not path:
+            raise DesignError("There's no picture behind that variant to fit.")
+        im = Image.open(path)
+        if "hues" in v:
+            return src, art.compose_character(im.convert("RGB"), fit, hues)
+        return src, art.symbol(im if im.mode == "RGBA" else im.convert("RGB"), fit)
+
+    def fit_preview(self, did: str, sid: str, vid: str, fit: dict, hue: str = "gold") -> bytes:
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+        _, out = self._fit_render(d, s, vid, fit, [hue if hue in art.HUES else "gold"])
+        im = next(iter(out.values())) if isinstance(out, dict) else out
+        buf = io.BytesIO()
+        im.save(buf, "PNG")
+        return buf.getvalue()
+
+    def fit_save(self, did: str, sid: str, vid: str, fit: dict) -> str:
+        """A new variant: the same picture, refitted. A Fit of a Fit starts again from the original."""
+        import shutil
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+            label = d.variant(s, vid)["label"]
+        f = art.fit_values(fit)
+        src, out = self._fit_render(d, s, vid, f)
+        with self.lock:
+            character = isinstance(out, dict)
+            prefix = f"bust_{sid}" if character else sid
+            n = d.next_n(prefix)
+            (d.folder / "raw").mkdir(exist_ok=True)
+            if src.startswith("raw/"):
+                shutil.copyfile(d.folder / src, d.folder / f"raw/{prefix}_{n}.png")
+            if character:
+                (d.folder / "chars").mkdir(exist_ok=True)
+                for hue, im in out.items():
+                    im.save(d.folder / f"chars/{sid}_{n}_{hue}.png", optimize=True)
+                new = f"bust/{sid}_{n}"
+            else:
+                (d.folder / "cut").mkdir(exist_ok=True)
+                out.save(d.folder / f"cut/{sid}_{n}.png", optimize=True)
+                new = f"cut/{sid}_{n}.png"
+            s.setdefault("fits", {})[new] = {"src": src, "fit": f}
+            s.setdefault("labels", {})[new] = f"{label.split(', fitted')[0]}, fitted"
+            s["choice"] = new
+            d.save()
+            return new
+
     # ------------------------------------------------------------- jobs
     def generate(self, did: str) -> int:
         """Queue a job for every symbol marked Reiterate or newly added. Returns how many were queued."""
         with self.lock:
             d = self.design(did)
-            jobs = d.data["jobs"]
-            next_id = max((j["id"] for j in jobs), default=0) + 1
             queued = 0
             for s in d.data["symbols"]:
                 if s.get("pending_new"):
@@ -336,15 +636,21 @@ class DesignBoard:
                     s.setdefault("history", []).append({"from": job["src"], "note": job["text"]})
                 else:
                     continue
-                jobs.append({"id": next_id, "symbol": s["id"], "status": "queued", "done": 0, "count": TAKES,
-                             "made": [], "error": "", **job})
-                next_id += 1
+                self._queue(d, s, job)
                 queued += 1
-            d.data["jobs"] = [j for j in jobs if j["status"] != "done"][-100:] + \
-                [j for j in jobs if j["status"] == "done"][-50:]
-            d.data["jobs"].sort(key=lambda j: j["id"])
             d.save()
             return queued
+
+    def _queue(self, d: Design, s: dict, job: dict, count: int = TAKES) -> dict:
+        """Add a job (the caller saves). Keeps the last 50 finished jobs as a record."""
+        jobs = d.data["jobs"]
+        job = {"id": max((j["id"] for j in jobs), default=0) + 1, "symbol": s["id"], "status": "queued",
+               "done": 0, "count": count, "made": [], "error": "", **job}
+        jobs.append(job)
+        done = [j for j in jobs if j["status"] == "done"]
+        if len(done) > 50:
+            d.data["jobs"] = [j for j in jobs if j["status"] != "done" or j in done[-50:]]
+        return job
 
     def _reiterate_job(self, d: Design, s: dict) -> dict:
         note = s.get("note", "")
@@ -356,12 +662,9 @@ class DesignBoard:
                 return {"how": "redraw", "src": s["refs"][0], "text": note, "out": s["kind"], "action": "reiterate"}
             return {"how": "text", "src": None, "text": f"{s.get('prompt', '')} {note}".strip(), "out": s["kind"],
                     "action": "reiterate"}
-        if "hues" in v:  # a framed character: vary the bust it was made from
-            return {"how": "variation", "src": f"raw/bust_{v['id'].split('/', 1)[1]}.png", "text": note,
-                    "out": "character", "action": "reiterate"}
-        raw = "raw/" + Path(v["src"]).name
-        return {"how": "variation", "src": raw if (d.folder / raw).exists() else v["src"], "text": note,
-                "out": "object", "action": "reiterate"}
+        src, _ = d.raw_of(s, v["id"])  # a framed character varies the bust it was made from
+        return {"how": "variation", "src": src, "text": note, "out": "character" if "hues" in v else "object",
+                "action": "reiterate"}
 
     def retry(self, did: str, job_id: int) -> None:
         with self.lock:
@@ -401,8 +704,12 @@ class DesignBoard:
             key, keep_text = s.get("key", "magenta"), s.get("keep_text")
             prefix = f"bust_{s['id']}" if job["out"] == "character" else s["id"]
             n = d.next_n(prefix)
+            c = d.data["concept"]
+            theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
         i, text, how = job["done"] + 1, job.get("text", ""), job["how"]
-        if job["out"] == "character":
+        if how == "refine":
+            prompt = art.refine_prompt(job["out"], key, text)
+        elif job["out"] == "character":
             prompt = (art.bust_text_prompt(key, text) if how == "text" else
                       art.variation_prompt("character", key, text) if how == "variation" else art.bust_prompt(key, text))
         else:
@@ -410,13 +717,12 @@ class DesignBoard:
                       art.variation_prompt("object", key, text) if how == "variation" else
                       art.object_prompt(i, key, keep_text, text))
         if how == "text":
-            raw = art.flux_generate(prompt)
+            raw = art.flux_generate(art.themed(prompt, theme))
         else:
-            from PIL import Image
             src = d.path(job["src"], SERVED + ("raw",))
             if not src:
                 raise art.FluxError(f"The reference {job['src']} has gone.")
-            raw = art.flux_edit(Image.open(src), prompt)
+            raw = art.flux_edit(Image.open(src), art.themed(prompt, theme))
         if job["out"] == "character":
             tiles = art.compose_character(raw)
         else:
@@ -429,8 +735,12 @@ class DesignBoard:
             if job["out"] == "character":
                 for hue, im in tiles.items():
                     im.save(d.folder / f"chars/{s['id']}_{n}_{hue}.png", optimize=True)
+                vid = f"bust/{s['id']}_{n}"
             else:
                 tile.save(d.folder / f"cut/{prefix}_{n}.png", optimize=True)
+                vid = f"cut/{prefix}_{n}.png"
+            if job.get("label"):
+                s.setdefault("labels", {})[vid] = job["label"].replace("{n}", str(n))
         return f"{prefix}_{n}"
 
     async def run(self):

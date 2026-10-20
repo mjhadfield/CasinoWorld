@@ -1,0 +1,89 @@
+/* The Slot design wizard (slot_design_web/). It uses the admin page's colour tokens (--panel, --gold, ...), so it
+   follows the page's light and dark themes. wz-*: the shell; dz-*: the Art board; cut-*: the sheet cutter. */
+.wz-designs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.wz-designs button[role=tab] { font-weight: 600; }
+.wz-designs button[aria-selected="true"] { background: var(--felt); border-color: var(--felt); color: var(--panel); }
+.wz-new { margin-bottom: 10px; }
+.wz-new[hidden] { display: none; }
+.wz-new textarea, .wz-step textarea { font: 13px var(--font); padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 2.6em; width: 100%; }
+.wz-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 10px; }
+.wz { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; }
+.wz-rail { position: sticky; top: 8px; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.wz-st { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 7px; color: var(--ink); text-decoration: none; font-size: 14px; }
+.wz-st .n { font: 12px var(--mono); color: var(--muted); }
+.wz-st .dot { color: var(--muted); }
+.wz-st.doing .dot { color: var(--gold); }
+.wz-st.done .dot { color: var(--ok); }
+.wz-st:hover { background: var(--target); }
+.wz-st[aria-current="step"] { background: var(--target); box-shadow: inset 3px 0 0 var(--gold); font-weight: 600; }
+.wz-step { display: grid; gap: 10px; min-width: 0; }
+.wz-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.wz-head h2 { margin: 0; font-size: 22px; color: var(--felt); display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.wz-prevnext { margin-left: auto; display: flex; gap: 6px; }
+@media (max-width: 760px) {
+  .wz { grid-template-columns: 1fr; }
+  .wz-rail { position: static; display: flex; overflow-x: auto; }
+  .wz-st { grid-template-columns: auto auto; white-space: nowrap; }
+  .wz-st .dot { display: none; }
+  .wz-prevnext { margin-left: 0; }
+}
+.dz-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.dz-bar .grow { flex: 1 1 auto; }
+.dz-sum { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.dz-sum a { text-decoration: none; }
+.dz-cat { margin-top: 18px; display: grid; gap: 10px; }
+.dz-cat > h2 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+.dz-cat > h2 label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dz-cat > h2 input { width: 64px; }
+.dz-cat > h2 .tag { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.dz-sym { grid-template-columns: 172px minmax(0, 1fr); gap: 10px 16px; align-items: start; }
+.dz-sym.keep { border-color: var(--ok); box-shadow: inset 4px 0 0 var(--ok); }
+.dz-sym[hidden] { display: none; }
+.dz-view { display: grid; gap: 6px; justify-items: center; }
+.dz-big { width: 172px; height: 172px; border-radius: 10px; background: var(--stage); display: grid; place-items: center; position: relative; }
+.dz-big img { width: 164px; height: 164px; }
+.dz-big .lbl { position: absolute; left: 6px; top: 6px; font-size: 11px; background: rgb(0 0 0 / .55); color: #f0e5cd; padding: 0 6px; border-radius: 4px; }
+.dz-big .lbl.fav { color: #f3d27a; }
+.dz-nav { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); }
+.dz-main { display: grid; gap: 8px; min-width: 0; }
+.dz-strip { display: flex; flex-wrap: wrap; gap: 5px; }
+.dz-strip button { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: var(--stage); }
+.dz-strip button[aria-pressed="true"] { border-color: var(--gold); }
+.dz-strip img { width: 50px; height: 50px; display: block; }
+.dz-refs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.dz-ref { position: relative; }
+.dz-ref img { width: 56px; height: 56px; border-radius: 6px; display: block; background: var(--stage); object-fit: cover; }
+.dz-ref button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; background: var(--panel); font-size: 11px; line-height: 1; }
+.dz-link { display: grid; gap: 6px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; }
+.dz-link[hidden] { display: none; }
+.dz-link .controls input[type=url] { flex: 1 1 220px; }
+.dz-re { display: grid; gap: 6px; }
+.dz-main textarea, .dz-new textarea { font: 13px var(--font); padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 2.6em; width: 100%; }
+.dz-re textarea:disabled { opacity: .5; }
+.dz-new { border-style: dashed; }
+.dz-new .grid2 textarea { grid-column: 1 / -1; }
+@media (max-width: 620px) { .dz-sym { grid-template-columns: 1fr; } }
+.dz-take { position: relative; display: inline-grid; gap: 2px; justify-items: center; }
+.dz-take .x { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; background: var(--panel); font-size: 11px; line-height: 1; opacity: .75; }
+.dz-take .x:hover, .dz-take .x:focus-visible { opacity: 1; border-color: var(--warn); color: var(--warn); }
+.dz-take > img { width: 50px; height: 50px; border-radius: 6px; background: var(--stage); }
+.dz-take > button:not(.x) { font-size: 11px; padding: 1px 6px; }
+.dz-tools { display: flex; gap: 6px; }
+.dz-tools button[aria-pressed="true"], .card-head button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--panel); }
+.dz-panel { display: grid; gap: 8px; border: 1px solid var(--gold); background: var(--target); border-radius: 8px; padding: 10px; }
+.dz-fit { grid-template-columns: 172px minmax(0, 1fr); align-items: start; }
+.dz-fit .dz-big img { width: 164px; height: 164px; }
+.dz-slider { display: grid; grid-template-columns: 90px minmax(0, 1fr) 52px; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.dz-slider output { font: 12px var(--mono); color: var(--ink); text-align: right; }
+@media (max-width: 620px) { .dz-fit { grid-template-columns: 1fr; } }
+/* the sheet cutter */
+.dz-strip img.wide { width: 96px; height: 64px; object-fit: cover; }
+.cut-stage { position: relative; touch-action: none; user-select: none; cursor: crosshair; border-radius: 8px; overflow: hidden; background: var(--stage); }
+.cut-stage img { display: block; width: 100%; height: auto; }
+.cut-layer { position: absolute; inset: 0; pointer-events: none; }
+.cut-box { position: absolute; border: 2px solid var(--gold); background: rgb(255 210 80 / .15); box-shadow: 0 0 0 1px rgb(0 0 0 / .5); }
+.cut-box span { position: absolute; left: 2px; top: 0; font: 600 11px var(--font); color: #fff; text-shadow: 0 1px 2px #000; }
+.cut-box.ghost { border-style: dashed; }
+.cut-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.cut-row input { flex: 1 1 160px; }
+.cut-row select { flex: 1 1 110px; }

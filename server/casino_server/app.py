@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from casino_server.art import LookCache
@@ -368,6 +368,13 @@ def slot_design_list(request: Request):
     return JSONResponse({"designs": request.app.state.slot_design.listing()}, headers=NO_STORE)
 
 
+@app.post("/api/slot-design")
+async def slot_design_create(request: Request):
+    body = await _json_body(request, "{name, brief}")
+    return {"id": await run_in_threadpool(_design_call, request.app.state.slot_design.create_design,
+                                          body.get("name"), body.get("brief", ""))}
+
+
 @app.get("/api/slot-design/{design}")
 def slot_design_overview(design: str, request: Request):
     return JSONResponse(_design_call(request.app.state.slot_design.overview, design), headers=NO_STORE)
@@ -416,6 +423,54 @@ async def slot_design_link_url(design: str, request: Request):
     return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.link_url, design, body.get("url"))}
 
 
+@app.patch("/api/slot-design/{design}/concept")
+async def slot_design_concept(design: str, request: Request):
+    body = await _json_body(request, "{name, brief, style, tiers, target_rtp, volatility}")
+    _design_call(request.app.state.slot_design.update_concept, design, body)
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/steps/{step}")
+async def slot_design_step(design: str, step: str, request: Request):
+    body = await _json_body(request, "{status: todo|doing|done}")
+    _design_call(request.app.state.slot_design.set_step, design, step, body.get("status"))
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/sources/{filename}")
+async def slot_design_source(design: str, filename: str, request: Request):
+    data = await request.body()
+    return {"path": await run_in_threadpool(_design_call, request.app.state.slot_design.add_source, design, filename, data)}
+
+
+@app.post("/api/slot-design/{design}/cuts")
+async def slot_design_cuts(design: str, request: Request):
+    body = await _json_body(request, "{sheet, boxes: [{x, y, w, h, name, category, kind, key}]}")
+    return {"made": await run_in_threadpool(_design_call, request.app.state.slot_design.cut_sheet, design,
+                                            body.get("sheet"), body.get("boxes"))}
+
+
+@app.post("/api/slot-design/{design}/symbols/{sid}/{action}")
+async def slot_design_variant_action(design: str, sid: str, action: str, request: Request):
+    """bin / restore {variant}; refine {variant, instruction}; fit {variant, fit}; fit-preview {variant, fit, hue}."""
+    body = await _json_body(request, "{variant, ...}")
+    board, vid = request.app.state.slot_design, body.get("variant")
+    if action == "bin":
+        await run_in_threadpool(_design_call, board.bin_variant, design, sid, vid)
+    elif action == "restore":
+        await run_in_threadpool(_design_call, board.restore_variant, design, sid, vid)
+    elif action == "refine":
+        return {"job": await run_in_threadpool(_design_call, board.refine, design, sid, vid, body.get("instruction"))}
+    elif action == "fit":
+        return {"variant": await run_in_threadpool(_design_call, board.fit_save, design, sid, vid, body.get("fit"))}
+    elif action == "fit-preview":
+        png = await run_in_threadpool(_design_call, board.fit_preview, design, sid, vid, body.get("fit"), body.get("hue", "gold"))
+        return Response(png, media_type="image/png", headers=NO_STORE)
+    else:
+        raise HTTPException(404, f"No action {action!r}")
+    return {"ok": True}
+
+
 @app.post("/api/slot-design/{design}/generate")
 def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}
@@ -431,6 +486,18 @@ def slot_design_retry(design: str, job_id: int, request: Request):
 def slot_design_cancel(design: str, job_id: int, request: Request):
     _design_call(request.app.state.slot_design.cancel, design, job_id)
     return {"ok": True}
+
+
+# The wizard's own scripts (slot_design_web/), loaded by the Slot design tab; never cached, so an edit shows on reload.
+SLOT_DESIGN_WEB = Path(__file__).resolve().parent / "slot_design_web"
+
+
+@app.get("/slot-design-ui/{rel:path}")
+def slot_design_ui(rel: str):
+    path = (SLOT_DESIGN_WEB / rel).resolve()
+    if not path.is_relative_to(SLOT_DESIGN_WEB) or not path.is_file():
+        raise HTTPException(404, "No such file")
+    return FileResponse(path, headers=NO_STORE)
 
 
 @app.get("/slot-design/{design}/{rel:path}")

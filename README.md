@@ -82,19 +82,26 @@ and Tailscale. It has six tabs:
   - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
 - **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
 - **Slots:** the jackpot meters, players' return on slots, and the symbol art set.
-- **Slot design:** the working board for a new slot's art, and the template for every later one (Star Trek is
-  the first). A section per category with how many symbols the main game needs (editable; bonus screens have no
-  count and can reuse any art on the board), and a card per symbol: cycle its variants, pick a character's
-  frame colour, tick it into the final set, link more reference images (upload, a web address, or art already
-  on the board), and mark it **Reiterate** with a note and a starting image. **New** adds a symbol to a
-  category, from a description, a reference or both, and stacks. **Generate** queues three takes per marked
-  symbol for FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs wait for
-  it), and they appear on the board as they finish.
-  - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `casino_server/slot_design.py`
-    explains the layout. Variants are found from the files, so a new slot is a new folder (categories, symbols
-    and any reference crops) and nothing else.
-  - Characters are drawn by FLUX as a bust only and put into one shared frame in code
-    (`casino_server/slot_design_art.py`), in six colours, so every character matches.
+- **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
+  eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
+  Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
+  wizard's UI is its own scripts in `casino_server/slot_design_web/`, which the tab loads; the server side is
+  `casino_server/slot_design.py` (the designs and their steps) and `slot_design_art.py` (FLUX, keying, the frame).
+  - **Concept:** the name, a theme brief and style notes that lead every FLUX prompt, the tier shape (how many
+    high, mid and low pays, which sets the Art step's counts), the target return and volatility, and the sheet
+    cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols.
+  - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
+    pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
+    art on the board), **Reiterate** (three fresh takes from the chosen take or a reference, with a note),
+    **Refine** (one FLUX edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
+    tile, previewed live; saved as a new take) and the **Bin** (✕ on a take; restorable, nothing is deleted).
+    **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
+    everything marked to FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs
+    wait for it).
+  - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
+    layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
+    code, in six colours, so every character matches. Format changes are migrations applied when the server loads
+    a design, because the live server saves over `design.json`.
 - **Settings:** punters on the floor, cooldowns, dealer shift length.
 
 ## Money
