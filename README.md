@@ -90,13 +90,14 @@ and Tailscale. It has six tabs:
   `casino_server/slot_design.py` (the designs and their steps) and `slot_design_art.py` (FLUX, keying, the frame).
   - **Concept:** the name, a theme brief and style notes that lead every FLUX prompt, the tier shape (how many
     high, mid and low pays, which sets the Art step's counts), the target return and volatility, and the sheet
-    cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols.
+    cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols (Generate makes one faithful redraw of each).
   - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
     pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
     art on the board), **Reiterate** (1, 3 or 5 fresh takes from the chosen take or a reference, with a note; a reference redraw also
     goes by the symbol's description),
     **Refine** (one FLUX edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
-    tile, previewed live; saved as a new take) and the **Bin** (✕ on a take; restorable, nothing is deleted).
+    tile, previewed live; saved as a new take), **Split** (moves the take shown into a new symbol of its own in the
+    same section; the original goes to the Bin) and the **Bin** (✕ on a take; restorable, nothing is deleted).
     **New** adds a symbol to a category from a description, a reference or both, and stacks. **Generate** sends
     everything marked to FLUX.2-klein in Odysseus (start it from Odysseus's Cookbook with CPU Offload ticked; jobs
     wait for it); a marked card's **Queue** sends just that symbol and sets its Reiterate back to No; **Cancel** on a card or **Cancel all** stops jobs, a running one included (the picture FLUX is

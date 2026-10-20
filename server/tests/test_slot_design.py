@@ -302,7 +302,7 @@ def test_new_design_and_the_concept(board):
     assert c.get("/api/slot-design").json()["designs"][1]["name"] == "Pirate Gold"
 
 
-def test_the_sheet_cutter(board):
+def test_the_sheet_cutter(board, monkeypatch):
     c, d = board
     sheet = c.put("/api/slot-design/demo/sources/My Sheet.png", content=_png(size=(400, 200))).json()["path"]
     assert sheet == "source/my_sheet.png" and _overview(c)["sources"] == [sheet]
@@ -316,6 +316,32 @@ def test_the_sheet_cutter(board):
     bad = {"sheet": sheet, "boxes": [{"x": 0, "y": 0, "w": 8, "h": 8, "name": "Tiny", "category": "set2"}]}
     assert c.post("/api/slot-design/demo/cuts", json=bad).status_code == 400
     assert c.post("/api/slot-design/demo/cuts", json={"sheet": "ref/ship.png", "boxes": bad["boxes"]}).status_code == 400
+    # Generate makes one take of a cut, the faithful redraw
+    prompts = []
+    monkeypatch.setattr(art, "flux_edit", lambda im, p: prompts.append(p) or _fake_flux())
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    o = _overview(c)
+    assert len(_sym(o, "moon")["variants"]) == 1 and len(_sym(o, "ship_2")["variants"]) == 1
+    assert len(prompts) == 2 and art.STYLES[1] in prompts[0]
+
+
+def test_split_a_take_into_its_own_symbol(board):
+    c, d = board
+    c.patch("/api/slot-design/demo/symbols/ship", json={"choice": "cut/ship_4.png", "keep": True})
+    new = c.post("/api/slot-design/demo/symbols/ship/split", json={"variant": "cut/ship_4.png"}).json()["id"]
+    o = _overview(c)
+    s, ship = _sym(o, new), _sym(o, "ship")
+    assert s["name"] == "Ship 2" and s["category"] == "set2" and s["added"] and not s["keep"]
+    assert [v["id"] for v in s["variants"]] == [f"cut/{new}_1.png"] and s["file"] == f"cut/{new}_1.png"
+    assert (d / f"raw/{new}_1.png").exists() and s["refs"] == ["ref/ship.png"]
+    assert "cut/ship_4.png" in [v["id"] for v in ship["binned"]] and ship["choice"] == "cut/ship_1.png"
+    assert [x["id"] for x in o["symbols"]][:2] == ["ship", new]  # right after the original
+    hero = c.post("/api/slot-design/demo/symbols/hero/split", json={"variant": "bust/hero_1"}).json()["id"]
+    h = _sym(_overview(c), hero)
+    assert h["kind"] == "character" and h["variants"][0]["id"] == f"bust/{hero}_1" and set(h["variants"][0]["hues"]) == set(art.HUES)
+    assert h["file"] == f"chars/{hero}_1_blue.png"
+    assert c.post("/api/slot-design/demo/symbols/hero/split", json={"variant": "bust/nope"}).status_code == 400
 
 
 def test_bin_and_restore(board):

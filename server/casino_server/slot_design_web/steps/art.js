@@ -35,7 +35,7 @@ export function render(ctx, body) {
         for (const s of C.data.symbols) { const r = rows.get(s.id); if (r) r.card.hidden = !visible(s); }
       }})));
   body.append(
-    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX). ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
+    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
     el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
@@ -248,7 +248,12 @@ function symRow(s) {
         style: `background:${HUE[h] || "#888"}`, onclick: () => patch(s, {hue: h})}))) : null,
     v ? el("div", {className: "dz-tools"},
       el("button", {type: "button", textContent: "Refine", ariaPressed: String(tool === "refine"), onclick: toggle("refine")}),
-      el("button", {type: "button", textContent: "Fit", ariaPressed: String(tool === "fit"), onclick: toggle("fit")})) : null);
+      el("button", {type: "button", textContent: "Fit", ariaPressed: String(tool === "fit"), onclick: toggle("fit")}),
+      el("button", {type: "button", textContent: "Split", title: `Move ${v.label} out into a new symbol of its own in this section (the original goes to ${s.name}'s Bin)`,
+        onclick: async () => {
+          const r = await act(s, "split", {variant: v.id});
+          if (r) { C.status(`${v.label} is now its own symbol in this section; ${s.name}'s copy is in its Bin.`, "ok"); await C.refresh(); }
+        }})) : null);
 
   const section = el("select", {className: "dz-section", ariaLabel: `Section for ${s.name}`, title: "Section: choose another to move it there"},
     ...C.data.categories.map(c => el("option", {value: c.id, textContent: c.title})));

@@ -79,7 +79,7 @@ function sheets() {
   const work = el("div");
   if (cutter && d.sources.includes(cutter.sheet)) work.append(cutterView());
   return el("div", {className: "card"}, el("h3", {textContent: "Reference sheets"}),
-    el("p", {className: "hint", textContent: "Upload a sheet of symbol ideas, then drag a box round each one. Every box becomes a new symbol with that crop as its reference, waiting for Generate on the Art step."}),
+    el("p", {className: "hint", textContent: "Upload a sheet of symbol ideas, then drag a box round each one. Every box becomes a new symbol with that crop as its reference, waiting for Generate on the Art step, which makes one faithful redraw of it (Reiterate makes more)."}),
     el("div", {className: "dz-strip"}, ...d.sources.map(p => el("button", {type: "button", title: p.split("/")[1],
       ariaPressed: String(cutter?.sheet === p), onclick: () => { cutter = {sheet: p, boxes: []}; C.refresh("sheets"); }},
       el("img", {src: C.img(p), alt: p, loading: "lazy", className: "wide"})))),

@@ -536,7 +536,8 @@ class DesignBoard(StepsMixin, BuildMixin):
             return self._save_unique(im, d.folder / "source", _slug(Path(filename).stem) or "sheet", "source")
 
     def cut_sheet(self, did: str, sheet: str, boxes: list) -> list[str]:
-        """Cut boxes out of a sheet, each into a new symbol with its reference crop, waiting for Generate."""
+        """Cut boxes out of a sheet, each into a new symbol with its reference crop, waiting for Generate (which makes
+        one take of it, the faithful redraw)."""
         with self.lock:
             d = self.design(did)
             path = d.path(sheet, ("source",))
@@ -569,7 +570,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                 art.fit_square(im.crop((x, y, x + w, y + h)), 1024).save(d.folder / f"ref/{sid}.png")
                 d.data["symbols"].append({"id": sid, "name": name, "category": category, "kind": kind,
                                           "key": b.get("key") if b.get("key") in KEYS else "magenta", "prompt": "",
-                                          "refs": [f"ref/{sid}.png"], "added": True, "pending_new": True, "hue": "gold"})
+                                          "refs": [f"ref/{sid}.png"], "added": True, "pending_new": True, "hue": "gold",
+                                          "from_sheet": True})
                 made.append(sid)
             d.save()
             return made
@@ -624,6 +626,49 @@ class DesignBoard(StepsMixin, BuildMixin):
                 raise DesignError(f"{vid!r} isn't in the Bin.")
             s["binned"].remove(vid)
             d.save()
+
+    def split_variant(self, did: str, sid: str, vid: str) -> str:
+        """Move a take out into a new symbol of its own, in the same section, with that take as its only one (copied
+        as take 1; the original goes to the old symbol's Bin, so nothing is lost). Returns the new symbol's id."""
+        import shutil
+        with self.lock:
+            d = self.design(did)
+            s = d.symbol(sid)
+            v = d.variant(s, vid)
+            names = {x["name"] for x in d.data["symbols"]}
+            base = s["name"][:37]
+            k = 2
+            while f"{base} {k}" in names:
+                k += 1
+            name = f"{base} {k}"
+            new = self._new_id(d, name)
+            for sub in ("raw", "cut", "chars"):
+                (d.folder / sub).mkdir(exist_ok=True)
+            if "hues" in v:
+                n = vid.split("/", 1)[1]
+                shutil.copyfile(d.folder / f"raw/bust_{n}.png", d.folder / f"raw/bust_{new}_1.png")
+                for hue, rel in v["hues"].items():
+                    shutil.copyfile(d.folder / rel, d.folder / f"chars/{new}_1_{hue}.png")
+                nvid = f"bust/{new}_1"
+            else:
+                shutil.copyfile(d.folder / v["src"], d.folder / f"cut/{new}_1.png")
+                raw = d.folder / "raw" / Path(v["src"]).name
+                if raw.is_file():
+                    shutil.copyfile(raw, d.folder / f"raw/{new}_1.png")
+                nvid = f"cut/{new}_1.png"
+            sym = {"id": new, "name": name, "category": s["category"], "kind": "character" if "hues" in v else "object",
+                   **{k: s[k] for k in ("key", "keep_text", "prompt", "hue") if k in s},
+                   "refs": list(s.get("refs", [])), "added": True, "choice": nvid}
+            fit = s.get("fits", {}).get(vid)
+            if fit:  # a fitted take keeps refitting from the picture it was fitted from
+                sym["fits"] = {nvid: dict(fit)}
+            d.data["symbols"].insert(d.data["symbols"].index(s) + 1, sym)
+            if vid not in s.setdefault("binned", []):
+                s["binned"].append(vid)
+            if s.get("choice") == vid:
+                s.pop("choice")
+            d.save()
+            return new
 
     def refine(self, did: str, sid: str, vid: str, instruction: str) -> dict:
         """Queue one targeted FLUX edit of a variant: everything kept but what the instruction names."""
@@ -709,6 +754,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                     job = {"how": "redraw" if ref else "text", "src": ref, "text": s.get("prompt", ""),
                            "out": s["kind"], "action": "new"}
                     s["pending_new"] = False
+                    if s.get("from_sheet"):
+                        count = 1  # a sheet cut: the faithful redraw only (style 1)
                 elif s.get("reiterate"):
                     job = self._reiterate_job(d, s)
                     s["reiterate"] = False
