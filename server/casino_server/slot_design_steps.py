@@ -352,8 +352,12 @@ def scene_view(d) -> dict:
     folder = d.folder / "scene"
     listed = lambda pattern: sorted((f"scene/{p.name}" for p in folder.glob(pattern)),
                                     key=lambda p: int(Path(p).stem.split("_")[-1])) if folder.is_dir() else []
+    binned = set(sc.get("binned", []))
+    bgs, logos = listed("bg_*.png"), listed("logo_*.png")
     return {"background": sc.get("background"), "logo": sc.get("logo", {}), "frame": sc.get("frame", {"style": "metal", "colour": "#c9a24a"}),
-            "deck": sc.get("deck", {"style": "frame", "colour": None}), "backgrounds": listed("bg_*.png"), "logos": listed("logo_*.png"),
+            "deck": sc.get("deck", {"style": "frame", "colour": None}),
+            "backgrounds": [p for p in bgs if p not in binned], "logos": [p for p in logos if p not in binned],
+            "bin": {"backgrounds": [p for p in bgs if p in binned], "logos": [p for p in logos if p in binned]},
             "fonts": _fonts(d), "frame_styles": list(FRAME_STYLES), "deck_styles": list(DECK_STYLES)}
 
 
@@ -900,17 +904,41 @@ class StepsMixin:
             d.save()
             return out
 
+    def bin_scene(self, did: str, path: str) -> None:
+        """Hide a background or logo in the Scene's Bin (nothing is deleted); binning the one in use leaves none."""
+        with self.lock:
+            d = self.design(did)
+            if not (isinstance(path, str) and path.startswith(("scene/bg_", "scene/logo_")) and d.path(path)):
+                raise DesignError("Pick one of this slot's backgrounds or logos.")
+            sc = d.data.setdefault("scene", {})
+            if path not in sc.setdefault("binned", []):
+                sc["binned"].append(path)
+            if sc.get("background") == path:
+                sc["background"] = None
+            if sc.get("logo", {}).get("file") == path:
+                sc["logo"].pop("file")
+            d.save()
+
+    def restore_scene(self, did: str, path: str) -> None:
+        with self.lock:
+            d = self.design(did)
+            sc = d.data.setdefault("scene", {})
+            if path not in sc.get("binned", []):
+                raise DesignError(f"{path!r} isn't in the Bin.")
+            sc["binned"].remove(path)
+            d.save()
+
     def update_scene(self, did: str, ch: dict) -> None:
         with self.lock:
             d = self.design(did)
             sc = d.data.setdefault("scene", {})
             for k, v in ch.items():
                 if k == "background":
-                    if v and not (v.startswith("scene/bg_") and d.path(v)):
+                    if v and not (v.startswith("scene/bg_") and d.path(v) and v not in sc.get("binned", [])):
                         raise DesignError("Pick one of this slot's backgrounds.")
                     sc["background"] = v or None
                 elif k == "logo_file":
-                    if not (isinstance(v, str) and v.startswith("scene/logo_") and d.path(v)):
+                    if not (isinstance(v, str) and v.startswith("scene/logo_") and d.path(v) and v not in sc.get("binned", [])):
                         raise DesignError("Pick one of this slot's logos.")
                     sc.setdefault("logo", {})["file"] = v
                 elif k == "frame":

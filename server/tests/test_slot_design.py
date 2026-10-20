@@ -328,6 +328,19 @@ def test_the_scene(board, monkeypatch):
     assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "frame", "colour": None}}).status_code == 200
     assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "lace", "colour": None}}).status_code == 400
     assert c.patch("/api/slot-design/demo/scene", json={"deck": {"style": "wood", "colour": "brown"}}).status_code == 400
+    # the Bin: binning hides a background or logo (the one in use is dropped), restoring brings it back; nothing is deleted
+    assert c.post("/api/slot-design/demo/scene/bin", json={"path": "scene/bg_2.png"}).status_code == 200
+    assert c.post("/api/slot-design/demo/scene/bin", json={"path": logo}).status_code == 200
+    sc = _overview(c)["scene"]
+    assert sc["backgrounds"] == ["scene/bg_1.png", "scene/bg_3.png", "scene/bg_4.png"] and sc["background"] is None
+    assert sc["logos"] == [] and "file" not in sc["logo"] and sc["logo"]["lines"] == ["DEMO", "SLOT"]
+    assert sc["bin"] == {"backgrounds": ["scene/bg_2.png"], "logos": [logo]} and (d / "scene/bg_2.png").is_file()
+    assert c.patch("/api/slot-design/demo/scene", json={"background": "scene/bg_2.png"}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/bin", json={"path": "cut/ship_1.png"}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/restore", json={"path": "scene/bg_3.png"}).status_code == 400
+    assert c.post("/api/slot-design/demo/scene/restore", json={"path": "scene/bg_2.png"}).status_code == 200
+    assert _overview(c)["scene"]["backgrounds"] == ["scene/bg_1.png", "scene/bg_2.png", "scene/bg_3.png", "scene/bg_4.png"]
+    assert c.patch("/api/slot-design/demo/scene", json={"background": "scene/bg_2.png"}).status_code == 200
     assert c.put("/api/slot-design/demo/fonts/bad.ttf", content=b"nope").status_code == 400
     assert c.put("/api/slot-design/demo/fonts/notes.txt", content=b"nope").status_code == 400
     assert c.get("/slot-design-ui/slots_math.js").status_code == 200

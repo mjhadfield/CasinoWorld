@@ -4,6 +4,7 @@ import {createGame} from "../mockup/game.js";
 import {designConfig, loadMath} from "../mockup/design.js";
 
 let C, game = null, parts = {}, bgBehind = false;
+const binOpen = {backgrounds: false, logos: false};   // is that pane's Bin shown
 
 export function render(ctx, body) {
   C = ctx;
@@ -52,6 +53,30 @@ async function patch(body, msg) {
   } catch (e) { C.status(e.message, "warn"); }
 }
 
+// A background or logo with its ✕ (into the Bin), and the pane's Bin: binned pictures, each restorable. Nothing is deleted.
+function take(p, chosen, pick, cls) {
+  const {el} = C, name = p.split("/")[1];
+  return el("span", {className: "dz-take"},
+    el("button", {type: "button", ariaPressed: String(chosen), title: name, onclick: pick}, el("img", {src: C.img(p), alt: p, className: cls, loading: "lazy"})),
+    el("button", {type: "button", className: "x", textContent: "✕", title: "Move to the Bin", ariaLabel: `Bin ${name}`,
+      onclick: () => scenePost("bin", p, `${name} is in the Bin.`)}));
+}
+function bin(kind, cls) {
+  const {el} = C, paths = C.data.scene.bin[kind];
+  if (!paths.length) return [];
+  const toggle = el("button", {type: "button", textContent: `Bin (${paths.length})`, ariaPressed: String(binOpen[kind]),
+    onclick: () => { binOpen[kind] = !binOpen[kind]; kind === "logos" ? refreshLogoStrip() : drawBg(); }});
+  return [el("div", {className: "controls"}, toggle), binOpen[kind] ? el("div", {className: "dz-panel"},
+    el("p", {className: "hint", textContent: "Binned. Nothing is deleted: restore any of them."}),
+    el("div", {className: "dz-strip"}, ...paths.map(p => el("span", {className: "dz-take"},
+      el("img", {src: C.img(p), alt: p, title: p.split("/")[1], className: cls, loading: "lazy"}),
+      el("button", {type: "button", textContent: "Restore", onclick: () => scenePost("restore", p, `${p.split("/")[1]} restored.`)}))))) : null];
+}
+async function scenePost(action, path, msg) {
+  try { await C.api("POST", `/api/slot-design/${C.did}/scene/${action}`, {path}); await C.refresh(); C.status(msg, "ok"); }
+  catch (e) { C.status(e.message, "warn"); }
+}
+
 const boardImages = () => [
   ...C.data.symbols.filter(s => s.file).map(s => [`${s.name}: chosen art`, s.file]),
   ...C.data.symbols.flatMap(s => s.refs.map((r, k) => [`${s.name}: reference ${k + 1}`, r])),
@@ -79,8 +104,8 @@ function drawBg() {
     el("div", {className: "dz-strip"},
       el("button", {type: "button", ariaPressed: String(!sc.background), title: "No picture: the drawn dusk", onclick: () => patch({background: null})},
         el("span", {className: "wz-none", textContent: "None"})),
-      ...sc.backgrounds.map(p => el("button", {type: "button", ariaPressed: String(sc.background === p), title: p.split("/")[1],
-        onclick: () => patch({background: p}, "Background chosen.")}, el("img", {src: C.img(p), alt: p, className: "wide", loading: "lazy"})))),
+      ...sc.backgrounds.map(p => take(p, sc.background === p, () => patch({background: p}, "Background chosen."), "wide"))),
+    ...bin("backgrounds", "wide"),
     ...jobs.map(j => el("p", {className: "hint", textContent: `Background: ${{queued: "queued", waiting: "waiting for FLUX", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
     el("label", {className: "field"}, el("span", {textContent: "Generate (three takes, about two minutes each)"}), desc),
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Generate", onclick: async () => {
@@ -102,8 +127,9 @@ function refreshLogoStrip() {
 }
 function logoStrip() {
   const {el} = C, sc = C.data.scene;
-  return el("div", {className: "dz-strip wz-logos"}, ...sc.logos.map(p => el("button", {type: "button", ariaPressed: String(sc.logo.file === p),
-    title: p.split("/")[1], onclick: () => patch({logo_file: p})}, el("img", {src: C.img(p), alt: p, className: "wide contain", loading: "lazy"}))));
+  return el("div", {className: "wz-logos"},
+    el("div", {className: "dz-strip"}, ...sc.logos.map(p => take(p, sc.logo.file === p, () => patch({logo_file: p}), "wide contain"))),
+    ...bin("logos", "wide contain"));
 }
 function drawLogo() {
   const {el} = C, sc = C.data.scene, lg = sc.logo || {};
