@@ -312,3 +312,51 @@ def test_the_scene(board, monkeypatch):
     assert c.put("/api/slot-design/demo/fonts/notes.txt", content=b"nope").status_code == 400
     assert c.get("/slot-design-ui/slots_math.js").status_code == 200
     assert c.get("/slot-design-ui/../app.py").status_code == 404
+
+
+# ------------------------------------------------------------------ Features and Bonus games (Phase 4)
+def test_features(board):
+    c, _ = board
+    f = _overview(c)["features"]
+    assert f["enabled"] == f["library"] and f["rates"]["wilds"] == 0.07 and f["tables"]["multipliers"][0] == [2, 50]
+    ok = c.patch("/api/slot-design/demo/features", json={"enabled": ["instant", "wilds"], "rates": {"wilds": 0.1},
+                                                         "tables": {"multipliers": [[2, 1], [10, 1]]}})
+    assert ok.status_code == 200
+    f = _overview(c)["features"]
+    assert f["enabled"] == ["wilds", "instant"] and f["rates"]["wilds"] == 0.1 and f["tables"]["multipliers"] == [[2, 1], [10, 1]]
+    bad = [{"enabled": ["teleport"]}, {"rates": {"wilds": 1.5}}, {"tables": {"multipliers": [[1, 10]]}},
+           {"tables": {"instants": [[5, 0]]}}, {"enabled": []}, {"enabled": ["repeat"]}]
+    for body in bad:
+        assert c.patch("/api/slot-design/demo/features", json=body).status_code == 400, body
+
+
+def test_bonuses(board):
+    c, _ = board
+    b = _overview(c)["bonuses"]
+    assert b["trail"]["prizepot"] == 2000 and b["trail"]["counts"]["snake"] == 20 and b["free"]["games"] == 3 and b["buy"]["cost"] == 45
+    assert c.patch("/api/slot-design/demo/bonuses", json={"trail": {"name": "Warp Trail", "prizepot": 3000, "counts": {"snake": 10}},
+                                                          "free": {"games": 5}, "buy": {"enabled": False}}).status_code == 200
+    b = _overview(c)["bonuses"]
+    assert (b["trail"]["name"], b["trail"]["prizepot"], b["trail"]["counts"]["snake"], b["trail"]["counts"]["heart"]) == ("Warp Trail", 3000, 10, 2)
+    assert b["free"]["games"] == 5 and b["buy"]["enabled"] is False
+    for body in [{"trail": {"length": 10}}, {"trail": {"counts": {"snake": 40, "crate": 40}}}, {"trail": {"coins": "lots"}},
+                 {"free": {"games": 0}}, {"buy": {"cost": 5}}]:
+        assert c.patch("/api/slot-design/demo/bonuses", json=body).status_code == 400, body
+
+
+def test_art_slots_and_specs(board):
+    c, _ = board
+    a = _overview(c)["art"]
+    assert a["armadillo"]["step"] == "features" and a["t_coin"]["step"] == "bonuses" and a["barrel"]["file"] is None
+    assert c.put("/api/slot-design/demo/art-slots/armadillo", json={"value": "sym:hero"}).status_code == 200
+    assert _overview(c)["art"]["armadillo"]["file"] == "chars/hero_1_blue.png"   # follows Hero's chosen take
+    c.patch("/api/slot-design/demo/symbols/hero", json={"hue": "red"})
+    assert _overview(c)["art"]["armadillo"]["file"] == "chars/hero_1_red.png"
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": "ref/ship.png"}).status_code == 200
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": "ref/none.png"}).status_code == 400
+    assert c.put("/api/slot-design/demo/art-slots/teapot", json={"value": None}).status_code == 400
+    assert c.put("/api/slot-design/demo/art-slots/barrel", json={"value": None}).status_code == 200
+    spec = c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "Red Alert", "description": "All reels flash red..."}).json()
+    assert spec["status"] == "spec" and _overview(c)["features"]["specs"][0]["name"] == "Red Alert"
+    assert c.post("/api/slot-design/demo/specs", json={"kind": "feature", "name": "X"}).status_code == 400
+    assert c.delete(f"/api/slot-design/demo/specs/{spec['id']}").status_code == 200 and not _overview(c)["features"]["specs"]

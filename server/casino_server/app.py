@@ -512,6 +512,39 @@ async def slot_design_font(design: str, filename: str, request: Request):
     return {"font": await run_in_threadpool(_design_call, request.app.state.slot_design.add_font, design, filename, data)}
 
 
+@app.patch("/api/slot-design/{design}/features")
+async def slot_design_features(design: str, request: Request):
+    body = await _json_body(request, "{enabled, rates, free_rates, tables}")
+    _design_call(request.app.state.slot_design.update_features, design, body)
+    return {"ok": True}
+
+
+@app.patch("/api/slot-design/{design}/bonuses")
+async def slot_design_bonuses(design: str, request: Request):
+    body = await _json_body(request, "{trail, free, buy}")
+    _design_call(request.app.state.slot_design.update_bonuses, design, body)
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/art-slots/{key}")
+async def slot_design_art_slot(design: str, key: str, request: Request):
+    body = await _json_body(request, "{value: a board path, 'sym:<id>' or null}")
+    _design_call(request.app.state.slot_design.set_art_slot, design, key, body.get("value"))
+    return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/specs")
+async def slot_design_add_spec(design: str, request: Request):
+    body = await _json_body(request, "{kind: feature|bonus, name, description, timing, art}")
+    return _design_call(request.app.state.slot_design.add_spec, design, body)
+
+
+@app.delete("/api/slot-design/{design}/specs/{spec_id}")
+def slot_design_remove_spec(design: str, spec_id: int, request: Request):
+    _design_call(request.app.state.slot_design.remove_spec, design, spec_id)
+    return {"ok": True}
+
+
 @app.post("/api/slot-design/{design}/generate")
 def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}

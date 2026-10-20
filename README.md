@@ -107,6 +107,16 @@ and Tailscale. It has six tabs:
     screen layout, playable, using the ladder's symbols. From here on, **Play the mockup** opens it from any step.
     The mockup is the signed-off Armadillo mockup made design-driven (`slot_design_web/mockup/`), running the
     shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.
+  - **Features:** the library's seven random features, each switched on or off with its chance on a paid spin
+    and in the free games and its value table (value:weight pairs); **Show me** plays the mockup with it forced.
+  - **Bonus games:** the Trail bonus (its name, launcher, length, prizepot, special spaces and coin values), the
+    free games, Buy Bonus and the shared Jackpot Pick, each with **Try it**.
+  - **Art slots** (on both steps): the pictures drawn outside the reels: the mascot (Wild Reels and the trail's
+    token), the Instant Win prize, the launcher and the trail's spaces. Each follows a symbol's chosen take or
+    uses any image on the board, or **Make one** adds it to Bonus screens and generates it. Until set, the mockup
+    shows Armadillo's.
+  - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
+    code tasks, and once built they join the library.
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads

@@ -121,3 +121,14 @@
 .lad-up select { font-size: 12px; padding: 1px 4px; }
 .lad-move { display: inline-flex; gap: 3px; }
 @media (max-width: 620px) { .lad-row { grid-template-columns: 40px minmax(0, 1fr); } .lad-pays, .lad-up, .lad-move { grid-column: 2; } }
+/* Features and Bonus games */
+.wz-table td { vertical-align: top; white-space: normal; }
+.wz-table td .hint { max-width: 38ch; }
+.wz-num { width: 84px; }
+.wz-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.wz-slot { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.wz-slot > img { width: 72px; height: 72px; border-radius: 8px; background: var(--stage); object-fit: contain; }
+.wz-slot > img.standin { opacity: .45; }
+.wz-slot select { max-width: 100%; }
+.wz-spec { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 6px; }
+.wz-spec p { grid-column: 1 / -1; margin: 0; font-size: 13px; }

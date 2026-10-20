@@ -37,21 +37,25 @@ export function designConfig(data, img) {
   const paying = lad.tiers.filter(t => !["BS", "FS"].includes(t));
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
-  const maths = data.maths || {};
+  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail;
   const V = M.makeVariant({
     ...A, strips: maths.strips || null, freeStrips: maths.free_strips || null, bigStrip: maths.big_strip || null,
     id: data.id, name: data.name, symbols, pays, upgrades: lad.upgrades,
     counts: maths.counts || stretch(A.counts, lad.tiers),
     bigCounts: maths.big_counts || stretch([A.bigCounts], paying)[0],
-    features: (data.features && data.features.enabled) || M.FEATURES,
+    features: f.enabled, rates: f.rates, freeRates: f.free_rates,
+    wildCounts: f.tables.wild_counts, wildReelCounts: f.tables.wild_reel_counts, colossalSizes: f.tables.colossal_sizes,
+    multipliers: f.tables.multipliers, repeats: f.tables.repeats, instants: f.tables.instants,
+    trail: {length: tr.length, prizepot: tr.prizepot, counts: tr.counts, upgradeChance: tr.upgrade_chance,
+            doubleChance: tr.double_chance, coins: tr.coins, crateRadius: tr.crate_radius},
+    freeGames: b.free.games, buyCost: b.buy.enabled ? b.buy.cost : 0,
   });
   const art = {};
   for (const t of lad.tiers) {
     const s = sym(t);
     art[t] = s && s.file ? img(s.file) : (A.symbols[t] ? armadillo(t) : null);
   }
-  const extra = (data.features && data.features.art) || {};
-  for (const id of EXTRA_ART) art[id] = extra[id] ? img(extra[id]) : armadillo(id);
+  for (const id of EXTRA_ART) art[id] = data.art[id] && data.art[id].file ? img(data.art[id].file) : armadillo(id);
   const sc = data.scene || {};
   const logoLines = sc.logo && sc.logo.lines && sc.logo.lines.length ? sc.logo.lines : [data.name];
   return {
@@ -62,6 +66,8 @@ export function designConfig(data, img) {
     theme: (data.sprites && data.sprites.theme) || {},
     labels: false,
     texts: {title: logoLines.map(l => l.toUpperCase()), tagline: "GOOD LUCK",
-            bonus: [`3+ ${symbols.BS.toUpperCase()}`, "TRAIL BONUS"], free: [`3+ ${symbols.FS.toUpperCase()}`, `${V.freeGames} COMBO FREE GAMES`]},
+            bonus: [`3+ ${symbols.BS.toUpperCase()}`, tr.name.toUpperCase()],
+            free: [`3+ ${symbols.FS.toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
+            freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint},
   };
 }

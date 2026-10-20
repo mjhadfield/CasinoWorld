@@ -47,7 +47,7 @@ export function createGame(cv, cfg) {
     FRAME = Object.assign({ style: "wood", colour: "#d9a54a" }, c.frame || {});
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
-                           pistol: "THE PISTOL" }, c.texts || {});
+                           pistol: "THE PISTOL", freeName: "COMBO FREE GAMES" }, c.texts || {});
     LABELS = c.labels !== false;
   }
   setConfig(cfg);
@@ -258,6 +258,7 @@ export function createGame(cv, cfg) {
     woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
     const busy = S.busy || S.mode !== "reels";
     const by = REEL_Y + 6;
+    if (V.buyCost) {   // no Buy Bonus: the panel shows just the two ways in
     S.hits.push(...(busy ? [] : [{ id: "buy", x: 1052, y: by, w: 196, h: 178 }]));
     rr(1052, by, 196, 178, 14);
     const hov = S.hover === "buy" && !busy;
@@ -268,6 +269,7 @@ export function createGame(cv, cfg) {
     drawImg(img("BS"), 1150 - 52, by + 38, 104, 104);
     text(money(bet() * V.buyCost), 1150, by + 156, 26, COND, "#fff");
     ctx.restore();
+    }
     const info = [["BS", ...TEXT.bonus], ["FS", ...TEXT.free]];
     info.forEach(([sym, a, b], i) => {
       const y = by + 196 + i * 116;
@@ -740,7 +742,7 @@ export function createGame(cv, cfg) {
   // ------------------------------------------------------------------ Combo Free Games
   async function freeGames(b) {
     S.free = { n: 0, of: V.freeGames, total: 0 };
-    await banner("COMBO FREE GAMES", `${V.freeGames} games \u00b7 a random feature every spin`, 2.2);
+    await banner(TEXT.freeName, `${V.freeGames} games \u00b7 a random feature every spin`, 2.2);
     for (let i = 1; i <= V.freeGames; i++) {
       S.free.n = i; S.message = `FREE GAME ${i} OF ${V.freeGames}`;
       clearWins(); S.winShown = S.winTarget = S.free.total;
@@ -751,7 +753,7 @@ export function createGame(cv, cfg) {
     }
     const total = S.free.total;
     S.balance += total;
-    await summary("FREE GAMES", `${V.freeGames} combo free games at ${money(b)}`, total);
+    await summary(TEXT.freeName, `${V.freeGames} games at ${money(b)}`, total);
     if (total >= 10 * b) await bigWin(total, b);
     S.free = null; S.message = `FREE GAMES PAID ${money(total)}`;
     clearWins(); S.winShown = S.winTarget = total;
@@ -972,7 +974,7 @@ export function createGame(cv, cfg) {
     if (st.doubled) { rr(cx, REEL_Y + 24, 150, 32, 8); ctx.fillStyle = "#8a2a12"; ctx.fill(); text("COINS DOUBLED", cx + 75, REEL_Y + 41, 20, COND, "#fff"); }
     woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
     text(TEXT.pistol, 1150, REEL_Y + 10, 22, COND, C.goldHi);
-    text(st.upgraded ? "moves 2 spaces per bullet" : "1 to 6 bullets a shot", 1150, REEL_Y + 34, 16, COND, C.cream);
+    text(st.upgraded ? "moves doubled" : "1 to 6 spaces a shot", 1150, REEL_Y + 34, 16, COND, C.cream);
     const cyx = 1150, cyy = REEL_Y + 150;
     ctx.save(); ctx.translate(cyx, cyy); ctx.rotate(T.cyl); drawImg(img("cylinder"), -78, -78, 156, 156);
     for (let k = 0; k < T.bullets; k++) {
@@ -1013,7 +1015,7 @@ export function createGame(cv, cfg) {
     }
     if (S.free) {
       rr(440, REEL_Y - 16, 400, 34, 10); ctx.fillStyle = "#7d130c"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#f4c94f"; ctx.stroke();
-      text(`COMBO FREE GAME ${S.free.n} OF ${S.free.of}`, 640, REEL_Y + 1, 22, COND, C.goldHi);
+      text(`${TEXT.freeName} ${S.free.n} OF ${S.free.of}`, 640, REEL_Y + 1, 22, COND, C.goldHi, "center", "700", 0, 380);
     }
     drawDeck();
     drawFlyers();

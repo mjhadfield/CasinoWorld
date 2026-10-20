@@ -5,17 +5,19 @@ import * as concept from "./steps/concept.js";
 import * as art from "./steps/art.js";
 import * as ladder from "./steps/ladder.js";
 import * as scene from "./steps/scene.js";
+import * as features from "./steps/features.js";
+import * as bonuses from "./steps/bonuses.js";
 import * as later from "./steps/later.js";
 import {createGame} from "./mockup/game.js";
 import {designConfig, loadMath} from "./mockup/design.js";
 
-const STEPS = {concept, art, ladder, scene};   // built steps; the rest show what they'll do (later.js)
+const STEPS = {concept, art, ladder, scene, features, bonuses};   // built steps; the rest show what they'll do (later.js)
 const ctx = {did: null, data: null, step: null};
 let H, shell = null, timer = null, ticks = 0, current = null;
 
 export function init(helpers) {
   H = helpers;
-  Object.assign(ctx, helpers, {refresh, go, img: p => `/slot-design/${ctx.did}/${p}`, setStep});
+  Object.assign(ctx, helpers, {refresh, go, img: p => `/slot-design/${ctx.did}/${p}`, setStep, play: playMockup});
   if (!document.getElementById("wz-css"))
     document.head.append(Object.assign(document.createElement("link"), {id: "wz-css", rel: "stylesheet", href: "/slot-design-ui/wizard.css"}));
   window.addEventListener("hashchange", () => { if (location.hash.startsWith("#design")) open(); });
@@ -41,7 +43,7 @@ function buildShell() {
     tabs, form,
     flux: el("span", {className: "tag", textContent: "FLUX…"}),
     queue: el("span", {className: "hint"}),
-    play: el("button", {type: "button", className: "wz-play", textContent: "▶ Play the mockup", onclick: playMockup,
+    play: el("button", {type: "button", className: "wz-play", textContent: "▶ Play the mockup", onclick: () => playMockup(),
       title: "The base game with this design's art and scene (from the Scene step on)"}),
     rail: el("nav", {className: "wz-rail", ariaLabel: "Steps"}),
     head: el("div", {className: "wz-head"}),
@@ -171,7 +173,8 @@ async function checkFlux() {
 }
 
 // The mockup in a dialog, from the Scene step on: the base game with this design's art, scene and (once tuned) maths.
-async function playMockup() {
+// opts.rig forces the first spin: {features: [...]} or {trigger: "trail"|"free"} or {jackpot: tier}.
+async function playMockup(opts = {}) {
   const {el} = H;
   await loadMath();
   const canvas = el("canvas", {width: 1280, height: 720, className: "wz-canvas"});
@@ -182,6 +185,10 @@ async function playMockup() {
   const game = createGame(canvas, designConfig(ctx.data, ctx.img));
   dlg.addEventListener("close", () => { game.destroy(); dlg.remove(); });
   dlg.showModal();
+  if (opts.rig) {
+    game.rig({features: opts.rig.features || [], trigger: opts.rig.trigger || null, jackpot: opts.rig.jackpot || null});
+    setTimeout(() => game.spin(), 900);
+  }
 }
 
 // While the tab is open: follow running jobs every 4 s, and check FLUX every 20 s otherwise.
