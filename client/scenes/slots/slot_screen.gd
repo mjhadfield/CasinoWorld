@@ -778,6 +778,11 @@ func _vgrad(ci: CanvasItem, r: Rect2, top: Color, bottom: Color) -> void:
 		PackedColorArray([top, top, bottom, bottom]))
 
 
+func _hgrad(ci: CanvasItem, r: Rect2, left: Color, right: Color) -> void:
+	ci.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+		PackedColorArray([left, right, right, left]))
+
+
 ## Wood untinted is Armadillo's browns; any other style or a tint derives the set from one base colour (the wizard's
 ## mockup, game.js deckLook, matches).
 func _deck_look(style: String, tint: Variant) -> Dictionary:
@@ -972,11 +977,12 @@ func _draw_logo(ci: CanvasItem) -> void:
 
 func _draw_frame(ci: CanvasItem) -> void:
 	_wood(ci, Rect2(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36), 18)
-	var reel_bg: Array = {"wood": [Color("1c0e07"), Color("2a160b")], "metal": [Color("0d0f13"), Color("1d2128")]}.get(frame_style, [Color("05040f"), Color("100c26")])
+	# Each reel shades dark at its edges to light down the middle, as the mockup's canvas gradient does.
+	var reel_bg: Array = {"wood": [Color("1c0e07"), Color("2e190d")], "metal": [Color("0d0f13"), Color("1d2128")]}.get(frame_style, [Color("05040f"), Color("100c26")])
 	for r in 5:
 		var x := REEL_X + r * CELL_W
-		ci.draw_rect(Rect2(x, REEL_Y, CELL_W, REEL_H), reel_bg[0])
-		ci.draw_rect(Rect2(x + CELL_W * 0.2, REEL_Y, CELL_W * 0.6, REEL_H), reel_bg[1])
+		_hgrad(ci, Rect2(x, REEL_Y, CELL_W / 2.0, REEL_H), reel_bg[0], reel_bg[1])
+		_hgrad(ci, Rect2(x + CELL_W / 2.0, REEL_Y, CELL_W / 2.0, REEL_H), reel_bg[1], reel_bg[0])
 	for p in [Vector2(REEL_X - 10, REEL_Y - 6), Vector2(REEL_X + REEL_W + 10, REEL_Y - 6), Vector2(REEL_X - 10, REEL_Y + REEL_H + 6), Vector2(REEL_X + REEL_W + 10, REEL_Y + REEL_H + 6)]:
 		ci.draw_circle(p, 4.5, Color("e3b45a") if frame_style == "wood" else frame_colour)
 
