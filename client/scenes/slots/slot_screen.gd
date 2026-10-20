@@ -65,6 +65,8 @@ var ALERT := Color("7d130c")
 var WIN_COL := Color("ffe27a")
 var SPIN_COL := Color("f0b43a")
 var GOLD_TEXT := Color("f6c14a")
+var GOLD_LO := Color("9a6614")      # the dark end of gold: coins, pressed buttons
+var SHADE := Color("1a0b03")        # the backing of banners and pop-ups, and every dimming
 const ARMADILLO_TEXTS := {
 	"tagline": "GOOD LUCK, PARTNER", "trail": "TRAIL BONUS", "trail_hint": "fire the pistol to move the armadillo",
 	"trail_message": "FIRE THE PISTOL  ·  SPACE OR CLICK FIRE", "launcher": "THE PISTOL", "launcher_hint": "1 to 6 bullets a shot",
@@ -238,6 +240,8 @@ func _apply_theme() -> void:
 	ALERT = col.call("alert", "7d130c")
 	WIN_COL = col.call("win", "ffe27a")
 	SPIN_COL = col.call("spin", "f0b43a")
+	GOLD_LO = col.call("goldLo", "9a6614")
+	SHADE = col.call("shade", "1a0b03")
 	GOLD_TEXT = GOLD if theme.has("colours") else Color("f6c14a")
 	var fonts: Dictionary = theme.get("fonts", {})
 	RYE = SlotArt.font(variant, "display") if fonts.has("display") and SlotArt.font(variant, "display") else ARMADILLO_DISPLAY
@@ -686,7 +690,7 @@ func _place_layers() -> void:
 
 func _draw() -> void:
 	# the letterbox: the floor shows dimly round the edges while it grows
-	draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), Color(0.04, 0.02, 0.01, 0.92 * _grow))
+	draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), Color(SHADE.darkened(0.6), 0.92 * _grow))
 
 
 func _draw_layer(ci: CanvasItem, which: String) -> void:
@@ -734,7 +738,7 @@ func _text(ci: CanvasItem, s: String, at: Vector2, size: int, font: Font = COND,
 	var x := at.x - w / 2.0 if align == "center" else (at.x - w if align == "right" else at.x)
 	var y := at.y + (font.get_ascent(size) - font.get_descent(size)) / 2.0
 	if outline > 0:
-		ci.draw_string_outline(font, Vector2(x, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, outline, Color(0.12, 0.05, 0.02, 0.95))
+		ci.draw_string_outline(font, Vector2(x, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, outline, Color(SHADE, 0.95))
 	ci.draw_string(font, Vector2(x, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 
@@ -755,7 +759,7 @@ func _gold_text(ci: CanvasItem, s: String, at: Vector2, size: int, max_w := 0.0)
 	var w := RYE.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var p := Vector2(at.x - w / 2.0, at.y + (RYE.get_ascent(size) - RYE.get_descent(size)) / 2.0)
 	var edge := maxi(2, int(size * 0.14))
-	ci.draw_string_outline(RYE, p + Vector2(0, size * 0.06), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge + 2, Color(0.1, 0.03, 0.01, 0.85))
+	ci.draw_string_outline(RYE, p + Vector2(0, size * 0.06), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge + 2, Color(SHADE, 0.85))
 	ci.draw_string_outline(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge, INK)
 	ci.draw_string(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, GOLD_TEXT)
 
@@ -817,13 +821,19 @@ func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
 
 func _button(ci: CanvasItem, id: String, r: Rect2, label: String, on := false, disabled := false, size := 22, colour: Array = []) -> void:
 	var hover := _hover == id and not disabled
-	var cols: Array = colour if not colour.is_empty() else ([Color("ffe08a"), Color("8a5410")] if on else deck.btn)
+	var cols: Array = colour if not colour.is_empty() else ([GOLD.lerp(GOLD_HI, 0.5), GOLD_LO] if on else deck.btn)
 	var a := 0.4 if disabled else 1.0
 	_rr(ci, r, r.size.y * 0.28, Color(cols[1], a), 3 if hover else 2, Color(GOLD_HI if hover else EDGE, a))
 	_vgrad(ci, Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, r.size.y * 0.5 - 3)), Color(cols[0], 0.75 * a), Color(cols[0], 0.0))
 	_text(ci, label, r.get_center() + Vector2(0, 1), size, COND, Color(INK if (on or not colour.is_empty()) else CREAM, a), "center", 0, r.size.x - 14)
 	if not disabled:
 		_add_hit(id, r)
+
+
+## FIRE: the alert colour brightened on top, itself underneath.
+func _fire_colours() -> Array:
+	var hot := Color(minf(ALERT.r * 1.8, 1.0), minf(ALERT.g * 1.8, 1.0), minf(ALERT.b * 1.8, 1.0))
+	return [hot.lerp(Color.WHITE, 0.6), ALERT]
 
 
 ## Something clickable. Debug builds warn (once each) if it's off the safe area of the screen.
@@ -887,7 +897,7 @@ func _sym(ci: CanvasItem, sym: String, r: Rect2, fx: Dictionary = {}, alpha := 1
 	ci.draw_set_transform(c, 0, Vector2(maxf(0.02, flip), 1))
 	var glow := float(fx.get("glow", 0.0))
 	if glow > 0.0:
-		var gc: Color = fx.get("glow_colour", Color("ffe27a"))
+		var gc: Color = fx.get("glow_colour", WIN_COL)
 		ci.draw_circle(Vector2.ZERO, size * 0.5, Color(gc, 0.35 * glow))
 	if preset == "glow":
 		ci.draw_circle(Vector2.ZERO, size * 0.52, Color(Color(str(anim.get("colour", "ffe27a"))), 0.3 * minf(1.0, k) * (0.6 + 0.4 * sin(_now * 6.0))))
@@ -912,7 +922,7 @@ func _draw_background(ci: CanvasItem) -> void:
 	var bg := _tex("bg") if background else null
 	if bg:
 		ci.draw_texture_rect(bg, Rect2(0, 0, W, H), false)
-		ci.draw_rect(Rect2(0, 0, W, H), Color(0.02, 0.01, 0.0, 0.2))
+		ci.draw_rect(Rect2(0, 0, W, H), Color(SHADE.darkened(0.6), 0.2))
 		return
 	_vgrad(ci, Rect2(0, 0, W, 300), Color("1b1440"), Color("6a2c5c"))
 	_vgrad(ci, Rect2(0, 300, W, 150), Color("6a2c5c"), Color("e0663a"))
@@ -937,7 +947,7 @@ func _draw_top(ci: CanvasItem) -> void:
 	for spec in [["grand", 18.0, 250.0], ["major", 278.0, 210.0], ["minor", 792.0, 210.0], ["mini", 1012.0, 250.0]]:
 		var id: String = spec[0]
 		var r := Rect2(spec[1], 14, spec[2], 70)
-		_rr(ci, r, 18, Color("1a0d06"))
+		_rr(ci, r, 18, SHADE)
 		_rr(ci, r.grow(-4), 15, Color(TIERS[id], 0.9))
 		_vgrad(ci, Rect2(r.position + Vector2(6, 6), Vector2(r.size.x - 12, 24)), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0.0))
 		var lit: bool = pick.get("lit", "") == id and int(_now * 6) % 2 == 1
@@ -979,7 +989,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 		var y := REEL_Y + 32 + i * 52
 		var lit: bool = feature_lit.get(id, false)
 		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
-		_rr(ci, Rect2(34, y, 192, 42), 10, Color(1, 0.8 + 0.1 * sin(_now * 8.0), 0.35, 0.95) if lit else deck.inset, 2, GOLD_HI if lit else deck.box_edge)
+		_rr(ci, Rect2(34, y, 192, 42), 10, Color(WIN_COL.lerp(GOLD_HI, 0.5 + 0.5 * sin(_now * 8.0)), 0.95) if lit else deck.inset, 2, GOLD_HI if lit else deck.box_edge)
 		_text(ci, label, Vector2(130, y + 22), 20, COND, INK if lit else MUTED, "center", 0, 176)
 	_button(ci, "settings", Rect2(34, REEL_Y + 32 + 7 * 52 + 4, 192, 36), "SETTINGS", false, false, 18)
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
@@ -1038,7 +1048,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var hov := _hover == "spin"
 	ci.draw_circle(c, SPIN_R + 4.0, deck.ring)
 	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
-	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(1, 0.95, 0.7, 0.45))
+	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(GOLD_HI, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
 	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() or not battle.is_empty() else "SPIN")
 	_text(ci, label, c + Vector2(0, 2), 28, COND, INK, "center", 0, SPIN_R * 1.6)
@@ -1047,7 +1057,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	if auto_menu:
 		var n := 0
 		for count in [10, 25, 50, 100]:
-			_button(ci, "auto%d" % count, Rect2(924, top - 50 - n * 46, 100, 40), "%d SPINS" % count, false, false, 20, [GOLD_HI, Color("9a5a10")])
+			_button(ci, "auto%d" % count, Rect2(924, top - 50 - n * 46, 100, 40), "%d SPINS" % count, false, false, 20, [GOLD_HI, SPIN_COL.darkened(0.4)])
 			n += 1
 
 
@@ -1085,7 +1095,7 @@ func _draw_reels(ci: CanvasItem) -> void:
 		_draw_grid(ci)
 	for x in reels:
 		if x.glow > 0.0:
-			ci.draw_rect(Rect2(x.r * CELL_W + 4, 4, CELL_W - 8, REEL_H - 8), Color(1, 0.89, 0.48, x.glow * (0.6 + 0.4 * sin(_now * 12.0))), false, 8)
+			ci.draw_rect(Rect2(x.r * CELL_W + 4, 4, CELL_W - 8, REEL_H - 8), Color(WIN_COL, x.glow * (0.6 + 0.4 * sin(_now * 12.0))), false, 8)
 
 
 func _draw_spinning_reel(ci: CanvasItem, x: Dictionary) -> void:
@@ -1112,7 +1122,7 @@ func _draw_big_reel(ci: CanvasItem, x: Dictionary) -> void:
 	var k := int(col.k)
 	var size := CELL_H * k
 	var wpx := CELL_W * k
-	ci.draw_rect(Rect2(int(col.start) * CELL_W, 0, wpx, REEL_H), Color(0.24, 0.11, 0.04, 0.6))
+	ci.draw_rect(Rect2(int(col.start) * CELL_W, 0, wpx, REEL_H), Color(SHADE.lerp(EDGE, 0.15), 0.6))
 	if _big.is_empty():
 		return
 	var base := floori(x.pos)
@@ -1138,7 +1148,7 @@ func _draw_grid(ci: CanvasItem) -> void:
 		var k := int(col.k)
 		var size := CELL_H * k
 		var wpx := CELL_W * k
-		ci.draw_rect(Rect2(int(col.start) * CELL_W, 0, wpx, REEL_H), Color(0.24, 0.11, 0.04, 0.6))
+		ci.draw_rect(Rect2(int(col.start) * CELL_W, 0, wpx, REEL_H), Color(SHADE.lerp(EDGE, 0.15), 0.6))
 		for b in range(0, ceili(4.0 / k) + 1):
 			var cells := _block_cells(b)
 			if cells.is_empty():
@@ -1179,7 +1189,7 @@ func _draw_reel_overlay(ci: CanvasItem) -> void:
 	for r in range(1, 5):
 		if not colossal.is_empty() and r > int(colossal.start) and r < int(colossal.start) + int(colossal.k):
 			continue
-		ci.draw_rect(Rect2(REEL_X + r * CELL_W - 1, REEL_Y, 2, REEL_H), Color(0.85, 0.65, 0.29, 0.55))
+		ci.draw_rect(Rect2(REEL_X + r * CELL_W - 1, REEL_Y, 2, REEL_H), Color(EDGE, 0.55))
 	_vgrad(ci, Rect2(REEL_X, REEL_Y, REEL_W, 80), Color(1, 1, 1, 0.1), Color(1, 1, 1, 0.0))
 	_vgrad(ci, Rect2(REEL_X, REEL_Y + REEL_H - 70, REEL_W, 70), Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.35))
 
@@ -1200,14 +1210,14 @@ func _draw_wins(ci: CanvasItem) -> void:
 			pts.append(Vector2(REEL_X + reel * CELL_W + CELL_W / 2.0, REEL_Y + int(rows[reel]) * CELL_H + CELL_H / 2.0))
 		pts.append(Vector2(REEL_X + REEL_W + 8, pts[5].y))
 		ci.draw_polyline(pts, Color(colr, 0.25), 18, true)
-		ci.draw_polyline(pts, Color(0.08, 0.03, 0.01, 0.7), 9, true)
+		ci.draw_polyline(pts, Color(SHADE, 0.7), 9, true)
 		ci.draw_polyline(pts, colr, 5, true)
 		for c in w.cells:
 			var r := _cell_rect(int(c)).grow(-6)
 			_rr(ci, r, 10, Color(colr, 0.12), 4, colr)
 		if lines.size() == 1:
 			var last := _cell_rect(int(w.cells[w.cells.size() - 1]))
-			_rr(ci, Rect2(last.end.x - 92, last.position.y + 6, 86, 30), 8, Color(0.08, 0.03, 0.01, 0.85))
+			_rr(ci, Rect2(last.end.x - 92, last.position.y + 6, 86, 30), 8, Color(SHADE, 0.85))
 			_text(ci, Money.format(int(w.pence)), Vector2(last.end.x - 49, last.position.y + 21), 22, COND, colr)
 	if not _running and cycle > 0:
 		var w: Dictionary = wins[cycle - 1]
@@ -1445,7 +1455,7 @@ func _draw_banner(ci: CanvasItem) -> void:
 	var c := Vector2(640, REEL_Y + REEL_H / 2.0)
 	ci.draw_set_transform(c, 0, Vector2(s, s))
 	var h := 132.0 if banner.sub != "" else 100.0
-	_rr(ci, Rect2(-420, -66, 840, h), 22, Color(0.09, 0.04, 0.01, 0.88 * a), 4, Color(GOLD, a))
+	_rr(ci, Rect2(-420, -66, 840, h), 22, Color(SHADE, 0.88 * a), 4, Color(GOLD, a))
 	_gold_text(ci, banner.text, Vector2(0, -16), 58, 800)
 	if banner.sub != "":
 		_text(ci, banner.sub, Vector2(0, 40), 26, COND, Color(CREAM, a), "center", 0, 800)
@@ -1472,8 +1482,8 @@ func _draw_flyers(ci: CanvasItem) -> void:
 		if f.has("text"):
 			_text(ci, str(f.text), Vector2.ZERO, int(f.get("text_size", 40)), COND, Color(f.get("colour", GOLD_HI), f.a), "center", 6)
 		if f.get("flash", false):
-			ci.draw_circle(Vector2.ZERO, 60, Color(1, 0.75, 0.25, 0.35 * float(f.a)))
-			ci.draw_circle(Vector2.ZERO, 30, Color(1, 0.95, 0.75, 0.8 * float(f.a)))
+			ci.draw_circle(Vector2.ZERO, 60, Color(SPIN_COL, 0.35 * float(f.a)))
+			ci.draw_circle(Vector2.ZERO, 30, Color(GOLD_HI, 0.8 * float(f.a)))
 		ci.draw_set_transform(Vector2.ZERO)
 
 
@@ -1495,9 +1505,9 @@ func _draw_particles(ci: CanvasItem) -> void:
 	for p in particles:
 		var sx := cos(float(p.spin))
 		ci.draw_set_transform(Vector2(p.x, p.y), 0, Vector2(maxf(0.12, absf(sx)), 1))
-		ci.draw_circle(Vector2.ZERO, float(p.r), Color("8a5410"))
-		ci.draw_circle(Vector2.ZERO, float(p.r) - 2.0, GOLD if sx > 0 else Color("d9a030"))
-		ci.draw_circle(Vector2(-float(p.r) * 0.3, -float(p.r) * 0.3), float(p.r) * 0.35, Color(1, 0.96, 0.76, 0.8))
+		ci.draw_circle(Vector2.ZERO, float(p.r), GOLD_LO)
+		ci.draw_circle(Vector2.ZERO, float(p.r) - 2.0, GOLD if sx > 0 else GOLD.lerp(GOLD_LO, 0.3))
+		ci.draw_circle(Vector2(-float(p.r) * 0.3, -float(p.r) * 0.3), float(p.r) * 0.35, Color(GOLD_HI, 0.8))
 		ci.draw_set_transform(Vector2.ZERO)
 
 
@@ -1542,7 +1552,7 @@ func _summary(title: String, sub: String, amount: int, sound := "bonus_end") -> 
 func _draw_overlay(ci: CanvasItem) -> void:
 	if overlay.is_empty():
 		return
-	ci.draw_rect(Rect2(0, 0, W, H), Color(0.03, 0.01, 0.0, 0.72))
+	ci.draw_rect(Rect2(0, 0, W, H), Color(SHADE.darkened(0.6), 0.72))
 	_hits = []
 	match overlay.kind:
 		"bigwin":
@@ -1559,7 +1569,7 @@ func _draw_overlay(ci: CanvasItem) -> void:
 			_gold_text(ci, overlay.title, Vector2(640, 240), 54, 560)
 			_text(ci, overlay.sub, Vector2(640, 300), 24, COND, CREAM, "center", 0, 560)
 			_text(ci, Money.format(int(overlay.amount)), Vector2(640, 372), 76, COND, WIN_COL, "center", 8, 560)
-			_button(ci, "overlay", Rect2(560, 430, 160, 50), "COLLECT", false, false, 22, [GOLD_HI, Color("9a5a10")])
+			_button(ci, "overlay", Rect2(560, 430, 160, 50), "COLLECT", false, false, 22, [GOLD_HI, SPIN_COL.darkened(0.4)])
 			_text(ci, "collects itself in %d" % maxi(1, ceili(5.0 - (_now - float(overlay.t0)))), Vector2(640, 496), 16, COND, MUTED)
 		"buy":
 			_wood(ci, Rect2(360, 170, 560, 340), 22)
@@ -1571,13 +1581,13 @@ func _draw_overlay(ci: CanvasItem) -> void:
 			var buy_text: String = texts.buy_text if _routes("buy") == ["trail"] else "Go straight to %s for %%s" % _plays(_routes("buy")).to_lower()
 			_text(ci, buy_text % Money.format(cost), Vector2(640, 400), 26, COND, CREAM, "center", 0, 520)
 			_text(ci, texts.buy_sub % [int(rules.get("buy_cost", 45)), Money.format(_bet()), Money.format(_bet())], Vector2(640, 430), 19, COND, MUTED, "center", 0, 520)
-			_button(ci, "buy-yes", Rect2(470, 450, 160, 48), "BUY", false, Session.shown_balance + _credit_adj < cost, 22, [GOLD_HI, Color("9a5a10")])
+			_button(ci, "buy-yes", Rect2(470, 450, 160, 48), "BUY", false, Session.shown_balance + _credit_adj < cost, 22, [GOLD_HI, SPIN_COL.darkened(0.4)])
 			_button(ci, "buy-no", Rect2(650, 450, 160, 48), "CANCEL")
 		"cashout":
 			_wood(ci, Rect2(390, 220, 500, 250), 20)
 			_gold_text(ci, "CASH OUT?", Vector2(640, 270), 44, 460)
 			_text(ci, "Your bonus is played out for you and paid.", Vector2(640, 330), 24, COND, CREAM, "center", 0, 460)
-			_button(ci, "cash-yes", Rect2(470, 380, 160, 48), "STAND UP", false, false, 22, [GOLD_HI, Color("9a5a10")])
+			_button(ci, "cash-yes", Rect2(470, 380, 160, 48), "STAND UP", false, false, 22, [GOLD_HI, SPIN_COL.darkened(0.4)])
 			_button(ci, "cash-no", Rect2(650, 380, 160, 48), "KEEP PLAYING")
 		"notice":
 			_wood(ci, Rect2(390, 250, 500, 200), 20)
@@ -1610,7 +1620,7 @@ func _draw_info(ci: CanvasItem) -> void:
 			var p: Array = pays.get(sym, [0, 0, 0])
 			for j in 3:
 				var k := 5 - j
-				_text(ci, "%d" % k, Vector2(x0 + sz + 32, y + 30 + j * 26), 20, COND, Color("ffb347"), "left")
+				_text(ci, "%d" % k, Vector2(x0 + sz + 32, y + 30 + j * 26), 20, COND, SPIN_COL, "left")
 				_text(ci, Money.format(int(float(p[k - 3]) * lb)), Vector2(x0 + sz + 56, y + 30 + j * 26), 22, COND, CREAM, "left")
 	for i in tips.size():
 		_text(ci, str(tips[i]), Vector2(640, 528 + i * 28), 19, COND, GOLD_HI if i == tips.size() - 1 else CREAM, "center", 0, 1140)
@@ -1685,13 +1695,13 @@ func _draw_pick(ci: CanvasItem) -> void:
 		var a := 0.45 if c.dim else 1.0
 		var face: bool = c.tier != "" and float(c.flip) >= 0.5
 		if face:
-			ci.draw_circle(Vector2.ZERO, r, Color(0.1, 0.04, 0.01, a))
+			ci.draw_circle(Vector2.ZERO, r, Color(SHADE, a))
 			ci.draw_circle(Vector2.ZERO, r - 4, Color(TIERS.get(c.tier, GOLD), a))
 			ci.draw_circle(Vector2(-r * 0.3, -r * 0.3), r * 0.35, Color(1, 1, 1, 0.35 * a))
 			_text(ci, TIER_NAMES.get(c.tier, c.tier), Vector2(0, 2), 26, COND, Color(1, 1, 1, a), "center", 5)
 		else:
-			ci.draw_circle(Vector2.ZERO, r, Color("5a3505"))
-			ci.draw_circle(Vector2.ZERO, r - 4, Color("ffd970") if hover else GOLD)
+			ci.draw_circle(Vector2.ZERO, r, GOLD_LO.darkened(0.4))
+			ci.draw_circle(Vector2.ZERO, r - 4, GOLD.lerp(GOLD_HI, 0.4) if hover else GOLD)
 			var t := _tex("t_coin")
 			if t:
 				ci.draw_texture_rect(t, Rect2(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4), false)
@@ -1786,7 +1796,7 @@ func _trail_event(e: Dictionary) -> void:
 	var board: Array = tr.board
 	match str(e.kind):
 		"coin", "prizepot":
-			_pop("%s" % Money.format(int(e.pence)), Color("ffe27a"), sx, sy)
+			_pop("%s" % Money.format(int(e.pence)), WIN_COL, sx, sy)
 			if e.kind == "coin" and int(e.pos) < board.size():
 				board[int(e.pos)].taken = true
 			_sfx("trail_coin")
@@ -1876,8 +1886,9 @@ func _draw_trail(ci: CanvasItem) -> void:
 	var tk: Dictionary = tr.token
 	tr.cam = float(tr.cam) + (float(tk.x) - 380.0 - float(tr.cam)) * 0.08
 	var cam := float(tr.cam)
-	_rr(ci, Rect2(18, REEL_Y - 18, 1010, REEL_H + 36), 18, Color(0.16, 0.06, 0.02, 0.35))
-	# the dusty road
+	_rr(ci, Rect2(18, REEL_Y - 18, 1010, REEL_H + 36), 18, Color(SHADE.lerp(EDGE, 0.1), 0.35))
+	# the road, in the design's edge colour
+	var road := EDGE.lerp(CREAM, 0.2)
 	var pts := PackedVector2Array()
 	var lo := maxi(0, floori((cam - 100.0) / TILE))
 	var hi := mini(board.size() - 1, ceili((cam + 1100.0) / TILE))
@@ -1885,9 +1896,9 @@ func _draw_trail(ci: CanvasItem) -> void:
 		var p := _trail_pos(i)
 		pts.append(Vector2(p.x - cam, p.y))
 	if pts.size() > 1:
-		ci.draw_polyline(pts, Color(0.24, 0.11, 0.04, 0.55), 64, true)
-		ci.draw_polyline(pts, Color("c89a62"), 50, true)
-		ci.draw_polyline(pts, Color("d8ae74"), 44, true)
+		ci.draw_polyline(pts, Color(SHADE.lerp(EDGE, 0.15), 0.55), 64, true)
+		ci.draw_polyline(pts, road.darkened(0.08), 50, true)
+		ci.draw_polyline(pts, road, 44, true)
 	var dbl := _now - float(tr.double_at) < 0.8
 	for i in range(lo, hi + 1):
 		var p := _trail_pos(i)
@@ -1900,9 +1911,9 @@ func _draw_trail(ci: CanvasItem) -> void:
 		var a := 0.35 if sp.get("taken", false) else 1.0
 		var crate: bool = not (tr.crate as Dictionary).is_empty() and _now - float(tr.crate.t0) < 1.0 and absi(i - int(tr.crate.pos)) <= int(tr.crate.r)
 		var light := _now - float(tr.lightning_at) < 1.2 and i > int(tk.i) - 7 and i <= int(tk.i)
-		var fill := Color("5e1d12") if sp.type == "snake" else (Color("5a3a08") if end else Color("4a2a14"))
+		var fill := ALERT.darkened(0.25) if sp.type == "snake" else (GOLD_LO.darkened(0.42) if end else SHADE.lerp(EDGE, 0.2))
 		_rr(ci, Rect2(x - sz / 2.0, p.y - sz / 2.0, sz, sz), 12, Color(fill, a), 4 if (crate or light) else 2,
-			Color("ffb347") if crate else (Color("ffe14a") if light else Color(Color("d9a54a"), a)))
+			Color("ffb347") if crate else (Color("ffe14a") if light else Color(EDGE, a)))
 		if TRAIL_ICONS.has(sp.type):
 			var tex := _tex(TRAIL_ICONS[sp.type])
 			if tex:
@@ -1939,16 +1950,16 @@ func _draw_trail_hud(ci: CanvasItem) -> void:
 	var board: Array = tr.board
 	var tk: Dictionary = tr.token
 	var prog := float(tk.i) / maxf(1.0, board.size() - 1)
-	_rr(ci, Rect2(40, REEL_Y - 8, 900, 18), 9, Color(0.08, 0.03, 0.01, 0.8))
+	_rr(ci, Rect2(40, REEL_Y - 8, 900, 18), 9, Color(SHADE, 0.8))
 	if prog > 0.0:
-		_rr(ci, Rect2(40, REEL_Y - 8, maxf(18.0, 900 * prog), 18), 9, Color("d8ae74"))
+		_rr(ci, Rect2(40, REEL_Y - 8, maxf(18.0, 900 * prog), 18), 9, EDGE.lerp(CREAM, 0.2))
 	var gold := _tex("t_gold")
 	if gold:
 		ci.draw_texture_rect(gold, Rect2(930, REEL_Y - 28, 50, 50), false)
 	var arm := _tex("armadillo")
 	if arm:
 		ci.draw_texture_rect(arm, Rect2(40 + 900 * prog - 20, REEL_Y - 34, 44, 44), false)
-	_text(ci, "TRAIL WIN %s" % Money.format(int(tr.total)), Vector2(520, REEL_Y + 34), 34, COND, Color("ffe27a"), "center", 6, 400)
+	_text(ci, "TRAIL WIN %s" % Money.format(int(tr.total)), Vector2(520, REEL_Y + 34), 34, COND, WIN_COL, "center", 6, 400)
 	var heart := _tex("t_heart")
 	for h in int(tr.hearts):
 		if heart:
@@ -1959,7 +1970,7 @@ func _draw_trail_hud(ci: CanvasItem) -> void:
 		_text(ci, "MOVES ×2", Vector2(cx + 75, REEL_Y + 41), 20, COND, Color.WHITE)
 		cx += 160
 	if tr.doubled:
-		_rr(ci, Rect2(cx, REEL_Y + 24, 150, 32), 8, Color("8a2a12"))
+		_rr(ci, Rect2(cx, REEL_Y + 24, 150, 32), 8, ALERT)
 		_text(ci, "COINS DOUBLED", Vector2(cx + 75, REEL_Y + 41), 20, COND, Color.WHITE)
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
 	_text(ci, texts.launcher, Vector2(1150, REEL_Y + 10), 22, COND, GOLD_HI, "center", 0, 196)
@@ -1971,11 +1982,11 @@ func _draw_trail_hud(ci: CanvasItem) -> void:
 		ci.draw_texture_rect(cyl, Rect2(-78, -78, 156, 156), false)
 	for k in int(tr.bullets):
 		var ang := -PI / 2.0 + k * PI / 3.0
-		ci.draw_circle(Vector2(cos(ang), sin(ang)) * 35.0, 13, Color("b07a1c"))
+		ci.draw_circle(Vector2(cos(ang), sin(ang)) * 35.0, 13, GOLD.lerp(GOLD_LO, 0.5))
 		ci.draw_circle(Vector2(cos(ang), sin(ang)) * 35.0 + Vector2(-3, -3), 6, GOLD_HI)
 	ci.draw_set_transform(Vector2.ZERO)
 	if tr.waiting:
-		_button(ci, "fire", Rect2(cyc.x - 80, cyc.y + 100, 160, 58), "FIRE", false, false, 32, [Color("ffb4a6"), Color("7d130c")])
+		_button(ci, "fire", Rect2(cyc.x - 80, cyc.y + 100, 160, 58), "FIRE", false, false, 32, _fire_colours())
 		var left := maxf(0.0, float(tr.auto_at) - _now)
 		_text(ci, "fires itself in %d" % ceili(left), Vector2(cyc.x, cyc.y + 176), 16, COND, MUTED)
 
@@ -2142,7 +2153,7 @@ func _animate_shot(shot: Dictionary) -> void:
 					b.total = int(b.total) + int(e.pence)
 					win_target = float(b.total)
 					roller = maxf(float(e.pence) * 1.4, float(_bet()))
-					_battle_pop(Money.format(int(e.pence)), Color("ffe27a"), p)
+					_battle_pop(Money.format(int(e.pence)), WIN_COL, p)
 				await _wait(0.9)
 			"wave_clear":
 				b.total = int(b.total) + int(e.pence)
@@ -2327,7 +2338,7 @@ func _draw_battle_hud(ci: CanvasItem) -> void:
 		if k < steps - 1:
 			ci.draw_rect(Rect2(x + 12, REEL_Y + 1, gap - 24, 2), Color(1, 1, 1, 0.15))
 		ci.draw_circle(Vector2(x, REEL_Y + 2), 14.0 if k == waves else 10.0, GOLD if done else (Color("e2402f") if now else Color(1, 1, 1, 0.15)))
-	_text(ci, "%s WIN %s" % [texts.battle, Money.format(int(b.total))], Vector2(523, REEL_Y + 30), 34, COND, Color("ffe27a"), "center", 6, 600)
+	_text(ci, "%s WIN %s" % [texts.battle, Money.format(int(b.total))], Vector2(523, REEL_Y + 30), 34, COND, WIN_COL, "center", 6, 600)
 	# the panel: wave, shields, ships left, what's banked, FIRE
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
 	_text(ci, texts.battle, Vector2(1150, REEL_Y + 10), 26, COND, Color("ff6a5a"), "center", 0, 200)
@@ -2343,7 +2354,7 @@ func _draw_battle_hud(ci: CanvasItem) -> void:
 	_text(ci, line, Vector2(1150, REEL_Y + 136), 18, COND, CREAM, "center", 0, 200)
 	_text(ci, "FREE GAMES WON %d" % int(b.spins), Vector2(1150, REEL_Y + 166), 18, COND, Color("7fd0ff"), "center", 0, 200)
 	if b.waiting:
-		_button(ci, "fire", Rect2(1070, REEL_Y + 300, 160, 58), "FIRE", false, false, 32, [Color("ffb4a6"), Color("7d130c")])
+		_button(ci, "fire", Rect2(1070, REEL_Y + 300, 160, 58), "FIRE", false, false, 32, _fire_colours())
 		_text(ci, texts.battle_hint, Vector2(1150, REEL_Y + 380), 16, COND, CREAM, "center", 0, 200)
 		_text(ci, "fires itself in %d" % ceili(maxf(0.0, float(b.auto_at) - _now)), Vector2(1150, REEL_Y + 402), 16, COND, MUTED)
 

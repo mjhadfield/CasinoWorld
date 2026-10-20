@@ -126,6 +126,18 @@ class Design:
         for s in d.setdefault("symbols", []):
             if "hidden" in s:  # round 1's unpicked takes: into the Bin, where they can be restored
                 s["binned"] = list(dict.fromkeys(s.get("binned", []) + s.pop("hidden")))
+        # A design with its own colours takes none of Armadillo's: the shades it never picked (outlines, highlight,
+        # text, and the shade and accent shadow added later) are worked out from its edge and accent colours.
+        cols = d.get("sprites", {}).get("colours")
+        if cols:
+            rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+            hexc = lambda c: "#" + "".join(f"{round(v):02x}" for v in c)
+            dark = lambda h, t: hexc(v * (1 - t) for v in rgb(h))
+            light = lambda h, t: hexc(v + (255 - v) * t for v in rgb(h))
+            edge, gold = cols.get("edge", "#d9a54a"), cols.get("gold", "#f4c94f")
+            for k, v in (("shade", dark(edge, 0.88)), ("goldLo", dark(gold, 0.4)), ("ink", dark(edge, 0.82)),
+                         ("goldHi", light(gold, 0.75)), ("cream", light(edge, 0.88))):
+                cols.setdefault(k, v)
 
     def save(self):
         tmp = self.folder / "design.json.tmp"

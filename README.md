@@ -132,8 +132,12 @@ and Tailscale. It has six tabs:
   - **New ideas:** a feature or bonus that isn't in the library is written up as a spec; Build turns specs into
     code tasks, and once built they join the library.
   - **Sprites:** win animations per tier group (pulse, bounce, shine, glow or spin, with a strength and glow
-    colour), the screen's nine theme colours and two fonts (any bundled or added font), and the floor cabinet
+    colour), the screen's eleven theme colours and two fonts (any bundled or added font), and the floor cabinet
     (body, trim, topper lettering and its words), previewed live: **Show it** lays a five-of-a-kind on the mockup.
+    Every tone the slot screen draws (mockup and `slot_screen.gd`) comes from those colours, the frame and the
+    deck; only the wood style, the drawn dusk, the payline and jackpot-tier colours and the bonus pop-ups are
+    fixed. A colour still at Armadillo's value is marked so. A design with its own colours gets the ones it never
+    picked worked out from its edge and accent colours (`Design._migrate`).
   - **Sounds:** the 30 slot moments, each playing what every slot machine plays until given this slot's own
     (from the Sounds tab's library or an upload, several at random, with a volume trim). Kept in the design until
     Build gives the slot its sound set.

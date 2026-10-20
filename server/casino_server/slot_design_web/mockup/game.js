@@ -14,12 +14,10 @@ export function createGame(cv, cfg) {
   let DISPLAY = '"Rye", "Cinzel", Georgia, serif';
   let COND = '"Barlow Condensed", "Arial Narrow", system-ui, sans-serif';
   const C = {
-    gold: "#f4c94f", goldHi: "#fff1b0", goldLo: "#9a6614", ink: "#2b1608", wood: "#6b3d1d", woodHi: "#a8703f",
-    woodLo: "#3c200d", cream: "#f6ead0", red: "#d8362a", teal: "#35c1b4", panel: "rgba(24,12,6,0.78)",
+    gold: "#f4c94f", goldHi: "#fff1b0", goldLo: "#9a6614", ink: "#2b1004", shade: "#1a0b03", cream: "#f6ead0",
     tiers: { mini: "#4fb3ff", minor: "#55d07a", major: "#c768ff", grand: "#ff5a48" },
     edge: "#d9a54a", muted: "#b89b74", win: "#ffe27a", spin: "#f0b43a", alert: "#7d130c",
   };
-  C.ink = "#2b1004";
   const C0 = Object.assign({}, C);   // Armadillo's look: a design's theme (Sprites step) is laid over it
   let FRAME = { style: "wood", colour: C.edge }, TEXT = {}, LABELS = true;
   // The deck's look (Scene step): the bottom bar, the readout boxes and the buttons. Wood untinted is Armadillo's
@@ -28,6 +26,13 @@ export function createGame(cv, cfg) {
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const dark = (h, t, a = 1) => `rgba(${hexRgb(h).map((v) => Math.round(v * (1 - t))).join(",")},${a})`;
   const light = (h, t) => `rgb(${hexRgb(h).map((v) => Math.round(v + (255 - v) * t)).join(",")})`;
+  const hex = (c) => "#" + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  const mix = (h, to, t) => { const q = hexRgb(to); return hex(hexRgb(h).map((v, i) => v + (q[i] - v) * t)); };
+  const alpha = (h, a) => `rgba(${hexRgb(h).join(",")},${a})`;
+  // Every tone the screen draws comes from the design's colours (Sprites step), so a design inherits none of
+  // Armadillo's browns: shade backs the banners, pop-ups and dimming; goldLo is the dark end of gold and coins.
+  const spinBtn = () => [C.goldHi, C.spin, dark(C.spin, 0.4)];
+  const fireBtn = () => { const hot = hex(hexRgb(C.alert).map((v) => v * 1.8)); return [light(hot, 0.6), hot, C.alert]; };
   function deckLook(d, frameColour) {
     if (d.style === "wood" && !d.colour) return { band: "rgba(12,5,2,0.86)", box: "#1a0c05", boxEdge: "#7a5a36",
       inset: "rgba(20,9,4,0.65)", buy: "rgba(40,18,6,0.85)", buyHover: "rgba(90,40,10,0.95)",
@@ -153,13 +158,13 @@ export function createGame(cv, cfg) {
       const w = ctx.measureText(str).width;
       if (w > maxW) { size = Math.max(10, Math.floor(size * maxW / w)); ctx.font = `${weight} ${size}px ${font}`; }
     } ctx.textAlign = align; ctx.textBaseline = "middle";
-    if (stroke) { ctx.lineWidth = stroke; ctx.strokeStyle = "rgba(30,12,4,0.95)"; ctx.lineJoin = "round"; ctx.strokeText(str, x, y); }
+    if (stroke) { ctx.lineWidth = stroke; ctx.strokeStyle = alpha(C.shade, 0.95); ctx.lineJoin = "round"; ctx.strokeText(str, x, y); }
     ctx.fillStyle = colour; ctx.fillText(str, x, y);
   }
   function goldText(str, x, y, size, font = DISPLAY) {
     ctx.font = `400 ${size}px ${font}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     const g = ctx.createLinearGradient(0, y - size / 2, 0, y + size / 2);
-    g.addColorStop(0, C.goldHi); g.addColorStop(0.45, C.gold); g.addColorStop(1, "#a8651a");
+    g.addColorStop(0, C.goldHi); g.addColorStop(0.45, C.gold); g.addColorStop(1, C.goldLo);
     ctx.lineJoin = "round"; ctx.lineWidth = size * 0.16; ctx.strokeStyle = C.ink; ctx.strokeText(str, x, y);
     ctx.fillStyle = g; ctx.fillText(str, x, y);
   }
@@ -191,7 +196,7 @@ export function createGame(cv, cfg) {
   function button(id, x, y, w, h, label, opts = {}) {
     const on = opts.on, disabled = opts.disabled, hover = S.hover === id && !disabled;
     const g = ctx.createLinearGradient(0, y, 0, y + h);
-    const base = opts.colour || (on ? ["#ffe08a", "#d99a28", "#8a5410"] : DECK.btn);
+    const base = opts.colour || (on ? [mix(C.gold, C.goldHi, 0.5), mix(C.gold, C.goldLo, 0.3), C.goldLo] : DECK.btn);
     g.addColorStop(0, base[0]); g.addColorStop(0.55, base[1]); g.addColorStop(1, base[2]);
     ctx.save(); if (disabled) ctx.globalAlpha = 0.4;
     rr(x, y, w, h, h * 0.28); ctx.fillStyle = g; ctx.fill();
@@ -229,7 +234,7 @@ export function createGame(cv, cfg) {
   function drawBackground() {
     if (ok(bgImg)) ctx.drawImage(bgImg, 0, 0, W, H); else ctx.drawImage(vecBg, 0, 0);
     const v = ctx.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, 820);
-    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(10,4,2,0.6)");
+    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, dark(C.shade, 0.6, 0.6));
     ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   }
   function drawTop() {
@@ -238,7 +243,7 @@ export function createGame(cv, cfg) {
       const t = M.JACKPOT_TIERS.find((q) => q.id === id), y = 14, h = 70, col = C.tiers[id];
       const g = ctx.createLinearGradient(0, y, 0, y + h);
       g.addColorStop(0, "rgba(255,255,255,0.18)"); g.addColorStop(0.5, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.3)");
-      rr(x, y, w, h, 18); ctx.fillStyle = "#1a0d06"; ctx.fill();
+      rr(x, y, w, h, 18); ctx.fillStyle = C.shade; ctx.fill();
       rr(x + 4, y + 4, w - 8, h - 8, 15); ctx.fillStyle = col; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
       ctx.fillStyle = g; ctx.fill();
       rr(x, y, w, h, 18); ctx.lineWidth = 3; ctx.strokeStyle = C.gold; ctx.stroke();
@@ -277,7 +282,7 @@ export function createGame(cv, cfg) {
     names.forEach(([id, label], i) => {
       const y = REEL_Y + 32 + i * step, lit = S.featureLit[id];
       rr(34, y, 192, 42, 10);
-      ctx.fillStyle = lit ? `rgba(255,${200 + Math.sin(S.now * 8) * 30},90,0.95)` : DECK.inset; ctx.fill();
+      ctx.fillStyle = lit ? alpha(mix(C.win, C.goldHi, 0.5 + 0.5 * Math.sin(S.now * 8)), 0.95) : DECK.inset; ctx.fill();
       ctx.lineWidth = 2; ctx.strokeStyle = lit ? C.goldHi : DECK.boxEdge; ctx.stroke();
       text(id === "multiplier" && S.multiplier > 1 ? `MULTIPLIER \u00d7${S.multiplier}` : label, 130, y + 22, 20, COND, lit ? C.ink : C.muted);
     });
@@ -334,7 +339,7 @@ export function createGame(cv, cfg) {
     const cx = 1112, cy = 664, r = 46, spinning = reels.some((x) => x.spinning);
     const hov = S.hover === "spin";
     const g = ctx.createRadialGradient(cx - 14, cy - 18, 6, cx, cy, r);
-    g.addColorStop(0, C.goldHi); g.addColorStop(0.5, spinning ? "#c9871c" : C.spin); g.addColorStop(1, "#7a420c");
+    g.addColorStop(0, C.goldHi); g.addColorStop(0.5, spinning ? dark(C.spin, 0.2) : C.spin); g.addColorStop(1, dark(C.spin, 0.5));
     ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = DECK.ring; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
@@ -342,7 +347,7 @@ export function createGame(cv, cfg) {
     S.hits.push({ id: "spin", x: cx - r, y: cy - r, w: r * 2, h: r * 2 });
     button("cashout", 1172, y + 22, 96, 56, "CASH OUT", { size: 18, disabled: S.busy || S.mode !== "reels" });
     if (S.autoMenu) {
-      [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 934 + i * 0 - 4, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: [C.goldHi, C.spin, "#9a5a10"] }));
+      [10, 25, 50, 100].forEach((n, i) => button("auto" + n, 934 + i * 0 - 4, y - 70 - i * 46, 100, 40, `${n} SPINS`, { colour: spinBtn() }));
     }
   }
 
@@ -399,7 +404,7 @@ export function createGame(cv, cfg) {
     }
     ctx.restore();
     // reel dividers
-    ctx.fillStyle = "rgba(217,165,74,0.55)";
+    ctx.fillStyle = alpha(C.edge, 0.55);
     for (let r = 1; r < 5; r++) {
       if (S.colossal && r > S.colossal.start && r < S.colossal.start + S.colossal.k) continue;
       ctx.fillRect(REEL_X + r * CELL_W - 1, REEL_Y, 2, REEL_H);
@@ -429,7 +434,7 @@ export function createGame(cv, cfg) {
     const big = V.bigStrip, len = big.length, k = col.k, size = CELL_H * k, wPx = CELL_W * k;
     const base = Math.floor(x.pos), frac = x.pos - base;
     ctx.save();
-    ctx.fillStyle = "rgba(60,28,10,0.6)"; ctx.fillRect(REEL_X + col.start * CELL_W, REEL_Y, wPx, REEL_H);
+    ctx.fillStyle = alpha(mix(C.shade, C.edge, 0.15), 0.6); ctx.fillRect(REEL_X + col.start * CELL_W, REEL_Y, wPx, REEL_H);
     for (let i = -1; i <= Math.ceil(4 / k); i++) {
       const sym = big[(((base + i) % len) + len) % len];
       const y = REEL_Y + (i - frac) * size;
@@ -442,7 +447,7 @@ export function createGame(cv, cfg) {
     // a landed Colossal block is drawn big, then any cell that changed since is drawn over it
     if (col) {
       const k = col.k, size = CELL_H * k, wPx = CELL_W * k;
-      ctx.fillStyle = "rgba(60,28,10,0.6)"; ctx.fillRect(REEL_X + col.start * CELL_W, REEL_Y, wPx, REEL_H);
+      ctx.fillStyle = alpha(mix(C.shade, C.edge, 0.15), 0.6); ctx.fillRect(REEL_X + col.start * CELL_W, REEL_Y, wPx, REEL_H);
       for (let b = 0; b <= Math.ceil(4 / k); b++) {
         const sym = V.bigStrip[(col.stop + b) % V.bigStrip.length];
         const y = REEL_Y + (b * k - col.offset) * CELL_H;
@@ -478,7 +483,7 @@ export function createGame(cv, cfg) {
       ctx.save();
       ctx.lineJoin = "round"; ctx.lineCap = "round";
       ctx.shadowColor = colr; ctx.shadowBlur = 16;
-      ctx.lineWidth = 9; ctx.strokeStyle = "rgba(20,8,2,0.7)";
+      ctx.lineWidth = 9; ctx.strokeStyle = alpha(C.shade, 0.7);
       ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(REEL_X - 8, y))); ctx.lineTo(REEL_X + REEL_W + 8, pts[4][1]); ctx.stroke();
       ctx.lineWidth = 5; ctx.strokeStyle = colr; ctx.stroke();
       ctx.restore();
@@ -489,7 +494,7 @@ export function createGame(cv, cfg) {
       }
       if (lines.length === 1) {
         const { x, y } = cellRect(w.cells[w.cells.length - 1]);
-        rr(x + CELL_W - 92, y + 6, 86, 30, 8); ctx.fillStyle = "rgba(20,8,2,0.85)"; ctx.fill();
+        rr(x + CELL_W - 92, y + 6, 86, 30, 8); ctx.fillStyle = alpha(C.shade, 0.85); ctx.fill();
         text(money(w.pence), x + CELL_W - 49, y + 21, 22, COND, colr);
       }
     }
@@ -512,7 +517,7 @@ export function createGame(cv, cfg) {
     const a = t < 0.15 ? t / 0.15 : t > 0.8 ? (1 - t) / 0.2 : 1;
     const s = t < 0.15 ? 0.6 + 0.4 * ease.back(t / 0.15) : 1;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(640, REEL_Y + REEL_H / 2); ctx.scale(s, s);
-    rr(-420, -66, 840, b.sub ? 132 : 100, 22); ctx.fillStyle = "rgba(24,10,3,0.88)"; ctx.fill();
+    rr(-420, -66, 840, b.sub ? 132 : 100, 22); ctx.fillStyle = alpha(C.shade, 0.88); ctx.fill();
     ctx.lineWidth = 4; ctx.strokeStyle = C.gold; ctx.stroke();
     goldText(b.text, 0, b.sub ? -16 : -16, 58);
     if (b.sub) text(b.sub, 0, 40, 26, COND, C.cream);
@@ -533,8 +538,8 @@ export function createGame(cv, cfg) {
       const sx = Math.cos(p.spin);
       ctx.save(); ctx.translate(p.x, p.y); ctx.scale(Math.max(0.12, Math.abs(sx)), 1);
       const g = ctx.createRadialGradient(-p.r * 0.3, -p.r * 0.3, 1, 0, 0, p.r);
-      g.addColorStop(0, C.goldHi); g.addColorStop(0.5, sx > 0 ? C.gold : "#d9a030"); g.addColorStop(1, "#8a5410");
-      ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 7); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#5a3505"; ctx.stroke();
+      g.addColorStop(0, C.goldHi); g.addColorStop(0.5, sx > 0 ? C.gold : mix(C.gold, C.goldLo, 0.3)); g.addColorStop(1, C.goldLo);
+      ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 7); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = dark(C.goldLo, 0.4); ctx.stroke();
       ctx.restore();
     }
   }
@@ -544,7 +549,7 @@ export function createGame(cv, cfg) {
       ctx.save(); ctx.globalAlpha = f.a; ctx.translate(f.x, f.y); ctx.rotate(f.rot || 0); ctx.scale(f.s, f.s);
       if (f.img) drawImg(img(f.img), -f.size / 2, -f.size / 2, f.size, f.size);
       if (f.text) text(f.text, 0, 0, f.textSize || 40, f.font || COND, f.colour || C.goldHi, "center", "700", 6);
-      if (f.flash) { ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 60); g.addColorStop(0, "rgba(255,240,180,1)"); g.addColorStop(1, "rgba(255,160,40,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 60, 0, 7); ctx.fill(); }
+      if (f.flash) { ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 60); g.addColorStop(0, alpha(C.goldHi, 1)); g.addColorStop(1, alpha(C.spin, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 60, 0, 7); ctx.fill(); }
       ctx.restore();
     }
     S.flyers = S.flyers.filter((f) => !f.dead);
@@ -554,7 +559,7 @@ export function createGame(cv, cfg) {
   function drawOverlay() {
     const o = S.overlay;
     if (!o) return;
-    ctx.fillStyle = "rgba(8,3,1,0.72)"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = dark(C.shade, 0.6, 0.72); ctx.fillRect(0, 0, W, H);
     S.hits = o.keepDeck ? S.hits : [];
     if (o.kind === "bigwin") {
       const t = Math.min(1, (S.now - o.t0) * 2.2);
@@ -571,7 +576,7 @@ export function createGame(cv, cfg) {
       goldText(o.title, 640, 240, 54);
       text(o.sub || "", 640, 300, 24, COND, C.cream);
       text(money(o.amount), 640, 372, 76, COND, C.win, "center", "700", 8);
-      button("overlay", 560, 430, 160, 50, "COLLECT", { colour: [C.goldHi, C.spin, "#9a5a10"] });
+      button("overlay", 560, 430, 160, 50, "COLLECT", { colour: spinBtn() });
       const left = 5 - (S.now - o.t0);
       text(`collects itself in ${Math.max(1, Math.ceil(left))}`, 640, 486 + 10, 16, COND, C.muted);
       if (left <= 0 && o.done) { const d = o.done; o.done = null; d(); }
@@ -581,7 +586,7 @@ export function createGame(cv, cfg) {
       drawImg(img(buyIcon()), 640 - 60, 256, 120, 120);
       text(`Go straight to ${routes("buy").length > 1 ? "" : "the "}${plays(routes("buy")).toLowerCase()} for ${money(bet() * V.buyCost)}`, 640, 400, 26, COND, C.cream, "center", "700", 0, 520);
       text(`${V.buyCost} \u00d7 your ${money(bet())} bet. Bonus wins pay at ${money(bet())}.`, 640, 430, 19, COND, C.muted);
-      button("buy-yes", 470, 450, 160, 48, "BUY", { colour: [C.goldHi, C.spin, "#9a5a10"], disabled: S.balance < bet() * V.buyCost });
+      button("buy-yes", 470, 450, 160, 48, "BUY", { colour: spinBtn(), disabled: S.balance < bet() * V.buyCost });
       button("buy-no", 650, 450, 160, 48, "CANCEL");
     } else if (o.kind === "info") {
       drawInfo();
@@ -602,7 +607,7 @@ export function createGame(cv, cfg) {
       const n = row.length, cw = Math.min(280, 1120 / n), sz = Math.min(104, cw - 130), x0 = 640 - (n * cw) / 2 + col * cw, y = 118 + ri * 128;
       drawImg(img(sym), x0 + 10, y + 4 + (104 - sz) / 2, sz, sz);
       [5, 4, 3].forEach((k, j) => {
-        text(`${k}`, x0 + sz + 32, y + 30 + j * 26, 20, COND, "#ffb347", "left");
+        text(`${k}`, x0 + sz + 32, y + 30 + j * 26, 20, COND, C.spin, "left");
         text(money(Math.floor(V.pays[sym][k - 3] * lb)), x0 + sz + 56, y + 30 + j * 26, 22, COND, C.cream, "left");
       });
     }));
@@ -847,7 +852,7 @@ export function createGame(cv, cfg) {
   }
   function drawPick() {
     const P = S.pick;
-    ctx.fillStyle = "rgba(10,4,2,0.82)"; ctx.fillRect(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36);
+    ctx.fillStyle = dark(C.shade, 0.6, 0.82); ctx.fillRect(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36);
     woodPanel(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36, 18);
     goldText("PICK A COIN", 640, REEL_Y + 22, 40);
     P.coins.forEach((c, i) => {
@@ -859,10 +864,10 @@ export function createGame(cv, cfg) {
       if (c.dim) ctx.globalAlpha = 0.45;
       const face = c.tier && c.flip >= 0.5 ? C.tiers[c.tier] : null;
       const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 4, 0, 0, r);
-      if (face) { g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, face); g.addColorStop(1, "#1a0b03"); }
-      else { g.addColorStop(0, C.goldHi); g.addColorStop(0.5, hover ? "#ffd970" : C.gold); g.addColorStop(1, "#8a5410"); }
+      if (face) { g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, face); g.addColorStop(1, C.shade); }
+      else { g.addColorStop(0, C.goldHi); g.addColorStop(0.5, hover ? mix(C.gold, C.goldHi, 0.4) : C.gold); g.addColorStop(1, C.goldLo); }
       ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fillStyle = g; ctx.fill();
-      ctx.lineWidth = 4; ctx.strokeStyle = P.done && c.tier === P.lit && !c.dim ? "#fff" : "#5a3505"; ctx.stroke();
+      ctx.lineWidth = 4; ctx.strokeStyle = P.done && c.tier === P.lit && !c.dim ? "#fff" : dark(C.goldLo, 0.4); ctx.stroke();
       if (face) text(M.JACKPOT_TIERS.find((q) => q.id === c.tier).name, 0, 2, 26, COND, "#fff", "center", "700", 5);
       else { drawImg(img("t_coin"), -r * 0.7, -r * 0.7, r * 1.4, r * 1.4); }
       ctx.restore();
@@ -965,16 +970,17 @@ export function createGame(cv, cfg) {
   }
   function drawTrail() {
     const T = S.trail, st = T.st, b = st.board;
+    const road = mix(C.edge, C.cream, 0.2);
     // camera follows the armadillo
     const want = T.token.x - 380;
     T.cam += (want - T.cam) * 0.08;
     const x0 = REEL_X - 22, y0 = REEL_Y - 18, w0 = REEL_W + 44 + 1262 - (REEL_X + REEL_W + 22) - 2 + 240, h0 = REEL_H + 36;
     ctx.save();
     rr(18, y0, 1010, h0, 18); ctx.clip();
-    ctx.fillStyle = "rgba(40,16,6,0.35)"; ctx.fillRect(18, y0, 1010, h0);
-    // the dusty road
+    ctx.fillStyle = alpha(mix(C.shade, C.edge, 0.1), 0.35); ctx.fillRect(18, y0, 1010, h0);
+    // the road, in the design's edge colour
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    for (const [w, c] of [[64, "rgba(60,28,10,0.55)"], [50, "#c89a62"], [44, "#d8ae74"]]) {
+    for (const [w, c] of [[64, alpha(mix(C.shade, C.edge, 0.15), 0.55)], [50, dark(road, 0.08)], [44, road]]) {
       ctx.beginPath();
       for (let i = 0; i < b.length; i++) { const p = trailPos(i); const x = p.x - T.cam; if (i === 0) ctx.moveTo(x, p.y); else ctx.lineTo(x, p.y); }
       ctx.lineWidth = w; ctx.strokeStyle = c; ctx.stroke();
@@ -989,7 +995,7 @@ export function createGame(cv, cfg) {
       const crate = T.crate && S.now - T.crate.t0 < 1.0 && Math.abs(i - T.crate.pos) <= T.crate.r;
       const light = T.lightningAt && S.now - T.lightningAt < 1.2 && i > T.token.i - 7 && i <= T.token.i;
       rr(x - sz / 2, y - sz / 2, sz, sz, 12);
-      ctx.fillStyle = sp.type === "snake" ? "#5e1d12" : end ? "#5a3a08" : "#4a2a14"; ctx.fill();
+      ctx.fillStyle = sp.type === "snake" ? dark(C.alert, 0.25) : end ? dark(C.goldLo, 0.42) : mix(C.shade, C.edge, 0.2); ctx.fill();
       ctx.lineWidth = crate || light ? 4 : 2; ctx.strokeStyle = crate ? "#ffb347" : light ? "#ffe14a" : C.edge; ctx.stroke();
       const icon = { coin: "t_coin", snake: "t_snake", heart: "t_heart", forward: "t_forward", back: "t_forward", lightning: "t_lightning",
                      crate: "t_crate", upgrade: "t_upgrade", double: "t_double", prizepot: "t_gold" }[sp.type];
@@ -1017,15 +1023,15 @@ export function createGame(cv, cfg) {
     ctx.restore();
     // the HUD: progress, hearts, chips, the cylinder and FIRE
     const prog = tk.i / (b.length - 1);
-    rr(40, REEL_Y - 8, 900, 18, 9); ctx.fillStyle = "rgba(20,8,2,0.8)"; ctx.fill();
-    rr(40, REEL_Y - 8, 900 * prog, 18, 9); ctx.fillStyle = "#d8ae74"; ctx.fill();
+    rr(40, REEL_Y - 8, 900, 18, 9); ctx.fillStyle = alpha(C.shade, 0.8); ctx.fill();
+    rr(40, REEL_Y - 8, 900 * prog, 18, 9); ctx.fillStyle = road; ctx.fill();
     drawImg(img("t_gold"), 930, REEL_Y - 28, 50, 50);
     drawImg(img("armadillo"), 40 + 900 * prog - 20, REEL_Y - 34, 44, 44);
     text(`TRAIL WIN ${money(T.total)}`, 640, REEL_Y + 34, 34, COND, C.win, "center", "700", 6);
     for (let h = 0; h < T.hearts; h++) drawImg(img("t_heart"), 40 + h * 46, REEL_Y + 18, 44, 44);
     let cx = 40 + Math.max(1, T.hearts) * 46 + 10;
     if (st.upgraded) { rr(cx, REEL_Y + 24, 150, 32, 8); ctx.fillStyle = "#1d6b62"; ctx.fill(); text("MOVES \u00d72", cx + 75, REEL_Y + 41, 20, COND, "#fff"); cx += 160; }
-    if (st.doubled) { rr(cx, REEL_Y + 24, 150, 32, 8); ctx.fillStyle = "#8a2a12"; ctx.fill(); text("COINS DOUBLED", cx + 75, REEL_Y + 41, 20, COND, "#fff"); }
+    if (st.doubled) { rr(cx, REEL_Y + 24, 150, 32, 8); ctx.fillStyle = C.alert; ctx.fill(); text("COINS DOUBLED", cx + 75, REEL_Y + 41, 20, COND, "#fff"); }
     woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
     text(TEXT.pistol, 1150, REEL_Y + 10, 22, COND, C.goldHi);
     text(st.upgraded ? "moves doubled" : "1 to 6 spaces a shot", 1150, REEL_Y + 34, 16, COND, C.cream);
@@ -1035,12 +1041,12 @@ export function createGame(cv, cfg) {
       const a = -Math.PI / 2 + (k * Math.PI) / 3;
       ctx.beginPath(); ctx.arc(Math.cos(a) * 35, Math.sin(a) * 35, 13, 0, 7);
       const g = ctx.createRadialGradient(Math.cos(a) * 35 - 4, Math.sin(a) * 35 - 4, 2, Math.cos(a) * 35, Math.sin(a) * 35, 13);
-      g.addColorStop(0, C.goldHi); g.addColorStop(1, "#b07a1c"); ctx.fillStyle = g; ctx.fill();
+      g.addColorStop(0, C.goldHi); g.addColorStop(1, mix(C.gold, C.goldLo, 0.5)); ctx.fillStyle = g; ctx.fill();
     }
     ctx.restore();
     if (T.waiting) {
       const left = Math.max(0, T.autoAt - S.now);
-      button("fire", cyx - 80, cyy + 100, 160, 58, "FIRE", { colour: ["#ffb4a6", "#e2402f", C.alert], size: 32 });
+      button("fire", cyx - 80, cyy + 100, 160, 58, "FIRE", { colour: fireBtn(), size: 32 });
       text(`fires itself in ${Math.ceil(left)}`, cyx, cyy + 176, 16, COND, C.muted);
       if (left <= 0) fire();
     }
@@ -1290,7 +1296,7 @@ export function createGame(cv, cfg) {
     text(`FREE GAMES WON ${B.spins}`, 1150, REEL_Y + 166, 18, COND, "#7fd0ff", "center", "700", 0, 200);
     if (B.waiting) {
       const wait = Math.max(0, B.autoAt - S.now);
-      button("fire", 1070, REEL_Y + 300, 160, 58, "FIRE", { colour: ["#ffb4a6", "#e2402f", C.alert], size: 32 });
+      button("fire", 1070, REEL_Y + 300, 160, 58, "FIRE", { colour: fireBtn(), size: 32 });
       text(TEXT.battleHint, 1150, REEL_Y + 380, 16, COND, C.cream, "center", "700", 0, 200);
       text(`fires itself in ${Math.ceil(wait)}`, 1150, REEL_Y + 402, 16, COND, C.muted);
       if (wait <= 0) fireBattle(null);

@@ -155,7 +155,8 @@ function drawFrame() {
       el("button", {type: "button", textContent: st[0].toUpperCase() + st.slice(1), ariaPressed: String(fr.style === st),
         onclick: () => patch({frame: {style: st, colour: fr.colour}})}))),
     el("label", {className: "controls"}, el("span", {className: "hint", textContent: "Edge colour"}), colour),
-    el("p", {className: "hint", textContent: "Wood is Armadillo's. The frame's style also dresses the side panels and the pop-ups."}));
+    el("p", {className: "hint", textContent: "Wood is Armadillo's. The frame's style also dresses the side panels and the pop-ups. " +
+      "The screen's colours (banners, dimming, text, coins) are on the Sprites step."}));
 }
 
 // ------------------------------------------------------------------ deck

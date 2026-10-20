@@ -459,6 +459,18 @@ def test_art_slots_and_specs(board):
 
 
 # ------------------------------------------------------------------ Sprites and Sounds (Phase 5)
+def test_own_colours_get_a_shade_and_accent_shadow_of_their_own(board):
+    """A design with its own colours gets the ones it never picked from its edge and accent, not Armadillo's."""
+    from casino_server.slot_design import Design
+    _, d = board
+    data = json.loads((d / "design.json").read_text())
+    data["sprites"] = {"colours": {"edge": "#4aa9d9", "gold": "#30494f"}}
+    (d / "design.json").write_text(json.dumps(data))
+    cols = Design(d).data["sprites"]["colours"]
+    assert cols["shade"] == "#09141a" and cols["goldLo"] == "#1d2c2f" and cols["ink"] == "#0d1e27"
+    assert cols["goldHi"] == "#cbd2d3" and cols["cream"] == "#e9f5fa" and "alert" not in cols
+
+
 def test_sprites(board):
     c, _ = board
     sp = _overview(c)["sprites"]

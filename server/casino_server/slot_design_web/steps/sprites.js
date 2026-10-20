@@ -4,8 +4,9 @@ import {createGame} from "../mockup/game.js";
 import {designConfig, loadMath} from "../mockup/design.js";
 
 const GROUPS = [["wild", "Wild"], ["high", "High pays"], ["mid", "Mid pays"], ["low", "Low pays (royals)"], ["scatter", "Scatters"]];
-const COLOURS = [["gold", "Accent (titles, borders)"], ["goldHi", "Highlight"], ["edge", "Panel edges"], ["cream", "Text"], ["muted", "Quiet text"],
-  ["ink", "Text on gold"], ["win", "Win amounts"], ["spin", "Spin button"], ["alert", "Alerts (free games, fire)"]];
+const COLOURS = [["gold", "Accent (titles, borders)"], ["goldHi", "Highlight"], ["goldLo", "Accent shadow (coins, gold ends)"],
+  ["edge", "Panel edges"], ["cream", "Text"], ["muted", "Quiet text"], ["ink", "Text on gold, outlines"],
+  ["shade", "Shade (banners, pop-ups, dimming)"], ["win", "Win amounts"], ["spin", "Spin button"], ["alert", "Alerts (free games, fire)"]];
 let C, game = null, parts = {};
 
 export function render(ctx, body) {
@@ -73,12 +74,14 @@ function draw() {
       el("div", {className: "wz-swatches"}, ...COLOURS.map(([k, label]) => {
         const i = el("input", {type: "color", value: sp.colours[k], ariaLabel: label});
         i.addEventListener("change", () => patch({colours: {[k]: i.value}}));
-        return el("label", {className: "wz-swatch"}, i, el("span", {textContent: label}));
+        const same = sp.colours[k].toLowerCase() === sp.armadillo_colours[k];
+        return el("label", {className: "wz-swatch", title: same ? "Still Armadillo's colour" : ""}, i,
+          el("span", {textContent: label}, ...(same ? [el("em", {className: "wz-inherited", textContent: "Armadillo's"})] : [])));
       })),
+      el("p", {className: "hint", textContent: "Every colour on the slot screen comes from these. One still marked Armadillo's hasn't been picked for this slot."}),
       el("div", {className: "grid2"}, fontSel("display", "Display font (banners, titles)"), fontSel("ui", "Interface font (numbers, buttons)")),
       el("p", {className: "hint", textContent: "Fonts come from the game's set or any added on the Scene step."}),
-      el("button", {type: "button", textContent: "Back to Armadillo's colours", onclick: () => patch({colours: {gold: "#f4c94f", goldHi: "#fff1b0", edge: "#d9a54a",
-        cream: "#f6ead0", muted: "#b89b74", ink: "#2b1004", win: "#ffe27a", spin: "#f0b43a", alert: "#7d130c"}})}));
+      el("button", {type: "button", textContent: "Back to Armadillo's colours", onclick: () => patch({colours: sp.armadillo_colours})}));
   }
   if (!parts.cab.contains(document.activeElement) || document.activeElement.type === "color") drawCabinet();
 }

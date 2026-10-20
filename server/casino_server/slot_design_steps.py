@@ -79,9 +79,11 @@ ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",),
            "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",)}
 WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
 WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
-# The screen's colours (the mockup's names; Armadillo's values) and fonts.
-THEME_DEFAULTS = {"gold": "#f4c94f", "goldHi": "#fff1b0", "edge": "#d9a54a", "cream": "#f6ead0", "muted": "#b89b74",
-                  "ink": "#2b1004", "win": "#ffe27a", "spin": "#f0b43a", "alert": "#7d130c"}
+# The screen's colours (the mockup's names; Armadillo's values) and fonts. Every tone the slot screen draws comes
+# from these (shade backs the banners and pop-ups and does the dimming; goldLo is the dark end of gold and coins).
+THEME_DEFAULTS = {"gold": "#f4c94f", "goldHi": "#fff1b0", "goldLo": "#9a6614", "edge": "#d9a54a", "cream": "#f6ead0",
+                  "muted": "#b89b74", "ink": "#2b1004", "shade": "#1a0b03", "win": "#ffe27a", "spin": "#f0b43a",
+                  "alert": "#7d130c"}
 FONT_DEFAULTS = {"display": "Rye-Regular.ttf", "ui": "BarlowCondensed-Bold.ttf"}
 CABINET_DEFAULTS = {"body": "#4a2c18", "trim": "#ffb347", "title": "#e8a33a"}
 
@@ -153,6 +155,7 @@ def sprites_view(d) -> dict:
     win = {g: {"preset": p, "strength": 1.0, "colour": "#ffe27a", **sp.get("win", {}).get(g, {})} for g, p in WIN_DEFAULTS.items()}
     lines = (d.data.get("scene", {}).get("logo", {}).get("lines") or [d.data.get("name", "")])[:2]
     return {"win": win, "presets": list(WIN_PRESETS), "colours": {**THEME_DEFAULTS, **sp.get("colours", {})},
+            "armadillo_colours": THEME_DEFAULTS,
             "fonts": {**FONT_DEFAULTS, **sp.get("fonts", {})}, "font_list": _fonts(d),
             "cabinet": {**CABINET_DEFAULTS, "lines": [x.upper()[:12] for x in lines], **sp.get("cabinet", {})}}
 
