@@ -20,7 +20,7 @@ changes how those places look, not where they are.
 3. Write the skin as a JSON file in your scratchpad, then run `tools/scene.py shot <design> skin.json` and look at
    `.dev/shots/scene_<design>.png`.
    - Iterate on that one shot.
-   - Then check the busy cases with `--bonus trail|free|battle|voyage`. A pop-up and every bonus panel use the
+   - Then check the busy cases with `--bonus trail|free|battle|voyage|expedition`. A pop-up and every bonus panel use the
      skin's `panel`.
    - Shots are taken at 1164 px wide. Thin shapes and dark blocks read badly at that size, so crop and enlarge a
      region before you judge it.

@@ -15,8 +15,14 @@ The bonus games. Each is a small state machine the cabinet steps through:
   or sinks you (the voyage ends short of the final island), Port Royal trades relics, and a Hidden Cove needs a key.
   The final island pays the treasure chest, a part for each artefact held, the legend for all of them, and any
   relics left. Free games bought at Port Royal are banked and played as Combo Free Games afterwards.
+- The expedition, Delta Quadrant (any way in a design gives it): choose one of three routes, each a length and a
+  hazard level shown up front, then explore one of three hidden planets in each sector: credits, a multiplier (on
+  every later prize and the final one), tech (a Scanner shows the next sector, a Shuttle explores a second planet
+  there, Shields absorb a hazard), a special (an artefact's big prize, a Wormhole straight to a boosted final prize,
+  or free games, played as Combo Free Games afterwards), or a hazard, which ends it short of the final prize.
 
-Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames / battleShot / voyageStep), draw for draw.
+Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames / battleShot / voyageStep /
+expeditionStep), draw for draw.
 """
 import json
 import math
@@ -490,3 +496,196 @@ _VOYAGE_SECONDS = {"arrive": 1.4, "treasure": 1.0, "relics": 0.8, "key": 0.8, "a
 
 def voyage_step_seconds(step: dict) -> float:
     return 0.3 + sum(_VOYAGE_SECONDS.get(e["kind"], 0.5) for e in step["events"])
+
+
+# ------------------------------------------------------------------ the expedition (Delta Quadrant)
+EXPEDITION_RANK = ("hazard", "credits", "scanner", "shuttle", "shields", "mult", "spins", "artefact", "wormhole")
+
+
+def expedition_start(v, bet: int, rng) -> dict:
+    """A fresh expedition at the chart: three routes, each a length and a hazard level (with its final prize)."""
+    e = v.expedition
+    routes = []
+    for _ in range(3):
+        length = _draw(rng, e["lengths"])
+        level = _draw(rng, [(i, lv["weight"]) for i, lv in enumerate(e["levels"])])
+        routes.append({"length": length, "level": level, "final": e["levels"][level]["final"]})
+    return {"bet": bet, "routes": routes, "route": None, "sector": -1, "planets": None, "found": [], "awaiting": "route",
+            "mult": 1, "scanners": 0, "shuttles": 0, "shields": 0, "scanned": False, "shuttle_now": False, "spins": 0,
+            "total": 0, "ended": False, "wormhole": False, "final": None, "steps": 0, "done": False}
+
+
+def _planet(e: dict, level: dict, sector: int, rng) -> dict:
+    """One hidden planet: what it is, and what it holds (credits and the artefact already scaled by the level).
+    Hazards grow more likely the deeper into the route (`ramp` more weight a sector)."""
+    kind = _draw(rng, e["kinds"] + [["hazard", level["hazard"] + e["ramp"] * sector]])
+    p = {"kind": kind, "seen": False, "by": None}
+    if kind == "credits":
+        p["x"] = _draw(rng, e["credits"]) * level["scale"]
+    elif kind == "mult":
+        p["n"] = _draw(rng, e["mults"])
+    elif kind == "tech":
+        p["kind"] = _draw(rng, e["techs"])
+    elif kind == "special":
+        p["kind"] = _draw(rng, e["specials"])
+        if p["kind"] == "artefact":
+            p["x"] = _draw(rng, e["artefact"]) * level["scale"]
+        elif p["kind"] == "spins":
+            p["n"] = _draw(rng, e["spins"])
+    return p
+
+
+def _enter_sector(v, st: dict, rng, ev: list) -> None:
+    """Warp to the next sector: its three planets drawn; a Scanner shows them, a Shuttle launches."""
+    e = v.expedition
+    level = e["levels"][st["routes"][st["route"]]["level"]]
+    st["sector"] += 1
+    st["planets"] = [_planet(e, level, st["sector"], rng) for _ in range(3)]
+    st["found"].append([])
+    st["awaiting"] = "planet"
+    ev.append({"kind": "warp", "sector": st["sector"]})
+    st["scanned"] = st["scanners"] > 0
+    if st["scanned"]:
+        st["scanners"] -= 1
+        for p in st["planets"]:
+            p["seen"] = True
+        ev.append({"kind": "scan", "planets": json.loads(json.dumps(st["planets"]))})
+    st["shuttle_now"] = st["shuttles"] > 0
+    if st["shuttle_now"]:
+        st["shuttles"] -= 1
+        ev.append({"kind": "shuttle"})
+
+
+def expedition_options(v, st: dict) -> list:
+    """What can be chosen now: a route (0-2) at the chart, else the planets not yet explored in this sector."""
+    if st["done"]:
+        return []
+    if st["awaiting"] == "route":
+        return [0, 1, 2]
+    return [i for i, p in enumerate(st["planets"]) if p["by"] is None]
+
+
+def _worth(p: dict) -> tuple:
+    return (EXPEDITION_RANK.index(p["kind"]), p.get("x", p.get("n", 0)))
+
+
+def expedition_auto(v, st: dict, rng):
+    """The choice made for a player who waits (and for NPCs and the simulator): a random route, a random planet, or
+    in a scanned sector the best one shown (never a hazard while there's anything else)."""
+    opts = expedition_options(v, st)
+    if st["awaiting"] != "route" and st["scanned"]:
+        best = opts[0]
+        for i in opts[1:]:
+            if _worth(st["planets"][i]) > _worth(st["planets"][best]):
+                best = i
+        return best
+    return opts[randint(rng, len(opts))]
+
+
+def _explore(v, st: dict, p: dict, by: str, ev: list):
+    """What a planet does once explored. Returns "end" (a hazard), "wormhole", or None."""
+    k = p["kind"]
+    if k in ("credits", "artefact"):
+        p["pence"] = bet_pence(p["x"] * st["mult"], st["bet"])
+        st["total"] += p["pence"]
+        ev.append({"kind": k, "pence": p["pence"]})
+    elif k == "mult":
+        st["mult"] += p["n"]
+        ev.append({"kind": "mult", "n": p["n"], "mult": st["mult"]})
+    elif k in ("scanner", "shuttle", "shields"):
+        st[k + "s" if k != "shields" else k] += 1
+        ev.append({"kind": "tech", "tech": k})
+    elif k == "spins":
+        st["spins"] += p["n"]
+        ev.append({"kind": "spins", "n": p["n"]})
+    elif k == "wormhole":
+        ev.append({"kind": "wormhole"})
+        return "wormhole"
+    elif by == "shuttle":
+        ev.append({"kind": "shuttle_lost"})
+    elif st["shields"] > 0:
+        st["shields"] -= 1
+        ev.append({"kind": "shielded"})
+    else:
+        ev.append({"kind": "hazard"})
+        return "end"
+    return None
+
+
+def expedition_step(v, st: dict, rng, choice=None) -> dict:
+    """One choice; `st` advances. `choice` is one of expedition_options (anything else, or None, is chosen for you by
+    expedition_auto). Returns {action (route/explore/shuttle), choice, events, done}. Events: route {i}, warp {sector},
+    scan {planets}, shuttle, reveal {i, by, planet}, credits/artefact {pence}, mult {n, mult}, tech {tech}, spins {n},
+    wormhole, shielded, shuttle_lost, hazard, missed {planets: [[i, planet]]}, final {pence, mult, wormhole}."""
+    e, ev = v.expedition, []
+    opts = expedition_options(v, st)
+    if choice not in opts or isinstance(choice, bool):
+        choice = expedition_auto(v, st, rng)
+    st["steps"] += 1
+    if st["awaiting"] == "route":
+        st["route"] = choice
+        ev.append({"kind": "route", "i": choice})
+        _enter_sector(v, st, rng, ev)
+        return {"action": "route", "choice": choice, "events": ev, "done": False}
+    by = "shuttle" if st["awaiting"] == "shuttle" else "ship"
+    p = st["planets"][choice]
+    p["by"], p["seen"] = by, True
+    st["found"][-1].append(p["kind"])
+    ev.append({"kind": "reveal", "i": choice, "by": by, "planet": dict(p)})
+    out = _explore(v, st, p, by, ev)
+    if out is None and by == "ship" and st["shuttle_now"]:
+        st["awaiting"] = "shuttle"
+        return {"action": "explore", "choice": choice, "events": ev, "done": False}
+    missed = []
+    for i, q in enumerate(st["planets"]):
+        if q["by"] is None:
+            q["seen"] = True
+            if "x" in q:
+                q["pence"] = bet_pence(q["x"] * st["mult"], st["bet"])
+            missed.append([i, dict(q)])
+    if missed:
+        ev.append({"kind": "missed", "planets": missed})
+    route = st["routes"][st["route"]]
+    if out == "end":
+        st["ended"] = st["done"] = True
+        st["awaiting"] = None
+    elif out == "wormhole" or st["sector"] == route["length"] - 1:
+        st["wormhole"] = out == "wormhole"
+        boost = e["wormhole"] if st["wormhole"] else 1
+        st["final"] = bet_pence(route["final"] * boost * st["mult"], st["bet"])
+        st["total"] += st["final"]
+        st["done"] = True
+        st["awaiting"] = None
+        ev.append({"kind": "final", "pence": st["final"], "mult": st["mult"], "wormhole": st["wormhole"]})
+    else:
+        _enter_sector(v, st, rng, ev)
+    return {"action": by if by == "shuttle" else "explore", "choice": choice, "events": ev, "done": st["done"]}
+
+
+def expedition_play_out(v, st: dict, rng) -> list:
+    """A player who leaves mid-expedition (and the simulator): every choice made by expedition_auto, to the end."""
+    steps = []
+    for _ in range(100):
+        if st["done"]:
+            break
+        steps.append(expedition_step(v, st, rng))
+    return steps
+
+
+def expedition_view(v, st: dict) -> dict:
+    """The expedition as clients see it: a planet not yet revealed or scanned shows nothing of what it is."""
+    out = json.loads(json.dumps(st))
+    if out["planets"]:
+        out["planets"] = [p if p["seen"] else {"kind": None, "seen": False, "by": None} for p in out["planets"]]
+    out["options"] = expedition_options(v, st)
+    return out
+
+
+# How long the screen takes to play each part of a step (game.js / slot_screen.gd), so the server waits for it.
+_EXPEDITION_SECONDS = {"route": 1.6, "warp": 1.2, "scan": 1.0, "shuttle": 0.6, "reveal": 0.9, "credits": 0.8, "mult": 1.0,
+                       "tech": 1.0, "artefact": 1.4, "wormhole": 2.2, "spins": 1.0, "hazard": 2.2, "shielded": 1.4,
+                       "shuttle_lost": 1.2, "missed": 1.2, "final": 3.0}
+
+
+def expedition_step_seconds(step: dict) -> float:
+    return 0.3 + sum(_EXPEDITION_SECONDS.get(e["kind"], 0.5) for e in step["events"])

@@ -3,7 +3,7 @@
    {cmd: "sample", params}. Out: {progress} while it works, then {result} (sim), {tuned} (tune) or {sample}.
    Like the signed-off tuner (docs/slots/mockup/sim_worker.js), the trail's share comes from its own long run of
    trails times how often spins trigger it: the trail swings far too hard to sample from spins alone. The battle's
-   share is measured the same way (its free games included), and so is the voyage's. Buy Bonus is
+   share is measured the same way (its free games included), and so are the voyage's and the expedition's. Buy Bonus is
    measured on its own run (one of the buyable bonuses at random each time). */
 importScripts("/slot-design-ui/slots_math.js");
 const M = self.SlotMath;
@@ -13,13 +13,14 @@ function report(V, spins, buys, progress = () => {}, seed = 1000) {
   for (let i = 0; i < spins / chunk; i++) { parts.push(M.simulate(V, chunk, 100, seed + i)); progress((i + 1) / (spins / chunk) * 0.85); }
   const sum = (k) => parts.reduce((a, p) => a + p[k], 0);
   const r = {spins, staked: sum("staked")};
-  for (const k of ["plain", "featured", "repeatExtra", "instant", "trail", "free", "battle", "voyage", "hits", "trails", "frees", "battles", "voyages", "featureSpins", "prizepots", "sumSq"]) r[k] = sum(k);
+  for (const k of ["plain", "featured", "repeatExtra", "instant", "trail", "free", "battle", "voyage", "expedition", "hits", "trails", "frees", "battles", "voyages", "expeditions", "featureSpins", "prizepots", "sumSq"]) r[k] = sum(k);
   r.max = Math.max(...parts.map((p) => p.max)) / 100;
   r.featureCounts = {};
   for (const p of parts) for (const [k, v] of Object.entries(p.featureCounts)) r.featureCounts[k] = (r.featureCounts[k] || 0) + v;
   const pct = (v) => (100 * v) / r.staked;
   r.rtp = {plain: pct(r.plain), featured: pct(r.featured), repeat: pct(r.repeatExtra), instant: pct(r.instant), trail: pct(r.trail),
-           free: pct(r.free), battle: pct(r.battle), voyage: pct(r.voyage), jackpot: 100 * M.jackpotRtp()};
+           free: pct(r.free), battle: pct(r.battle), voyage: pct(r.voyage), expedition: pct(r.expedition),
+           jackpot: 100 * M.jackpotRtp()};
   r.buy = V.buyCost && V.routes.buy.length ? M.simulateBuy(V, buys, 100, 99) : null;
   r.rtp.trailSampled = r.rtp.trail;
   r.rtp.trail = r.trails ? 100 * (r.trails / spins) * M.simulateTrail(V, buys, 100, 99).mean : 0;
@@ -35,7 +36,13 @@ function report(V, spins, buys, progress = () => {}, seed = 1000) {
     r.rtp.voyage = 100 * (r.voyages / spins) * run.mean;
     r.voyageRun = run;
   }
-  r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle + r.rtp.voyage;
+  r.rtp.expeditionSampled = r.rtp.expedition;
+  if (r.expeditions) {
+    const run = M.simulateExpedition(V, Math.round(buys / 2), 100, 96);
+    r.rtp.expedition = 100 * (r.expeditions / spins) * run.mean;
+    r.expeditionRun = run;
+  }
+  r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle + r.rtp.voyage + r.rtp.expedition;
   r.rtp.total = r.rtp.game + r.rtp.jackpot;
   r.sd = Math.sqrt(r.sumSq / spins - Math.pow(r.rtp.game / 100, 2));
   r.exact = 100 * M.exactLineRtp(V.strips, V.pays);

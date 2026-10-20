@@ -48,7 +48,7 @@ from casino_server.engines import three_card_poker as tcp
 from casino_server.engines import ultimate_texas_holdem as uth
 from casino_server.participants import NpcParticipant
 from casino_server.slots import base as slot_base
-from casino_server.slots.bonuses import voyage_options
+from casino_server.slots.bonuses import expedition_auto, voyage_options
 from casino_server.slots.outcome import presentation_seconds
 from casino_server.tables import slot_machine as slots
 from casino_server.tables.base import TableError, say
@@ -768,7 +768,7 @@ class NpcDirector:
 
     def _play_slot(self, npc: Npc, m, runner, now: float):
         """Spin at a pace that lets the screen finish, fire the trail or on a battle's ships, choose a voyage's islands
-        (or a Port Royal deal) and pick coins after a moment's thought, and leave only with nothing on screen. A
+        (or a Port Royal deal) and an expedition's route and planets (as expedition_auto would), and pick coins after a moment's thought, and leave only with nothing on screen. A
         Gambler sometimes buys the bonus."""
         def after_thought(lo, hi):
             if npc.decide_at is None:
@@ -798,6 +798,13 @@ class NpcDirector:
                 opts = voyage_options(m.variant, m.voyage)
                 try:
                     runner.act("voyage_choose", npc.seat, self.rng.choice(opts))
+                except TableError:
+                    pass
+            return
+        if m.phase == "expedition":
+            if m.expedition and not m.expedition["done"] and now >= m.expedition_ready_at and after_thought(1.2, 3.0):
+                try:
+                    runner.act("expedition_choose", npc.seat, expedition_auto(m.variant, m.expedition, self.rng.random))
                 except TableError:
                     pass
             return

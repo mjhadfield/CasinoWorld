@@ -2,7 +2,8 @@
 import pytest
 
 from casino_server.slots import base, jackpots, sim
-from casino_server.slots.bonuses import (make_board, trail_roll, trail_start, voyage_map, voyage_options, voyage_start,
+from casino_server.slots.bonuses import (expedition_options, expedition_start, expedition_step, expedition_view,
+                                        make_board, trail_roll, trail_start, voyage_map, voyage_options, voyage_start,
                                         voyage_step)
 from casino_server.slots.outcome import spin_outcome
 from casino_server.slots.rng import mulberry32
@@ -266,6 +267,127 @@ def test_voyage_routes_pay_about_the_same_whatever_you_choose():
                     nxt = st["map"][st["leg"] + 1]
                     pick = min(opts, key=lambda r: PREFER[name].index(nxt[r]))
                 voyage_step(V, st, rng, pick)
+            won += st["total"] / 100 + st["spins"] * free
+        means[name] = won / n
+    assert all(abs(m / means["random"] - 1) < 0.15 for m in means.values()), means
+
+
+# ------------------------------------------------------------------ the expedition
+def _expedition_at(rng, planets, **kw):
+    """An expedition in sector 0 of route 0 (a 4-sector Low route), its planets set."""
+    st = expedition_start(V, 100, rng)
+    st["routes"][0] = {"length": 4, "level": 0, "final": base.EXPEDITION["levels"][0]["final"]}
+    expedition_step(V, st, rng, 0)
+    st.update(planets=[{"seen": False, "by": None, **p} for p in planets], scanned=False, shuttle_now=False, **kw)
+    return st
+
+
+def test_expedition_routes_and_sectors_keep_their_rules():
+    lengths = {n for n, _ in base.EXPEDITION["lengths"]}
+    for s in range(300):
+        rng = mulberry32(s)
+        st = expedition_start(V, 100, rng)
+        assert len(st["routes"]) == 3 and all(r["length"] in lengths and 0 <= r["level"] < 3 for r in st["routes"])
+        assert expedition_options(V, st) == [0, 1, 2] and st["awaiting"] == "route"
+        sectors = 0
+        while not st["done"]:
+            r = expedition_step(V, st, rng)
+            kinds = [e["kind"] for e in r["events"]]
+            sectors += kinds.count("warp")
+            if not st["done"]:
+                assert expedition_options(V, st) and all(st["planets"][i]["by"] is None for i in expedition_options(V, st))
+        assert sectors <= st["routes"][st["route"]]["length"]
+        assert st["ended"] == (st["final"] is None) and expedition_options(V, st) == []
+
+
+def test_the_view_hides_planets_not_yet_revealed_or_scanned():
+    rng = mulberry32(3)
+    st = _expedition_at(rng, [{"kind": "credits", "x": 5}, {"kind": "hazard"}, {"kind": "wormhole"}])
+    assert [p["kind"] for p in expedition_view(V, st)["planets"]] == [None, None, None]
+    st["planets"][2]["seen"] = True
+    assert [p["kind"] for p in expedition_view(V, st)["planets"]] == [None, None, "wormhole"]
+    assert "x" not in expedition_view(V, st)["planets"][0]
+
+
+def test_credits_pay_times_the_multiplier_and_a_hazard_ends_it_short_of_the_final_prize():
+    rng = mulberry32(4)
+    st = _expedition_at(rng, [{"kind": "mult", "n": 2}, {"kind": "credits", "x": 5}, {"kind": "hazard"}])
+    expedition_step(V, st, rng, 0)
+    assert st["mult"] == 3 and st["sector"] == 1
+    st["planets"] = [{"kind": "credits", "x": 5, "seen": False, "by": None}, {"kind": "hazard", "seen": False, "by": None},
+                     {"kind": "hazard", "seen": False, "by": None}]
+    expedition_step(V, st, rng, 0)
+    assert st["total"] == 5 * 3 * 100
+    st["planets"] = [{"kind": "hazard", "seen": False, "by": None}, {"kind": "credits", "x": 8, "seen": False, "by": None},
+                     {"kind": "credits", "x": 1, "seen": False, "by": None}]
+    r = expedition_step(V, st, rng, 0)
+    kinds = [e["kind"] for e in r["events"]]
+    assert kinds == ["reveal", "hazard", "missed"] and st["done"] and st["ended"] and st["final"] is None
+    assert st["total"] == 1500 and [p["pence"] for _, p in r["events"][2]["planets"]] == [2400, 300]
+
+
+def test_shields_absorb_a_hazard_and_the_final_prize_pays_times_the_multiplier():
+    rng = mulberry32(5)
+    st = _expedition_at(rng, [{"kind": "hazard"}] * 3, shields=1, mult=2, sector=3)
+    r = expedition_step(V, st, rng, 1)
+    kinds = [e["kind"] for e in r["events"]]
+    assert kinds == ["reveal", "shielded", "missed", "final"] and st["shields"] == 0 and not st["ended"]
+    assert st["final"] == base.EXPEDITION["levels"][0]["final"] * 2 * 100 == st["total"]
+
+
+def test_a_wormhole_jumps_to_a_boosted_final_prize():
+    rng = mulberry32(6)
+    st = _expedition_at(rng, [{"kind": "wormhole"}, {"kind": "hazard"}, {"kind": "credits", "x": 1}])
+    r = expedition_step(V, st, rng, 0)
+    assert st["done"] and st["wormhole"] and r["events"][-1]["kind"] == "final"
+    assert st["final"] == base.EXPEDITION["levels"][0]["final"] * base.EXPEDITION["wormhole"] * 100
+
+
+def test_a_scanner_shows_the_next_sector_and_the_best_planet_is_chosen_for_you():
+    rng = mulberry32(7)
+    st = _expedition_at(rng, [{"kind": "scanner"}] * 3)
+    r = expedition_step(V, st, rng, 0)
+    assert st["scanners"] == 0 and st["scanned"] and "scan" in [e["kind"] for e in r["events"]]
+    assert all(p["kind"] for p in expedition_view(V, st)["planets"])
+    st["planets"] = [{"kind": "hazard", "seen": True, "by": None}, {"kind": "credits", "x": 15, "seen": True, "by": None},
+                     {"kind": "mult", "n": 1, "seen": True, "by": None}]
+    assert expedition_step(V, st, rng)["choice"] == 2          # a multiplier beats credits; never the hazard
+
+
+def test_a_shuttle_explores_a_second_planet_and_a_hazard_only_loses_it():
+    rng = mulberry32(8)
+    st = _expedition_at(rng, [{"kind": "shuttle"}] * 3)
+    r = expedition_step(V, st, rng, 0)
+    assert st["shuttle_now"] and st["shuttles"] == 0 and "shuttle" in [e["kind"] for e in r["events"]]
+    st["planets"] = [{"kind": "credits", "x": 2, "seen": False, "by": None}, {"kind": "hazard", "seen": False, "by": None},
+                     {"kind": "spins", "n": 2, "seen": False, "by": None}]
+    r = expedition_step(V, st, rng, 0)
+    assert st["awaiting"] == "shuttle" and expedition_options(V, st) == [1, 2] and r["action"] == "explore"
+    r = expedition_step(V, st, rng, 1)
+    kinds = [e["kind"] for e in r["events"]]
+    assert r["action"] == "shuttle" and kinds[:3] == ["reveal", "shuttle_lost", "missed"] and not st["ended"]
+    assert st["sector"] == 2 and st["found"][1] == ["credits", "hazard"]
+
+
+EXPEDITION_ROUTES = {"low": lambda rs: min(range(3), key=lambda i: rs[i]["level"]),
+                     "high": lambda rs: max(range(3), key=lambda i: rs[i]["level"]),
+                     "short": lambda rs: min(range(3), key=lambda i: rs[i]["length"]),
+                     "long": lambda rs: max(range(3), key=lambda i: rs[i]["length"])}
+
+
+def test_expedition_routes_pay_about_the_same_whatever_you_choose():
+    """Mike's pick: routes random each time, with readings, and balanced. Choosing the safest, the most dangerous,
+    the shortest or the longest route all pay within a band of choosing at random, though how much they swing
+    differs. Free games count at their own value."""
+    free = sim.simulate_free(V, 2000) / V.free_games
+    means = {}
+    for name in ("random", *EXPEDITION_ROUTES):
+        rng, won, n = mulberry32(5), 0.0, 6000
+        for _ in range(n):
+            st = expedition_start(V, 100, rng)
+            expedition_step(V, st, rng, EXPEDITION_ROUTES[name](st["routes"]) if name != "random" else None)
+            while not st["done"]:
+                expedition_step(V, st, rng)
             won += st["total"] / 100 + st["spins"] * free
         means[name] = won / n
     assert all(abs(m / means["random"] - 1) < 0.15 for m in means.values()), means

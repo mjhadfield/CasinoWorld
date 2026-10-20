@@ -7,7 +7,7 @@ import pytest
 from casino_server import floor
 from casino_server.casino import Casino
 from casino_server.slots import base, jackpots
-from casino_server.slots.bonuses import voyage_options
+from casino_server.slots.bonuses import expedition_options, voyage_options
 from casino_server.slots.rng import mulberry32
 from casino_server.store import Store
 from casino_server.tables.base import TableError
@@ -244,6 +244,75 @@ def test_standing_mid_voyage_plays_it_out_and_pays():
     end = next(e for e in ev if e["kind"] == "voyage_end")
     assert end["finished_for_you"] and (end["total"], "voyage bonus") in p.log
     assert m.phase == "idle" and m.voyage is None and not m.pending
+
+
+def expedition_cabinet(seed=1):
+    import dataclasses
+    m, p = cabinet(seed, expedition_auto=12.0, present=1.0)
+    m.variant = dataclasses.replace(m.variant, routes={"BS": ["expedition"], "FS": ["free"], "buy": ["expedition"]})
+    return m, p
+
+
+def test_expedition_waits_for_a_choice_and_pays_at_the_end():
+    m, p = expedition_cabinet()
+    m.rig = {"trigger": "expedition"}
+    assert m.spin(0, 100, now=0.0)[0]["features_next"] == ["expedition"]
+    ev, now = run(m, 0.0, until=lambda m: m.phase == "expedition")
+    start = next(e for e in ev if e["kind"] == "expedition_start")["expedition"]
+    assert len(start["routes"]) == 3 and start["awaiting"] == "route" and start["options"] == [0, 1, 2]
+    with pytest.raises(TableError):
+        m.expedition_choose(0, 5, now=now)           # not a route
+    steps = 0
+    while m.phase == "expedition":
+        now = max(now, m.expedition_ready_at)
+        opts = expedition_options(m.variant, m.expedition)
+        ev = m.expedition_choose(0, opts[-1], now=now)
+        steps += 1
+        step = ev[0]
+        assert step["kind"] == "expedition_step" and step["step"]["choice"] == opts[-1] and not step["auto"]
+        hidden = [q for q in step["expedition"]["planets"] or [] if not q["seen"]]
+        assert all(q == {"kind": None, "seen": False, "by": None} for q in hidden)
+        if not step["step"]["done"]:
+            with pytest.raises(TableError):
+                m.expedition_choose(0, opts[-1], now=now)   # wait for the ship
+    end = next(e for e in ev if e["kind"] == "expedition_end")
+    assert (end["total"], "expedition bonus") in p.log and end["steps"] == steps
+    assert end["ended"] or end["final"] >= 2000
+
+
+def test_expedition_chooses_itself():
+    m, p = expedition_cabinet(seed=5)
+    m.rig = {"trigger": "expedition"}
+    m.spin(0, 100, now=0.0)
+    ev, _ = run(m, 0.0)
+    end = next(e for e in ev if e["kind"] == "expedition_end")
+    assert m.phase == "idle" and all(e["auto"] for e in ev if e["kind"] == "expedition_step")
+    assert (end["total"], "expedition bonus") in p.log
+
+
+def test_free_games_found_on_an_expedition_follow_it():
+    for seed in range(1, 600):
+        m, p = expedition_cabinet(seed)
+        m.buy_bonus(0, 100, now=0.0)
+        ev, now = run(m, 0.0, until=lambda m: m.phase != "expedition")
+        end = next(e for e in ev if e["kind"] == "expedition_end")
+        if end["spins"]:
+            ev, _ = run(m, now)
+            start = next(e for e in ev if e["kind"] == "free_start")
+            assert start["of"] == end["spins"] and start["source"] == "expedition"
+            assert len([e for e in ev if e["kind"] == "free_game"]) == end["spins"]
+            return
+    pytest.fail("no expedition found free games")
+
+
+def test_standing_mid_expedition_plays_it_out_and_pays():
+    m, p = expedition_cabinet(seed=3)
+    m.buy_bonus(0, 100, now=0.0)
+    assert m.phase == "expedition"
+    ev = m.stand(0, now=3.0, reason="")
+    end = next(e for e in ev if e["kind"] == "expedition_end")
+    assert end["finished_for_you"] and (end["total"], "expedition bonus") in p.log
+    assert m.phase == "idle" and m.expedition is None and not m.pending
 
 
 def test_free_games_play_by_the_clock_and_pay_the_total():

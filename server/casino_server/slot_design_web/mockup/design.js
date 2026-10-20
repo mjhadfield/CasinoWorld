@@ -27,7 +27,8 @@ export function fontFamily(did, name) {
 // games steps), Armadillo's painted set stands in.
 export const EXTRA_ART = ["barrel", "armadillo", "cylinder", "t_coin", "t_double", "t_forward", "t_heart", "t_lightning",
   "t_crate", "t_upgrade", "t_gold", "t_snake", "b_hero", "b_enemy", "b_boss", "v_ship", "v_treasure", "v_wreck", "v_skull", "v_port",
-  "v_cove", "v_final", "v_chest", "v_relic", "v_key", "v_art1", "v_art2", "v_art3", "v_art4"];
+  "v_cove", "v_final", "v_chest", "v_relic", "v_key", "v_art1", "v_art2", "v_art3", "v_art4", "x_ship", "x_planet", "x_credits",
+  "x_mult", "x_scanner", "x_shuttle", "x_shields", "x_artefact", "x_wormhole", "x_spins", "x_hazard", "x_final"];
 const armadillo = id => `/slot-art/armadillo/flux2/${id}.png`;
 
 // Armadillo's per-reel symbol counts stretched to another tier shape: a tier Armadillo has keeps its count; an
@@ -51,7 +52,7 @@ export function designParams(data) {
   const paying = lad.tiers.filter(t => !["BS", "FS"].includes(t));
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
-  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail, bt = b.battle, vy = b.voyage;
+  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail, bt = b.battle, vy = b.voyage, ex = b.expedition;
   // every tier's count (a scatter that starts no bonus is on the Value ladder's tiers no more, and stays at 0)
   const all = [...lad.tiers, ...b.unused_scatters];
   const counts = (maths.counts || stretch(A.counts, all)).map(c => ({...c, ...Object.fromEntries(b.unused_scatters.map(s => [s, 0]))}));
@@ -71,6 +72,8 @@ export function designParams(data) {
              keyChance: vy.key_chance, skull: vy.skull, sink: vy.sink, cove: vy.cove, relicValue: vy.relic_value,
              artefactPrice: vy.artefact_price, keyPrice: vy.key_price, spinsPrice: vy.spins_price, spinsGames: vy.spins_games,
              chest: vy.chest, parts: vy.parts, legend: vy.legend},
+    expedition: {lengths: ex.lengths, levels: ex.levels, ramp: ex.ramp, kinds: ex.kinds, credits: ex.credits, mults: ex.mults,
+                 techs: ex.techs, specials: ex.specials, artefact: ex.artefact, wormhole: ex.wormhole, spins: ex.spins},
     freeGames: b.free.games, buyCost: b.routes.buy.length ? b.buy.cost : 0, routes: b.routes,
   };
 }
@@ -115,7 +118,8 @@ export function designConfig(data, img) {
             free: [`3+ ${(symbols.FS || "FS").toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
             freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint,
             battle: b.battle.name.toUpperCase(), battleHint: b.battle.hint, enemy: b.battle.enemy.toUpperCase(),
-            boss: b.battle.boss_name.toUpperCase(), voyage: voyageTexts(b.voyage)},
+            boss: b.battle.boss_name.toUpperCase(), voyage: voyageTexts(b.voyage),
+            expedition: expeditionTexts(b.expedition)},
   };
 }
 
@@ -125,4 +129,13 @@ export function voyageTexts(v) {
   return {name: up(v.name), hint: v.hint, start: up(v.start), final: up(v.final), treasure: up(v.treasure_name), wreck: up(v.wreck_name),
           skull: up(v.skull_name), port: up(v.port_name), cove: up(v.cove_name), relic: up(v.relic), chest: up(v.chest_name),
           legend: up(v.legend_name), artefacts: v.artefacts.map(up)};
+}
+
+// The expedition's words as the mockup's screen uses them (the built game's are theme.texts expedition_*).
+export function expeditionTexts(x) {
+  const up = s => String(s).toUpperCase();
+  return {name: up(x.name), hint: x.hint, planetHint: x.planet_hint, start: up(x.start), final: up(x.final), sector: up(x.sector),
+          credits: up(x.credits_name), mult: up(x.mult_name), scanner: up(x.scanner_name), shuttle: up(x.shuttle_name),
+          shields: up(x.shields_name), artefact: up(x.artefact_name), wormhole: up(x.wormhole_name), spins: up(x.spins_name),
+          levels: x.level_names.map(up), hazards: x.hazards.map(up)};
 }

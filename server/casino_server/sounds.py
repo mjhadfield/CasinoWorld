@@ -97,7 +97,8 @@ refresh_sets()
 # Page order. Each: title, when it plays, its section on the page, its home set, which
 # sets below home use it (a USERS key), and whether it loops while it lasts.
 SECTIONS = ["Interface", "Room", "Cards", "Chips", "Wheel", "Dice",
-            "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Battle Bonus", "Voyage Bonus", "Jackpot Pick"]
+            "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Battle Bonus", "Voyage Bonus", "Expedition Bonus",
+            "Jackpot Pick"]
 
 
 def _m(title, when, section, home="casino", uses="none", loop=False):
@@ -145,7 +146,7 @@ MOMENTS = {
     "feature_wilds": _m("Random Wild shot", "Each wild shot onto the reels.", "Features", "slots", "slots"),
     "feature_upgrade": _m("Symbol Upgrade", "Symbols flipping one step up the chain.", "Features", "slots", "slots"),
     "instant_win": _m("Instant Win barrel", "The Random Prize barrel bursting.", "Features", "slots", "slots"),
-    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins (the battle and the voyage have their own).", "Bonuses", "slots", "slots"),
+    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins (the battle, the voyage and the expedition have their own).", "Bonuses", "slots", "slots"),
     "free_spin": _m("Free game", "Each Combo Free Game starting.", "Bonuses", "slots", "slots"),
     "bonus_end": _m("Bonus paid", "The total of a Trail Bonus or the free games coming up.", "Bonuses", "slots", "slots"),
     "trail_fire": _m("Pistol loaded", "The cylinder loading and spinning before the armadillo moves.", "Trail Bonus", "slots", "slots"),
@@ -165,6 +166,12 @@ MOMENTS = {
     "voyage_sink": _m("Sunk", "Skull Island sinking the ship.", "Voyage Bonus", "slots", "slots"),
     "voyage_trade": _m("Trade", "A deal at Port Royal: something bought, or the relics sold.", "Voyage Bonus", "slots", "slots"),
     "voyage_chest": _m("Treasure", "Each part of the legendary treasure paying out on the final island.", "Voyage Bonus", "slots", "slots"),
+    "expedition_start": _m("Course plotted", "The expedition bonus beginning, and a route chosen.", "Expedition Bonus", "slots", "slots"),
+    "expedition_warp": _m("Warp", "The ship jumping to the next sector (and to the final destination).", "Expedition Bonus", "slots", "slots"),
+    "expedition_find": _m("Found", "A planet explored: credits, a multiplier, an artefact or free games.", "Expedition Bonus", "slots", "slots"),
+    "expedition_tech": _m("Tech", "A Scanner, Shuttle or Shields found, or a Scanner sweeping a sector.", "Expedition Bonus", "slots", "slots"),
+    "expedition_hazard": _m("Hazard", "A hazard ending the expedition (or Shields absorbing it, or the shuttle lost).", "Expedition Bonus", "slots", "slots"),
+    "expedition_final": _m("Destination", "The final destination paying (or a Wormhole opening to it).", "Expedition Bonus", "slots", "slots"),
     "pick_reveal": _m("Coin turned", "Each coin turned over in the Jackpot Pick.", "Jackpot Pick", "slots", "slots"),
     "jackpot_win": _m("Jackpot won", "Three matching coins: a Mini, Minor, Major or Grand (and nearby, when someone else wins one).", "Jackpot Pick", "slots", "slots"),
 }
@@ -241,6 +248,12 @@ FACTORY = {
         "voyage_sink": _c(*[f"kenney-impact/impactWood_heavy_00{n}.ogg" for n in range(3)], gain=-2.0),
         "voyage_trade": _c("kenney-rpg/metalLatch.ogg", gain=-6.0),
         "voyage_chest": _c(_sl + "chennes_376807-ding.ogg", gain=-6.0),
+        "expedition_start": _c("kenney-digital/phaseJump1.ogg", gain=-8.0),
+        "expedition_warp": _c("kenney-digital/zapThreeToneUp.ogg", gain=-10.0),
+        "expedition_find": _c("kenney-digital/powerUp1.ogg", "kenney-digital/powerUp2.ogg", gain=-8.0),
+        "expedition_tech": _c("kenney-digital/threeTone2.ogg", gain=-10.0),
+        "expedition_hazard": _c("kenney-digital/spaceTrash4.ogg", "kenney-digital/spaceTrash5.ogg", gain=-3.0),
+        "expedition_final": _c(_sl + "GameAudio_220184-win-spacey.ogg", gain=-7.0),
         "pick_reveal": _c(_ki + "glass_002.ogg", gain=-1.0),
         "jackpot_win": _c(_sl + "univ_lyon3_367462-jackpot-bell.ogg", gain=-5.5),
     },
@@ -272,12 +285,14 @@ FACTORY = {
 
 # Library folders: what's in each (the picker's folder list), and which sections it suits.
 FOLDERS = {
-    "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick", "Battle Bonus", "Voyage Bonus"]),
+    "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick", "Battle Bonus", "Voyage Bonus",
+                                                             "Expedition Bonus"]),
     "western": ("Wild West: guns, banjo, harmonica, snakes, horses", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus"]),
     "kenney-jingles": ("Kenney music jingles", ["Wins", "Bonuses", "Jackpot Pick", "Battle Bonus", "Voyage Bonus"]),
     "kenney-impact": ("Kenney impacts: wood, metal, bells", ["Spin", "Features", "Trail Bonus", "Dice", "Battle Bonus", "Voyage Bonus"]),
     "kenney-rpg": ("Kenney coins, latches and creaks", ["Wins", "Chips", "Trail Bonus", "Features", "Voyage Bonus"]),
-    "kenney-digital": ("Kenney digital blips and power-ups", ["Spin", "Features", "Bonuses", "Trail Bonus", "Interface", "Battle Bonus"]),
+    "kenney-digital": ("Kenney digital blips and power-ups", ["Spin", "Features", "Bonuses", "Trail Bonus", "Interface", "Battle Bonus",
+                                                                   "Expedition Bonus"]),
     "kenney-casino": ("Kenney casino: cards, chips, dice", ["Cards", "Chips", "Dice", "Wins"]),
     "edited": ("Edited card slides, and the wooden reel loop", ["Cards", "Spin"]),
     "rooms": ("Casino floor recordings", ["Room"]),

@@ -7,7 +7,7 @@ so every method runs under the board's lock and saves through its Design.
                  the background (the image model or uploaded) and the logo (rendered in a font, the rendered lettering
                  restyled by the image model, or drawn whole by it)
   Features       which of the library's random features the slot uses, their rates and value tables
-  Bonus games    each library bonus (the Trail, the free games, the wave battle, the island voyage): on or off, the scatter that starts it, whether
+  Bonus games    each library bonus (the Trail, the free games, the wave battle, the island voyage, the expedition): on or off, the scatter that starts it, whether
                  Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
                  (which bonuses each way in plays, one at random when there are several). A scatter that
                  starts nothing comes off the reels and the Value ladder.
@@ -75,16 +75,31 @@ ART_SLOTS = {
     "v_relic": ("Voyage: a relic", "bonuses"), "v_key": ("Voyage: a key", "bonuses"),
     "v_art1": ("Voyage: the first artefact", "bonuses"), "v_art2": ("Voyage: the second artefact", "bonuses"),
     "v_art3": ("Voyage: the third artefact", "bonuses"), "v_art4": ("Voyage: the fourth artefact", "bonuses"),
+    "x_ship": ("Expedition: your ship, on the star chart", "bonuses"),
+    "x_planet": ("Expedition: an unexplored planet (what every planet shows until it's revealed)", "bonuses"),
+    "x_credits": ("Expedition planet: credits", "bonuses"), "x_mult": ("Expedition planet: a multiplier", "bonuses"),
+    "x_scanner": ("Expedition tech: the Scanner (shows the next sector)", "bonuses"),
+    "x_shuttle": ("Expedition tech: the Shuttle (explores a second planet)", "bonuses"),
+    "x_shields": ("Expedition tech: Shields (absorb a hazard)", "bonuses"),
+    "x_artefact": ("Expedition special: an ancient artefact (a big prize)", "bonuses"),
+    "x_wormhole": ("Expedition special: a Wormhole (straight to the final destination)", "bonuses"),
+    "x_spins": ("Expedition special: free games", "bonuses"),
+    "x_hazard": ("Expedition: a hazard (ends the expedition)", "bonuses"),
+    "x_final": ("Expedition: the final destination", "bonuses"),
 }
 VOYAGE_ART = ("v_ship", "v_treasure", "v_wreck", "v_skull", "v_port", "v_cove", "v_final", "v_chest", "v_relic", "v_key",
               "v_art1", "v_art2", "v_art3", "v_art4")
+EXPEDITION_ART = ("x_ship", "x_planet", "x_credits", "x_mult", "x_scanner", "x_shuttle", "x_shields", "x_artefact", "x_wormhole",
+                  "x_spins", "x_hazard", "x_final")
 TRAIL_SPACES = ("snake", "heart", "forward", "back", "lightning", "crate")
 # Each bonus's way in, as Armadillo has it: the trail from the bonus scatter or Buy Bonus, the free games from theirs.
 BONUS_WAYS = {"trail": {"enabled": True, "scatter": "BS", "buyable": True},
               "free": {"enabled": True, "scatter": "FS", "buyable": False},
               "battle": {"enabled": False, "scatter": "BS", "buyable": True},   # not Armadillo's: off until switched on
-              "voyage": {"enabled": False, "scatter": "BS", "buyable": True}}
-BONUS_TITLES = {"trail": "The trail bonus", "free": "The free games", "battle": "The battle bonus", "voyage": "The voyage bonus"}
+              "voyage": {"enabled": False, "scatter": "BS", "buyable": True},
+              "expedition": {"enabled": False, "scatter": "BS", "buyable": True}}
+BONUS_TITLES = {"trail": "The trail bonus", "free": "The free games", "battle": "The battle bonus", "voyage": "The voyage bonus",
+                "expedition": "The expedition bonus"}
 TRAIL_WORDS = ("name", "launcher", "hint")   # the trail's words: not part of its maths
 BATTLE_WORDS = {"name": "RED ALERT", "hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss_name": "FLAGSHIP"}
 BATTLE_PAIRS = ("prizes", "spins", "boss")   # the battle's value tables
@@ -96,10 +111,21 @@ VOYAGE_WORDS = {"name": "DEAD MAN'S MAP", "hint": "choose your next island", "st
 VOYAGE_ARTEFACTS = ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"]
 VOYAGE_PAIRS = ("treasure", "relics", "skull", "cove")   # the voyage's value tables
 VOYAGE_KINDS = ("treasure", "wreck", "skull", "port")    # what a map island can be (coves are placed apart)
+# The expedition's words (Delta Quadrant's, from the Voyager design's spec): its name, the chart, what a planet can be.
+EXPEDITION_WORDS = {"name": "DELTA QUADRANT", "hint": "choose a route", "planet_hint": "choose a planet to explore",
+                    "start": "VOYAGER", "final": "TRANSWARP CONDUIT", "sector": "SECTOR", "credits_name": "CREDITS",
+                    "mult_name": "MULTIPLIER", "scanner_name": "SCANNER", "shuttle_name": "SHUTTLE", "shields_name": "SHIELDS",
+                    "artefact_name": "ANCIENT ARTEFACT", "wormhole_name": "WORMHOLE", "spins_name": "FREE GAMES"}
+EXPEDITION_LEVELS = ["LOW", "MODERATE", "SEVERE"]                     # the hazard levels' names
+EXPEDITION_HAZARDS = ["BORG CUBE", "KAZON RAIDERS", "HIROGEN HUNTERS", "SPECIES 8472", "SPATIAL ANOMALY"]
+EXPEDITION_PAIRS = ("lengths", "credits", "mults", "artefact", "spins")   # the expedition's value tables
+EXPEDITION_KINDS = {"kinds": ("credits", "mult", "tech", "special"), "techs": ("scanner", "shuttle", "shields"),
+                    "specials": ("artefact", "wormhole", "spins")}     # its named weights, in order
 WAYS = tuple(BONUS_WAYS["trail"])
 # What each art slot is drawn for: a feature, or a bonus (a picture for something switched off isn't needed).
 ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",),
-           "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",), **{k: ("voyage",) for k in VOYAGE_ART}}
+           "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",), **{k: ("voyage",) for k in VOYAGE_ART},
+           **{k: ("expedition",) for k in EXPEDITION_ART}}
 WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
 WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
 # The screen's colours (the mockup's names; Armadillo's values) and fonts. Every tone the slot screen draws comes
@@ -160,8 +186,10 @@ def bonuses_view(d) -> dict:
     bt = {**BONUS_WAYS["battle"], **json.loads(json.dumps(base.BATTLE)), **BATTLE_WORDS, **b.get("battle", {})}
     vy = {**BONUS_WAYS["voyage"], **json.loads(json.dumps(base.VOYAGE)), **VOYAGE_WORDS, "artefacts": list(VOYAGE_ARTEFACTS),
           **b.get("voyage", {})}
+    ex = {**BONUS_WAYS["expedition"], **json.loads(json.dumps(base.EXPEDITION)), **EXPEDITION_WORDS,
+          "level_names": list(EXPEDITION_LEVELS), "hazards": list(EXPEDITION_HAZARDS), **b.get("expedition", {})}
     view = {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **BONUS_WAYS["free"], **b.get("free", {})},
-            "battle": bt, "voyage": vy,
+            "battle": bt, "voyage": vy, "expedition": ex,
             "buy": {"enabled": True, "cost": ARMADILLO.buy_cost, **b.get("buy", {})},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "bonus"]}
     view["routes"] = routes_of(view)
@@ -220,6 +248,11 @@ def voyage_maths(x: dict) -> dict:
     return {k: x[k] for k in base.VOYAGE}
 
 
+def expedition_maths(x: dict) -> dict:
+    """The expedition's settings the engine uses (not its words or its way in)."""
+    return {k: x[k] for k in base.EXPEDITION}
+
+
 def _paying(tiers) -> list:
     return [t for t in tiers if t not in ("BS", "FS")]
 
@@ -234,6 +267,8 @@ def _settings_hash(d) -> str:
         blob["battle"] = battle_maths(b["battle"])
     if b["voyage"]["enabled"]:
         blob["voyage"] = voyage_maths(b["voyage"])
+    if b["expedition"]["enabled"]:
+        blob["expedition"] = expedition_maths(b["expedition"])
     return hashlib.sha1(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:12]
 
 
@@ -269,7 +304,8 @@ def variant_from_design(d):
         trail={**trail_maths(b["trail"]), "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
         buy_cost=b["buy"]["cost"] if b["routes"]["buy"] else 0, free_games=b["free"]["games"], routes=b["routes"],
         pays={k: tuple(v) for k, v in lad["pays"].items() if k in _paying(lad["tiers"])}, upgrades=lad["upgrades"],
-        features=f["enabled"], battle=battle_maths(b["battle"]), voyage=voyage_maths(b["voyage"]))
+        features=f["enabled"], battle=battle_maths(b["battle"]), voyage=voyage_maths(b["voyage"]),
+        expedition=expedition_maths(b["expedition"]))
 
 
 def default_rules(d) -> list[str]:
@@ -282,7 +318,7 @@ def default_rules(d) -> list[str]:
         ups.setdefault(to, []).append(nm(frm))
     r = b["routes"]
     title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}", "battle": b["battle"]["name"],
-             "voyage": b["voyage"]["name"]}
+             "voyage": b["voyage"]["name"], "expedition": b["expedition"]["name"]}
     plays = lambda ks: title[ks[0]] if len(ks) == 1 else " or ".join(title[k] for k in ks) + ", at random"
     scatters = [s for s in base.SCATTERS if r[s]]
     ways = [f"3+ {nm(s)}: {plays(r[s])}." for s in scatters]
@@ -737,6 +773,8 @@ class StepsMixin:
             b["battle"] = StepsMixin._battle_settings(d, ch["battle"], dict(b.get("battle", {})))
         if "voyage" in ch:
             b["voyage"] = StepsMixin._voyage_settings(d, ch["voyage"], dict(b.get("voyage", {})))
+        if "expedition" in ch:
+            b["expedition"] = StepsMixin._expedition_settings(d, ch["expedition"], dict(b.get("expedition", {})))
         if "free" in ch:
             fr = ch["free"]
             cur = dict(b.get("free", {}))
@@ -863,6 +901,64 @@ class StepsMixin:
             raise DesignError("Sinking tops out at 0.9: Skull Island needs a chance of paying.")
         if x["coves"] > x["legs"] - 1:
             raise DesignError(f"Hidden Coves: at most one a leg, from the second ({x['legs'] - 1} here).")
+        return cur
+
+    @staticmethod
+    def _expedition_settings(d, t: dict, cur: dict) -> dict:
+        """The expedition's words and settings, checked. Three hazard levels, so three level names."""
+        if not isinstance(t, dict):
+            raise DesignError("The expedition's settings are an object.")
+        now = bonuses_view(d)["expedition"]
+        for k in EXPEDITION_WORDS:
+            if k in t:
+                cur[k] = str(t[k] or "").strip()[:40] or now[k]
+        if "level_names" in t:
+            a = t["level_names"]
+            if not isinstance(a, list) or len(a) != 3:
+                raise DesignError("Name the three hazard levels.")
+            cur["level_names"] = [str(x or "").strip()[:16] or now["level_names"][i] for i, x in enumerate(a)]
+        if "hazards" in t:
+            a = [str(x or "").strip()[:24] for x in t["hazards"]] if isinstance(t["hazards"], list) else []
+            if not 1 <= len([x for x in a if x]) <= 8:
+                raise DesignError("Name 1 to 8 hazards.")
+            cur["hazards"] = [x for x in a if x]
+        if "levels" in t:
+            lv = t["levels"]
+            ok = isinstance(lv, list) and len(lv) == 3 and all(isinstance(x, dict) for x in lv)
+            try:
+                rows = [{"weight": float(x["weight"]), "hazard": float(x["hazard"]), "scale": float(x["scale"]), "final": float(x["final"])}
+                        for x in lv] if ok else []
+            except (KeyError, TypeError, ValueError):
+                rows = []
+            if (len(rows) != 3 or any(r["weight"] < 0 or not 0 <= r["hazard"] <= 200 or not 0 < r["scale"] <= 20 or not 0 <= r["final"] <= 10000
+                                      for r in rows) or not any(r["weight"] for r in rows)):
+                raise DesignError("Hazard levels: three, each a weight from 0 (not all 0), hazards 0 to 200, a prize scale "
+                                  "above 0 up to 20 and a final prize 0 to 10,000 times the bet.")
+            cur["levels"] = [{k: int(v) if float(v).is_integer() else v for k, v in r.items()} for r in rows]
+        if "ramp" in t:
+            if not isinstance(t["ramp"], (int, float)) or not 0 <= t["ramp"] <= 50:
+                raise DesignError("The hazard ramp: 0 to 50 more weight a sector.")
+            cur["ramp"] = t["ramp"]
+        for k, names in EXPEDITION_KINDS.items():
+            if k in t:
+                w = t[k]
+                if (not isinstance(w, list) or [r[0] if isinstance(r, list) and r else None for r in w] != list(names)
+                        or any(len(r) != 2 or not isinstance(r[1], (int, float)) or r[1] < 0 for r in w) or not any(r[1] for r in w)):
+                    raise DesignError(f"A weight from 0 for each of {', '.join(names)} (not all 0).")
+                cur[k] = [[r[0], r[1]] for r in w]
+        for k in EXPEDITION_PAIRS:
+            if k in t:
+                cur[k] = _pairs(t[k], {"lengths": "Route lengths", "credits": "Credits", "mults": "Multipliers",
+                                       "artefact": "The artefact", "spins": "Free games"}[k])
+                top = {"lengths": 10, "mults": 10, "spins": 20}.get(k)
+                if top and any(not float(v).is_integer() or v > top or (k == "lengths" and v < 2) for v, _ in cur[k]):
+                    raise DesignError({"lengths": "Route lengths: whole numbers of sectors, 2 to 10.",
+                                       "mults": "Multipliers: whole numbers added, up to 10.",
+                                       "spins": "Free games: whole numbers of games, up to 20."}[k])
+        if "wormhole" in t:
+            if not isinstance(t["wormhole"], (int, float)) or not 1 <= t["wormhole"] <= 20:
+                raise DesignError("The Wormhole's boost: 1 to 20 times the final prize.")
+            cur["wormhole"] = t["wormhole"]
         return cur
 
     # ------------------------------------------------------------- art slots and specs

@@ -864,6 +864,39 @@ def test_voyage_bonus(board):
     assert steps.voyage_maths(vy)["legs"] == 4 and "name" not in steps.voyage_maths(vy) and "artefacts" not in steps.voyage_maths(vy)
 
 
+def test_expedition_bonus(board):
+    """The expedition is off until switched on (then shares the bonus scatter); its words and settings are checked,
+    and switching it on changes what a freeze measured."""
+    from casino_server import slot_design_steps as steps
+    c, _ = board
+    api = "/api/slot-design/demo/bonuses"
+    b = _overview(c)["bonuses"]
+    ex = b["expedition"]
+    assert not ex["enabled"] and ex["name"] == "DELTA QUADRANT" and ex["level_names"] == ["LOW", "MODERATE", "SEVERE"]
+    assert len(ex["levels"]) == 3 and "BORG CUBE" in ex["hazards"] and not _overview(c)["art"]["x_ship"]["used"]
+    assert c.patch(api, json={"expedition": {"enabled": True}, "trail": {"enabled": False}}).status_code == 200
+    o = _overview(c)
+    assert o["bonuses"]["routes"] == {"BS": ["expedition"], "FS": ["free"], "buy": ["expedition"]} and o["art"]["x_wormhole"]["used"]
+    assert any("DELTA QUADRANT" in line for line in o["signoff"]["rules"])
+    levels = [{"weight": 1, "hazard": 2, "scale": 1, "final": 10}, {"weight": 0, "hazard": 9, "scale": 2, "final": 30},
+              {"weight": 2, "hazard": 20, "scale": 3.5, "final": 60}]
+    assert c.patch(api, json={"expedition": {"name": "Gamma Run", "level_names": ["Calm", "", "Wild"], "hazards": ["Jem'Hadar", ""],
+                                             "levels": levels, "ramp": 0, "lengths": [[3, 1], [7, 2]], "wormhole": 3,
+                                             "techs": [["scanner", 0], ["shuttle", 1], ["shields", 2]]}}).status_code == 200
+    ex = _overview(c)["bonuses"]["expedition"]
+    assert (ex["name"], ex["level_names"], ex["hazards"], ex["levels"], ex["lengths"], ex["wormhole"]) == \
+        ("Gamma Run", ["Calm", "MODERATE", "Wild"], ["Jem'Hadar"], levels, [[3, 1], [7, 2]], 3)
+    before = _overview(c)["bonuses"]
+    for body in [{"lengths": [[1, 1]]}, {"lengths": [[4.5, 1]]}, {"levels": levels[:2]}, {"levels": [{**levels[0], "scale": 0}] * 3},
+                 {"levels": [{**levels[0], "weight": 0}] * 3}, {"ramp": 99}, {"wormhole": 0}, {"hazards": []},
+                 {"kinds": [["credits", 1], ["mult", 1]]}, {"specials": [["artefact", 0], ["wormhole", 0], ["spins", 0]]},
+                 {"mults": [[1.5, 1]]}, {"level_names": ["a"]}, {"credits": "lots"}]:
+        assert c.patch(api, json={"expedition": body}).status_code == 400, body
+        assert _overview(c)["bonuses"] == before, body
+    m = steps.expedition_maths(ex)
+    assert m["ramp"] == 0 and "name" not in m and "hazards" not in m and set(m) == set(steps.base.EXPEDITION)
+
+
 def test_art_slots_and_specs(board):
     c, _ = board
     a = _overview(c)["art"]

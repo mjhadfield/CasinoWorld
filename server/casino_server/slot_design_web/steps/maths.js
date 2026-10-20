@@ -6,7 +6,7 @@ import {typing} from "./artslot.js";
 
 let C, worker = null, busy = false, last = null, tuned = null, spins = 500000;
 const key = p => JSON.stringify([p.pays, p.counts, p.bigCounts, p.features, p.rates, p.freeRates, p.wildCounts, p.wildReelCounts,
-  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.battle, p.voyage, p.freeGames, p.buyCost, p.routes, p.upgrades]);
+  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.battle, p.voyage, p.expedition, p.freeGames, p.buyCost, p.routes, p.upgrades]);
 
 function run(msg, onProgress) {
   worker ??= new Worker("/slot-design-ui/mockup/sim_worker.js");
@@ -43,6 +43,7 @@ function reportTable(r, target) {
       row("Instant Win", pct(rt.instant)), row("Trail bonus", pct(rt.trail)), row("Free games", pct(rt.free)),
       ...(r.battles || rt.battle ? [row("Battle bonus (its free games too)", pct(rt.battle))] : []),
       ...(r.voyages || rt.voyage ? [row("Voyage bonus (its free games too)", pct(rt.voyage))] : []),
+      ...(r.expeditions || rt.expedition ? [row("Expedition bonus (its free games too)", pct(rt.expedition))] : []),
       row("The game", pct(rt.game), "strong"), row("Shared jackpots", "+" + pct(rt.jackpot)), row("In all", pct(rt.total), "strong"))),
     el("div", {className: "pane"},
       el("span", {className: "tag " + (Math.abs(d) <= 0.5 ? "ok" : "warn"), textContent: `${d >= 0 ? "+" : ""}${d.toFixed(2)} against the ${target}% target`}),
@@ -52,6 +53,9 @@ function reportTable(r, target) {
         ...(r.battles ? [row("The battle bonus", oneIn(r.spins, r.battles)), row("Its boss destroyed", r.bosses ? `${(100 * r.bosses / r.battleRun).toFixed(1)}% of battles` : "never")] : []),
         ...(r.voyages ? [row("The voyage bonus", oneIn(r.spins, r.voyages)), row("Its ship sunk", `${(100 * r.voyageRun.sunk / r.voyageRun.n).toFixed(1)}% of voyages`),
           row("All four artefacts", `${(100 * r.voyageRun.legends / r.voyageRun.n).toFixed(1)}% of voyages`)] : []),
+        ...(r.expeditions ? [row("The expedition bonus", oneIn(r.spins, r.expeditions)),
+          row("Ended by a hazard", `${(100 * r.expeditionRun.ended / r.expeditionRun.n).toFixed(1)}% of expeditions`),
+          row("Through a Wormhole", `${(100 * r.expeditionRun.wormholes / r.expeditionRun.n).toFixed(1)}% of expeditions`)] : []),
         row("Biggest win", Math.round(r.max).toLocaleString("en-GB") + "× bet"), row("Volatility (SD)", `${r.sd.toFixed(2)}: ${vol(r.sd)}`),
         row("Buy Bonus returns", r.buy && isFinite(r.buy.rtp) ? pct(r.buy.rtp) : "off"), row("Exact line return (no features)", pct(r.exact))))));
 }

@@ -77,7 +77,13 @@ const ARMADILLO_TEXTS := {
 	"voyage_name": "DEAD MAN'S MAP", "voyage_hint": "choose your next island", "voyage_start": "TORTUGA", "voyage_final": "ISLA DE MUERTA",
 	"voyage_treasure": "TREASURE ISLAND", "voyage_wreck": "SHIPWRECK", "voyage_skull": "SKULL ISLAND", "voyage_port": "PORT ROYAL",
 	"voyage_cove": "HIDDEN COVE", "voyage_relic": "RELIC", "voyage_chest": "LEGENDARY TREASURE", "voyage_legend": "THE LEGEND",
-	"voyage_artefacts": ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"]}
+	"voyage_artefacts": ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"],
+	"expedition_name": "DELTA QUADRANT", "expedition_hint": "choose a route", "expedition_planet_hint": "choose a planet to explore",
+	"expedition_start": "VOYAGER", "expedition_final": "TRANSWARP CONDUIT", "expedition_sector": "SECTOR",
+	"expedition_credits_name": "CREDITS", "expedition_mult_name": "MULTIPLIER", "expedition_scanner_name": "SCANNER",
+	"expedition_shuttle_name": "SHUTTLE", "expedition_shields_name": "SHIELDS", "expedition_artefact_name": "ANCIENT ARTEFACT",
+	"expedition_wormhole_name": "WORMHOLE", "expedition_spins_name": "FREE GAMES", "expedition_levels": ["LOW", "MODERATE", "SEVERE"],
+	"expedition_hazards": ["BORG CUBE", "KAZON RAIDERS", "HIROGEN HUNTERS", "SPECIES 8472", "SPATIAL ANOMALY"]}
 const ARMADILLO_TIPS := ["Wild stands in for everything except the Wagon and the Pistols. Pays left to right on 25 lines; the longest match on each line pays.",
 	"Random features can hit any spin. Wilds, Wild Reels, Colossal Reels and the Multiplier land before the reels stop;",
 	"Symbol Upgrade, Repeat Win and Instant Win come after. 3+ Wagons: Trail Bonus. 3+ Pistols: 3 Combo Free Games.",
@@ -175,6 +181,7 @@ var free := {}
 var trail := {}
 var battle := {}
 var voyage := {}
+var expedition := {}
 var pick := {}
 var auto := 0
 var auto_menu := false
@@ -273,6 +280,11 @@ func _apply_theme() -> void:
 		for k in ["treasure", "wreck", "skull", "port", "cove", "chest", "legend"]:
 			texts["voyage_" + k] = str(t.get("voyage_%s_name" % k, ARMADILLO_TEXTS["voyage_" + k]))
 		texts["voyage_artefacts"] = t.get("voyage_artefacts", ARMADILLO_TEXTS.voyage_artefacts)
+		# the expedition's words (Build writes expedition_<word>, and its levels and hazards as lists)
+		for k in EXPEDITION_WORDS:
+			texts["expedition_" + k] = str(t.get("expedition_" + k, ARMADILLO_TEXTS["expedition_" + k]))
+		for k in ["levels", "hazards"]:
+			texts["expedition_" + k] = t.get("expedition_" + k, ARMADILLO_TEXTS["expedition_" + k])
 	tips = theme.get("rules", ARMADILLO_TIPS)
 	labels = bool(theme.get("labels", true))
 	var fr: Dictionary = theme.get("frame", {})
@@ -327,6 +339,7 @@ func _reset_state() -> void:
 	trail = {}
 	battle = {}
 	voyage = {}
+	expedition = {}
 	pick = {}
 	landed = true
 	win_shown = 0.0
@@ -366,6 +379,12 @@ func apply_snapshot(state: Dictionary) -> void:
 				if float(state.get("voyage_ready_in", 0.0)) <= 0.0 and not bool(state.voyage.done):
 					_voyage_ready()
 					voyage.auto_at = _now + float(state.get("timer", 12.0) if state.get("timer") != null else 12.0)
+		"expedition":
+			if state.get("expedition") != null:
+				_begin_expedition(_expedition_view(state.expedition))
+				if float(state.get("expedition_ready_in", 0.0)) <= 0.0 and not bool(state.expedition.done):
+					_expedition_ready()
+					expedition.auto_at = _now + float(state.get("timer", 12.0) if state.get("timer") != null else 12.0)
 		"free_games":
 			if state.get("free") != null:
 				free = {"n": int(state.free.n), "of": int(state.free.of), "total": int(state.free.total)}
@@ -552,6 +571,45 @@ func _handle(ev: Dictionary) -> void:
 			win_shown = float(ev.total)
 			win_target = win_shown
 			message = "%s PAID %s" % [texts.voyage_name, Money.format(int(ev.total))]
+		"expedition_start":
+			_begin_expedition(_expedition_view(ev.expedition))
+			_sfx("expedition_start")
+			await _banner(_x("name"), "bought for %s" % Money.format(int(ev.expedition.bet) * int(rules.get("buy_cost", 45)))
+				if ev.get("bought", false) else _x("hint"), 2.6)
+			if ep != _epoch:
+				return
+			_expedition_ready()
+		"expedition_step":
+			if not expedition.is_empty():
+				expedition.waiting = false
+				await _animate_expedition(ev.step)
+				if ep != _epoch:
+					return
+				expedition.st = _expedition_view(ev.expedition)
+				if not ev.step.done:
+					_expedition_ready()
+		"expedition_end":
+			await _wait(0.8)
+			if ep != _epoch:
+				return
+			_credit_adj += int(ev.total)
+			var x_bet := int(expedition.get("bet", 100))
+			var x_games := " · %d free game%s to come" % [int(ev.spins), "" if int(ev.spins) == 1 else "s"] if int(ev.spins) > 0 else ""
+			var ended := bool(ev.get("ended", false))
+			var how := "through a wormhole" if bool(ev.get("wormhole", false)) else "the final destination"
+			await _summary(_x("name") if ended else "%s!" % _x("final"),
+				("the expedition ended" if ended else "%s ×%d" % [how, int(ev.get("mult", 1))]) + x_games, int(ev.total))
+			if ep != _epoch:
+				return
+			if int(ev.total) >= 10 * x_bet:
+				await _big_win(int(ev.total), x_bet)
+			if ep != _epoch:
+				return
+			expedition = {}
+			_clear_wins()
+			win_shown = float(ev.total)
+			win_target = win_shown
+			message = "%s PAID %s" % [_x("name"), Money.format(int(ev.total))]
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
 			_sfx("bonus_trigger")
@@ -562,6 +620,8 @@ func _handle(ev: Dictionary) -> void:
 				sub = "%d won in %s  ·  a random feature every spin" % [int(ev.of), texts.battle.to_lower()]
 			elif str(ev.get("source", "")) == "voyage":
 				sub = "%d bought on %s  ·  a random feature every spin" % [int(ev.of), texts.voyage_name.to_lower()]
+			elif str(ev.get("source", "")) == "expedition":
+				sub = "%d found in %s  ·  a random feature every spin" % [int(ev.of), _x("name").to_lower()]
 			await _banner(texts.free, sub, 2.2)
 		"free_game":
 			free.n = int(ev.n)
@@ -695,6 +755,8 @@ func _process(delta: float) -> void:
 		battle.waiting = false   # ...and the same for the battle's shot
 	if not voyage.is_empty() and voyage.get("waiting", false) and _now >= float(voyage.get("auto_at", 1e9)) + 1.0:
 		voyage.waiting = false   # ...and the voyage's choice
+	if not expedition.is_empty() and expedition.get("waiting", false) and _now >= float(expedition.get("auto_at", 1e9)) + 1.0:
+		expedition.waiting = false   # ...and the expedition's
 	_place_layers()
 	_under.queue_redraw()
 	_reels_layer.queue_redraw()
@@ -774,11 +836,13 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 				_draw_battle(ci)
 			elif not voyage.is_empty():
 				_draw_voyage(ci)
+			elif not expedition.is_empty():
+				_draw_expedition(ci)
 			else:
 				_draw_sides(ci)
 				_draw_frame(ci)
 		"reels":
-			if trail.is_empty() and battle.is_empty() and voyage.is_empty():
+			if trail.is_empty() and battle.is_empty() and voyage.is_empty() and expedition.is_empty():
 				_draw_reels(ci)
 		"over":
 			if not trail.is_empty():
@@ -787,6 +851,8 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 				_draw_battle_hud(ci)
 			elif not voyage.is_empty():
 				_draw_voyage_hud(ci)
+			elif not expedition.is_empty():
+				_draw_expedition_hud(ci)
 			else:
 				_draw_reel_overlay(ci)
 				_draw_wins(ci)
@@ -961,6 +1027,7 @@ func _plays(kinds: Array) -> String:
 			"trail": names.append(texts.trail)
 			"battle": names.append(texts.battle)
 			"voyage": names.append(texts.voyage_name)
+			"expedition": names.append(_x("name"))
 			_: names.append("%d %s" % [int(rules.get("free_games", 3)), texts.free])
 	return " OR ".join(names)
 
@@ -1380,7 +1447,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var credit := Session.shown_balance + _credit_adj
 	_deck_box(ci, Rect2(20, top, 210, h), _t("credit", "CREDIT"), Money.format(credit), Color.WHITE)
 	_deck_box(ci, Rect2(242, top, 230, h), _t("bet", "BET"), Money.format(_bet()), Color.WHITE, 112)
-	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and expedition.is_empty() and free.is_empty()
 	_button(ci, "bet-", Rect2(252, top + 36, 40, 38), "−", false, not idle or _bet_idx == 0, 30)
 	_button(ci, "bet+", Rect2(422, top + 36, 40, 38), "+", false, not idle or _bet_idx == _ladder.size() - 1, 30)
 	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else _t("win", "WIN"),
@@ -1392,7 +1459,8 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var c := SPIN_CENTRE
 	var spinning := reels.any(func(x): return x.spinning or x.stopping)
 	var hov := _hover == "spin"
-	var label := _t("stop", "STOP") if spinning else (_t("fire", "FIRE") if not trail.is_empty() or not battle.is_empty() else (_t("sail", "SAIL") if not voyage.is_empty() else _t("spin", "SPIN")))
+	var label := _t("stop", "STOP") if spinning else (_t("fire", "FIRE") if not trail.is_empty() or not battle.is_empty() else (_t("sail", "SAIL") if not voyage.is_empty()
+		else (_t("engage", "ENGAGE") if not expedition.is_empty() else _t("spin", "SPIN"))))
 	if lc:
 		_add_hit("spin", _lcars_spin(ci, label, spinning, hov))
 		_button(ci, "cashout", Rect2(1172, by, 96, 56), _t("cashout", "CASH OUT"), false, false, 18)
@@ -3103,6 +3171,439 @@ func _draw_reveal(ci: CanvasItem, R: Dictionary) -> void:
 		_text(ci, "%sS SOLD +%s" % [texts.voyage_relic, Money.format(int(e.relics))], Vector2(cx, 440), 18, COND, CREAM, "center", 4)
 
 
+# ------------------------------------------------------------------ the expedition (Delta Quadrant)
+# A star chart filling the trail's area. At the chart: your ship on the left, the final destination on the right,
+# three route lanes between them (a dot a sector), each with its readings: sectors, hazard level, final prize. Click a
+# lane. Then a sector at a time: three planets, hidden until explored (or scanned); click one, and when a Shuttle is
+# out, a second. A strip along the top shows the route travelled. The panel keeps the multiplier, the tech, the free
+# games and the timer. The wizard's mockup (game.js drawExpedition) is the same scene; the timings match bonuses.py
+# _EXPEDITION_SECONDS.
+const LANE_Y := [228.0, 352.0, 476.0]
+const LEVEL_COL := [Color("5fd38a"), Color("f2b84b"), Color("ff5a48")]
+const PLANET_Y := 372.0
+const PLANET_S := 170.0
+const X_ART := {"credits": "x_credits", "mult": "x_mult", "scanner": "x_scanner", "shuttle": "x_shuttle", "shields": "x_shields",
+	"artefact": "x_artefact", "wormhole": "x_wormhole", "spins": "x_spins", "hazard": "x_hazard"}
+const EXPEDITION_WORDS := ["name", "hint", "planet_hint", "start", "final", "sector", "credits_name", "mult_name", "scanner_name",
+	"shuttle_name", "shields_name", "artefact_name", "wormhole_name", "spins_name"]
+const EXPEDITION_RANK := ["hazard", "credits", "scanner", "shuttle", "shields", "mult", "spins", "artefact", "wormhole"]
+const X_BLUE := Color("7fd0ff")
+
+
+static func _planet_x(i: int) -> float:
+	return 523.0 + (i - 1) * 270.0
+
+
+func _x(word: String) -> String:
+	return str(texts.get("expedition_" + word, ""))
+
+
+static func _hidden_planet() -> Dictionary:
+	return {"kind": null, "seen": false, "by": null}
+
+
+## An expedition view from the server, its options whole numbers (JSON gives floats) so they match the ids.
+static func _expedition_view(v: Dictionary) -> Dictionary:
+	var out := v.duplicate(true)
+	out.options = (v.options as Array).map(func(o): return int(o))
+	return out
+
+
+## What the screen shows of the expedition: it follows the events, so a find shows when it's animated, not before.
+static func _expedition_shown(v: Dictionary) -> Dictionary:
+	var planets := []
+	if v.planets != null:
+		for p in v.planets:
+			planets.append((p as Dictionary).duplicate())
+	return {"sector": int(v.sector), "route": -1 if v.route == null else int(v.route), "planets": planets, "mult": int(v.mult),
+		"scanners": int(v.scanners), "shuttles": int(v.shuttles), "shields": int(v.shields), "spins": int(v.spins),
+		"total": int(v.total), "found": (v.found as Array).duplicate(true), "ended": bool(v.ended)}
+
+
+func _begin_expedition(v: Dictionary) -> void:
+	if _stars.is_empty():
+		for i in 140:
+			_stars.append(Vector4(randf() * B_AREA.size.x, randf() * B_AREA.size.y, 0.6 + randf() * 1.8, 6.0 + randf() * 40.0))
+	expedition = {"st": v, "bet": int(v.bet), "shown": _expedition_shown(v), "waiting": false, "auto_at": 1e9, "warp_at": -10.0,
+		"route_at": -10.0, "flash": {}, "final": {}, "swirl": -10.0, "last": 0}
+	_clear_wins()
+
+
+func _expedition_ready() -> void:
+	var st: Dictionary = expedition.st
+	expedition.shown = _expedition_shown(st)
+	expedition.waiting = true
+	expedition.auto_at = _now + 12.0
+	match str(st.awaiting):
+		"route":
+			message = "CHOOSE A ROUTE  ·  CLICK ONE"
+		"shuttle":
+			message = "%s: CHOOSE A SECOND PLANET" % _x("shuttle_name")
+		_:
+			message = "%s %d OF %d  ·  CHOOSE A PLANET" % [_x("sector"), int(st.sector) + 1, int(st.routes[int(st.route)].length)]
+
+
+static func _worth(p: Dictionary) -> float:
+	return EXPEDITION_RANK.find(str(p.kind)) * 1000.0 + float(p.get("x", p.get("n", 0)))
+
+
+## Choose a route or a planet. Anything else (or null) chooses for you: a random one, or in a scanned sector the best.
+func _choose_expedition(choice) -> void:
+	if expedition.is_empty() or not expedition.get("waiting", false):
+		return
+	var st: Dictionary = expedition.st
+	var opts: Array = st.options
+	if opts.is_empty():
+		return
+	if choice == null or not opts.has(choice):
+		choice = opts[randi() % opts.size()]
+		if str(st.awaiting) != "route" and bool(st.get("scanned", false)):
+			for i in opts:
+				if _worth(st.planets[i]) > _worth(st.planets[choice]):
+					choice = i
+	expedition.waiting = false
+	Net.send("expedition_choose", {"choice": choice})
+
+
+## A planet's words: what it is, and what it's worth now (credits at the multiplier as it stands).
+func _planet_label(p: Dictionary, i: int, sh: Dictionary) -> Array:
+	var kind := str(p.kind)
+	match kind:
+		"credits", "artefact":
+			var pence := int(p.pence) if p.get("pence") != null else floori(float(p.x) * int(sh.mult) * int(expedition.bet) + 0.5)
+			return [Money.format(pence) if kind == "credits" else "%s %s" % [_x("artefact_name"), Money.format(pence)], WIN_COL]
+		"mult":
+			return ["+%d %s" % [int(p.n), _x("mult_name")], X_BLUE]
+		"spins":
+			return ["%d %s" % [int(p.n), _x("spins_name")], X_BLUE]
+		"hazard":
+			var hz: Array = texts.get("expedition_hazards", [])
+			return [str(hz[(int(sh.sector) * 3 + i) % hz.size()]) if not hz.is_empty() else "HAZARD", Color("ff5a48")]
+	return [_x(kind + "_name"), GOLD_HI]
+
+
+func _animate_expedition(step: Dictionary) -> void:
+	var X := expedition
+	var sh: Dictionary = X.shown
+	var ep := _epoch
+	await _wait(0.3)
+	for e in step.events:
+		if ep != _epoch:
+			return
+		var here := Vector2(_planet_x(int(X.last)), PLANET_Y)
+		match str(e.kind):
+			"route":
+				sh.route = int(e.i)
+				X.route_at = _now
+				_sfx("expedition_start")
+				await _wait(1.6)
+			"warp":
+				X.warp_at = _now
+				sh.sector = int(e.sector)
+				sh.planets = [_hidden_planet(), _hidden_planet(), _hidden_planet()]
+				(sh.found as Array).append([])
+				_sfx("expedition_warp")
+				await _wait(1.2)
+			"scan":
+				sh.planets = (e.planets as Array).map(func(p): return (p as Dictionary).duplicate())
+				sh.scanners = maxi(0, int(sh.scanners) - 1)
+				_sfx("expedition_tech")
+				_battle_pop(_x("scanner_name"), Color("7fffa0"), Vector2(523, 345), 30)
+				await _wait(1.0)
+			"shuttle":
+				sh.shuttles = maxi(0, int(sh.shuttles) - 1)
+				_battle_pop("%s LAUNCHED" % _x("shuttle_name"), X_BLUE, Vector2(523, 345), 28)
+				await _wait(0.6)
+			"reveal":
+				X.last = int(e.i)
+				sh.planets[int(e.i)] = (e.planet as Dictionary).duplicate()
+				if not (sh.found as Array).is_empty():
+					(sh.found as Array).back().append(str(e.planet.kind))
+				await _wait(0.9)
+			"credits", "artefact":
+				var big := str(e.kind) == "artefact"
+				var pence := int(e.pence)
+				sh.planets[int(X.last)].pence = pence
+				sh.total = int(sh.total) + pence
+				win_target = float(sh.total)
+				roller = maxf(pence * 1.4, float(_bet()))
+				_sfx("expedition_find")
+				_battle_pop(Money.format(pence), WIN_COL, here + Vector2(0, -60), 46 if big else 36)
+				_coin_burst(here.x, here.y, 26 if big else 14, 0.8)
+				await _wait(1.4 if big else 0.8)
+			"mult":
+				sh.mult = int(e.mult)
+				_sfx("expedition_find")
+				_battle_pop("×%d" % int(e.mult), X_BLUE, here + Vector2(0, -60), 52)
+				await _wait(1.0)
+			"tech":
+				var tech := str(e.tech)
+				_sfx("expedition_tech")
+				_to_hold(X_ART[tech], here, Vector2(1080 + ["scanner", "shuttle", "shields"].find(tech) * 70, REEL_Y + 190))
+				await _wait(0.9)
+				var key := tech if tech == "shields" else tech + "s"
+				sh[key] = int(sh[key]) + 1
+				await _wait(0.1)
+			"spins":
+				sh.spins = int(sh.spins) + int(e.n)
+				_sfx("expedition_find")
+				_battle_pop("+%d %s" % [int(e.n), _x("spins_name")], X_BLUE, here + Vector2(0, -60), 30)
+				await _wait(1.0)
+			"wormhole":
+				X.swirl = _now
+				_sfx("expedition_final")
+				_battle_pop(_x("wormhole_name"), Color("c8b8ff"), Vector2(523, 345), 48)
+				await _wait(2.2)
+			"hazard":
+				sh.ended = true
+				X.flash = {"t0": _now, "colour": Color("ff3020")}
+				shake = 1.0
+				_sfx("expedition_hazard")
+				_battle_pop("%s!" % _planet_label(sh.planets[int(X.last)], int(X.last), sh)[0], Color("ff5a48"), Vector2(523, 345), 50)
+				await _wait(2.2)
+			"shielded":
+				sh.shields = maxi(0, int(sh.shields) - 1)
+				X.flash = {"t0": _now, "colour": Color("60b8ff")}
+				_sfx("expedition_hazard")
+				_battle_pop("%s HELD" % _x("shields_name"), X_BLUE, Vector2(523, 345), 40)
+				await _wait(1.4)
+			"shuttle_lost":
+				X.flash = {"t0": _now, "colour": Color("ff8040")}
+				_sfx("expedition_hazard")
+				_battle_pop("%s LOST" % _x("shuttle_name"), Color("ff8a60"), here + Vector2(0, -60), 34)
+				await _wait(1.2)
+			"missed":
+				for pair in e.planets:
+					var p := (pair[1] as Dictionary).duplicate()
+					p.missed = true
+					sh.planets[int(pair[0])] = p
+				await _wait(1.2)
+			"final":
+				X.warp_at = _now
+				X.final = {"t0": _now, "e": e, "shown": 0}
+				_sfx("expedition_warp")
+				await _wait(1.0)
+				if ep != _epoch:
+					return
+				X.final.shown = 1
+				sh.total = int(sh.total) + int(e.pence)
+				win_target = float(sh.total)
+				roller = maxf(float(e.pence), float(_bet()))
+				_sfx("expedition_final")
+				_coin_burst(523, 330, 40, 1.2)
+				if int(e.pence) >= 20 * _bet():
+					_coin_rain(40)
+					shake = 0.5
+				await _wait(2.0)
+
+
+func _draw_expedition(ci: CanvasItem) -> void:
+	var X := expedition
+	var st: Dictionary = X.st
+	var sh: Dictionary = X.shown
+	var A := B_AREA
+	var warp := maxf(0.0, 1.0 - absf(_now - float(X.warp_at) - 0.5) / 0.6)
+	# deep space, a dim wash of the slot's background, and stars that streak at warp
+	_rr(ci, A, 18, Color("05071a"))
+	_vgrad(ci, A.grow(-4), Color("03040c"), Color("0b1030"))
+	var bg := _tex("bg") if background else null
+	if bg:
+		ci.draw_texture_rect(bg, A.grow(-4), false, Color(1, 1, 1, 0.25))
+	for s in _stars:
+		var v: float = s.w * (1.0 + warp * 40.0)
+		var x := A.position.x + fposmod(s.x - _now * v, A.size.x)
+		ci.draw_rect(Rect2(x, A.position.y + s.y, minf(s.z + warp * 60.0 * s.z, A.end.x - x - 4), s.z), Color(0.86, 0.9, 1.0, 0.35 + s.z / 3.0))
+	var pulse := 0.55 + 0.45 * sin(_now * 5.0)
+	if int(sh.sector) < 0:
+		_draw_x_chart(ci, X, st, sh, pulse)
+	else:
+		_draw_x_sector(ci, X, st, sh, pulse)
+	var sw := float(X.swirl)
+	if _now - sw < 2.2:
+		var k := minf(1.0, (_now - sw) / 1.5)
+		var s := 120.0 + 420.0 * k
+		var t := _tex("x_wormhole")
+		if t:
+			ci.draw_set_transform(Vector2(523, 352), _now * 3.0)
+			ci.draw_texture_rect(t, Rect2(-s / 2.0, -s / 2.0, s, s), false, Color(1, 1, 1, minf(1.0, 2.3 - 2.0 * k)))
+			ci.draw_set_transform(Vector2.ZERO)
+	var fl: Dictionary = X.flash
+	if not fl.is_empty():
+		var a := maxf(0.0, 1.0 - (_now - float(fl.t0)) / 1.2)
+		if a > 0.0:
+			_rr(ci, A, 18, Color(fl.colour as Color, 0.45 * a))
+
+
+## Format a value in bets: whole numbers plainly, others to one place.
+static func _bets(v) -> String:
+	return str(int(v)) if float(v) == floorf(float(v)) else "%.1f" % float(v)
+
+
+func _draw_x_chart(ci: CanvasItem, X: Dictionary, st: Dictionary, sh: Dictionary, pulse: float) -> void:
+	var ship := Vector2(96, 352)
+	var end := Vector2(950, 352)
+	var chosen := int(sh.route)
+	var fade := 1.0 if chosen < 0 else maxf(0.0, 1.0 - (_now - float(X.route_at)) / 1.2)
+	var levels: Array = texts.get("expedition_levels", ["LOW", "MODERATE", "SEVERE"])
+	for i in 3:
+		var r: Dictionary = st.routes[i]
+		var y: float = LANE_Y[i]
+		var col: Color = LEVEL_COL[clampi(int(r.level), 0, 2)]
+		var lit: bool = X.waiting and chosen < 0
+		var a := 1.0 if chosen == i else fade
+		if a <= 0.0:
+			continue
+		var id := "route%d" % i
+		var hover := lit and _hover == id
+		if hover or chosen == i:
+			_rr(ci, Rect2(150, y - 56, 750, 100), 16, Color(col, 0.14 * a))
+		ci.draw_dashed_line(ship + Vector2(40, 0), Vector2(190, y), Color(col, 0.6 * a), 3, 15)
+		ci.draw_dashed_line(Vector2(860, y), end - Vector2(50, 0), Color(col, 0.6 * a), 3, 15)
+		ci.draw_dashed_line(Vector2(190, y), Vector2(860, y), Color(col, (0.5 + 0.5 * pulse if lit else 0.7) * a), 3, 15)
+		var n := int(r.length)
+		for k in n:
+			var c := Vector2(230 + (k + 0.5) * (590.0 / n), y)
+			ci.draw_circle(c, 13, Color(Color("141a3a"), a))
+			ci.draw_arc(c, 13, 0, TAU, 24, Color(col, a), 3, true)
+		var level := str(levels[clampi(int(r.level), 0, levels.size() - 1)])
+		_text(ci, "ROUTE %s · %d %sS · HAZARD %s · FINAL %s× BET" % ["ABC"[i], n, _x("sector"), level, _bets(r.final)],
+			Vector2(525, y - 34), 18, COND, Color(GOLD_HI if hover else CREAM, a), "center", 4, 700)
+		if lit:
+			_add_hit(id, Rect2(150, y - 56, 750, 100))
+	var t := _tex("x_ship")
+	if t:
+		ci.draw_texture_rect(t, Rect2(ship - Vector2(50, 50), Vector2(100, 100)), false)
+	_text(ci, _x("start"), ship + Vector2(0, 62), 14, COND, CREAM, "center", 4, 150)
+	t = _tex("x_final")
+	if t:
+		ci.draw_texture_rect(t, Rect2(end - Vector2(56, 56), Vector2(112, 112)), false)
+	_text(ci, _x("final"), end + Vector2(0, 68), 14, COND, CREAM, "center", 4, 150)
+
+
+func _draw_x_sector(ci: CanvasItem, X: Dictionary, st: Dictionary, sh: Dictionary, pulse: float) -> void:
+	var r: Dictionary = st.routes[int(sh.route)]
+	var n := int(r.length)
+	var col: Color = LEVEL_COL[clampi(int(r.level), 0, 2)]
+	var levels: Array = texts.get("expedition_levels", ["LOW", "MODERATE", "SEVERE"])
+	# the route so far: your ship at the current sector, a mark for each sector passed
+	var y0 := REEL_Y + 62.0
+	var sx := func(k: int) -> float: return 150.0 + (k + 0.5) * (740.0 / n)
+	ci.draw_dashed_line(Vector2(90, y0), Vector2(950, y0), Color(col, 0.55), 3, 15)
+	var t := _tex("x_final")
+	if t:
+		ci.draw_texture_rect(t, Rect2(930, y0 - 22, 44, 44), false)
+	var sector := int(sh.sector)
+	for k in n:
+		var c := Vector2(sx.call(k), y0)
+		ci.draw_circle(c, 15.0 if k == sector else 11.0, Color(col, 0.7) if k < sector else Color("141a3a"))
+		ci.draw_arc(c, 15.0 if k == sector else 11.0, 0, TAU, 24, GOLD_HI if k == sector else col, 3, true)
+		var f: Array = sh.found[k] if k < (sh.found as Array).size() else []
+		if k < sector and not f.is_empty():
+			var ft := _tex(X_ART.get(str(f[0]), "x_planet"))
+			if ft:
+				ci.draw_texture_rect(ft, Rect2(c - Vector2(13, 13), Vector2(26, 26)), false)
+	var wk := clampf((_now - float(X.warp_at)) / 1.0, 0.0, 1.0)
+	var from: float = sx.call(maxi(0, sector - 1))
+	var ship_x: float = from + (float(sx.call(sector)) - from) * (_ease("inout", wk) if sector > 0 else 1.0)
+	t = _tex("x_ship")
+	if t:
+		ci.draw_texture_rect(t, Rect2(ship_x - 20, y0 - 50, 40, 40), false)
+	_text(ci, "%s %d OF %d · HAZARD %s" % [_x("sector"), sector + 1, n, str(levels[clampi(int(r.level), 0, levels.size() - 1)])],
+		Vector2(523, y0 + 34), 18, COND, CREAM, "center", 4, 600)
+	# the three planets
+	var open: Array = st.options if X.waiting and str(st.awaiting) != "route" else []
+	var planets: Array = sh.planets
+	for i in planets.size():
+		var p: Dictionary = planets[i]
+		var x := _planet_x(i)
+		var lit := open.has(i)
+		var bob := sin(_now * 2.2 + i) * 4.0 if lit else 0.0
+		var c := Vector2(x, PLANET_Y + bob)
+		var a := 0.45 if p.get("missed", false) else 1.0
+		if lit:
+			for k in 5:   # a soft glow behind it
+				ci.draw_circle(c, PLANET_S * 0.72 * (1.0 - k * 0.16), Color(GOLD_HI, 0.08 * pulse))
+		var known := p.kind != null
+		var pt := _tex(X_ART.get(str(p.kind), "x_planet") if known else "x_planet")
+		if pt:
+			ci.draw_texture_rect(pt, Rect2(c - Vector2(PLANET_S, PLANET_S) / 2.0, Vector2(PLANET_S, PLANET_S)), false, Color(1, 1, 1, a))
+		if p.get("by") != null:
+			ci.draw_arc(Vector2(x, PLANET_Y), PLANET_S * 0.58, 0, TAU, 48, X_BLUE if str(p.by) == "shuttle" else GOLD_HI, 4, true)
+		if lit and _hover == "planet%d" % i:
+			ci.draw_arc(c, PLANET_S * 0.56, 0, TAU, 48, GOLD_HI, 3, true)
+		if known:
+			var lab := _planet_label(p, i, sh)
+			_text(ci, str(lab[0]), Vector2(x, PLANET_Y + PLANET_S / 2.0 + 18), 18, COND, Color(lab[1] as Color, a), "center", 4, 250)
+		if lit:
+			_add_hit("planet%d" % i, Rect2(Vector2(x, PLANET_Y) - Vector2(PLANET_S, PLANET_S) / 2.0, Vector2(PLANET_S, PLANET_S)))
+	if not open.is_empty():
+		_text(ci, "%s: CHOOSE A SECOND PLANET" % _x("shuttle_name") if str(st.awaiting) == "shuttle" else _x("planet_hint"),
+			Vector2(523, B_AREA.end.y - 24), 18, COND, GOLD_HI, "center", 4, 700)
+
+
+func _draw_expedition_hud(ci: CanvasItem) -> void:
+	var X := expedition
+	var st: Dictionary = X.st
+	var sh: Dictionary = X.shown
+	var F: Dictionary = X.final
+	if not F.is_empty():   # the final destination's prize
+		var k := minf(1.0, (_now - float(F.t0)) / 0.8)
+		_rr(ci, B_AREA, 18, Color(SHADE, 0.75 * k))
+		var s := 230.0 + 14.0 * sin(_now * 2.0)
+		var ft := _tex("x_final")
+		if ft:
+			ci.draw_texture_rect(ft, Rect2(Vector2(523, 330) - Vector2(s, s) / 2.0, Vector2(s, s)), false, Color(1, 1, 1, k))
+		_gold_text(ci, _x("final"), Vector2(523, REEL_Y + 64), 40, 800)
+		if int(F.shown) > 0:
+			var e: Dictionary = F.e
+			_text(ci, Money.format(int(e.pence)), Vector2(523, 490), 48, COND, WIN_COL, "center", 6)
+			var why := []
+			if bool(e.wormhole):
+				why.append("%s ×%s" % [_x("wormhole_name"), _bets(rules.get("expedition", {}).get("wormhole", 2))])
+			if int(e.mult) > 1:
+				why.append("%s ×%d" % [_x("mult_name"), int(e.mult)])
+			if not why.is_empty():
+				_text(ci, " · ".join(why), Vector2(523, 536), 20, COND, X_BLUE, "center", 4, 700)
+	_text(ci, "%s WIN %s" % [_x("name"), Money.format(int(sh.total))], Vector2(523, REEL_Y + 14), 32, COND, WIN_COL, "center", 6, 600)
+	# the panel: where you are, the multiplier, the tech, the free games, the route and the timer
+	var cx := 1150.0
+	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
+	_text(ci, _x("name"), Vector2(cx, REEL_Y + 10), 24, COND, GOLD_HI, "center", 0, 200)
+	var stage := ""
+	if not F.is_empty():
+		stage = _x("final")
+	elif sh.ended:
+		stage = "EXPEDITION OVER"
+	elif int(sh.sector) < 0:
+		stage = "THE CHART"
+	else:
+		stage = "%s %d OF %d" % [_x("sector"), int(sh.sector) + 1, int(st.routes[int(sh.route)].length)]
+	_text(ci, stage, Vector2(cx, REEL_Y + 40), 20, COND, CREAM, "center", 0, 200)
+	_text(ci, _x("mult_name"), Vector2(cx, REEL_Y + 80), 16, COND, GOLD_HI, "center", 0, 200)
+	_text(ci, "×%d" % int(sh.mult), Vector2(cx, REEL_Y + 118), 48, COND, X_BLUE, "center", 4, 200)
+	var techs := [["scanner", int(sh.scanners)], ["shuttle", int(sh.shuttles)], ["shields", int(sh.shields)]]
+	for i in 3:
+		var x := 1080.0 + i * 70.0
+		var n: int = techs[i][1]
+		var tt := _tex(X_ART[techs[i][0]])
+		if tt:
+			ci.draw_texture_rect(tt, Rect2(x - 24, REEL_Y + 166, 48, 48), false, Color(1, 1, 1, 1.0 if n > 0 else 0.3))
+		_text(ci, "%s %d" % [_x(str(techs[i][0]) + "_name"), n], Vector2(x, REEL_Y + 226), 12, COND, CREAM if n > 0 else MUTED, "center", 0, 68)
+	_text(ci, "%s %d" % [_x("spins_name"), int(sh.spins)], Vector2(cx, REEL_Y + 262), 16, COND, X_BLUE, "center", 0, 200)
+	if int(sh.route) >= 0:
+		var r: Dictionary = st.routes[int(sh.route)]
+		var levels: Array = texts.get("expedition_levels", ["LOW", "MODERATE", "SEVERE"])
+		var lv := clampi(int(r.level), 0, 2)
+		_text(ci, "HAZARD %s" % str(levels[mini(lv, levels.size() - 1)]), Vector2(cx, REEL_Y + 296), 16, COND, LEVEL_COL[lv], "center", 0, 200)
+		_text(ci, "FINAL %s" % Money.format(floori(float(r.final) * int(sh.mult) * int(X.bet) + 0.5)), Vector2(cx, REEL_Y + 320), 16, COND, CREAM, "center", 0, 200)
+	if not X.waiting:
+		return
+	var left := maxf(0.0, float(X.auto_at) - _now)
+	var hint := _x("hint") if str(st.awaiting) == "route" else ("%s: one more" % _x("shuttle_name") if str(st.awaiting) == "shuttle" else _x("planet_hint"))
+	_text(ci, hint, Vector2(cx, REEL_Y + 380), 16, COND, CREAM, "center", 0, 200)
+	_text(ci, "chooses itself in %d" % ceili(left), Vector2(cx, REEL_Y + 410), 16, COND, MUTED)
+
+
 # ------------------------------------------------------------------ input
 func _virtual(p: Vector2) -> Vector2:
 	var r := _canvas_rect()
@@ -3161,6 +3662,9 @@ func _act(id: String) -> void:
 	if not voyage.is_empty() and (id.begins_with("isle") or id.begins_with("deal-") or id == "final"):
 		_choose_voyage(int(id.substr(4)) if id.begins_with("isle") else (id.substr(5) if id.begins_with("deal-") else "final"))
 		return
+	if not expedition.is_empty() and (id.begins_with("route") or id.begins_with("planet")):
+		_choose_expedition(int(id.substr(5)) if id.begins_with("route") else int(id.substr(6)))
+		return
 	if id.begins_with("coin"):
 		var i := int(id.substr(4))
 		if not pick.is_empty() and not pick.done and pick.coins[i].tier == "" and not pick.coins[i].asked:
@@ -3169,7 +3673,7 @@ func _act(id: String) -> void:
 		return
 	if id != "auto" and not id.begins_with("auto"):
 		auto_menu = false
-	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and voyage.is_empty() and expedition.is_empty() and free.is_empty()
 	match id:
 		"spin":
 			_spin_or_stop()
@@ -3219,7 +3723,7 @@ func _bet_changed() -> void:
 
 func _cash_out() -> void:
 	auto = 0
-	if not pick.is_empty() or not trail.is_empty() or not battle.is_empty() or not voyage.is_empty() or not free.is_empty():
+	if not pick.is_empty() or not trail.is_empty() or not battle.is_empty() or not voyage.is_empty() or not expedition.is_empty() or not free.is_empty():
 		overlay = {"kind": "cashout"}
 	else:
 		_sfx("cash_out")
@@ -3237,6 +3741,8 @@ func _spin_or_stop() -> void:
 		return _fire_battle(-1)
 	if not voyage.is_empty():
 		return _choose_voyage(null)
+	if not expedition.is_empty():
+		return _choose_expedition(null)
 	if reels.any(func(x): return x.spinning or x.stopping):
 		_hurry = true
 		return

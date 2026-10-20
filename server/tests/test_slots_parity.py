@@ -1,5 +1,5 @@
 """The Python slot engine against the signed-off mockup's maths (docs/slots/mockup/slots_math.js):
-the same seed must give the same spin, trail, battle, voyage, pick and simulation totals. The fixture is made
+the same seed must give the same spin, trail, battle, voyage, expedition, pick and simulation totals. The fixture is made
 by docs/slots/tools/make_parity_fixture.js."""
 import dataclasses
 import json
@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from casino_server.slots import base, jackpots, sim
-from casino_server.slots.bonuses import (battle_shot, battle_start, trail_play_out, trail_start, voyage_options, voyage_start,
-                                        voyage_step)
+from casino_server.slots.bonuses import (battle_shot, battle_start, expedition_options, expedition_start, expedition_step,
+                                        trail_play_out, trail_start, voyage_options, voyage_start, voyage_step)
 from casino_server.slots.outcome import spin_outcome
 from casino_server.slots.rng import mulberry32
 from casino_server.slots.variants.armadillo import VARIANT as V
@@ -44,13 +44,15 @@ def test_free_games_match():
 VB = dataclasses.replace(V, routes={"BS": ["battle"], "FS": ["free", "battle"], "buy": ["battle"]})
 # ...and the one whose bonus scatter and Buy Bonus play the island voyage.
 VY = dataclasses.replace(V, routes={"BS": ["voyage"], "FS": ["free", "voyage"], "buy": ["voyage"]})
+# ...and the expedition.
+VX = dataclasses.replace(V, routes={"BS": ["expedition"], "FS": ["free", "expedition"], "buy": ["expedition"]})
 
 
 def test_rigged_spins_match():
     for case in FIX["rigged"]:
         rig = {"features": case["features"]} if "features" in case else {"trigger": case["trigger"]}
         bet = 250 if "features" in case else 100
-        v = {"battle": VB, "voyage": VY}.get(case.get("trigger"), V)
+        v = {"battle": VB, "voyage": VY, "expedition": VX}.get(case.get("trigger"), V)
         assert view(spin_outcome(v, bet, mulberry32(case["seed"]), rig=rig)) == case["o"], case
 
 
@@ -99,6 +101,20 @@ def test_voyages_match():
         assert (st["total"], st["spins"], st["sunk"], st["artefacts"]) == (case["total"], case["spins"], case["sunk"], case["artefacts"])
 
 
+def test_expeditions_match():
+    for case in FIX["expeditions"]:
+        rng = mulberry32(case["seed"])
+        st, steps = expedition_start(V, case["bet"], rng), []
+        assert st["routes"] == case["routes"], case["seed"]
+        while not st["done"]:
+            opts = expedition_options(V, st)
+            r = expedition_step(V, st, rng, None if case["seed"] % 2 else opts[st["steps"] % len(opts)])
+            steps.append([r["action"], r["choice"], r["events"]])
+        assert steps == case["steps"], case["seed"]
+        assert ((st["total"], st["spins"], st["ended"], st["wormhole"], st["mult"], st["found"])
+                == (case["total"], case["spins"], case["ended"], case["wormhole"], case["mult"], case["found"]))
+
+
 def test_simulations_match():
     r = sim.simulate(V, 20000, 100, 7)
     js = FIX["sim"]
@@ -117,3 +133,8 @@ def test_simulations_match():
     assert (r["voyage"], r["voyages"], r["free"], r["frees"], r["hits"]) == (js["voyage"], js["voyages"], js["free"], js["frees"], js["hits"])
     assert sim.simulate_buy(VY, 2000, 100, 9)["mean"] == pytest.approx(js["buyMean"], rel=1e-12)
     assert sim.simulate_voyage(VY, 2000, 100, 9) == pytest.approx(js["mean"], rel=1e-12)
+    js = FIX["expeditionSim"]
+    r = sim.simulate(VX, 20000, 100, 7)
+    assert (r["expedition"], r["expeditions"], r["free"], r["frees"], r["hits"]) == (js["expedition"], js["expeditions"], js["free"], js["frees"], js["hits"])
+    assert sim.simulate_buy(VX, 2000, 100, 9)["mean"] == pytest.approx(js["buyMean"], rel=1e-12)
+    assert sim.simulate_expedition(VX, 2000, 100, 9) == pytest.approx(js["mean"], rel=1e-12)

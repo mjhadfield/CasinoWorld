@@ -21,8 +21,8 @@ PAYS = {
     "L1": (4, 8, 20), "L2": (4, 8, 20), "L3": (4, 8, 20), "L4": (4, 8, 20),
 }
 SCATTERS = ("BS", "FS")   # the bonus scatter and the free-spin scatter: never substituted, pay nothing
-# The library's bonus games: the Trail Bonus, Combo Free Games, the wave battle, the island voyage.
-BONUSES = ("trail", "free", "battle", "voyage")
+# The library's bonus games: the Trail Bonus, Combo Free Games, the wave battle, the island voyage, the expedition.
+BONUSES = ("trail", "free", "battle", "voyage", "expedition")
 # Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus). With more than one, it's one of them at random.
 ROUTES = {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]}
 # The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize are in bets.
@@ -57,6 +57,24 @@ VOYAGE = {
     "chest": 12,                                     # the final island: the chest's base, always
     "parts": [4, 5, 8, 12],                          # each artefact's part of the treasure
     "legend": 90,                                    # all four artefacts: the legend on top
+}
+# The expedition (Delta Quadrant): three routes of `lengths` sectors, each with a hazard level, then the final
+# destination. A sector has three hidden planets, each drawn from `kinds` plus its level's hazard weight. Prizes are
+# in bets (credits and the artefact times the level's scale), and everything pays times the expedition multiplier.
+EXPEDITION = {
+    "lengths": [[4, 1], [5, 1], [6, 1]],             # sectors on a route
+    "levels": [{"weight": 1, "hazard": 3, "scale": 1, "final": 20},      # Low, Moderate, Severe: how often each is
+               {"weight": 1, "hazard": 7, "scale": 1.7, "final": 22},    # drawn, its hazard weight among the planets,
+               {"weight": 1, "hazard": 12, "scale": 2.6, "final": 24}],  # its prize scale and its final prize
+    "ramp": 2.5,                                     # hazard weight added each sector deeper into the route
+    "kinds": [["credits", 52], ["mult", 9], ["tech", 15], ["special", 6]],   # a planet (plus its hazard weight)
+    "credits": [[1, 40], [2, 30], [3, 15], [5, 9], [8, 4], [15, 2]],
+    "mults": [[1, 80], [2, 20]],                     # added to the expedition multiplier (from x1)
+    "techs": [["scanner", 1], ["shuttle", 1], ["shields", 1]],
+    "specials": [["artefact", 50], ["wormhole", 25], ["spins", 25]],
+    "artefact": [[10, 40], [20, 30], [40, 20], [100, 10]],
+    "wormhole": 2,                                   # the Wormhole's boost to the final prize
+    "spins": [[1, 60], [2, 30], [3, 10]],            # free games found, played afterwards
 }
 UPGRADES = {"L1": "M3", "L2": "M3", "L3": "M4", "L4": "M4", "M3": "M1", "M4": "M2", "M1": "H2", "M2": "H2", "H2": "H1"}
 LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500]   # total bet in pence (a whole-pence line bet)

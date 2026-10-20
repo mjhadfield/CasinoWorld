@@ -22,7 +22,7 @@
   };
   const PAYING = Object.keys(PAYS);
   const SCATTERS = ["BS", "FS"];
-  const BONUSES = ["trail", "free", "battle", "voyage"];
+  const BONUSES = ["trail", "free", "battle", "voyage", "expedition"];
   // Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus); with more than one, it's one of them at random.
   const ROUTES = { BS: ["trail"], FS: ["free"], buy: ["trail"] };
   // The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize in bets.
@@ -42,6 +42,18 @@
     cove: [[10, 40], [15, 30], [25, 20], [50, 10]],
     relicValue: 1, artefactPrice: 3, keyPrice: 2, spinsPrice: 4, spinsGames: 1,
     chest: 12, parts: [4, 5, 8, 12], legend: 90,
+  };
+  // The expedition (Delta Quadrant): three routes of `lengths` sectors, each with a hazard level, then the final
+  // destination. A sector has three hidden planets, each drawn from `kinds` plus its hazard weight (the level's, plus
+  // `ramp` a sector deeper). Prizes in bets (credits and the artefact times the level's scale), all times the multiplier.
+  const EXPEDITION = {
+    lengths: [[4, 1], [5, 1], [6, 1]],
+    levels: [{ weight: 1, hazard: 3, scale: 1, final: 20 }, { weight: 1, hazard: 7, scale: 1.7, final: 22 },
+             { weight: 1, hazard: 12, scale: 2.6, final: 24 }],
+    ramp: 2.5, kinds: [["credits", 52], ["mult", 9], ["tech", 15], ["special", 6]],
+    credits: [[1, 40], [2, 30], [3, 15], [5, 9], [8, 4], [15, 2]], mults: [[1, 80], [2, 20]],
+    techs: [["scanner", 1], ["shuttle", 1], ["shields", 1]], specials: [["artefact", 50], ["wormhole", 25], ["spins", 25]],
+    artefact: [[10, 40], [20, 30], [40, 20], [100, 10]], wormhole: 2, spins: [[1, 60], [2, 30], [3, 10]],
   };
   const UPGRADES = { L1: "M3", L2: "M3", L3: "M4", L4: "M4", M3: "M1", M4: "M2", M1: "H2", M2: "H2", H2: "H1" };
   const LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500];
@@ -610,6 +622,157 @@
     return { st, total: st.total + (st.spins ? freeGames(V, bet, rng, st.spins).reduce((a, g) => a + g.total, 0) : 0) };
   }
 
+  // ------------------------------------------------------------------ the expedition (Delta Quadrant)
+  /* Choose one of three routes (a length and a hazard level each, shown up front), then explore one of three hidden
+     planets in each sector: credits, a multiplier (on every later prize and the final one), tech (a Scanner shows the
+     next sector, a Shuttle explores a second planet there, Shields absorb a hazard), a special (an artefact's big
+     prize, a Wormhole straight to a boosted final prize, or free games, played afterwards), or a hazard, which ends
+     it short of the final prize. */
+  const EXPEDITION_RANK = ["hazard", "credits", "scanner", "shuttle", "shields", "mult", "spins", "artefact", "wormhole"];
+  const copy = (x) => JSON.parse(JSON.stringify(x));
+  function expeditionStart(V, bet, rng) {
+    const E = V.expedition, routes = [];
+    for (let i = 0; i < 3; i++) {
+      const length = weighted(rng, E.lengths);
+      const level = weighted(rng, E.levels.map((lv, j) => [j, lv.weight]));
+      routes.push({ length, level, final: E.levels[level].final });
+    }
+    return { bet, routes, route: null, sector: -1, planets: null, found: [], awaiting: "route", mult: 1, scanners: 0,
+             shuttles: 0, shields: 0, scanned: false, shuttle_now: false, spins: 0, total: 0, ended: false, wormhole: false,
+             final: null, steps: 0, done: false };
+  }
+  function expeditionPlanet(E, level, sector, rng) {
+    const kind = weighted(rng, [...E.kinds, ["hazard", level.hazard + E.ramp * sector]]);
+    const p = { kind, seen: false, by: null };
+    if (kind === "credits") p.x = weighted(rng, E.credits) * level.scale;
+    else if (kind === "mult") p.n = weighted(rng, E.mults);
+    else if (kind === "tech") p.kind = weighted(rng, E.techs);
+    else if (kind === "special") {
+      p.kind = weighted(rng, E.specials);
+      if (p.kind === "artefact") p.x = weighted(rng, E.artefact) * level.scale;
+      else if (p.kind === "spins") p.n = weighted(rng, E.spins);
+    }
+    return p;
+  }
+  function expeditionEnter(V, st, rng, ev) {   // warp to the next sector: a Scanner shows it, a Shuttle launches
+    const E = V.expedition, level = E.levels[st.routes[st.route].level];
+    st.sector++;
+    st.planets = [0, 1, 2].map(() => expeditionPlanet(E, level, st.sector, rng));
+    st.found.push([]);
+    st.awaiting = "planet";
+    ev.push({ kind: "warp", sector: st.sector });
+    st.scanned = st.scanners > 0;
+    if (st.scanned) {
+      st.scanners--;
+      for (const p of st.planets) p.seen = true;
+      ev.push({ kind: "scan", planets: copy(st.planets) });
+    }
+    st.shuttle_now = st.shuttles > 0;
+    if (st.shuttle_now) { st.shuttles--; ev.push({ kind: "shuttle" }); }
+  }
+  function expeditionOptions(V, st) {   // a route at the chart, else the planets not yet explored in this sector
+    if (st.done) return [];
+    if (st.awaiting === "route") return [0, 1, 2];
+    return st.planets.map((p, i) => (p.by === null ? i : -1)).filter((i) => i >= 0);
+  }
+  const expeditionWorth = (p) => [EXPEDITION_RANK.indexOf(p.kind), p.x ?? p.n ?? 0];
+  function expeditionAuto(V, st, rng) {   // a random route or planet; in a scanned sector the best one shown
+    const opts = expeditionOptions(V, st);
+    if (st.awaiting !== "route" && st.scanned) {
+      let best = opts[0];
+      for (const i of opts.slice(1)) {
+        const a = expeditionWorth(st.planets[i]), b = expeditionWorth(st.planets[best]);
+        if (a[0] > b[0] || (a[0] === b[0] && a[1] > b[1])) best = i;
+      }
+      return best;
+    }
+    return opts[int(rng, opts.length)];
+  }
+  function expeditionExplore(st, p, by, ev) {   // "end" (a hazard), "wormhole", or null
+    const k = p.kind;
+    if (k === "credits" || k === "artefact") {
+      p.pence = betPence(p.x * st.mult, st.bet);
+      st.total += p.pence;
+      ev.push({ kind: k, pence: p.pence });
+    } else if (k === "mult") {
+      st.mult += p.n;
+      ev.push({ kind: "mult", n: p.n, mult: st.mult });
+    } else if (k === "scanner" || k === "shuttle" || k === "shields") {
+      st[k === "shields" ? k : k + "s"]++;
+      ev.push({ kind: "tech", tech: k });
+    } else if (k === "spins") {
+      st.spins += p.n;
+      ev.push({ kind: "spins", n: p.n });
+    } else if (k === "wormhole") {
+      ev.push({ kind: "wormhole" });
+      return "wormhole";
+    } else if (by === "shuttle") ev.push({ kind: "shuttle_lost" });
+    else if (st.shields > 0) { st.shields--; ev.push({ kind: "shielded" }); }
+    else { ev.push({ kind: "hazard" }); return "end"; }
+    return null;
+  }
+  /* One choice; `st` advances (anything not in expeditionOptions is chosen by expeditionAuto). Returns
+     {action (route/explore/shuttle), choice, events, done}, the events as bonuses.py expedition_step's. */
+  function expeditionStep(V, st, rng, choice) {
+    const E = V.expedition, ev = [];
+    if (typeof choice === "boolean" || !expeditionOptions(V, st).includes(choice)) choice = expeditionAuto(V, st, rng);
+    st.steps++;
+    if (st.awaiting === "route") {
+      st.route = choice;
+      ev.push({ kind: "route", i: choice });
+      expeditionEnter(V, st, rng, ev);
+      return { action: "route", choice, events: ev, done: false };
+    }
+    const by = st.awaiting === "shuttle" ? "shuttle" : "ship", p = st.planets[choice];
+    p.by = by; p.seen = true;
+    st.found[st.found.length - 1].push(p.kind);
+    ev.push({ kind: "reveal", i: choice, by, planet: Object.assign({}, p) });
+    const out = expeditionExplore(st, p, by, ev);
+    if (out === null && by === "ship" && st.shuttle_now) {
+      st.awaiting = "shuttle";
+      return { action: "explore", choice, events: ev, done: false };
+    }
+    const missed = [];
+    st.planets.forEach((q, i) => {
+      if (q.by !== null) return;
+      q.seen = true;
+      if ("x" in q) q.pence = betPence(q.x * st.mult, st.bet);
+      missed.push([i, Object.assign({}, q)]);
+    });
+    if (missed.length) ev.push({ kind: "missed", planets: missed });
+    const route = st.routes[st.route];
+    if (out === "end") {
+      st.ended = st.done = true;
+      st.awaiting = null;
+    } else if (out === "wormhole" || st.sector === route.length - 1) {
+      st.wormhole = out === "wormhole";
+      st.final = betPence(route.final * (st.wormhole ? E.wormhole : 1) * st.mult, st.bet);
+      st.total += st.final;
+      st.done = true;
+      st.awaiting = null;
+      ev.push({ kind: "final", pence: st.final, mult: st.mult, wormhole: st.wormhole });
+    } else expeditionEnter(V, st, rng, ev);
+    return { action: by === "shuttle" ? "shuttle" : "explore", choice, events: ev, done: st.done };
+  }
+  function expeditionPlayOut(V, st, rng) {   // a player who leaves mid-expedition (and the simulator)
+    const steps = [];
+    for (let i = 0; i < 100 && !st.done; i++) steps.push(expeditionStep(V, st, rng));
+    return steps;
+  }
+  /* What the screen shows: a planet not yet revealed or scanned shows nothing (bonuses.py expedition_view). */
+  function expeditionView(V, st) {
+    const out = copy(st);
+    if (out.planets) out.planets = out.planets.map((p) => (p.seen ? p : { kind: null, seen: false, by: null }));
+    out.options = expeditionOptions(V, st);
+    return out;
+  }
+  /* One expedition explored to the end, plus the free games it found, in pence. */
+  function expeditionValue(V, bet, rng) {
+    const st = expeditionStart(V, bet, rng);
+    expeditionPlayOut(V, st, rng);
+    return { st, total: st.total + (st.spins ? freeGames(V, bet, rng, st.spins).reduce((a, g) => a + g.total, 0) : 0) };
+  }
+
   // ------------------------------------------------------------------ the shared progressives
   const JACKPOT_TIERS = [
     // seed in pence, share of every bet, and how often it's won (1 in N pence wagered)
@@ -643,7 +806,7 @@
   function simulate(V, spins, bet, seed) {
     const rng = mulberry32(seed);
     const r = { spins, bet, staked: spins * bet, plain: 0, featured: 0, repeatExtra: 0, instant: 0, trail: 0, free: 0,
-                battle: 0, voyage: 0, hits: 0, trails: 0, frees: 0, battles: 0, voyages: 0, featureSpins: 0, featureCounts: {},
+                battle: 0, voyage: 0, expedition: 0, hits: 0, trails: 0, frees: 0, battles: 0, voyages: 0, expeditions: 0, featureSpins: 0, featureCounts: {},
                 max: 0, sumSq: 0,
                 prizepots: 0 };
     for (let i = 0; i < spins; i++) {
@@ -670,6 +833,9 @@
       } else if (o.trigger === "voyage") {
         const y = voyageValue(V, bet, rng).total;
         r.voyages++; r.voyage += y; won += y;
+      } else if (o.trigger === "expedition") {
+        const x = expeditionValue(V, bet, rng).total;
+        r.expeditions++; r.expedition += x; won += x;
       }
       if (won > 0) r.hits++;
       r.max = Math.max(r.max, won);
@@ -678,8 +844,10 @@
     }
     const pct = (v) => (100 * v) / r.staked;
     r.rtp = { plain: pct(r.plain), featured: pct(r.featured), repeat: pct(r.repeatExtra), instant: pct(r.instant),
-              trail: pct(r.trail), free: pct(r.free), battle: pct(r.battle), voyage: pct(r.voyage), jackpot: 100 * jackpotRtp() };
-    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle + r.rtp.voyage;
+              trail: pct(r.trail), free: pct(r.free), battle: pct(r.battle), voyage: pct(r.voyage), expedition: pct(r.expedition),
+              jackpot: 100 * jackpotRtp() };
+    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle + r.rtp.voyage +
+      r.rtp.expedition;
     r.rtp.total = r.rtp.game + r.rtp.jackpot;
     const mean = r.rtp.game / 100;
     r.sd = Math.sqrt(r.sumSq / spins - mean * mean);
@@ -695,6 +863,7 @@
       if (kind === "free") total = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
       else if (kind === "battle") total = battleValue(V, bet, rng).total;
       else if (kind === "voyage") total = voyageValue(V, bet, rng).total;
+      else if (kind === "expedition") total = expeditionValue(V, bet, rng).total;
       else {
         const s = trailStart(V, bet, rng);
         trailPlayOut(V, s, rng);
@@ -740,6 +909,19 @@
     }
     return { n, mean: won / n / bet, finals, legends, sunk };
   }
+  /* The mean expedition win (its free games included), in bets, from `n` expeditions on their own. */
+  function simulateExpedition(V, n, bet, seed) {
+    const rng = mulberry32(seed);
+    let won = 0, ended = 0, wormholes = 0, finals = 0;
+    for (let i = 0; i < n; i++) {
+      const x = expeditionValue(V, bet, rng);
+      won += x.total;
+      if (x.st.ended) ended++;
+      else finals++;
+      if (x.st.wormhole) wormholes++;
+    }
+    return { n, mean: won / n / bet, ended, wormholes, finals };
+  }
   /* What the progressives return: every bet's share, plus each seed paid out once per win. */
   function jackpotRtp() { return JACKPOT_TIERS.reduce((a, t) => a + t.rate + t.seed / t.every, 0); }
 
@@ -775,6 +957,7 @@
     V.routes = p.routes || ROUTES;
     V.battle = Object.assign({}, BATTLE, p.battle || {});
     V.voyage = Object.assign({}, VOYAGE, p.voyage || {});
+    V.expedition = Object.assign({}, EXPEDITION, p.expedition || {});
     V.strips = p.strips || p.counts.map((c, i) => buildStrip(c, 1000 + i));
     V.freeStrips = p.freeStrips || p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
     V.bigStrip = p.bigStrip || buildStrip(p.bigCounts, 3000);
@@ -809,10 +992,12 @@
     freeGames: 3,
   });
 
-  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, BATTLE, VOYAGE, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
+  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, BATTLE, VOYAGE, EXPEDITION, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
     mulberry32, weighted, buildStrip, evaluate, countScatters, exactLineRtp, spinOutcome, gridFromStops,
     makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, battleStart, battleShot, battlePlayOut, battleValue, simulateBattle, betPence,
-    voyageMap, voyageStart, voyageDeals, voyageOptions, voyageAuto, voyageStep, voyagePlayOut, voyageValue, simulateVoyage, jackpotTrigger, pickSequence, presentationSeconds,
+    voyageMap, voyageStart, voyageDeals, voyageOptions, voyageAuto, voyageStep, voyagePlayOut, voyageValue, simulateVoyage,
+    expeditionStart, expeditionOptions, expeditionAuto, expeditionStep, expeditionPlayOut, expeditionView, expeditionValue,
+    simulateExpedition, jackpotTrigger, pickSequence, presentationSeconds,
     simulate, simulateBuy, simulateTrail, pickBonus, jackpotRtp,
     makeVariant, ARMADILLO };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

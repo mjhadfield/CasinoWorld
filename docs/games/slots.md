@@ -49,6 +49,26 @@ Sitting at a cabinet opens a full-screen game that grows out of its little scree
   voyage is worth about 45x choosing at random, and careful (avoiding Skull Island), bold (seeking it) and
   collecting routes all pay within about 7% of that; careful routes swing least, bold ones most (about a quarter
   of random voyages sink, nearly half of bold ones), and a collector gets all four artefacts about 8% of the time.
+- **Delta Quadrant (the expedition bonus):** in the library for any built slot, off until its design switches it on
+  (built from the Voyager design's spec). A star chart: your ship, three routes, the final destination. Each
+  route's length (4, 5 or 6 sectors) and hazard level (Low, Moderate or Severe) is drawn fresh, and its readings
+  show both and its final prize (20x, 22x or 24x the bet). Click a route; then in each sector click one of three
+  hidden planets (it chooses for you after 12 seconds: a random route or planet, or in a scanned sector the best
+  one shown). The other two then show what you missed. A planet holds:
+  - **Credits:** 1x to 15x the bet, times the level's prize scale (x1, x1.7, x2.6) and the multiplier.
+  - **A multiplier:** +1 (or +2) to the expedition multiplier, from x1, on every later prize and the final prize.
+  - **Tech:** a **Scanner** shows the next sector's planets before you pick, a **Shuttle** explores a second
+    planet in the next sector (a hazard it finds only loses the shuttle), and **Shields** absorb the next hazard.
+  - **A special:** an **ancient artefact** (10x to 100x, scaled and multiplied), a **Wormhole** (straight to the
+    final destination, its prize doubled), or 1 to 3 **free games**, played afterwards as Combo Free Games.
+  - **A hazard** (Borg cube, Kazon raiders, Hirogen hunters, Species 8472, a spatial anomaly): the expedition ends
+    there, you keep what you've won and lose the final prize. Hazards are likelier on riskier routes and deeper
+    into any route.
+
+  The final destination pays its prize times the multiplier. The choice is real but balanced: with the defaults
+  an expedition is worth about 46x choosing at random, and always taking the safest, the most dangerous, the
+  shortest or the longest route all pay within about 8% of that. Safe routes swing least (SD 41) and dangerous
+  ones most (SD 58). About 40% of random expeditions end at a hazard and 7% go through a Wormhole.
 - **Jackpot Pick:** a random trigger on any spin, more likely the bigger the bet. Pick coins from a board of
   12 until three match, and win that meter: Mini, Minor, Major or Grand. The four meters are shared by every
   cabinet, grow from every bet (players' and NPCs'), and are separate from the card tables' jackpot. It picks
@@ -69,8 +89,8 @@ Only the four progressive meters persist.
 
 ## NPCs
 
-NPCs play the slots too (firing on the trail and a battle's ships, and choosing a voyage's islands and deals at
-random, after a moment's thought), and always leave
+NPCs play the slots too (firing on the trail and a battle's ships, choosing a voyage's islands and deals at
+random, and an expedition's route and planets the way the timer would, after a moment's thought), and always leave
 at least two cabinets of the bank free for real players.
 
 ## Admin

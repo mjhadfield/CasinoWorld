@@ -12,7 +12,7 @@ Casino World's slot machines. The first variant is **Armadillo Goes West**.
 | `mockup/art/flux/` | FLUX.2-klein candidates 1 and 2, cut out at 512². Candidate 2 is flagged as promising, for the admin Slots › Art page. |
 | `flux_raw/` | The raw 1024px FLUX outputs, before cutout. |
 | `../../server/slot_designs/startrek/` | The Star Trek slot's art, now designed on the admin page's **Slot design** tab (see the main README). Its `source/` holds Mike's two reference sheets and `startrek_variants.png` the round-1 contact sheet. |
-| `tools/` | `tune.js` (`node tune.js 1000000`), the trail sweeps, `gen_svg.py`, `battle_standins.py` and `voyage_standins.py` (the battle's and the voyage's stand-in pictures, in `server/slot_art/armadillo/flux2/`), `make_parity_fixture.js` (the engines' parity test fixture), and the FLUX scripts (`flux_gen.py` calls Odysseus's diffusion server inside the container; `process_flux.py` keys out the magenta background). `startrek_crop.py` cut the Star Trek reference sheets into the design's `ref/` crops; everything after that happens on the Slot design tab (`flux_edit.py` is the command-line version of its reference edit). |
+| `tools/` | `tune.js` (`node tune.js 1000000`), the trail sweeps, `gen_svg.py`, `battle_standins.py`, `voyage_standins.py` and `expedition_standins.py` (the battle's, the voyage's and the expedition's stand-in pictures, in `server/slot_art/armadillo/flux2/`), `make_parity_fixture.js` (the engines' parity test fixture), and the FLUX scripts (`flux_gen.py` calls Odysseus's diffusion server inside the container; `process_flux.py` keys out the magenta background). `startrek_crop.py` cut the Star Trek reference sheets into the design's `ref/` crops; everything after that happens on the Slot design tab (`flux_edit.py` is the command-line version of its reference edit). |
 | `reference/` | The official rules PDF and its line chart. |
 
 ## Adding another slot
@@ -36,7 +36,9 @@ How a built slot reaches the game:
 The library's bonus games are the Trail Bonus, Combo Free Games, the wave battle (Red Alert, `bonuses.py`
 `battle_*`, built from Star Trek's spec; its settings are `base.BATTLE`) and the island voyage (Dead Man's Map,
 `bonuses.py` `voyage_*`, built from Pirates' spec; its settings are `base.VOYAGE`, and
-`test_voyage_routes_pay_about_the_same_whatever_you_choose` keeps its routes balanced). Something the library doesn't have (a new
+`test_voyage_routes_pay_about_the_same_whatever_you_choose` keeps its routes balanced) and the expedition (Delta
+Quadrant, `bonuses.py` `expedition_*`, built from Voyager's spec; its settings are `base.EXPEDITION`, and
+`test_expedition_routes_pay_about_the_same_whatever_you_choose` keeps its routes balanced). Something the library doesn't have (a new
 random feature or a different bonus game) is written up as a spec on the
 Features or Bonus games step. Building one means: the engine (`slots/outcome.py` or `slots/bonuses.py`, wired into
 `tables/slot_machine.py`), the same in `mockup/slots_math.js` (the wizard's mockup and simulator run it), the

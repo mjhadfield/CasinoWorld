@@ -1,5 +1,5 @@
 // Step 6, Bonus games: one column, a row per bonus (the Trail bonus, the free games, the wave battle, the island
-// voyage, then Buy Bonus
+// voyage, the expedition, then Buy Bonus
 // and the shared Jackpot Pick). A row shows its switch, how players get in and Try it; its settings open under it,
 // on or off (an off bonus keeps them for when it's switched back on): its ways in, its pictures (each with an Adjust
 // panel: size, position, rotation, mirror, colour) and how it plays. "Try it" plays the mockup straight into a bonus.
@@ -10,6 +10,11 @@ const TRAIL_ART = ["armadillo", "cylinder", "t_coin", "t_gold", "t_snake", "t_he
 const BATTLE_ART = ["b_hero", "b_enemy", "b_boss"];
 const VOYAGE_ART = ["v_ship", "v_treasure", "v_wreck", "v_skull", "v_port", "v_cove", "v_final", "v_chest", "v_relic", "v_key",
   "v_art1", "v_art2", "v_art3", "v_art4"];
+const EXPEDITION_ART = ["x_ship", "x_planet", "x_credits", "x_mult", "x_scanner", "x_shuttle", "x_shields", "x_artefact", "x_wormhole",
+  "x_spins", "x_hazard", "x_final"];
+const PLANETS = [["credits", "Credits"], ["mult", "A multiplier"], ["tech", "Tech"], ["special", "A special"]];
+const TECHS = [["scanner", "Scanner"], ["shuttle", "Shuttle"], ["shields", "Shields"]];
+const SPECIALS = [["artefact", "Artefact"], ["wormhole", "Wormhole"], ["spins", "Free games"]];
 const ISLANDS = [["treasure", "Treasure Island"], ["wreck", "Shipwreck"], ["skull", "Skull Island"], ["port", "Port Royal"]];
 const SCATTERS = [["BS", "bonus scatter"], ["FS", "free-spins scatter"]];
 let C, picked = null;          // the picture open for changing
@@ -21,7 +26,7 @@ export function render(ctx, body) {
   body.append(
     el("p", {className: "lead", textContent: "The bonus games: switch each on or off, and open one (▸) for how players get in, its pictures and how it plays. Its settings can be changed whether it's on or off. Bonuses that share a way in take turns at random; what they're worth is measured on the Maths step."}),
     el("div", {className: "wz-bonuses"},
-      waysCard(), trailRow(b.trail), freeRow(b.free), battleRow(b.battle), voyageRow(b.voyage), buyRow(b.buy), pickRow(),
+      waysCard(), trailRow(b.trail), freeRow(b.free), battleRow(b.battle), voyageRow(b.voyage), expeditionRow(b.expedition), buyRow(b.buy), pickRow(),
       folded("ideas", "New bonus ideas", ideas())));
 }
 
@@ -40,7 +45,8 @@ function ideas() {
 }
 
 // ------------------------------------------------------------------ helpers
-const TITLE = {trail: "The trail bonus", free: "The free games", battle: "The battle bonus", voyage: "The voyage bonus"};
+const TITLE = {trail: "The trail bonus", free: "The free games", battle: "The battle bonus", voyage: "The voyage bonus",
+  expedition: "The expedition bonus"};
 const field = (label, input) => C.el("label", {className: "field"}, C.el("span", {textContent: label}), input);
 const num = (v, min, max, step = 1, label = "") => C.el("input", {type: "number", min, max, step, value: v, className: "wz-num", ariaLabel: label});
 const txt = (v, label = "") => C.el("input", {value: v, ariaLabel: label});
@@ -287,6 +293,57 @@ function voyageRow(x) {
           relic_value: +T.relicValue.value, artefact_price: +T.artefactPrice.value, key_price: +T.keyPrice.value,
           spins_price: +T.spinsPrice.value, spins_games: +T.spinsGames.value, chest: +T.chest.value, parts: parseList(T.parts.value),
           legend: +T.legend.value}}, "Voyage saved.")))];
+  });
+}
+
+// ------------------------------------------------------------------ the expedition (Delta Quadrant)
+function expeditionRow(x) {
+  return bonusRow("expedition", x, "Expedition bonus", "chart a route and explore a planet in each sector", EXPEDITION_ART, () => {
+    const {el} = C, words = ["name", "hint", "planet_hint", "start", "final", "sector", "credits_name", "mult_name", "scanner_name",
+      "shuttle_name", "shields_name", "artefact_name", "wormhole_name", "spins_name"];
+    const W = Object.fromEntries(words.map(k => [k, txt(x[k], k)]));
+    const L = x.level_names.map((n, i) => txt(n, `Hazard level ${i + 1}`));
+    const weights = (rows, names) => names.map(([k, label]) => num(rows.find(r => r[0] === k)?.[1] ?? 0, 0, 1000, 1, label));
+    const T = {hazards: txt(x.hazards.join(", "), "Hazards"), lengths: txt(tableText(x.lengths), "Route lengths"),
+      levels: x.levels.map((lv, i) => ({weight: num(lv.weight, 0, 1000, 1, `Level ${i + 1} weight`), hazard: num(lv.hazard, 0, 200, 0.5, `Level ${i + 1} hazards`),
+        scale: num(lv.scale, 0.1, 20, 0.1, `Level ${i + 1} prize scale`), final: num(lv.final, 0, 10000, 1, `Level ${i + 1} final prize`)})),
+      ramp: num(x.ramp, 0, 50, 0.5, "Hazard ramp"), kinds: weights(x.kinds, PLANETS), techs: weights(x.techs, TECHS),
+      specials: weights(x.specials, SPECIALS), credits: txt(tableText(x.credits), "Credits"), mults: txt(tableText(x.mults), "Multipliers"),
+      artefact: txt(tableText(x.artefact), "The artefact"), spins: txt(tableText(x.spins), "Free games"),
+      wormhole: num(x.wormhole, 1, 20, 0.5, "Wormhole boost")};
+    const free = C.data.bonuses.free.name.toLowerCase();
+    return [
+      el("p", {className: "hint", textContent: `Three routes from ${x.start} to ${x.final}, each a length and a hazard level drawn fresh and shown up front with its final prize. Players choose one, then one of three hidden planets in each sector: credits, a multiplier (on every later prize and the final one), tech (a Scanner shows the next sector, a Shuttle explores a second planet there, Shields absorb a hazard), a special (an artefact's big prize, a Wormhole straight to a boosted final prize, or ${free}, played after), or a hazard, which ends it short of the final prize. Riskier routes have richer planets; it's tuned so every route pays about the same on average.`}),
+      waysIn("expedition", x),
+      pictures(EXPEDITION_ART),
+      section("How it plays",
+        el("div", {className: "grid2"}, field("Its name", W.name), field("Hint at the chart", W.hint),
+          field("Hint in a sector", W.planet_hint), field("Your ship", W.start), field("The final destination", W.final),
+          field("A sector is called", W.sector)),
+        folded("x_words", "Names: what a planet holds, the hazard levels and the hazards",
+          el("div", {className: "grid2"}, field("Credits", W.credits_name), field("A multiplier", W.mult_name),
+            field("The Scanner", W.scanner_name), field("The Shuttle", W.shuttle_name), field("Shields", W.shields_name),
+            field("The artefact", W.artefact_name), field("The Wormhole", W.wormhole_name), field(C.data.bonuses.free.name, W.spins_name),
+            ...L.map((input, i) => field(`Hazard level ${i + 1}`, input)), field("Hazards (any, comma separated)", T.hazards))),
+        folded("x_routes", "The routes: lengths and hazard levels",
+          el("div", {className: "grid2"}, field("Sectors on a route (value:weight)", T.lengths),
+            field("Hazards grow each sector by (weight)", T.ramp),
+            ...T.levels.flatMap((lv, i) => [field(`${x.level_names[i]}: how often (weight)`, lv.weight), field(`${x.level_names[i]}: hazards (weight)`, lv.hazard),
+              field(`${x.level_names[i]}: prize scale (×)`, lv.scale), field(`${x.level_names[i]}: final prize (× bet)`, lv.final)]))),
+        folded("x_planets", "The planets and their prizes",
+          el("div", {className: "grid2"}, ...PLANETS.map(([, label], i) => field(`${label}: how often (weight)`, T.kinds[i])),
+            ...TECHS.map(([, label], i) => field(`Tech: ${label} (weight)`, T.techs[i])),
+            ...SPECIALS.map(([, label], i) => field(`Special: ${label} (weight)`, T.specials[i])),
+            field("Credits (× bet, value:weight)", T.credits), field("Multipliers added (value:weight)", T.mults),
+            field("The artefact (× bet, value:weight)", T.artefact), field("Free games (value:weight)", T.spins),
+            field("The Wormhole boosts the final prize (×)", T.wormhole))),
+        saveRow("Save the expedition", () => save({expedition: {
+          ...Object.fromEntries(words.map(k => [k, W[k].value])), level_names: L.map(a => a.value),
+          hazards: T.hazards.value.split(",").map(h => h.trim()).filter(Boolean), lengths: parseTable(T.lengths.value),
+          levels: T.levels.map(lv => ({weight: +lv.weight.value, hazard: +lv.hazard.value, scale: +lv.scale.value, final: +lv.final.value})),
+          ramp: +T.ramp.value, kinds: PLANETS.map(([k], i) => [k, +T.kinds[i].value]), techs: TECHS.map(([k], i) => [k, +T.techs[i].value]),
+          specials: SPECIALS.map(([k], i) => [k, +T.specials[i].value]), credits: parseTable(T.credits.value), mults: parseTable(T.mults.value),
+          artefact: parseTable(T.artefact.value), spins: parseTable(T.spins.value), wormhole: +T.wormhole.value}}, "Expedition saved.")))];
   });
 }
 

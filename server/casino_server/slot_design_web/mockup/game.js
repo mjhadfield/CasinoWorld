@@ -1,6 +1,6 @@
 /* The Slot design wizard's mockup: the signed-off Armadillo mockup (docs/slots/mockup/game.js) made to play any
    design. The full-screen slot game: reels, feature choreography, wins, the deck, the shared meters, and the four
-   bonus scenes (Trail, Combo Free Games, the wave battle, the island voyage, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
+   bonus scenes (Trail, Combo Free Games, the wave battle, the island voyage, the expedition, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
    SlotScreen is. createGame(canvas, cfg) plays cfg.variant (a SlotMath variant) with cfg's art, logo, background,
    frame, theme and texts (design.js builds cfg from a design); setConfig swaps them live, destroy stops it. */
 export function createGame(cv, cfg) {
@@ -25,6 +25,10 @@ export function createGame(cv, cfg) {
   const VOYAGE_TEXT = { name: "DEAD MAN'S MAP", hint: "choose your next island", start: "TORTUGA", final: "ISLA DE MUERTA",
     treasure: "TREASURE ISLAND", wreck: "SHIPWRECK", skull: "SKULL ISLAND", port: "PORT ROYAL", cove: "HIDDEN COVE", relic: "RELIC",
     chest: "LEGENDARY TREASURE", legend: "THE LEGEND", artefacts: ["COMPASS", "MEDALLION", "SPYGLASS", "CUTLASS"] };
+  const EXPEDITION_TEXT = { name: "DELTA QUADRANT", hint: "choose a route", planetHint: "choose a planet to explore", start: "VOYAGER",
+    final: "TRANSWARP CONDUIT", sector: "SECTOR", credits: "CREDITS", mult: "MULTIPLIER", scanner: "SCANNER", shuttle: "SHUTTLE",
+    shields: "SHIELDS", artefact: "ANCIENT ARTEFACT", wormhole: "WORMHOLE", spins: "FREE GAMES", levels: ["LOW", "MODERATE", "SEVERE"],
+    hazards: ["BORG CUBE", "KAZON RAIDERS", "HIROGEN HUNTERS", "SPECIES 8472", "SPATIAL ANOMALY"] };
   // The deck's look (Scene step): the bottom bar, the readout boxes and the buttons. Wood untinted is Armadillo's
   // browns; any other style or a tint derives the set from one base colour (slot_screen.gd's _deck_look matches).
   const DECK_BASE = { wood: "#6e4426", metal: "#5d6470", neon: "#2b2470", glass: "#5a6f96" };
@@ -84,7 +88,8 @@ export function createGame(cv, cfg) {
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
                            pistol: "THE PISTOL", freeName: "COMBO FREE GAMES", battle: "RED ALERT", battleHint: "tap a ship to fire",
-                           enemy: "ENEMY SHIP", boss: "FLAGSHIP", voyage: VOYAGE_TEXT }, c.texts || {});
+                           enemy: "ENEMY SHIP", boss: "FLAGSHIP", voyage: VOYAGE_TEXT,
+                           expedition: EXPEDITION_TEXT }, c.texts || {});
     LABELS = c.labels !== false;
     SKIN = c.skin || { base: "classic" };
     if (SKIN.texts && SKIN.texts.tagline) TEXT.tagline = SKIN.texts.tagline;
@@ -97,7 +102,7 @@ export function createGame(cv, cfg) {
     grid: null, landed: false, wins: [], showLines: [], cycle: 0, cycleAt: 0, winShown: 0, winTarget: 0,
     message: "25 LINES \u00b7 " + TEXT.tagline, featureLit: {}, multiplier: 1, cellFx: {}, banner: null,
     overlay: null, particles: [], tweens: [], waits: [], hurry: false, hits: [], free: null, colossal: null,
-    trail: null, battle: null, voyage: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
+    trail: null, battle: null, voyage: null, expedition: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
     meters: {}, metersShown: {}, now: 0, hover: null, roller: null,
   };
   for (const t of M.JACKPOT_TIERS) {
@@ -593,7 +598,8 @@ export function createGame(cv, cfg) {
     // Inside the 720px screen with room to spare: centre 664, ring 50 (614..714).
     const cx = 1112, cy = 664, r = 46, spinning = reels.some((x) => x.spinning);
     const hov = S.hover === "spin";
-    const spinLabel = spinning ? T("stop", "STOP") : S.mode === "trail" || S.mode === "battle" ? T("fire", "FIRE") : S.mode === "voyage" ? T("sail", "SAIL") : T("spin", "SPIN");
+    const spinLabel = spinning ? T("stop", "STOP") : S.mode === "trail" || S.mode === "battle" ? T("fire", "FIRE") : S.mode === "voyage" ? T("sail", "SAIL")
+      : S.mode === "expedition" ? T("engage", "ENGAGE") : T("spin", "SPIN");
     if (lc()) {
       S.hits.push(Object.assign({ id: "spin" }, lcarsSpin(spinLabel, spinning, hov)));
       button("cashout", 1172, y + 22, 96, 56, T("cashout", "CASH OUT"), { size: 18, disabled: S.busy || S.mode !== "reels" });
@@ -910,6 +916,7 @@ export function createGame(cv, cfg) {
     else if (o.trigger === "free") await freeGames(b);
     else if (o.trigger === "battle") await battleBonus(b, false);
     else if (o.trigger === "voyage") await voyageBonus(b, false);
+    else if (o.trigger === "expedition") await expeditionBonus(b, false);
     S.busy = false;
     const stopAuto = o.trigger || jackpot || o.total >= 25 * b;
     if (S.auto > 0) { S.auto = stopAuto ? 0 : S.auto - 1; if (S.auto > 0) setTimeout(() => spin(), 450 / pace()); }
@@ -1055,10 +1062,12 @@ export function createGame(cv, cfg) {
   // ------------------------------------------------------------------ ways in
   // Which bonuses a way in plays ("BS", "FS" or "buy"); several means one of them at random.
   const routes = (way) => (V.routes || M.ROUTES)[way] || [];
-  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : k === "battle" ? TEXT.battle : k === "voyage" ? TEXT.voyage.name : TEXT.free[1]).join(" OR ");
+  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : k === "battle" ? TEXT.battle : k === "voyage" ? TEXT.voyage.name
+    : k === "expedition" ? TEXT.expedition.name : TEXT.free[1]).join(" OR ");
   const buyIcon = () => M.SCATTERS.find((s) => routes("buy").some((k) => routes(s).includes(k))) || "BS";
   function playBonus(kind, b, bought) {
-    return kind === "free" ? freeGames(b, bought) : kind === "battle" ? battleBonus(b, bought) : kind === "voyage" ? voyageBonus(b, bought) : trailBonus(b, bought);
+    return kind === "free" ? freeGames(b, bought) : kind === "battle" ? battleBonus(b, bought) : kind === "voyage" ? voyageBonus(b, bought)
+      : kind === "expedition" ? expeditionBonus(b, bought) : trailBonus(b, bought);
   }
 
   // ------------------------------------------------------------------ Combo Free Games
@@ -1827,6 +1836,258 @@ export function createGame(cv, cfg) {
     if (left <= 0) chooseVoyage(null);
   }
 
+  // ------------------------------------------------------------------ the expedition (Delta Quadrant)
+  // A star chart filling the trail's area. At the chart: your ship on the left, the final destination on the right,
+  // three route lanes between them (a dot a sector), each with its readings: sectors, hazard level, final prize.
+  // Click a lane. Then a sector at a time: three planets, hidden until explored (or scanned); click one, and when a
+  // Shuttle is out, a second. A strip along the top shows the route travelled. The panel keeps the multiplier, the
+  // tech, the free games and the timer. Its timings match bonuses.py _EXPEDITION_SECONDS.
+  const XT = () => TEXT.expedition;
+  const LANE_Y = [228, 352, 476];
+  const LEVEL_COL = ["#5fd38a", "#f2b84b", "#ff5a48"];
+  const PLANET_X = (i) => 523 + (i - 1) * 270, PLANET_Y = 372, PLANET_S = 170;
+  const X_ART = { credits: "x_credits", mult: "x_mult", scanner: "x_scanner", shuttle: "x_shuttle", shields: "x_shields",
+                  artefact: "x_artefact", wormhole: "x_wormhole", spins: "x_spins", hazard: "x_hazard" };
+  const hidden = () => ({ kind: null, seen: false, by: null });
+  async function expeditionBonus(b, bought) {
+    const st = M.expeditionStart(V, b, rng);
+    S.mode = "expedition";
+    S.expedition = { st, shown: { sector: -1, route: null, planets: null, mult: 1, scanners: 0, shuttles: 0, shields: 0, spins: 0,
+                                  total: 0, found: [], ended: false },
+                     waiting: false, autoAt: 0, warpAt: -9, flash: null, finalShow: null, swirl: null, routeAt: -9 };
+    await banner(XT().name, bought ? "bought for " + money(b * V.buyCost) : XT().hint, 2.6);
+    while (!st.done) {
+      const X = S.expedition;
+      X.waiting = true; X.autoAt = S.now + 12;
+      S.message = st.awaiting === "route" ? "CHOOSE A ROUTE · CLICK ONE" : st.awaiting === "shuttle"
+        ? `${XT().shuttle}: CHOOSE A SECOND PLANET` : `${XT().sector} ${st.sector + 1} OF ${st.routes[st.route].length} · CHOOSE A PLANET`;
+      const choice = await new Promise((res) => (X.choose = res));
+      X.waiting = false;
+      await animateExpedition(M.expeditionStep(V, st, rng, choice));
+    }
+    await wait(0.8);
+    const total = st.total;
+    S.balance += total;
+    const games = st.spins ? ` · ${st.spins} free game${st.spins > 1 ? "s" : ""} to come` : "";
+    const sub = st.ended ? `the expedition ended${games}` : `${st.wormhole ? "through a wormhole" : "the final destination"} ×${st.mult}${games}`;
+    await summary(st.ended ? XT().name : `${XT().final}!`, sub, total);
+    if (total >= 10 * b) await bigWin(total, b);
+    S.mode = "reels"; S.expedition = null; clearWins(); S.winShown = S.winTarget = total;
+    S.message = `${XT().name} PAID ${money(total)}`;
+    if (st.spins) await freeGames(b, false, st.spins, XT().name);
+  }
+  function chooseExpedition(choice) {
+    const X = S.expedition;
+    if (!X || !X.waiting || !X.choose) return;
+    const f = X.choose; X.choose = null; f(choice);   // anything not open (or null) is chosen for you
+  }
+  // A planet's words: what it is, and what it's worth now (credits at the multiplier as it stands).
+  function planetLabel(p, i, sh) {
+    const t = XT();
+    switch (p.kind) {
+      case "credits": return [p.pence != null ? money(p.pence) : money(M.betPence(p.x * sh.mult, S.expedition.st.bet)), C.win];
+      case "artefact": return [`${t.artefact} ${p.pence != null ? money(p.pence) : money(M.betPence(p.x * sh.mult, S.expedition.st.bet))}`, C.win];
+      case "mult": return [`+${p.n} ${t.mult}`, "#7fd0ff"];
+      case "spins": return [`${p.n} ${t.spins}`, "#7fd0ff"];
+      case "hazard": return [t.hazards[(sh.sector * 3 + i) % t.hazards.length], "#ff5a48"];
+      default: return [t[p.kind], C.goldHi];
+    }
+  }
+  async function animateExpedition(step) {
+    const X = S.expedition, sh = X.shown, at = (i) => ({ x: PLANET_X(i), y: PLANET_Y });
+    await wait(0.3);
+    for (const e of step.events) {
+      switch (e.kind) {
+        case "route":
+          sh.route = e.i; X.routeAt = S.now; await wait(1.6); break;
+        case "warp":
+          X.warpAt = S.now; sh.sector = e.sector; sh.planets = [hidden(), hidden(), hidden()]; sh.found.push([]);
+          await wait(1.2); break;
+        case "scan":
+          sh.planets = e.planets.map((p) => Object.assign({}, p)); sh.scanners -= 1; X.scanAt = S.now;
+          battlePop(XT().scanner, "#7fffa0", 523, 345, 30); await wait(1.0); break;
+        case "shuttle":
+          sh.shuttles -= 1; battlePop(`${XT().shuttle} LAUNCHED`, "#7fd0ff", 523, 345, 28); await wait(0.6); break;
+        case "reveal":
+          sh.planets[e.i] = Object.assign({}, e.planet); sh.found[sh.found.length - 1].push(e.planet.kind); X.last = e.i;
+          await wait(0.9); break;
+        case "credits": case "artefact": {
+          const p = at(X.last);
+          sh.planets[X.last].pence = e.pence; sh.total += e.pence; S.winTarget = sh.total; S.roller = Math.max(e.pence * 1.4, bet());
+          battlePop(money(e.pence), C.win, p.x, p.y - 60, e.kind === "artefact" ? 46 : 36);
+          coinBurst(p.x, p.y, e.kind === "artefact" ? 26 : 14, 0.8);
+          await wait(e.kind === "artefact" ? 1.4 : 0.8); break;
+        }
+        case "mult":
+          sh.mult = e.mult; battlePop(`×${e.mult}`, "#7fd0ff", at(X.last).x, PLANET_Y - 60, 52); await wait(1.0); break;
+        case "tech": {
+          const p = at(X.last), slot = { scanner: 0, shuttle: 1, shields: 2 }[e.tech];
+          const f = flyer({ img: X_ART[e.tech], x: p.x, y: p.y, size: 90, s: 0.4 });
+          tween(f, { s: 1.1, y: p.y - 50 }, 0.35, ease.back).then(() => tween(f, { x: 1080 + slot * 70, y: REEL_Y + 190, s: 0.45 }, 0.5, ease.inOut)).then(() => (f.dead = true));
+          await wait(0.9); sh[e.tech === "shields" ? "shields" : e.tech + "s"] += 1; await wait(0.1); break;
+        }
+        case "spins":
+          sh.spins += e.n; battlePop(`+${e.n} ${XT().spins}`, "#7fd0ff", at(X.last).x, PLANET_Y - 60, 30); await wait(1.0); break;
+        case "wormhole":
+          X.swirl = S.now; battlePop(XT().wormhole, "#c8b8ff", 523, 345, 48); await wait(2.2); break;
+        case "hazard":
+          sh.ended = true; X.flash = { t0: S.now, colour: "#ff3020" }; S.shake = 1;
+          battlePop(`${planetLabel(sh.planets[X.last], X.last, sh)[0]}!`, "#ff5a48", 523, 345, 50); await wait(2.2); break;
+        case "shielded":
+          sh.shields -= 1; X.flash = { t0: S.now, colour: "#60b8ff" }; battlePop(`${XT().shields} HELD`, "#7fd0ff", 523, 345, 40);
+          await wait(1.4); break;
+        case "shuttle_lost":
+          X.flash = { t0: S.now, colour: "#ff8040" }; battlePop(`${XT().shuttle} LOST`, "#ff8a60", at(X.last).x, PLANET_Y - 60, 34);
+          await wait(1.2); break;
+        case "missed":
+          for (const [i, p] of e.planets) sh.planets[i] = Object.assign({ missed: true }, p);
+          await wait(1.2); break;
+        case "final":
+          X.warpAt = S.now; X.finalShow = { t0: S.now, e, shown: 0 };
+          await wait(1.0); X.finalShow.shown = 1;
+          sh.total += e.pence; S.winTarget = sh.total; S.roller = Math.max(e.pence, bet());
+          coinBurst(523, 330, 40, 1.2); if (e.pence >= 20 * bet()) { coinRain(40); S.shake = 0.5; }
+          await wait(2.0); break;
+      }
+    }
+  }
+  function drawStars(A, warp) {
+    for (const s of STARS) {
+      const v = s.v * (1 + warp * 40), x = A.x + ((s.x - S.now * v) % A.w + A.w) % A.w;
+      ctx.fillStyle = `rgba(220,230,255,${0.35 + s.r / 3})`;
+      ctx.fillRect(x, A.y + s.y, s.r + warp * 60 * s.r, s.r);
+    }
+  }
+  function drawExpedition() {
+    const X = S.expedition, st = X.st, sh = X.shown, A = B_AREA, t = XT();
+    const warp = Math.max(0, 1 - Math.abs(S.now - X.warpAt - 0.5) / 0.6);
+    ctx.save();
+    rr(A.x, A.y, A.w, A.h, 18); ctx.clip();
+    const sky = ctx.createLinearGradient(0, A.y, 0, A.y + A.h);
+    sky.addColorStop(0, "#03040c"); sky.addColorStop(1, "#0b1030");
+    ctx.fillStyle = sky; ctx.fillRect(A.x, A.y, A.w, A.h);
+    if (bgImg && ok(bgImg)) { ctx.globalAlpha = 0.25; ctx.drawImage(bgImg, A.x, A.y, A.w, A.h); ctx.globalAlpha = 1; }
+    drawStars(A, warp);
+    const pulse = 0.55 + 0.45 * Math.sin(S.now * 5);
+    if (sh.sector < 0) drawChart(X, st, sh, pulse);
+    else drawSector(X, st, sh, pulse);
+    if (X.swirl != null) {
+      const k = Math.min(1, (S.now - X.swirl) / 1.5), s = 120 + 420 * k;
+      ctx.save(); ctx.globalAlpha = Math.min(1, 2 - 2 * k + 0.3); ctx.translate(523, 352); ctx.rotate(S.now * 3);
+      drawImg(img("x_wormhole"), -s / 2, -s / 2, s, s); ctx.restore();
+    }
+    if (X.flash) {
+      const a = Math.max(0, 1 - (S.now - X.flash.t0) / 1.2);
+      if (a > 0) { ctx.fillStyle = alpha(X.flash.colour, 0.45 * a); ctx.fillRect(A.x, A.y, A.w, A.h); }
+    }
+    if (X.finalShow) drawFinal(X.finalShow, sh);
+    ctx.restore();
+    text(`${t.name} WIN ${money(sh.total)}`, 523, REEL_Y + 14, 32, COND, C.win, "center", "700", 6, 600);
+    drawExpeditionPanel(X, st, sh);
+  }
+  function drawChart(X, st, sh, pulse) {
+    const t = XT(), ship = { x: 96, y: 352 }, end = { x: 950, y: 352 };
+    const chosen = sh.route, fade = chosen == null ? 1 : Math.max(0, 1 - (S.now - X.routeAt) / 1.2);
+    st.routes.forEach((r, i) => {
+      const y = LANE_Y[i], col = LEVEL_COL[r.level], lit = X.waiting && chosen == null, on = chosen === i;
+      ctx.save(); ctx.globalAlpha = on ? 1 : fade;
+      const hover = S.hover === "route" + i;
+      if (hover || on) { rr(150, y - 56, 750, 100, 16); ctx.fillStyle = alpha(col, 0.14); ctx.fill(); }
+      dashed(ship.x + 40, ship.y, 190, y, alpha(col, 0.6), 3, [8, 7]);
+      dashed(860, y, end.x - 50, end.y, alpha(col, 0.6), 3, [8, 7]);
+      dashed(190, y, 860, y, lit ? alpha(col, 0.5 + 0.5 * pulse) : alpha(col, 0.7), 3, [8, 7]);
+      for (let k = 0; k < r.length; k++) {
+        const x = 230 + (k + 0.5) * (590 / r.length);
+        ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fillStyle = "#141a3a"; ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.stroke();
+      }
+      text(`ROUTE ${"ABC"[i]} · ${r.length} ${t.sector}S · HAZARD ${t.levels[r.level]} · FINAL ${r.final}× BET`, 525, y - 34, 18, COND,
+           hover ? C.goldHi : C.cream, "center", "700", 4, 700);
+      ctx.restore();
+      if (lit) S.hits.push({ id: "route" + i, x: 150, y: y - 56, w: 750, h: 100 });
+    });
+    drawImg(img("x_ship"), ship.x - 50, ship.y - 50, 100, 100);
+    text(t.start, ship.x, ship.y + 62, 14, COND, C.cream, "center", "700", 4, 150);
+    drawImg(img("x_final"), end.x - 56, end.y - 56, 112, 112);
+    text(t.final, end.x, end.y + 68, 14, COND, C.cream, "center", "700", 4, 150);
+  }
+  function drawSector(X, st, sh, pulse) {
+    const t = XT(), r = st.routes[sh.route], n = r.length, col = LEVEL_COL[r.level];
+    // the route so far: your ship at the current sector, a mark for each sector passed
+    const sx = (k) => 150 + (k + 0.5) * (740 / n), y0 = REEL_Y + 62;
+    dashed(90, y0, 950, y0, alpha(col, 0.55), 3, [8, 7]);
+    drawImg(img("x_final"), 930, y0 - 22, 44, 44);
+    for (let k = 0; k < n; k++) {
+      const done = k < sh.sector, here = k === sh.sector;
+      ctx.beginPath(); ctx.arc(sx(k), y0, here ? 15 : 11, 0, 7); ctx.fillStyle = done ? alpha(col, 0.7) : "#141a3a"; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = here ? C.goldHi : col; ctx.stroke();
+      const f = sh.found[k];
+      if (done && f && f.length) drawImg(img(X_ART[f[0]]), sx(k) - 13, y0 - 13, 26, 26);
+    }
+    const warpK = Math.min(1, Math.max(0, (S.now - X.warpAt) / 1.0));
+    const shipX = sh.sector >= 0 ? sx(Math.max(0, sh.sector - 1)) + (sx(sh.sector) - sx(Math.max(0, sh.sector - 1))) * (sh.sector ? ease.inOut(warpK) : 1) : 90;
+    drawImg(img("x_ship"), shipX - 20, y0 - 50, 40, 40);
+    text(`${t.sector} ${sh.sector + 1} OF ${n} · HAZARD ${t.levels[r.level]}`, 523, y0 + 34, 18, COND, C.cream, "center", "700", 4, 600);
+    // the three planets
+    const open = X.waiting && st.awaiting !== "route" ? M.expeditionOptions(V, st) : [];
+    (sh.planets || []).forEach((p, i) => {
+      const x = PLANET_X(i), lit = open.includes(i), missed = p.missed;
+      const bob = lit ? Math.sin(S.now * 2.2 + i) * 4 : 0, s = PLANET_S;
+      ctx.save(); ctx.globalAlpha = missed ? 0.45 : 1;
+      if (lit) {
+        const g = ctx.createRadialGradient(x, PLANET_Y + bob, 6, x, PLANET_Y + bob, s * 0.72);
+        g.addColorStop(0, alpha(C.goldHi, 0.4 * pulse)); g.addColorStop(1, alpha(C.goldHi, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, PLANET_Y + bob, s * 0.72, 0, 7); ctx.fill();
+      }
+      drawImg(img(p.kind ? X_ART[p.kind] : "x_planet"), x - s / 2, PLANET_Y - s / 2 + bob, s, s);
+      if (p.by) { ctx.lineWidth = 4; ctx.strokeStyle = p.by === "shuttle" ? "#7fd0ff" : C.goldHi; ctx.beginPath(); ctx.arc(x, PLANET_Y, s * 0.58, 0, 7); ctx.stroke(); }
+      if (S.hover === "planet" + i && lit) { ctx.lineWidth = 3; ctx.strokeStyle = C.goldHi; ctx.beginPath(); ctx.arc(x, PLANET_Y + bob, s * 0.56, 0, 7); ctx.stroke(); }
+      if (p.kind) { const [label, c] = planetLabel(p, i, sh); text(label, x, PLANET_Y + s / 2 + 18, 18, COND, c, "center", "700", 4, 250); }
+      ctx.restore();
+      if (lit) S.hits.push({ id: "planet" + i, x: x - s / 2, y: PLANET_Y - s / 2, w: s, h: s });
+    });
+    if (open.length) text(st.awaiting === "shuttle" ? `${t.shuttle}: CHOOSE A SECOND PLANET` : t.planetHint, 523, A_BOTTOM - 24, 18, COND, C.goldHi, "center", "700", 4, 700);
+  }
+  const A_BOTTOM = REEL_Y + REEL_H + 18;
+  function drawFinal(F, sh) {
+    const e = F.e, k = Math.min(1, (S.now - F.t0) / 0.8);
+    ctx.fillStyle = alpha(C.shade, 0.75 * k); ctx.fillRect(B_AREA.x, B_AREA.y, B_AREA.w, B_AREA.h);
+    const s = 230 + 14 * Math.sin(S.now * 2);
+    ctx.save(); ctx.globalAlpha = k; drawImg(img("x_final"), 523 - s / 2, 330 - s / 2, s, s); ctx.restore();
+    text(XT().final, 523, REEL_Y + 64, 40, DISPLAY, C.goldHi, "center", "400", 6, 800);
+    if (F.shown) {
+      text(money(e.pence), 523, 490, 48, COND, C.win, "center", "700", 6);
+      const why = [e.wormhole ? `${XT().wormhole} ×${V.expedition.wormhole}` : null, e.mult > 1 ? `${XT().mult} ×${e.mult}` : null].filter(Boolean);
+      if (why.length) text(why.join(" · "), 523, 536, 20, COND, "#7fd0ff", "center", "700", 4, 700);
+    }
+  }
+  function drawExpeditionPanel(X, st, sh) {
+    const t = XT(), x0 = 1038, cx = 1150;
+    woodPanel(x0, REEL_Y - 18, 224, REEL_H + 36, 16);
+    text(t.name, cx, REEL_Y + 10, 24, COND, C.goldHi, "center", "700", 0, 200);
+    const stage = X.finalShow ? t.final : sh.ended ? "EXPEDITION OVER" : sh.sector < 0 ? "THE CHART"
+      : `${t.sector} ${sh.sector + 1} OF ${st.routes[sh.route].length}`;
+    text(stage, cx, REEL_Y + 40, 20, COND, C.cream, "center", "700", 0, 200);
+    text(t.mult, cx, REEL_Y + 80, 16, COND, C.goldHi, "center", "700", 0, 200);
+    text(`×${sh.mult}`, cx, REEL_Y + 118, 48, COND, "#7fd0ff", "center", "700", 4, 200);
+    [["scanner", sh.scanners], ["shuttle", sh.shuttles], ["shields", sh.shields]].forEach(([k, n], i) => {
+      const x = 1080 + i * 70;
+      ctx.save(); ctx.globalAlpha = n ? 1 : 0.3; drawImg(img(X_ART[k]), x - 24, REEL_Y + 166, 48, 48); ctx.restore();
+      text(`${t[k]} ${n}`, x, REEL_Y + 226, 12, COND, n ? C.cream : C.muted, "center", "700", 0, 68);
+    });
+    text(`${t.spins} ${sh.spins}`, cx, REEL_Y + 262, 16, COND, "#7fd0ff", "center", "700", 0, 200);
+    if (sh.route != null) {
+      const r = st.routes[sh.route];
+      text(`HAZARD ${t.levels[r.level]}`, cx, REEL_Y + 296, 16, COND, LEVEL_COL[r.level], "center", "700", 0, 200);
+      text(`FINAL ${money(M.betPence(r.final * sh.mult, st.bet))}`, cx, REEL_Y + 320, 16, COND, C.cream, "center", "700", 0, 200);
+    }
+    if (!X.waiting) return;
+    const left = Math.max(0, X.autoAt - S.now);
+    text(st.awaiting === "route" ? t.hint : st.awaiting === "shuttle" ? `${t.shuttle}: one more` : t.planetHint, cx, REEL_Y + 380, 16, COND, C.cream, "center", "700", 0, 200);
+    text(`chooses itself in ${Math.ceil(left)}`, cx, REEL_Y + 410, 16, COND, C.muted);
+    if (left <= 0) chooseExpedition(null);
+  }
+
   // ------------------------------------------------------------------ the frame loop
   let last = performance.now(), running = true;
   // One frame. A design can be half-made (missing pictures, odd settings), so a drawing error is reported and the
@@ -1849,6 +2110,7 @@ export function createGame(cv, cfg) {
     if (S.mode === "trail" && S.trail) drawTrail();
     else if (S.mode === "battle" && S.battle) drawBattle();
     else if (S.mode === "voyage" && S.voyage) drawVoyage();
+    else if (S.mode === "expedition" && S.expedition) drawExpedition();
     else {
       drawSides();
       drawFrame();
@@ -1902,6 +2164,10 @@ export function createGame(cv, cfg) {
       if (id && id.startsWith("deal-")) return chooseVoyage(id.slice(5));
       if (id === "final") return chooseVoyage("final");
     }
+    if (S.mode === "expedition") {
+      if (id && id.startsWith("route")) return chooseExpedition(+id.slice(5));
+      if (id && id.startsWith("planet")) return chooseExpedition(+id.slice(6));
+    }
     if (id !== "auto" && !(id && id.startsWith("auto"))) S.autoMenu = false;
     switch (id) {
       case "spin": return spinOrStop();
@@ -1922,6 +2188,7 @@ export function createGame(cv, cfg) {
     if (S.mode === "trail") return fire();
     if (S.mode === "battle") return fireBattle(null);
     if (S.mode === "voyage") return chooseVoyage(null);
+    if (S.mode === "expedition") return chooseExpedition(null);
     if (S.busy) { if (reels.some((x) => x.spinning || x.stopping)) S.hurry = true; return; }
     spin();
   }

@@ -4,7 +4,7 @@
     tools/scene.py brief DESIGN              what Mike asked for, and what to design from (the live board)
     tools/scene.py fresh DESIGN              copy the live design into the dev instance (stop the dev server first)
     tools/scene.py shot DESIGN [SKIN.json]   the dev mockup with that skin (saved there as "draft" and chosen)
-                   [--bonus trail|free|battle|voyage] [--out NAME]
+                   [--bonus trail|free|battle|voyage|expedition] [--out NAME]
     tools/scene.py put DESIGN SKIN.json      check a skin on the dev instance, then save it on the live board, by
                    [--slug SLUG] [--choose]  Claude (Mike picks it, unless --choose)
 
@@ -157,7 +157,7 @@ def main() -> None:
     s = sub.add_parser("brief"); s.add_argument("design"); s.set_defaults(fn=brief)
     s = sub.add_parser("fresh"); s.add_argument("design"); s.set_defaults(fn=fresh)
     s = sub.add_parser("shot"); s.add_argument("design"); s.add_argument("skin", nargs="?")
-    s.add_argument("--bonus", choices=["trail", "free", "battle", "voyage"]); s.add_argument("--out"); s.set_defaults(fn=shot)
+    s.add_argument("--bonus", choices=["trail", "free", "battle", "voyage", "expedition"]); s.add_argument("--out"); s.set_defaults(fn=shot)
     s = sub.add_parser("put"); s.add_argument("design"); s.add_argument("skin"); s.add_argument("--slug"); s.add_argument("--choose", action="store_true")
     s.set_defaults(fn=put)
     args = ap.parse_args()

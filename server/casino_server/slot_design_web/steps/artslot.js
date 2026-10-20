@@ -9,7 +9,10 @@ export const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder
   v_ship: "Voyage: your ship", v_treasure: "Voyage: Treasure Island", v_wreck: "Voyage: Shipwreck", v_skull: "Voyage: Skull Island",
   v_port: "Voyage: Port Royal", v_cove: "Voyage: Hidden Cove", v_final: "Voyage: final island", v_chest: "Voyage: the treasure",
   v_relic: "Voyage: relic", v_key: "Voyage: key", v_art1: "Voyage: artefact 1", v_art2: "Voyage: artefact 2", v_art3: "Voyage: artefact 3",
-  v_art4: "Voyage: artefact 4"};
+  v_art4: "Voyage: artefact 4", x_ship: "Expedition: your ship", x_planet: "Expedition: unexplored planet",
+  x_credits: "Expedition: credits", x_mult: "Expedition: multiplier", x_scanner: "Expedition: Scanner", x_shuttle: "Expedition: Shuttle",
+  x_shields: "Expedition: Shields", x_artefact: "Expedition: artefact", x_wormhole: "Expedition: Wormhole",
+  x_spins: "Expedition: free games", x_hazard: "Expedition: hazard", x_final: "Expedition: final destination"};
 
 // Hand tweaks on top of the picture: the server bakes them in (adj/), so the mockup and the built game draw the
 // tweaked picture. The preview here is the same transform in CSS, live while the sliders move.

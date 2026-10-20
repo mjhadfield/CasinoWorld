@@ -39,6 +39,7 @@ class SlotVariant:
     features: list = field(default_factory=lambda: list(base.FEATURES))   # in library order (draw order matters)
     battle: dict = field(default_factory=lambda: json.loads(json.dumps(base.BATTLE)))   # the wave battle's settings
     voyage: dict = field(default_factory=lambda: json.loads(json.dumps(base.VOYAGE)))   # the island voyage's settings
+    expedition: dict = field(default_factory=lambda: json.loads(json.dumps(base.EXPEDITION)))   # the expedition's settings
     art: dict = field(default_factory=dict)      # role -> art id, for feature and bonus pictures (the client's SlotArt)
     theme: dict = field(default_factory=dict)    # the screen's and cabinet's look (Sprites step); {} = Armadillo's
     extras: dict = field(default_factory=dict)
@@ -65,4 +66,5 @@ def from_json(path: Path) -> SlotVariant:
         routes=d.get("routes") or {k: list(v) for k, v in base.ROUTES.items()},
         pays={k: tuple(v) for k, v in d["pays"].items()}, upgrades=d["upgrades"], features=d["features"],
         battle={**base.BATTLE, **d.get("battle", {})}, voyage={**base.VOYAGE, **d.get("voyage", {})},
+        expedition={**base.EXPEDITION, **d.get("expedition", {})},
         art=d.get("art", {}), theme=d.get("theme", {}), extras=d.get("extras", {}))
