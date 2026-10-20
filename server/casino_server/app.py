@@ -440,6 +440,13 @@ async def slot_design_concept(design: str, request: Request):
     return {"ok": True}
 
 
+@app.patch("/api/slot-design/{design}/prompts")
+async def slot_design_prompts(design: str, request: Request):
+    body = await _json_body(request, "{first_takes, redraw: {i: text}, text: {i: text}, bust}")
+    _design_call(request.app.state.slot_design.update_prompts, design, body)
+    return {"ok": True}
+
+
 @app.put("/api/slot-design/{design}/steps/{step}")
 async def slot_design_step(design: str, step: str, request: Request):
     body = await _json_body(request, "{status: todo|doing|done}")

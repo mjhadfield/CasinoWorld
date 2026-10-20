@@ -1,10 +1,11 @@
 // Step 2, Art: a section per category (with how many the main game needs) and a card per symbol. Cycle the takes,
 // pick a frame colour, tick the final set, link references, Reiterate (1, 3 or 5 takes), Refine, Fit, bin what's not
 // wanted, move a symbol to another section, and hide symbols not in use (Show › Hidden brings them back).
+// The Prompts fold at the top sets how many takes a new symbol's first Generate makes and rewrites the style prompts.
 // Polling only redraws cards that changed, and never one you're typing in or saving: that card is left behind
 // (behind(), which keeps the wizard polling) and catches up once you've left it.
 const HUE = {gold: "#d39a26", red: "#d0562e", blue: "#3a7be0", purple: "#9550d8", silver: "#9aa4b2", green: "#3fae4c"};
-let C, filter = "all", lastDid = null;
+let C, filter = "all", lastDid = null, promptsOpen = false;
 const rows = new Map();     // symbol id -> {card, json, behind}
 const cats = new Map();     // category id -> {list, box, count, need}
 const drafts = new Map();   // category id -> New forms not yet added (they stack)
@@ -35,10 +36,61 @@ export function render(ctx, body) {
         for (const s of C.data.symbols) { const r = rows.get(s.id); if (r) r.card.hidden = !visible(s); }
       }})));
   body.append(
+    promptsPanel(),
     el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no image model); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to the image model; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
     el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
+}
+
+// The Prompts fold: the first Generate's take count and every style prompt, saved as you type. Built once per render,
+// so polling never touches a box you're typing in.
+function promptsPanel() {
+  const {el} = C, p = C.data.prompts, def = C.data.default_prompts;
+  const save = async body => {
+    try { await C.api("PATCH", `/api/slot-design/${C.did}/prompts`, body); await C.refresh(); }
+    catch (e) { C.status(e.message, "warn"); }
+  };
+  const summaryText = () => `Prompts · a new symbol's first Generate makes ${C.data.prompts.first_takes}`
+    + ` take${C.data.prompts.first_takes === 1 ? "" : "s"}`;
+  const summary = el("summary", {}, el("b", {textContent: summaryText()}));
+  const first = el("span", {className: "seg", role: "group", ariaLabel: "Takes on a new symbol's first Generate"},
+    ...[1, 2, 3].map(n => el("button", {type: "button", textContent: String(n), ariaPressed: String(n === p.first_takes),
+      onclick: async e => {
+        for (const b of first.children) b.ariaPressed = String(b === e.currentTarget);
+        await save({first_takes: n});
+        summary.firstChild.textContent = summaryText();
+      }})));
+  // One box per prompt: saves 500 ms after typing stops; emptied, or Default, goes back to the built-in prompt.
+  const box = (label, value, dflt, body, rows = 2) => {
+    const ta = el("textarea", {rows, value, ariaLabel: label});
+    const reset = el("button", {type: "button", textContent: "Default", title: "Put the built-in prompt back",
+      disabled: value === dflt, onclick: () => { ta.value = dflt; send(); }});
+    let timer = null;
+    const send = () => {
+      clearTimeout(timer); timer = null;
+      if (!ta.value.trim()) ta.value = dflt;
+      reset.disabled = ta.value.trim() === dflt;
+      save(body(ta.value));
+    };
+    ta.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(send, 500); reset.disabled = false; });
+    ta.addEventListener("change", () => { if (timer) send(); });
+    return el("div", {className: "wz-sec"},
+      el("div", {className: "controls"}, el("span", {className: "hint", textContent: label}), el("span", {className: "grow"}), reset), ta);
+  };
+  const take = (k, i, what) => box(`Take ${i + 1} · ${what}`, p[k][i], def[k][i], v => ({[k]: {[i]: v}}));
+  const d = el("details", {className: "wz-fold dz-prompts", open: promptsOpen},
+    summary,
+    el("div", {className: "controls"}, el("span", {textContent: "Takes on a new symbol's first Generate"}), first),
+    el("p", {className: "hint", textContent: "Take 1 uses style 1, take 2 style 2, take 3 style 3; a Reiterate of 5 goes round again. The theme (Concept), the keep-text, the note and the flat background to key out are added around these. Reiterate's variations and Refine have their own fixed wording."}),
+    el("div", {className: "wz-sec"}, el("h4", {textContent: "From a reference (a sheet cut or a linked picture)"}),
+      ...[0, 1, 2].map(i => take("redraw", i, "redraw instruction"))),
+    el("div", {className: "wz-sec"}, el("h4", {textContent: "From a description only (a New symbol without a reference)"}),
+      ...[0, 1, 2].map(i => take("text", i, "style words, after the description"))),
+    el("div", {className: "wz-sec"}, el("h4", {textContent: "Characters (every take)"}),
+      box("Portrait style: the character is drawn as …", p.bust, def.bust, v => ({bust: v}), 4)));
+  d.addEventListener("toggle", () => { promptsOpen = d.open; });
+  return d;
 }
 
 export function update(ctx, force) { C = ctx; draw(false, force); }
@@ -63,7 +115,7 @@ function draw(full, force) {
     onclick: () => document.getElementById("dz-cat-" + c.id).scrollIntoView({behavior: "smooth"})}, c.title + " ", countTag(c))));
   els.gen.textContent = d.pending ? `Generate (${d.pending})` : "Generate";
   els.gen.disabled = !d.pending;
-  els.gen.title = d.pending ? "Make the takes asked for on every symbol marked Reiterate (three for a newly added one)" : "Mark a symbol Reiterate, or add a New one, first";
+  els.gen.title = d.pending ? `Make the takes asked for on every symbol marked Reiterate (${d.prompts.first_takes} for a newly added one)` : "Mark a symbol Reiterate, or add a New one, first";
   els.stop.textContent = `Cancel all (${d.art_jobs})`;
   els.stop.hidden = !d.art_jobs;
   els.stop.title = "Cancel every Art job that's queued, waiting, being made or failed. The picture being drawn now is thrown away.";
@@ -419,7 +471,8 @@ function draftForm(c) {
       el("button", {type: "button", className: "primary", textContent: "Add to " + c.title, onclick: async () => {
         try {
           await C.api("POST", `/api/slot-design/${C.did}/symbols`, {name: name.value, category: c.id, kind: kind.value, key: key.value, prompt: desc.value, ref});
-          C.status(`${name.value} added: Generate makes three takes.`, "ok");
+          const n = C.data.prompts.first_takes;
+          C.status(`${name.value} added: Generate makes ${n} take${n === 1 ? "" : "s"}.`, "ok");
           discard();
           await C.refresh();
         } catch (e) { C.status(e.message, "warn"); }

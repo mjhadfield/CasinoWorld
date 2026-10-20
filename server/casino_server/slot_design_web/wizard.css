@@ -28,7 +28,8 @@
   .wz-prevnext { margin-left: 0; }
 }
 .dz-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
-.dz-bar .grow { flex: 1 1 auto; }
+.dz-bar .grow, .dz-prompts .grow { flex: 1 1 auto; }
+.dz-prompts .wz-sec { gap: 4px; }
 .dz-sum { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .dz-sum a { text-decoration: none; }
 .dz-cat { margin-top: 18px; display: grid; gap: 10px; }

@@ -49,6 +49,7 @@ SERVED = ("source", "ref", "links", "cut", "chars", "scene", "adj")   # adj: art
 MAX_IMAGE = 12 * 1024 * 1024
 TAKES = 3  # images per job (a Reiterate can ask for 1, 3 or 5)
 TAKE_CHOICES = (1, 3, 5)
+FIRST_TAKES = (1, 2, 3)  # what a newly added symbol's first Generate makes (Art's Prompts panel), one per style
 KINDS = ("object", "character")
 KEYS = ("magenta", "green")
 STEPS = [("concept", "Concept"), ("art", "Art"), ("ladder", "Value ladder"), ("scene", "Scene"),
@@ -249,6 +250,15 @@ class Design:
         ns = list(_numbered(self.folder / "raw", prefix)) + list(_numbered(self.folder / "cut", prefix))
         return max(ns, default=0) + 1
 
+    def prompts(self) -> dict:
+        """The Art step's style prompts and first-take count: the code's defaults under this design's rewrites."""
+        p, mine = art.default_prompts(), self.data.get("art_prompts", {})
+        for k in ("redraw", "text"):
+            p[k] = [mine.get(k, {}).get(str(i)) or v for i, v in enumerate(p[k])]
+        p["bust"] = mine.get("bust") or p["bust"]
+        p["first_takes"] = mine.get("first_takes", TAKES)
+        return p
+
 
 class DesignBoard(StepsMixin, BuildMixin):
     def __init__(self, root: Path = DEFAULT_DESIGNS_DIR):
@@ -315,6 +325,7 @@ class DesignBoard(StepsMixin, BuildMixin):
                     "scene_jobs": [j for j in jobs if j["symbol"] is None and j["status"] in ("queued", "waiting", "running", "failed")],
                     "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),
+                    "prompts": d.prompts(), "default_prompts": art.default_prompts(),
                     "pending": sum(bool(s.get("reiterate") or s.get("pending_new")) for s in d.data["symbols"]),
                     "queued": sum(j["status"] == "queued" for j in jobs), "running": running,
                     "art_jobs": sum(j["symbol"] is not None and j["status"] in ACTIVE for j in jobs)}
@@ -519,6 +530,37 @@ class DesignBoard(StepsMixin, BuildMixin):
                     for cat in d.data["categories"]:  # the Art step's counts follow the shape
                         if cat.get("role") in v:
                             cat["required"] = v[cat["role"]]
+                else:
+                    raise DesignError(f"Can't change {k!r}.")
+            d.save()
+
+    def update_prompts(self, did: str, ch: dict) -> None:
+        """Rewrite the Art step's prompts: {first_takes}, {redraw|text: {index: text}}, {bust}. An empty text or the
+        default itself drops the rewrite, so the design follows the code's default again."""
+        defaults = art.default_prompts()
+        with self.lock:
+            d = self.design(did)
+            mine = d.data.setdefault("art_prompts", {})
+            for k, v in ch.items():
+                if k == "first_takes":
+                    if v not in FIRST_TAKES:
+                        raise DesignError("A new symbol's first Generate makes 1, 2 or 3 takes.")
+                    mine[k] = v
+                elif k in ("redraw", "text"):
+                    if not isinstance(v, dict) or not set(v) <= {"0", "1", "2"}:
+                        raise DesignError(f"{k} prompts are numbered 0 to 2.")
+                    for i, text in v.items():
+                        text = str(text or "").strip()[:600]
+                        if text and text != defaults[k][int(i)]:
+                            mine.setdefault(k, {})[i] = text
+                        else:
+                            mine.get(k, {}).pop(i, None)
+                elif k == "bust":
+                    text = str(v or "").strip()[:600]
+                    if text and text != defaults["bust"]:
+                        mine["bust"] = text
+                    else:
+                        mine.pop("bust", None)
                 else:
                     raise DesignError(f"Can't change {k!r}.")
             d.save()
@@ -747,14 +789,14 @@ class DesignBoard(StepsMixin, BuildMixin):
 
     # ------------------------------------------------------------- jobs
     def generate(self, did: str, sid: str | None = None) -> int:
-        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (3), or just for `sid`
-        (a card's Queue). Returns how many."""
+        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (the Prompts panel's 1, 2
+        or 3), or just for `sid` (a card's Queue). Returns how many."""
         with self.lock:
             d = self.design(did)
             queued = 0
             for s in [d.symbol(sid)] if sid else d.data["symbols"]:
-                count = TAKES
                 if s.get("pending_new"):
+                    count = d.prompts()["first_takes"]
                     ref = s["refs"][0] if s.get("refs") else None
                     job = {"how": "redraw" if ref else "text", "src": ref, "text": s.get("prompt", ""),
                            "out": s["kind"], "action": "new"}
@@ -851,16 +893,18 @@ class DesignBoard(StepsMixin, BuildMixin):
             n = d.next_n(prefix)
             c = d.data["concept"]
             theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
-        i, text, how = job["done"] + 1, job.get("text", ""), job["how"]
+            p = d.prompts()
+        i, text, how = job["done"] % 3, job.get("text", ""), job["how"]  # takes cycle through the three styles
         if how == "refine":
             prompt = art.refine_prompt(job["out"], key, text)
         elif job["out"] == "character":
-            prompt = (art.bust_text_prompt(key, text) if how == "text" else
-                      art.variation_prompt("character", key, text) if how == "variation" else art.bust_prompt(key, text))
+            prompt = (art.bust_text_prompt(key, text, p["bust"]) if how == "text" else
+                      art.variation_prompt("character", key, text, p["bust"]) if how == "variation" else
+                      art.bust_prompt(key, text, p["bust"]))
         else:
-            prompt = (art.object_text_prompt(i, key, text) if how == "text" else
+            prompt = (art.object_text_prompt(p["text"][i], key, text) if how == "text" else
                       art.variation_prompt("object", key, text) if how == "variation" else
-                      art.object_prompt(i, key, keep_text, text))
+                      art.object_prompt(p["redraw"][i], key, keep_text, text))
         if how == "text":
             raw = art.flux_generate(art.themed(prompt, theme))
         else:

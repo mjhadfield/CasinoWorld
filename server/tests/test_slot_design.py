@@ -169,6 +169,28 @@ def test_generate_makes_three_takes_per_job(board):
     assert jobs[new]["how"] == "text" and all(j["status"] == "done" for j in jobs.values())
 
 
+def test_prompts_panel_sets_first_takes_and_rewrites_styles(board, monkeypatch):
+    c, _ = board
+    o = _overview(c)
+    assert o["prompts"]["first_takes"] == 3 and o["prompts"]["text"] == o["default_prompts"]["text"]
+    assert c.patch("/api/slot-design/demo/prompts", json={"first_takes": 4}).status_code == 400
+    assert c.patch("/api/slot-design/demo/prompts", json={"text": {"5": "x"}}).status_code == 400
+    c.patch("/api/slot-design/demo/prompts", json={"first_takes": 2, "text": {"1": "chunky pixel art"}, "bust": "a tiny sketch."})
+    p = _overview(c)["prompts"]
+    assert p["first_takes"] == 2 and p["text"][1] == "chunky pixel art" and p["text"][0] == art.TEXT_STYLES[1]
+    prompts = []
+    monkeypatch.setattr(art, "flux_generate", lambda prompt, size="1024x1024": prompts.append(prompt) or _fake_flux())
+    sid = c.post("/api/slot-design/demo/symbols", json={"name": "Moon", "category": "set2", "prompt": "a cratered moon"}).json()["id"]
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    assert len(_sym(_overview(c), sid)["variants"]) == 2 and len(prompts) == 2
+    assert art.TEXT_STYLES[1] in prompts[0] and "chunky pixel art" in prompts[1]
+    # emptied (or set back to the default) drops the rewrite
+    c.patch("/api/slot-design/demo/prompts", json={"text": {"1": ""}, "bust": art.BUST})
+    p = _overview(c)["prompts"]
+    assert p["text"][1] == art.TEXT_STYLES[2] and p["bust"] == art.BUST
+
+
 def test_reiterating_from_a_reference_uses_the_description(board):
     c, _ = board
     sid = c.post("/api/slot-design/demo/symbols", json={"name": "Wheel", "category": "bonus", "prompt": "a prize wheel"}).json()["id"]

@@ -40,13 +40,13 @@ STYLES = {
 }
 TEXT_STYLES = {
     1: "crisp high-detail glossy casino slot game art",
-    2: "premium glossy 3D casino slot icon, polished chrome and gold trim, strong rim lighting, rich fine detail",
+    2: "premium glossy 3D casino slot icon, rich fine detail",
     3: "punchy cartoon style, thick dark outline, bright saturated colours, simple strong shading",
 }
 BUST = ("a slot machine character portrait in a bold painted style like premium mobile casino slot art: a thick "
         "dark ink outline around the figure, smooth soft painted shading, glossy highlights, no cross-hatching. "
         "Head and shoulders, facing the viewer, the shoulders wide and cut off flat at the bottom edge of the "
-        "image, the head in the upper half.")
+        "image, the head in the upper half. Maintain the original facial features.")
 
 
 def _bg(key: str) -> str:
@@ -58,33 +58,38 @@ def _keep(text: str | None) -> str:
     return f" Keep the {text} exactly as it is." if text else ""
 
 
-def object_prompt(n: int, key: str, keep_text: str | None = None, note: str = "") -> str:
-    """Redraw a reference in style n (1 faithful, 2 premium, 3 bold)."""
+def default_prompts() -> dict:
+    """The style prompts a design starts with; its Art step can rewrite them (Design.prompts)."""
+    return {"redraw": [STYLES[n] for n in (1, 2, 3)], "text": [TEXT_STYLES[n] for n in (1, 2, 3)], "bust": BUST}
+
+
+def object_prompt(style: str, key: str, keep_text: str | None = None, note: str = "") -> str:
+    """Redraw a reference in a style (by default 1 faithful, 2 premium, 3 bold)."""
     extra = f" {note.rstrip('.')}." if note else ""
-    return (f"{STYLES[(n - 1) % 3 + 1]}{_keep(keep_text)}{extra} Centred, filling most of the frame. {_bg(key)}: "
+    return (f"{style.strip()}{_keep(keep_text)}{extra} Centred, filling most of the frame. {_bg(key)}: "
             "remove the coloured frame, the starfield, the outer glow and the dark background. No extra text, no border.")
 
 
-def object_text_prompt(n: int, key: str, description: str) -> str:
-    return (f"a single slot machine symbol: {description}, {TEXT_STYLES[(n - 1) % 3 + 1]}, centred and filling most "
+def object_text_prompt(style: str, key: str, description: str) -> str:
+    return (f"a single slot machine symbol: {description}, {style.strip().rstrip('.,')}, centred and filling most "
             f"of the frame. {_bg(key)}. No border.")
 
 
-def bust_prompt(key: str, note: str = "") -> str:
+def bust_prompt(key: str, note: str = "", bust: str = BUST) -> str:
     extra = f" {note.rstrip('.')}." if note else ""
-    return (f"Redraw this character as {BUST} Same face, hair, expression and uniform.{extra} "
+    return (f"Redraw this character as {bust.strip()} Same face, hair, expression and uniform.{extra} "
             f"Remove the frame, the border and the whole background. {_bg(key)}. No text.")
 
 
-def bust_text_prompt(key: str, description: str) -> str:
-    return f"{description}, drawn as {BUST} {_bg(key)}. No frame, no text."
+def bust_text_prompt(key: str, description: str, bust: str = BUST) -> str:
+    return f"{description}, drawn as {bust.strip()} {_bg(key)}. No frame, no text."
 
 
-def variation_prompt(kind: str, key: str, note: str = "") -> str:
+def variation_prompt(kind: str, key: str, note: str = "", bust: str = BUST) -> str:
     """Another take on an image already on the board (Reiterate)."""
     change = f" Change: {note.rstrip('.')}." if note else ""
     if kind == "character":
-        return (f"Make a fresh variation of this character portrait, drawn as {BUST}{change} "
+        return (f"Make a fresh variation of this character portrait, drawn as {bust.strip()}{change} "
                 f"{_bg(key)}. No frame, no background, no text.")
     return (f"Make a fresh variation of this slot machine symbol: same subject, same style and colours, crisp "
             f"high-detail glossy casino slot game art.{change} Centred, filling most of the frame. {_bg(key)}. "

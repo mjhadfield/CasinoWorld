@@ -104,7 +104,11 @@ and Tailscale. It has six tabs:
     loaded, and jobs wait while none is. Edits need a model that takes a reference image; a marked card's **Queue** sends just that symbol and sets its Reiterate back to No; **Cancel** on a card or **Cancel all** stops jobs, a running one included (the picture being
     drawn is thrown away). A card's **Section** moves the symbol to another category. **Hide** takes a symbol that
     isn't in use (not in the final set, on the ladder or followed by an art slot) off the board, **Hide unused** does
-    all of them at once, and **Hidden** shows them to unhide.
+    all of them at once, and **Hidden** shows them to unhide. The **Prompts** fold at the top sets how many takes a
+    new symbol's first Generate makes (1, 2 or 3; take n uses style n) and rewrites the three redraw-from-a-reference
+    styles, the three from-a-description styles and the character portrait style, per design (`art_prompts` in
+    design.json; an emptied box or **Default** goes back to the code's prompt). One worker draws every job, one picture
+    at a time.
   - **Value ladder:** order the final set by value into the tiers of the tier shape (Wild, the bonus and
     free-spins scatters, then H1…, M1…, L1…), by dragging or click-to-place, with each tier's pays shown and the
     Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
