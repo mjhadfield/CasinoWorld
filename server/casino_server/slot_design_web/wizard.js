@@ -11,11 +11,11 @@ import * as sprites from "./steps/sprites.js";
 import * as sounds from "./steps/sounds.js";
 import * as maths from "./steps/maths.js";
 import * as mockup from "./steps/mockup.js";
-import * as later from "./steps/later.js";
+import * as build from "./steps/build.js";
 import {createGame} from "./mockup/game.js";
 import {designConfig, loadMath} from "./mockup/design.js";
 
-const STEPS = {concept, art, ladder, scene, features, bonuses, sprites, sounds, maths, mockup};   // built steps; the rest show what they'll do (later.js)
+const STEPS = {concept, art, ladder, scene, features, bonuses, sprites, sounds, maths, mockup, build};
 const ctx = {did: null, data: null, step: null};
 let H, shell = null, timer = null, ticks = 0, current = null;
 
@@ -111,7 +111,7 @@ async function open() {
   if (changed || step !== ctx.step) {
     ctx.step = step;
     current?.leave?.();
-    current = STEPS[step] || later;
+    current = STEPS[step];
     drawRail(); drawHead();
     shell.body.replaceChildren();
     current.render(ctx, shell.body);

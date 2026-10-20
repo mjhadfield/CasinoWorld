@@ -48,8 +48,9 @@ Environment knobs:
 - `CASINO_SPEED` scales every table timer and NPC pace; `0.5` is twice as fast.
 - `CASINO_DATA_DIR` sets where the SQLite database lives (default `server/data/`).
 - `CASINO_PORT` and `CASINO_WEB_DIR` set the HTTP port (HTTPS is one above) and the web export served.
-- `CASINO_DESIGNS_DIR` moves the Slot design board's folders (default `server/slot_designs/`); dev instances
-  use a copy in `.dev/slot_designs`, and the tests a scratch directory.
+- `CASINO_DESIGNS_DIR` moves the Slot design board's folders (default `server/slot_designs/`), and
+  `CASINO_SLOT_BUILDS_DIR` the built slots (default `server/slot_builds/`); dev instances use copies in `.dev/`,
+  and the tests scratch directories.
 
 ## Admin page
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
@@ -133,6 +134,10 @@ and Tailscale. It has six tabs:
     or jackpot; the checklist (✗ what Build needs: a full Value ladder, art for every tier, frozen maths; • what's
     still a stand-in); the rules screen's words (written from the design, editable; INFO shows them); and **Sign it
     off**, which locks the Value ladder, Features, Bonus games and Maths until **Reopen**. Looks stay editable.
+  - **Build:** pick a floor spot and how many cabinets (up to ten, in the Armadillo bank's pattern); Build writes
+    `server/slot_builds/<id>/` (the variant, its art, fonts and an IDEAS.md for anything needing code) and
+    **Install** restarts the live server, which loads it: the cabinets appear and the game downloads their art,
+    fonts and sounds. No client export is needed (`docs/slots/README.md` explains the path).
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
     code, in six colours, so every character matches. Format changes are migrations applied when the server loads
@@ -200,8 +205,9 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
-  - `slot_design.py`, `slot_design_art.py`: the Slot design board and its FLUX, keying and frame pipeline
-    (designs in `server/slot_designs/`).
+  - `slot_design.py`, `slot_design_steps.py`, `slot_design_build.py`, `slot_design_art.py`: the Slot design
+    wizard (designs, its steps, Build, and the FLUX/keying/frame pipeline; designs in `server/slot_designs/`), its
+    UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars and the room.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the

@@ -61,20 +61,37 @@ def _sets() -> dict:
     return sets
 
 
-SETS = _sets()
-TABLE_SETS = {tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else cfg["game"])
-              for tid, cfg in floor.TABLES.items()}
-_TABLE_GAMES = {k for k, s in SETS.items() if s["group"] == "Table games"}
-_MACHINES = {k for k in SETS if k.startswith("slots.")}
-# Which sets a moment's `uses` names.
-USERS = {
-    "all": _TABLE_GAMES | _MACHINES | {"slots"},
-    "tables": _TABLE_GAMES,
-    "cards": _TABLE_GAMES - {"roulette", "craps"},
-    "pai_gow": {k for k in _TABLE_GAMES if k.startswith("pai_gow")},
-    "slots": _MACHINES,
-    "none": set(),
-}
+# The sets, which set each table plays from, and which sets a moment's `uses` names. Filled by refresh_sets(), now
+# and again once built slots (slot_builds.py) have joined the floor; updated in place, so other modules' references
+# stay good.
+SETS: dict = {}
+TABLE_SETS: dict = {}
+_TABLE_GAMES: set = set()
+_MACHINES: set = set()
+USERS: dict = {}
+
+
+def refresh_sets():
+    SETS.clear()
+    SETS.update(_sets())
+    TABLE_SETS.clear()
+    TABLE_SETS.update({tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else cfg["game"])
+                       for tid, cfg in floor.TABLES.items()})
+    _TABLE_GAMES.clear()
+    _TABLE_GAMES.update(k for k, s in SETS.items() if s["group"] == "Table games")
+    _MACHINES.clear()
+    _MACHINES.update(k for k in SETS if k.startswith("slots."))
+    USERS.update({
+        "all": _TABLE_GAMES | _MACHINES | {"slots"},
+        "tables": set(_TABLE_GAMES),
+        "cards": _TABLE_GAMES - {"roulette", "craps"},
+        "pai_gow": {k for k in _TABLE_GAMES if k.startswith("pai_gow")},
+        "slots": set(_MACHINES),
+        "none": set(),
+    })
+
+
+refresh_sets()
 
 # ------------------------------------------------------------------ the moments
 # Page order. Each: title, when it plays, its section on the page, its home set, which

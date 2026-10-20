@@ -20,6 +20,9 @@ extends FloorGame
 
 const TRIM := Color("ffb347")
 const TRIM_HI := Color("ffe0a3")
+## A built slot's cabinet (from the welcome): its body, trim and topper-lettering colours and the topper's
+## words. Empty: Armadillo Goes West's, exactly as signed off.
+var look := {}
 # The stool, from the cabinet's base centre (y is the base line), by facing.
 const STOOL_AT := {"down": Vector2(0, 17), "up": Vector2(0, -15), "left": Vector2(-19, 4), "right": Vector2(19, 4)}
 const STAND_AT := {"down": Vector2(0, 36), "up": Vector2(0, -34), "left": Vector2(-38, 6), "right": Vector2(38, 6)}
@@ -199,8 +202,8 @@ func _shadow(ci: CanvasItem, w: float) -> void:
 
 
 func _lid(ci: CanvasItem, x: float, w: float) -> void:
-	ci.draw_rect(Rect2(x, -63, w, 4.5), Color("6b4223"))
-	ci.draw_rect(Rect2(x, -58.5, w, 4.5), Color("4a2c18"))
+	ci.draw_rect(Rect2(x, -63, w, 4.5), _part("6b4223", 1.45))
+	ci.draw_rect(Rect2(x, -58.5, w, 4.5), _part("4a2c18", 1.0))
 	ci.draw_rect(Rect2(x, -63, w, 1.2), Color(1, 0.78, 0.55, 0.18))
 	ci.draw_rect(Rect2(x, -54.6, w, 0.8), Color("1a0d05"))
 
@@ -218,7 +221,16 @@ func _candle(ci: CanvasItem, x: float, y: float, now: float) -> void:
 
 
 func _trim(now: float) -> Color:
-	return TRIM_HI if now < _flash_until and int(now * 8) % 2 else TRIM
+	var trim := Color(str(look.get("trim", "ffb347"))) if look.has("trim") else TRIM
+	return (trim.lightened(0.5) if look.has("trim") else TRIM_HI) if now < _flash_until and int(now * 8) % 2 else trim
+
+
+## A part's colour: Armadillo's own, or (a built slot) its body colour shaded by `k` (1 is the body itself).
+func _part(armadillo: String, k: float) -> Color:
+	if not look.has("body"):
+		return Color(armadillo)
+	var body := Color(str(look.body))
+	return body.lightened(minf(0.9, (k - 1.0) * 0.45)) if k > 1.0 else body.darkened(1.0 - k)
 
 
 func _mini_screen(ci: CanvasItem, r: Rect2, now: float) -> void:
@@ -244,20 +256,24 @@ func _mini_screen(ci: CanvasItem, r: Rect2, now: float) -> void:
 
 func _front(ci: CanvasItem, now: float) -> void:
 	_shadow(ci, 17.0)
-	_box(ci, Rect2(-14, -8, 28, 8), Color("3a2416"), Color("24140b"), Color("140a05"))      # plinth
-	_box(ci, Rect2(-15, -22, 30, 14), Color("4a2c18"), Color("2e1a0d"), Color("1c0f07"))    # lower cabinet
-	ci.draw_rect(Rect2(-6, -18, 12, 7), Color("7a4a26"))                                    # belly door
-	ci.draw_rect(Rect2(-6, -18, 12, 7), Color("d9a54a"), false, 0.5)
-	_box(ci, Rect2(-16, -26, 32, 5), Color("9a6a3e"), Color("6b4223"), Color("3c200d"))     # button deck
+	_box(ci, Rect2(-14, -8, 28, 8), _part("3a2416", 0.8), _part("24140b", 0.5), _part("140a05", 0.28))      # plinth
+	_box(ci, Rect2(-15, -22, 30, 14), _part("4a2c18", 1.0), _part("2e1a0d", 0.62), _part("1c0f07", 0.38))    # lower cabinet
+	ci.draw_rect(Rect2(-6, -18, 12, 7), _part("7a4a26", 1.65))                                    # belly door
+	ci.draw_rect(Rect2(-6, -18, 12, 7), Color(str(look.get("trim", "d9a54a"))), false, 0.5)
+	_box(ci, Rect2(-16, -26, 32, 5), _part("9a6a3e", 2.1), _part("6b4223", 1.45), _part("3c200d", 0.8))     # button deck
 	var lights := [Color("4fb3ff"), Color("55d07a"), Color("c768ff"), Color("ff5a48"), Color("ffb347")]
 	for i in 5:
 		ci.draw_rect(Rect2(-12 + i * 5.2, -25, 3.4, 1.6), lights[i])
 	_box(ci, Rect2(-15, -44, 30, 18), Color("2a1a10"), Color("1b0f08"), Color("120904"))    # bezel
 	_mini_screen(ci, Rect2(-13, -42.5, 26, 15), now)
-	_box(ci, Rect2(-14, -54, 28, 10), Color("3a2416"), Color("2a170b"), Color("1a0d05"))    # topper
-	var title := Color("fff1b0") if now < _flash_until and int(now * 8) % 2 else Color("e8a33a")
-	ci.draw_string(Card2D.FONT, Vector2(-14, -49.4), "ARMADILLO", HORIZONTAL_ALIGNMENT_CENTER, 28, 3, title)
-	ci.draw_string(Card2D.FONT, Vector2(-14, -45.8), "GOES WEST", HORIZONTAL_ALIGNMENT_CENTER, 28, 3, title)
+	_box(ci, Rect2(-14, -54, 28, 10), _part("3a2416", 0.8), _part("2a170b", 0.56), _part("1a0d05", 0.35))    # topper
+	var title := Color("fff1b0") if now < _flash_until and int(now * 8) % 2 else Color(str(look.get("title", "e8a33a")))
+	var words: Array = look.get("lines", ["ARMADILLO", "GOES WEST"])
+	if words.size() >= 2:
+		ci.draw_string(Card2D.FONT, Vector2(-14, -49.4), str(words[0]), HORIZONTAL_ALIGNMENT_CENTER, 28, 3, title)
+		ci.draw_string(Card2D.FONT, Vector2(-14, -45.8), str(words[1]), HORIZONTAL_ALIGNMENT_CENTER, 28, 3, title)
+	elif words.size() == 1:
+		ci.draw_string(Card2D.FONT, Vector2(-14, -47.4), str(words[0]), HORIZONTAL_ALIGNMENT_CENTER, 28, 4, title)
 	var trim := _trim(now)
 	ci.draw_rect(Rect2(-15.8, -54, 1.2, 46), trim)
 	ci.draw_rect(Rect2(14.6, -54, 1.2, 46), trim)
@@ -268,11 +284,11 @@ func _front(ci: CanvasItem, now: float) -> void:
 
 func _back(ci: CanvasItem, now: float) -> void:
 	_shadow(ci, 17.0)
-	_box(ci, Rect2(-14, -8, 28, 8), Color("2a1a10"), Color("1c1008"), Color("100804"))
-	_box(ci, Rect2(-15, -54, 30, 46), Color("3a2416"), Color("22130a"), Color("140a05"))
+	_box(ci, Rect2(-14, -8, 28, 8), _part("2a1a10", 0.58), _part("1c1008", 0.38), _part("100804", 0.22))
+	_box(ci, Rect2(-15, -54, 30, 46), _part("3a2416", 0.8), _part("22130a", 0.47), _part("140a05", 0.28))
 	for i in 6:
 		ci.draw_rect(Rect2(-9, -46 + i * 3.2, 18, 1.2), Color("0e0704"))                    # vents
-	ci.draw_rect(Rect2(-11, -24, 22, 12), Color("2c1a0e"))
+	ci.draw_rect(Rect2(-11, -24, 22, 12), _part("2c1a0e", 0.6))
 	ci.draw_rect(Rect2(-11, -24, 22, 12), Color("5a3d27"), false, 0.6)
 	var trim := _trim(now)
 	ci.draw_rect(Rect2(-15.8, -54, 1.2, 46), trim)
@@ -287,17 +303,17 @@ func _side(ci: CanvasItem, now: float, s: float) -> void:
 	ci.draw_set_transform(Vector2.ZERO, 0, Vector2(s, 1))
 	var body := PackedVector2Array([Vector2(-11, 0), Vector2(-11, -54), Vector2(4, -54), Vector2(6, -44),
 		Vector2(10, -27), Vector2(13, -24), Vector2(9, -21), Vector2(9, 0)])
-	ci.draw_colored_polygon(body, Color("2e1a0d"))
+	ci.draw_colored_polygon(body, _part("2e1a0d", 0.62))
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(-1, 0), Vector2(-1, -54), Vector2(4, -54), Vector2(6, -44),
-		Vector2(10, -27), Vector2(13, -24), Vector2(9, -21), Vector2(9, 0)]), Color("4a2c18"))
+		Vector2(10, -27), Vector2(13, -24), Vector2(9, -21), Vector2(9, 0)]), _part("4a2c18", 1.0))
 	var lit := now < _flash_until
 	ci.draw_line(Vector2(6, -44), Vector2(10, -27), Color("fff1b0") if lit else Color("ffcf8a"), 1.4)
-	ci.draw_colored_polygon(PackedVector2Array([Vector2(10, -27), Vector2(13, -24), Vector2(9, -21), Vector2(8, -25)]), Color("9a6a3e"))
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(10, -27), Vector2(13, -24), Vector2(9, -21), Vector2(8, -25)]), _part("9a6a3e", 2.1))
 	var trim := _trim(now)
 	ci.draw_rect(Rect2(-11, -55, 15, 1.2), trim)
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(4, -54), Vector2(5.2, -54), Vector2(7.2, -44), Vector2(6, -44)]), trim)
-	ci.draw_rect(Rect2(-11, -8, 20, 8), Color("2a1a10"))
-	ci.draw_rect(Rect2(-11, -63, 15, 9), Color("5a361c"))
+	ci.draw_rect(Rect2(-11, -8, 20, 8), _part("2a1a10", 0.58))
+	ci.draw_rect(Rect2(-11, -63, 15, 9), _part("5a361c", 1.2))
 	ci.draw_rect(Rect2(-11, -63, 15, 1.2), Color(1, 0.78, 0.55, 0.18))
 	ci.draw_set_transform(Vector2.ZERO)
 	_candle(ci, -s * 3.0, -59, now)

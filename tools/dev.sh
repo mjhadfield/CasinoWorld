@@ -98,10 +98,12 @@ server() {
     mkdir -p "$DEV/data"
     # The Slot design board writes into its design folders, so the dev instance works on its own copy.
     [[ -d "$DEV/slot_designs" ]] || cp -a --reflink=auto "$ROOT/server/slot_designs" "$DEV/slot_designs"
+    [[ -d "$DEV/slot_builds" ]] || { mkdir -p "$DEV/slot_builds"; [[ -d "$ROOT/server/slot_builds" ]] && cp -a --reflink=auto "$ROOT/server/slot_builds/." "$DEV/slot_builds/"; }
     echo "dev.sh: http://127.0.0.1:$p (editor/desktop: CASINO_SERVER_URL=ws://127.0.0.1:$p/ws)"
     echo "dev.sh: https://localhost:$((p + 1)) (browser)  admin: http://127.0.0.1:$p/admin"
     cd "$ROOT/server"
     CASINO_PORT=$p CASINO_DATA_DIR="$DEV/data" CASINO_WEB_DIR="$web" CASINO_DESIGNS_DIR="$DEV/slot_designs" \
+        CASINO_SLOT_BUILDS_DIR="$DEV/slot_builds" \
         .venv/bin/python -m casino_server 2>&1 | tee "$DEV/server.log"
 }
 

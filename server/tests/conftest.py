@@ -39,6 +39,7 @@ def client(tmp_path, monkeypatch):
     NPCs and quick table timers (but a long decision window, so tests can act)."""
     monkeypatch.setenv("CASINO_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))  # never the real design board
+    monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))  # nor the real built slots
     monkeypatch.setenv("CASINO_NPCS", "0")
     with TestClient(app) as c:
         for runner in c.app.state.casino.tables.values():

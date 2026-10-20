@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
+from casino_server import slot_builds
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -59,6 +60,12 @@ def _build_roster_looks(store: Store, looks: LookCache):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     data_dir = Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR))
+    # Slots built with the Slot design wizard join the floor first (CASINO_SLOT_BUILDS_DIR moves them, for tests
+    # and the dev instance), so the casino, the sound board and the art board all see them.
+    builds_dir = Path(os.environ.get("CASINO_SLOT_BUILDS_DIR") or slot_builds.DEFAULT_DIR)
+    built = slot_builds.install(builds_dir)
+    if built:
+        print("built slots: " + ", ".join(built))
     store = Store(data_dir / "casino.sqlite")
     for p in store.players():
         if p["stored_as"] != "integer":
@@ -77,6 +84,7 @@ async def lifespan(app: FastAPI):
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
     app.state.slot_design.sounds = app.state.sounds
+    app.state.slot_design.builds_dir = builds_dir
     design_worker = asyncio.create_task(app.state.slot_design.run())
     app.state.looks = looks
     await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
@@ -352,7 +360,8 @@ def slot_art_file(variant: str, source: str, request: Request):
     if path is None:
         raise HTTPException(404, "No such image")
     cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": cache})
+    kind = {".ttf": "font/ttf", ".otf": "font/otf"}.get(path.suffix.lower(), "image/png")
+    return FileResponse(path, media_type=kind, headers={"Cache-Control": cache})
 
 
 # ------------------------------------------------------------------ slot design (the admin page)
@@ -601,6 +610,17 @@ def slot_design_sign_off(design: str, request: Request):
 def slot_design_reopen(design: str, request: Request):
     _design_call(request.app.state.slot_design.reopen, design)
     return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/build")
+async def slot_design_build(design: str, request: Request):
+    body = await _json_body(request, "{spot, count}")
+    return await run_in_threadpool(_design_call, request.app.state.slot_design.build, design, body.get("spot"), body.get("count"))
+
+
+@app.post("/api/slot-design/{design}/install")
+def slot_design_install(design: str, request: Request):
+    return {"message": _design_call(request.app.state.slot_design.install, design)}
 
 
 @app.post("/api/slot-design/{design}/generate")

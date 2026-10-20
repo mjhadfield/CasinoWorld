@@ -16,13 +16,31 @@ Casino World's slot machines. The first variant is **Armadillo Goes West**.
 
 ## Adding another slot
 
-Every slot shares the base: 5×4 reels, 25 lines, the pay table by tier, the stake ladder and the Mini/Minor/Major/Grand meters. A new one needs five things.
+Use the **Slot design** tab on the admin page (`/maintenance#design`): it takes a new slot from reference sheets
+to cabinets on the floor in eleven steps (the main README lists them), with no code to write for anything in the
+library. Every slot shares the base: 5×4 reels, 25 lines, the stake ladder and the Mini/Minor/Major/Grand meters;
+the tier shape, pays, upgrade chain, features, bonus settings, look, words and sounds are the slot's own.
 
-1. **Maths.** Copy the `ARMADILLO` block in `mockup/slots_math.js` and give it its own symbol names, strip counts, feature rates and bonus settings. Tune it with `node tools/tune.js 1000000` until it returns about 91.5% (plus 3.75% from the shared jackpots). Then freeze the strips into a new `server/casino_server/slots/variants/<id>.py` and register it in `variants/__init__.py`. Regenerate the parity fixture with `tools/make_parity_fixture.js`.
-2. **Bonus games.** If the new slot has different ones, add them to `slots/bonuses.py` (with `start`, `roll`/step, `play_out`, `view`), wire them into `tables/slot_machine.py` `_next_feature`, and play them in `client/scenes/slots/slot_screen.gd`.
-3. **Art.** Draw `tools/slot_art/<id>/*.svg` (or reuse `gen_svg.py`), add the logo's two lines to `LOGOS` in `tools/build_slot_art.py`, then run `tools/build_slot_art.py <id>`. Add the asset list to `slot_art.py` `ASSETS` and `autoload/slot_art.gd`.
-4. **Floor.** Add the cabinets to `floor.py` `SLOTS` (`"variant": "<id>"`) and add `SlotCabinet` instances with `variant = "<id>"` to `casino_floor.tscn`.
-5. **Sounds.** The new variant gets its own sound set (`slots.<id>`) from `floor.py`, under **Every slot machine**, and plays that set's sounds until it's given its own: add the ones its theme needs to `FACTORY["slots.<id>"]` in `sounds.py` (as `slots.armadillo` does), or pick them on the admin Sounds tab. A sound for something new goes in `MOMENTS` with `home="slots"`, a `FACTORY["slots"]` default, and a `_sfx()` (or `_loop()`/`_unloop()` for one that repeats) where it happens in `slot_screen.gd`.
+How a built slot reaches the game:
+- **Build** writes `server/slot_builds/<id>/`: `variant.json` (the frozen maths from the Maths step, which the
+  server has already checked against its own engine spin for spin, plus the theme, floor spot and sounds), `art/`
+  (every picture, the logo and the background), `fonts/`, and `IDEAS.md` for anything that needs code.
+- **At startup** `casino_server/slot_builds.py` registers each one: its variant (`slots/variants` VARIANTS), its
+  cabinets on its floor spot in the Armadillo bank's pattern (`floor.TABLES`), its sound set (`slots.<id>`), and its
+  art and fonts in the art manifest (`slot_art.py`). **Install** on the Build step restarts the live server.
+- **The client** adds the built cabinets from the `welcome` message, downloads their art and fonts (`SlotArt`),
+  and the slot screen and cabinet draw from the variant's `theme` (`slot_screen.gd` `_apply_theme`,
+  `slot_cabinet.gd` `look`). No client export is needed for a new slot.
+
+Something the library doesn't have (a new random feature or a different bonus game) is written up as a spec on the
+Features or Bonus games step. Building one means: the engine (`slots/outcome.py` or `slots/bonuses.py`, wired into
+`tables/slot_machine.py`), the same in `mockup/slots_math.js` (the wizard's mockup and simulator run it), the
+mockup's choreography (`server/casino_server/slot_design_web/mockup/game.js`) and the game's
+(`client/scenes/slots/slot_screen.gd`), plus a sound moment in `sounds.py` if it needs one. Then it's in the
+library for every slot.
+
+Armadillo Goes West predates the wizard: it's Python (`slots/variants/armadillo.py`), its art is the built-in vector
+set (`tools/build_slot_art.py`), and its cabinets are in `casino_floor.tscn`.
 
 ## The screen's layout rules
 

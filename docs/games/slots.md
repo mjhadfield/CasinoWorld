@@ -1,6 +1,8 @@
-# Slots: Armadillo Goes West (`slot_1`..`slot_10`)
+# Slots: Armadillo Goes West (`slot_1`..`slot_10`), and built slots
 
-Ten one-seat cabinets in the south-east corner. The design record, the maths source and how to add another
+Ten one-seat Armadillo cabinets in the south-east corner. Slots built with the admin page's Slot design wizard
+stand in banks of up to ten on named spots nearby (`<id>_1`..), and play by the same rules below with their own
+tiers, pays, features, bonus settings, look and words. The design record, the maths source and how to add another
 slot are in `docs/slots/` (start with its README).
 
 ## Playing

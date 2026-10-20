@@ -93,6 +93,10 @@ A Godot 4.7 project exported to the web.
   is Armadillo's). Armadillo is Python; slots built with the Slot design wizard are `variants/<id>.json` with
   frozen strips. The browser's `slots_math.js` takes the same tables, so the wizard's mockup spins exactly as the
   cabinet will (`tests/test_slot_variants_data.py` checks a five-royal variant spin for spin).
+- **Built slots** (`slot_builds.py`) join at startup, before the casino is made: their variants, their cabinets
+  on `floor.TABLES` (a named spot, in the Armadillo bank's pattern), their sound sets (`sounds.refresh_sets`
+  rebuilds the sets in place), and their art and fonts in the art manifest. The welcome message lists their
+  cabinets so the client can add them; `install()` undoes its last run first, so tests can run it again.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
   every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
   The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the

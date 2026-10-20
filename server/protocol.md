@@ -45,7 +45,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Server → client
 | type | fields | when |
 |---|---|---|
-| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name` | The reply to `join` and `set_name`. |
+| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets` | The reply to `join` and `set_name`. `cabinets` lists the cabinets of slots built with the Slot design wizard, which aren't in the floor scene: [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`)}]; the client adds any it doesn't have. |
 | `wallet` | `balance` | Sent on join and after each money-moving table event, straight after that event. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. |
@@ -219,8 +219,15 @@ null). The `seated` message's `rules` carry the whole catalogue: `variant`, `nam
 `big_strip`, `buy_cost`, `free_games`, `tiers`. Grid cells are numbered `reel * 4 + row` (row 0 at
 the top); a reel shows `strip[stop]` on its top row.
 
+A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `symbols`, `lines`, `pays` (its own tiers:
+W, H1.., M1.., L1..), `upgrades`, `features` (the random features it uses), `strips`, `free_strips`, `big_strip`,
+`buy_cost` (0: no Buy Bonus), `free_games`, the jackpot tiers, and for a built slot `theme`: {`colours`, `fonts`
+(display/ui, downloaded from the art manifest), `frame` {`style`, `colour`}, `win` (an animation per tier group),
+`labels`, `texts` (bonus and free-game names, the launcher, the tagline), `rules` (the info screen's lines),
+`cabinet`, `background`}. Armadillo has no `theme`: the screen draws its own.
+
 Messages: `spin` {`bet`} (one of `ladder`; may cut the last spin's presentation short after 1s),
-`buy_bonus` {`bet`} (45 bets: straight to the Trail Bonus), `trail_fire`, `jackpot_pick` {`index`
+`buy_bonus` {`bet`} (`buy_cost` bets: straight to the Trail Bonus), `trail_fire`, `jackpot_pick` {`index`
 0-11}. `bet`/`ready`/`rebet` aren't used.
 
 A paid spin's win is credited at once (the wallet follows the `spin` event; the client holds the

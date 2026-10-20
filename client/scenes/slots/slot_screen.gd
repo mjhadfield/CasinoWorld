@@ -49,13 +49,40 @@ const DECK_ROW := Rect2(0, 626, W, 80)       # the deck's boxes and buttons
 const SPIN_CENTRE := Vector2(1112, 664)
 const SPIN_R := 46.0                         # (its dark ring is 4 wider: 614..714)
 const SIDE_INFO := Rect2(1052, 0, 196, 104)  # each "3+ WAGONS" box (y set per box)
-const RYE := preload("res://assets/fonts/Rye-Regular.ttf")
-const COND := preload("res://assets/fonts/BarlowCondensed-Bold.ttf")
-const CREAM := Color("f6ead0")
-const GOLD := Color("f4c94f")
-const GOLD_HI := Color("fff1b0")
-const INK := Color("2b1004")
-const MUTED := Color("b89b74")
+const ARMADILLO_DISPLAY := preload("res://assets/fonts/Rye-Regular.ttf")
+const ARMADILLO_UI := preload("res://assets/fonts/BarlowCondensed-Bold.ttf")
+# The look: Armadillo's, unless the variant's rules bring a theme (a slot built with the admin page's Slot design
+# wizard: its colours, fonts, frame, words and win animations). _apply_theme sets these when the screen opens.
+var RYE: Font = ARMADILLO_DISPLAY
+var COND: Font = ARMADILLO_UI
+var CREAM := Color("f6ead0")
+var GOLD := Color("f4c94f")
+var GOLD_HI := Color("fff1b0")
+var INK := Color("2b1004")
+var MUTED := Color("b89b74")
+var EDGE := Color("d9a54a")
+var ALERT := Color("7d130c")
+var WIN_COL := Color("ffe27a")
+var SPIN_COL := Color("f0b43a")
+var GOLD_TEXT := Color("f6c14a")
+const ARMADILLO_TEXTS := {
+	"tagline": "GOOD LUCK, PARTNER", "trail": "TRAIL BONUS", "trail_hint": "fire the pistol to move the armadillo",
+	"trail_message": "FIRE THE PISTOL  ·  SPACE OR CLICK FIRE", "launcher": "THE PISTOL", "launcher_hint": "1 to 6 bullets a shot",
+	"launcher_up": "moves 2 spaces per bullet", "free": "COMBO FREE GAMES", "free_banner": "COMBO FREE GAME %d OF %d",
+	"free_summary": "FREE GAMES", "free_sub": "%d combo free games at %s", "bonus_line": "3+ WAGONS", "free_line": "3+ PISTOLS",
+	"buy_text": "Go straight to the Trail Bonus for %s", "buy_sub": "%d × your %s bet. Trail wins pay at %s."}
+const ARMADILLO_TIPS := ["Wild stands in for everything except the Wagon and the Pistols. Pays left to right on 25 lines; the longest match on each line pays.",
+	"Random features can hit any spin. Wilds, Wild Reels, Colossal Reels and the Multiplier land before the reels stop;",
+	"Symbol Upgrade, Repeat Win and Instant Win come after. 3+ Wagons: Trail Bonus. 3+ Pistols: 3 Combo Free Games.",
+	"Upgrades: Spade, Club → Whiskey  ·  Diamond, Heart → Boots  ·  Whiskey → Hat  ·  Boots → Horseshoe  ·  Hat, Horseshoe → Snake  ·  Snake → Armadillo"]
+var texts: Dictionary = ARMADILLO_TEXTS
+var tips: Array = ARMADILLO_TIPS
+var labels := true                  # WILD / BONUS / FREE SPINS lettered on those symbols (a built slot's art has its own)
+var frame_style := "wood"
+var frame_colour := Color("d9a54a")
+var win_anims := {}                 # tier group -> {preset, strength, colour}: what a symbol does while its line win shows
+var feature_rows: Array = []
+var background := false
 const TIERS := {"mini": Color("4fb3ff"), "minor": Color("55d07a"), "major": Color("c768ff"), "grand": Color("ff5a48")}
 const TIER_NAMES := {"mini": "MINI", "minor": "MINOR", "major": "MAJOR", "grand": "GRAND"}
 const LINE_COLOURS := ["ffd54a", "ff7a59", "5fd4ff", "9cff6b", "ff6bd5", "ffb347", "6b9dff", "d0ff4a", "ff4a6e",
@@ -161,6 +188,9 @@ func _ready() -> void:
 	hide()
 	for r in 5:
 		reels.append({"r": r, "pos": 0.0, "spinning": false, "stopping": false, "v": 0.0, "strip": [], "glow": 0.0})
+	SlotArt.art_changed.connect(func():   # a built slot's fonts may arrive after it opened
+		if visible and not rules.is_empty():
+			_apply_theme())
 
 
 # ------------------------------------------------------------------ opening and closing
@@ -174,18 +204,59 @@ func open(c: SlotCabinet, r: Dictionary, from_rect: Rect2) -> void:
 	_lines = r.get("lines", [])
 	_ladder = r.get("ladder", _ladder)
 	_bet_idx = clampi(_bet_idx, 0, _ladder.size() - 1)
+	_apply_theme()
 	_reset_state()
 	for x in reels:
 		x.strip = _strips[x.r] if _strips.size() == 5 else []
 		x.pos = float(randi() % maxi(1, x.strip.size()))
 	grid = _grid_from_reels()
-	message = "25 LINES  ·  GOOD LUCK, PARTNER"
+	message = "25 LINES  ·  " + texts.tagline
 	_from_rect = from_rect
 	_closing = false
 	_grow = 0.0
 	show()
 	var tw := create_tween()
 	tw.tween_property(self, "_grow", 1.0, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## The variant's look and words (rules.theme), or Armadillo's. Called again when its fonts finish downloading.
+func _apply_theme() -> void:
+	var theme: Dictionary = rules.get("theme", {})
+	var c: Dictionary = theme.get("colours", {})
+	var col := func(key: String, armadillo: String) -> Color: return Color(str(c.get(key, armadillo)))
+	CREAM = col.call("cream", "f6ead0")
+	GOLD = col.call("gold", "f4c94f")
+	GOLD_HI = col.call("goldHi", "fff1b0")
+	INK = col.call("ink", "2b1004")
+	MUTED = col.call("muted", "b89b74")
+	EDGE = col.call("edge", "d9a54a")
+	ALERT = col.call("alert", "7d130c")
+	WIN_COL = col.call("win", "ffe27a")
+	SPIN_COL = col.call("spin", "f0b43a")
+	GOLD_TEXT = GOLD if theme.has("colours") else Color("f6c14a")
+	var fonts: Dictionary = theme.get("fonts", {})
+	RYE = SlotArt.font(variant, "display") if fonts.has("display") and SlotArt.font(variant, "display") else ARMADILLO_DISPLAY
+	COND = SlotArt.font(variant, "ui") if fonts.has("ui") and SlotArt.font(variant, "ui") else ARMADILLO_UI
+	texts = ARMADILLO_TEXTS.duplicate()
+	var t: Dictionary = theme.get("texts", {})
+	if not t.is_empty():
+		var trail_name := str(t.get("trail", "TRAIL BONUS"))
+		var launcher := str(t.get("launcher", "THE LAUNCHER"))
+		var free_name := str(t.get("free", "FREE GAMES"))
+		texts.merge({"tagline": str(t.get("tagline", "GOOD LUCK")), "trail": trail_name, "trail_hint": str(t.get("hint", "fire to move along the trail")),
+			"trail_message": "%s  ·  SPACE OR CLICK FIRE" % launcher, "launcher": launcher, "launcher_hint": "1 to 6 spaces a shot",
+			"launcher_up": "moves doubled", "free": free_name, "free_banner": free_name + " %d OF %d", "free_summary": free_name,
+			"free_sub": "%d games at %s", "bonus_line": str(t.get("bonus_line", "3+ BONUS")), "free_line": str(t.get("free_line", "3+ FREE SPINS")),
+			"buy_text": "Go straight to the " + trail_name.capitalize() + " for %s", "buy_sub": "%d × your %s bet. Bonus wins pay at %s."}, true)
+	tips = theme.get("rules", ARMADILLO_TIPS)
+	labels = bool(theme.get("labels", true))
+	var fr: Dictionary = theme.get("frame", {})
+	frame_style = str(fr.get("style", "wood"))
+	frame_colour = Color(str(fr.get("colour", "d9a54a")))
+	win_anims = theme.get("win", {})
+	background = bool(theme.get("background", false))
+	var on: Array = rules.get("features", [])
+	feature_rows = FEATURE_ROWS.filter(func(f): return on.is_empty() or on.has(f[0]))
 
 
 func close(to_rect: Rect2) -> void:
@@ -326,13 +397,13 @@ func _handle(ev: Dictionary) -> void:
 		"trail_start":
 			_begin_trail(ev.trail)
 			_sfx("bonus_trigger")
-			await _banner("TRAIL BONUS", "bought for %s" % Money.format(int(ev.trail.bet) * int(rules.get("buy_cost", 45)))
-				if ev.get("bought", false) else "fire the pistol to move the armadillo", 2.2)
+			await _banner(texts.trail, "bought for %s" % Money.format(int(ev.trail.bet) * int(rules.get("buy_cost", 45)))
+				if ev.get("bought", false) else texts.trail_hint, 2.2)
 			if ep != _epoch:
 				return
 			trail.waiting = true
 			trail.auto_at = _now + 6.0
-			message = "FIRE THE PISTOL  ·  SPACE OR CLICK FIRE"
+			message = texts.trail_message
 		"trail_roll":
 			if not trail.is_empty():
 				trail.waiting = false
@@ -348,7 +419,7 @@ func _handle(ev: Dictionary) -> void:
 			if ep != _epoch:
 				return
 			_credit_adj += int(ev.total)
-			await _summary("PRIZEPOT!" if ev.get("prizepot", false) else "TRAIL BONUS",
+			await _summary("PRIZEPOT!" if ev.get("prizepot", false) else texts.trail,
 				"%d shots at %s" % [int(ev.rolls), Money.format(int(trail.get("bet", 100)))], int(ev.total))
 			if ep != _epoch:
 				return
@@ -360,11 +431,11 @@ func _handle(ev: Dictionary) -> void:
 			_clear_wins()
 			win_shown = float(ev.total)
 			win_target = win_shown
-			message = "TRAIL BONUS PAID %s" % Money.format(int(ev.total))
+			message = "%s PAID %s" % [texts.trail, Money.format(int(ev.total))]
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
 			_sfx("bonus_trigger")
-			await _banner("COMBO FREE GAMES", "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
+			await _banner(texts.free, "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
 		"free_game":
 			free.n = int(ev.n)
 			_sfx("free_spin")
@@ -376,7 +447,7 @@ func _handle(ev: Dictionary) -> void:
 			await _wait(0.6)
 		"free_end":
 			_credit_adj += int(ev.total)
-			await _summary("FREE GAMES", "%d combo free games at %s" % [int(free.get("of", 3)), Money.format(int(free.get("bet", 100)))], int(ev.total))
+			await _summary(texts.free_summary, texts.free_sub % [int(free.get("of", 3)), Money.format(int(free.get("bet", 100)))], int(ev.total))
 			if ep != _epoch:
 				return
 			if int(ev.total) >= 10 * int(free.get("bet", 100)):
@@ -401,7 +472,7 @@ func _on_spin(ev: Dictionary) -> void:
 		await _big_win(int(o.total), int(o.bet))
 		if ep != _epoch:
 			return
-	message = "YOU WON %s" % Money.format(int(o.total)) if int(o.total) > 0 else "25 LINES  ·  GOOD LUCK, PARTNER"
+	message = "YOU WON %s" % Money.format(int(o.total)) if int(o.total) > 0 else "25 LINES  ·  " + texts.tagline
 	_credit_adj += int(o.total)
 	var next: Array = ev.get("features_next", [])
 	if not next.is_empty():
@@ -582,8 +653,8 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 			else:
 				_draw_trail_hud(ci)
 			if not free.is_empty():
-				_rr(ci, Rect2(440, REEL_Y - 16, 400, 34), 10, Color("7d130c"), 2, GOLD)
-				_text(ci, "COMBO FREE GAME %d OF %d" % [int(free.n), int(free.of)], Vector2(640, REEL_Y + 1), 22, COND, GOLD_HI, "center", 0, 380)
+				_rr(ci, Rect2(440, REEL_Y - 16, 400, 34), 10, ALERT, 2, GOLD)
+				_text(ci, texts.free_banner % [int(free.n), int(free.of)], Vector2(640, REEL_Y + 1), 22, COND, GOLD_HI, "center", 0, 380)
 			_draw_deck(ci)
 			_draw_flyers(ci)
 			_draw_banner(ci)
@@ -622,8 +693,8 @@ func _gold_text(ci: CanvasItem, s: String, at: Vector2, size: int, max_w := 0.0)
 	var p := Vector2(at.x - w / 2.0, at.y + (RYE.get_ascent(size) - RYE.get_descent(size)) / 2.0)
 	var edge := maxi(2, int(size * 0.14))
 	ci.draw_string_outline(RYE, p + Vector2(0, size * 0.06), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge + 2, Color(0.1, 0.03, 0.01, 0.85))
-	ci.draw_string_outline(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge, Color("2b1004"))
-	ci.draw_string(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("f6c14a"))
+	ci.draw_string_outline(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, edge, INK)
+	ci.draw_string(RYE, p, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, GOLD_TEXT)
 
 
 func _rr(ci: CanvasItem, r: Rect2, radius: float, fill: Color, border := 0.0, border_col := Color.TRANSPARENT) -> void:
@@ -640,7 +711,23 @@ func _vgrad(ci: CanvasItem, r: Rect2, top: Color, bottom: Color) -> void:
 		PackedColorArray([top, top, bottom, bottom]))
 
 
+## A panel in the slot's frame style: wood (Armadillo's), metal, neon or glass, edged in its colour.
 func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
+	if frame_style != "wood":
+		var top := Color("5d6470")
+		var bottom := Color("15181d")
+		if frame_style == "neon":
+			top = Color(0.04, 0.03, 0.12, 0.94)
+			bottom = Color(0.02, 0.01, 0.06, 0.94)
+		elif frame_style == "glass":
+			top = Color(1, 1, 1, 0.16)
+			bottom = Color(0.04, 0.05, 0.12, 0.6)
+		_rr(ci, r, radius, bottom, 2, Color(1, 1, 1, 0.35) if frame_style == "glass" else Color("0b0c10"))
+		_vgrad(ci, Rect2(r.position + Vector2(4, 4), Vector2(r.size.x - 8, r.size.y * 0.5)), top, Color(top, 0.0))
+		if frame_style == "neon":
+			_rr(ci, r.grow(2), radius + 2, Color.TRANSPARENT, 5, Color(frame_colour, 0.3))
+		_rr(ci, r.grow(-3), radius - 3, Color.TRANSPARENT, 3, frame_colour)
+		return
 	_rr(ci, r, radius, Color("5c341a"), 2, Color("1a0b03"))
 	_vgrad(ci, Rect2(r.position + Vector2(4, 4), Vector2(r.size.x - 8, r.size.y * 0.45)), Color(0.55, 0.33, 0.19, 0.55), Color(0.36, 0.2, 0.1, 0.0))
 	var i := 10.0
@@ -648,14 +735,14 @@ func _wood(ci: CanvasItem, r: Rect2, radius := 14.0) -> void:
 		var y := r.position.y + i
 		ci.draw_line(Vector2(r.position.x + 6, y + sin(i) * 2.0), Vector2(r.end.x - 6, y + cos(i) * 1.5), Color(0.12, 0.05, 0.02, 0.12), 1.2)
 		i += 7.0
-	_rr(ci, r.grow(-3), radius - 3, Color.TRANSPARENT, 3, Color("d9a54a"))
+	_rr(ci, r.grow(-3), radius - 3, Color.TRANSPARENT, 3, EDGE)
 
 
 func _button(ci: CanvasItem, id: String, r: Rect2, label: String, on := false, disabled := false, size := 22, colour: Array = []) -> void:
 	var hover := _hover == id and not disabled
 	var cols: Array = colour if not colour.is_empty() else ([Color("ffe08a"), Color("8a5410")] if on else [Color("6e4426"), Color("2c1609")])
 	var a := 0.4 if disabled else 1.0
-	_rr(ci, r, r.size.y * 0.28, Color(cols[1], a), 3 if hover else 2, Color(GOLD_HI if hover else Color("d9a54a"), a))
+	_rr(ci, r, r.size.y * 0.28, Color(cols[1], a), 3 if hover else 2, Color(GOLD_HI if hover else EDGE, a))
 	_vgrad(ci, Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, r.size.y * 0.5 - 3)), Color(cols[0], 0.75 * a), Color(cols[0], 0.0))
 	_text(ci, label, r.get_center() + Vector2(0, 1), size, COND, Color(INK if (on or not colour.is_empty()) else CREAM, a), "center", 0, r.size.x - 14)
 	if not disabled:
@@ -681,24 +768,49 @@ func _sym(ci: CanvasItem, sym: String, r: Rect2, fx: Dictionary = {}, alpha := 1
 		return
 	var s := 0.92 * float(fx.get("scale", 1.0))
 	var flip := absf(cos(float(fx.flip) * PI)) if fx.has("flip") else 1.0
+	# a win animation (Sprites step), while this symbol's line win shows
+	var anim: Dictionary = fx.get("anim", {})
+	var k := float(anim.get("strength", 1.0))
+	var preset := str(anim.get("preset", "none"))
+	var dy := 0.0
+	if preset == "pulse":
+		s *= 1.0 + 0.08 * k * (0.5 + 0.5 * sin(_now * 7.0))
+	elif preset == "bounce":
+		dy = -10.0 * k * absf(sin(_now * 6.0))
+	elif preset == "spin":
+		flip = maxf(0.08, absf(cos(_now * 3.0 * k)))
 	var size := minf(r.size.x, r.size.y) * s
-	var c := r.get_center()
+	var c := r.get_center() + Vector2(0, dy)
 	ci.draw_set_transform(c, 0, Vector2(maxf(0.02, flip), 1))
 	var glow := float(fx.get("glow", 0.0))
 	if glow > 0.0:
 		var gc: Color = fx.get("glow_colour", Color("ffe27a"))
 		ci.draw_circle(Vector2.ZERO, size * 0.5, Color(gc, 0.35 * glow))
+	if preset == "glow":
+		ci.draw_circle(Vector2.ZERO, size * 0.52, Color(Color(str(anim.get("colour", "ffe27a"))), 0.3 * minf(1.0, k) * (0.6 + 0.4 * sin(_now * 6.0))))
 	ci.draw_texture_rect(tex, Rect2(-size / 2.0, -size / 2.0, size, size), false, Color(1, 1, 1, alpha))
-	if sym in ["W", "BS", "FS"]:
+	if preset == "shine":   # a light band sweeping across the symbol
+		var p := fmod(_now * 0.9, 1.4) - 0.2
+		var x0 := -size / 2.0 + p * size * 1.6 - size * 0.3
+		var band := PackedVector2Array([Vector2(x0, -size / 2.0), Vector2(x0 + size * 0.22, -size / 2.0), Vector2(x0 - size * 0.38, size / 2.0), Vector2(x0 - size * 0.6, size / 2.0)])
+		var square := PackedVector2Array([Vector2(-size / 2.0, -size / 2.0), Vector2(size / 2.0, -size / 2.0), Vector2(size / 2.0, size / 2.0), Vector2(-size / 2.0, size / 2.0)])
+		for part in Geometry2D.intersect_polygons(band, square):
+			ci.draw_colored_polygon(part, Color(1, 1, 1, 0.3 * minf(1.0, k) * alpha))
+	if labels and sym in ["W", "BS", "FS"]:
 		var label: String = {"W": "WILD", "BS": "BONUS", "FS": "FREE SPINS"}[sym]
 		var lw := r.size.x * 0.72
-		_rr(ci, Rect2(-lw / 2.0, r.size.y / 2.0 - 30, lw, 24), 6, Color(Color("7d130c") if sym == "W" else Color("2b1004"), alpha), 2, Color(GOLD, alpha))
+		_rr(ci, Rect2(-lw / 2.0, r.size.y / 2.0 - 30, lw, 24), 6, Color(ALERT if sym == "W" else INK, alpha), 2, Color(GOLD, alpha))
 		_text(ci, label, Vector2(0, r.size.y / 2.0 - 17), 17 if sym == "FS" else 21, RYE, Color(GOLD_HI, alpha))
 	ci.draw_set_transform(Vector2.ZERO)
 
 
 # ------------------------------------------------------------------ the chrome
 func _draw_background(ci: CanvasItem) -> void:
+	var bg := _tex("bg") if background else null
+	if bg:
+		ci.draw_texture_rect(bg, Rect2(0, 0, W, H), false)
+		ci.draw_rect(Rect2(0, 0, W, H), Color(0.02, 0.01, 0.0, 0.2))
+		return
 	_vgrad(ci, Rect2(0, 0, W, 300), Color("1b1440"), Color("6a2c5c"))
 	_vgrad(ci, Rect2(0, 300, W, 150), Color("6a2c5c"), Color("e0663a"))
 	_vgrad(ci, Rect2(0, 450, W, 120), Color("e0663a"), Color("f7b25a"))
@@ -747,22 +859,23 @@ func _draw_logo(ci: CanvasItem) -> void:
 
 func _draw_frame(ci: CanvasItem) -> void:
 	_wood(ci, Rect2(REEL_X - 22, REEL_Y - 18, REEL_W + 44, REEL_H + 36), 18)
+	var reel_bg: Array = {"wood": [Color("1c0e07"), Color("2a160b")], "metal": [Color("0d0f13"), Color("1d2128")]}.get(frame_style, [Color("05040f"), Color("100c26")])
 	for r in 5:
 		var x := REEL_X + r * CELL_W
-		ci.draw_rect(Rect2(x, REEL_Y, CELL_W, REEL_H), Color("1c0e07"))
-		ci.draw_rect(Rect2(x + CELL_W * 0.2, REEL_Y, CELL_W * 0.6, REEL_H), Color("2a160b"))
+		ci.draw_rect(Rect2(x, REEL_Y, CELL_W, REEL_H), reel_bg[0])
+		ci.draw_rect(Rect2(x + CELL_W * 0.2, REEL_Y, CELL_W * 0.6, REEL_H), reel_bg[1])
 	for p in [Vector2(REEL_X - 10, REEL_Y - 6), Vector2(REEL_X + REEL_W + 10, REEL_Y - 6), Vector2(REEL_X - 10, REEL_Y + REEL_H + 6), Vector2(REEL_X + REEL_W + 10, REEL_Y + REEL_H + 6)]:
-		ci.draw_circle(p, 4.5, Color("e3b45a"))
+		ci.draw_circle(p, 4.5, Color("e3b45a") if frame_style == "wood" else frame_colour)
 
 
 func _draw_sides(ci: CanvasItem) -> void:
 	_wood(ci, Rect2(18, REEL_Y - 18, 224, REEL_H + 36), 16)
 	_text(ci, "RANDOM FEATURES", Vector2(130, REEL_Y + 8), 19, COND, GOLD_HI, "center", 0, 196)
-	for i in FEATURE_ROWS.size():
-		var id: String = FEATURE_ROWS[i][0]
+	for i in feature_rows.size():
+		var id: String = feature_rows[i][0]
 		var y := REEL_Y + 32 + i * 52
 		var lit: bool = feature_lit.get(id, false)
-		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else FEATURE_ROWS[i][1]
+		var label: String = "MULTIPLIER ×%d" % multiplier if id == "multiplier" and multiplier > 1 else feature_rows[i][1]
 		_rr(ci, Rect2(34, y, 192, 42), 10, Color(1, 0.8 + 0.1 * sin(_now * 8.0), 0.35, 0.95) if lit else Color(0.08, 0.035, 0.015, 0.65), 2, GOLD_HI if lit else Color("7a5a36"))
 		_text(ci, label, Vector2(130, y + 22), 20, COND, INK if lit else MUTED, "center", 0, 176)
 	_button(ci, "settings", Rect2(34, REEL_Y + 32 + 7 * 52 + 4, 192, 36), "SETTINGS", false, false, 18)
@@ -780,7 +893,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 	_text(ci, Money.format(_bet() * int(rules.get("buy_cost", 45))), Vector2(1150, by + 156), 26, COND, Color(1, 1, 1, a), "center", 0, 180)
 	if not busy and int(rules.get("buy_cost", 0)) > 0:
 		_add_hit("buy", buy)
-	var info := [["BS", "3+ WAGONS", "TRAIL BONUS"], ["FS", "3+ PISTOLS", "3 COMBO FREE GAMES"]]
+	var info := [["BS", texts.bonus_line, texts.trail], ["FS", texts.free_line, "%d %s" % [int(rules.get("free_games", 3)), texts.free]]]
 	for i in info.size():
 		# Each box: the symbol on the left, its two lines centred in the space to its right.
 		var box := Rect2(SIDE_INFO.position + Vector2(0, by + 196 + i * 116), SIDE_INFO.size)
@@ -798,7 +911,7 @@ func _draw_sides(ci: CanvasItem) -> void:
 
 func _draw_deck(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(0, DECK_TOP, W, H - DECK_TOP), Color(0.05, 0.02, 0.01, 0.86))
-	ci.draw_rect(Rect2(0, DECK_TOP, W, 2), Color("d9a54a"))
+	ci.draw_rect(Rect2(0, DECK_TOP, W, 2), EDGE)
 	_text(ci, message, Vector2(560, DECK_TOP + 15), 19, COND, GOLD_HI, "center", 0, 1000)
 	var top := DECK_ROW.position.y
 	var h := DECK_ROW.size.y
@@ -809,7 +922,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	_button(ci, "bet-", Rect2(252, top + 36, 40, 38), "−", false, not idle or _bet_idx == 0, 30)
 	_button(ci, "bet+", Rect2(422, top + 36, 40, 38), "+", false, not idle or _bet_idx == _ladder.size() - 1, 30)
 	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else "WIN",
-		Money.format(int(win_shown)) if win_shown > 0 else "", Color("ffe27a"))
+		Money.format(int(win_shown)) if win_shown > 0 else "", WIN_COL)
 	var by := top + (h - 56.0) / 2.0
 	_button(ci, "info", Rect2(728, by, 92, 56), "INFO", false, not idle)
 	_button(ci, "turbo", Rect2(828, by, 92, 56), "TURBO", turbo)
@@ -818,7 +931,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var spinning := reels.any(func(x): return x.spinning or x.stopping)
 	var hov := _hover == "spin"
 	ci.draw_circle(c, SPIN_R + 4.0, Color("1a0b03"))
-	ci.draw_circle(c, SPIN_R, Color("c9871c") if spinning else Color("f0b43a"))
+	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
 	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(1, 0.95, 0.7, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
 	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() else "SPIN")
@@ -928,13 +1041,31 @@ func _draw_grid(ci: CanvasItem) -> void:
 			if cells.all(func(c): return grid[c] == now_sym):
 				var fx: Dictionary = cell_fx.get(cells[0], {}) if cell_fx.get(cells[0], {}).get("big", false) else {}
 				_sym(ci, now_sym, Rect2(int(col.start) * CELL_W + (wpx - size * 1.05) / 2.0, (b * k - int(col.offset)) * CELL_H, size * 1.05, size), fx)
+	var winning := {}
+	if landed and not wins.is_empty() and not win_anims.is_empty():
+		for w in (wins if (_running or cycle == 0) else [wins[cycle - 1]]):
+			for q in w.cells:
+				winning[int(q)] = true
 	for c in 20:
 		var r := floori(c / 4.0)
 		if not col.is_empty() and r >= int(col.start) and r < int(col.start) + int(col.k):
 			var cells := _block_cells(floori(float(c % 4 + int(col.offset)) / int(col.k)))
 			if cells.all(func(q): return grid[q] == grid[cells[0]]):
 				continue
-		_sym(ci, str(grid[c]), Rect2(r * CELL_W, (c % 4) * CELL_H, CELL_W, CELL_H), cell_fx.get(c, {}))
+		var fx: Dictionary = cell_fx.get(c, {})
+		if winning.has(c):
+			fx = fx.duplicate()
+			fx["anim"] = win_anims.get(_group(str(grid[c])), {})
+		_sym(ci, str(grid[c]), Rect2(r * CELL_W, (c % 4) * CELL_H, CELL_W, CELL_H), fx)
+
+
+## A tier's group for its win animation: wild, scatter, high, mid or low.
+static func _group(sym: String) -> String:
+	if sym == "W":
+		return "wild"
+	if sym in ["BS", "FS"]:
+		return "scatter"
+	return {"H": "high", "M": "mid"}.get(sym.left(1), "low")
 
 
 ## Over the reels (unclipped): dividers and the glass.
@@ -1321,7 +1452,7 @@ func _draw_overlay(ci: CanvasItem) -> void:
 			_wood(ci, Rect2(340, 170, 600, 330), 22)
 			_gold_text(ci, overlay.title, Vector2(640, 240), 54, 560)
 			_text(ci, overlay.sub, Vector2(640, 300), 24, COND, CREAM, "center", 0, 560)
-			_text(ci, Money.format(int(overlay.amount)), Vector2(640, 372), 76, COND, Color("ffe27a"), "center", 8, 560)
+			_text(ci, Money.format(int(overlay.amount)), Vector2(640, 372), 76, COND, WIN_COL, "center", 8, 560)
 			_button(ci, "overlay", Rect2(560, 430, 160, 50), "COLLECT", false, false, 22, [GOLD_HI, Color("9a5a10")])
 			_text(ci, "collects itself in %d" % maxi(1, ceili(5.0 - (_now - float(overlay.t0)))), Vector2(640, 496), 16, COND, MUTED)
 		"buy":
@@ -1331,8 +1462,8 @@ func _draw_overlay(ci: CanvasItem) -> void:
 			if bs:
 				ci.draw_texture_rect(bs, Rect2(580, 256, 120, 120), false)
 			var cost := _bet() * int(rules.get("buy_cost", 45))
-			_text(ci, "Go straight to the Trail Bonus for %s" % Money.format(cost), Vector2(640, 400), 26, COND, CREAM, "center", 0, 520)
-			_text(ci, "%d × your %s bet. Trail wins pay at %s." % [int(rules.get("buy_cost", 45)), Money.format(_bet()), Money.format(_bet())], Vector2(640, 430), 19, COND, MUTED, "center", 0, 520)
+			_text(ci, texts.buy_text % Money.format(cost), Vector2(640, 400), 26, COND, CREAM, "center", 0, 520)
+			_text(ci, texts.buy_sub % [int(rules.get("buy_cost", 45)), Money.format(_bet()), Money.format(_bet())], Vector2(640, 430), 19, COND, MUTED, "center", 0, 520)
 			_button(ci, "buy-yes", Rect2(470, 450, 160, 48), "BUY", false, Session.shown_balance + _credit_adj < cost, 22, [GOLD_HI, Color("9a5a10")])
 			_button(ci, "buy-no", Rect2(650, 450, 160, 48), "CANCEL")
 		"cashout":
@@ -1354,28 +1485,28 @@ func _draw_info(ci: CanvasItem) -> void:
 	_gold_text(ci, "PAYS AT " + Money.format(_bet()), Vector2(640, 82), 34, 800)
 	var lb := _bet() / 25.0
 	var pays: Dictionary = rules.get("pays", {})
-	var order := ["W", "H1", "H2", "M1", "M2", "M3", "M4", "L1", "L2", "L3", "L4"]
-	for i in order.size():
-		var sym: String = order[i]
-		var colx := i if i < 3 else (i - 3 if i < 7 else i - 7)
-		var row := 0 if i < 3 else (1 if i < 7 else 2)
-		var n := 3 if row == 0 else 4
-		var x0 := 640.0 - (n * 280.0) / 2.0 + colx * 280.0
-		var y := 118.0 + row * 128.0
-		var tex := _tex(sym)
-		if tex:
-			ci.draw_texture_rect(tex, Rect2(x0 + 10, y + 4, 104, 104), false)
-		var p: Array = pays.get(sym, [0, 0, 0])
-		for j in 3:
-			var k := 5 - j
-			_text(ci, "%d" % k, Vector2(x0 + 136, y + 30 + j * 26), 20, COND, Color("ffb347"), "left")
-			_text(ci, Money.format(int(float(p[k - 3]) * lb)), Vector2(x0 + 160, y + 30 + j * 26), 22, COND, CREAM, "left")
-	var tips := ["Wild stands in for everything except the Wagon and the Pistols. Pays left to right on 25 lines; the longest match on each line pays.",
-		"Random features can hit any spin. Wilds, Wild Reels, Colossal Reels and the Multiplier land before the reels stop;",
-		"Symbol Upgrade, Repeat Win and Instant Win come after. 3+ Wagons: Trail Bonus. 3+ Pistols: 3 Combo Free Games.",
-		"Upgrades: Spade, Club → Whiskey  ·  Diamond, Heart → Boots  ·  Whiskey → Hat  ·  Boots → Horseshoe  ·  Hat, Horseshoe → Snake  ·  Snake → Armadillo"]
+	# rows: the Wild and the high pays, the mids, the lows (Armadillo: 3, 4 and 4), as many columns as each needs
+	var rows := [[], [], []]
+	for sym in pays:
+		rows[0 if (sym == "W" or sym.begins_with("H")) else (1 if sym.begins_with("M") else 2)].append(sym)
+	for row in 3:
+		var n: int = rows[row].size()
+		var cw := minf(280.0, 1120.0 / maxi(1, n))
+		var sz := minf(104.0, cw - 130.0)
+		for colx in n:
+			var sym: String = rows[row][colx]
+			var x0 := 640.0 - (n * cw) / 2.0 + colx * cw
+			var y := 118.0 + row * 128.0
+			var tex := _tex(sym)
+			if tex:
+				ci.draw_texture_rect(tex, Rect2(x0 + 10, y + 4 + (104.0 - sz) / 2.0, sz, sz), false)
+			var p: Array = pays.get(sym, [0, 0, 0])
+			for j in 3:
+				var k := 5 - j
+				_text(ci, "%d" % k, Vector2(x0 + sz + 32, y + 30 + j * 26), 20, COND, Color("ffb347"), "left")
+				_text(ci, Money.format(int(float(p[k - 3]) * lb)), Vector2(x0 + sz + 56, y + 30 + j * 26), 22, COND, CREAM, "left")
 	for i in tips.size():
-		_text(ci, tips[i], Vector2(640, 528 + i * 28), 19, COND, GOLD_HI if i == 3 else CREAM, "center", 0, 1140)
+		_text(ci, str(tips[i]), Vector2(640, 528 + i * 28), 19, COND, GOLD_HI if i == tips.size() - 1 else CREAM, "center", 0, 1140)
 	_button(ci, "overlay", Rect2(1100, 56, 120, 44), "CLOSE")
 
 
@@ -1724,8 +1855,8 @@ func _draw_trail_hud(ci: CanvasItem) -> void:
 		_rr(ci, Rect2(cx, REEL_Y + 24, 150, 32), 8, Color("8a2a12"))
 		_text(ci, "COINS DOUBLED", Vector2(cx + 75, REEL_Y + 41), 20, COND, Color.WHITE)
 	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
-	_text(ci, "THE PISTOL", Vector2(1150, REEL_Y + 10), 22, COND, GOLD_HI, "center", 0, 196)
-	_text(ci, "moves 2 spaces per bullet" if tr.upgraded else "1 to 6 bullets a shot", Vector2(1150, REEL_Y + 34), 16, COND, CREAM, "center", 0, 196)
+	_text(ci, texts.launcher, Vector2(1150, REEL_Y + 10), 22, COND, GOLD_HI, "center", 0, 196)
+	_text(ci, texts.launcher_up if tr.upgraded else texts.launcher_hint, Vector2(1150, REEL_Y + 34), 16, COND, CREAM, "center", 0, 196)
 	var cyc := Vector2(1150, REEL_Y + 150)
 	var cyl := _tex("cylinder")
 	ci.draw_set_transform(cyc, float(tr.cyl), Vector2.ONE)

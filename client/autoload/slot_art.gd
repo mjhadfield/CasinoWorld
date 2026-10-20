@@ -4,7 +4,8 @@ extends Node
 ## picked on the admin page's Slots > Art tab swapped in over it. On connecting, and
 ## whenever the server says "slot_art_changed", this fetches /api/slots/art/manifest
 ## and downloads the pictures it names; `art_changed` tells cabinets and the screen
-## to redraw.
+## to redraw. A slot built with the Slot design wizard has no built-in set: the manifest
+## names every picture it draws, and its display and interface fonts (font()).
 
 signal art_changed
 
@@ -15,7 +16,8 @@ const ARMADILLO := ["W", "H1", "H2", "M1", "M2", "M3", "M4", "L1", "L2", "L3", "
 
 var _built_in := {}    # "variant/id" -> Texture2D
 var _picked := {}      # "variant/id" -> Texture2D (the admin page's choice)
-var _downloaded := {}  # URL -> Texture2D
+var _downloaded := {}  # URL -> Texture2D (or a FontFile, for a built slot's fonts)
+var _fonts := {}       # "variant/role" -> FontFile: a built slot's display and interface fonts
 var _version := -1
 var _loading := 0
 
@@ -31,6 +33,11 @@ func _ready() -> void:
 			reload())
 
 
+## A built slot's font ("display" or "ui"), or null: the screen then uses Armadillo's.
+func font(variant: String, role: String) -> Font:
+	return _fonts.get(variant + "/" + role)
+
+
 ## A slot picture (or null if it has none).
 func tex(variant: String, id: String) -> Texture2D:
 	var key := variant + "/" + id
@@ -43,24 +50,66 @@ func reload() -> void:
 	var manifest = await _get_json(_base_url() + "/api/slots/art/manifest")
 	if serial != _loading or not manifest is Dictionary or not manifest.get("variants") is Dictionary:
 		return
+	var font_urls: Dictionary = manifest.get("fonts", {}) if manifest.get("fonts") is Dictionary else {}
+	# Everything not already here, downloaded at once (a built slot brings two dozen pictures and its fonts).
+	var wanted := []
+	for variant in manifest.variants:
+		for id in manifest.variants[variant]:
+			wanted.append(str(manifest.variants[variant][id]))
+	for variant in font_urls:
+		for role in font_urls[variant]:
+			wanted.append(str(font_urls[variant][role]))
+	var bodies := await _fetch_all(wanted.filter(func(u): return not _downloaded.has(u)))
+	if serial != _loading:
+		return
+	for url in bodies:
+		var body: PackedByteArray = bodies[url]
+		if url.contains("/fonts/"):
+			var f := FontFile.new()
+			f.data = body
+			_downloaded[url] = f
+		else:
+			var img := Image.new()
+			if img.load_png_from_buffer(body) == OK:
+				img.generate_mipmaps()
+				_downloaded[url] = ImageTexture.create_from_image(img)
 	var picked := {}
 	for variant in manifest.variants:
-		var assets: Dictionary = manifest.variants[variant]
-		for id in assets:
-			var url := str(assets[id])
-			if not _downloaded.has(url):
-				var body = await _fetch(_base_url() + url)
-				if serial != _loading:
-					return
-				var img := Image.new()
-				if body is PackedByteArray and img.load_png_from_buffer(body) == OK:
-					img.generate_mipmaps()
-					_downloaded[url] = ImageTexture.create_from_image(img)
+		for id in manifest.variants[variant]:
+			var url := str(manifest.variants[variant][id])
 			if _downloaded.has(url):
 				picked[variant + "/" + id] = _downloaded[url]
+	var fonts := {}
+	for variant in font_urls:
+		for role in font_urls[variant]:
+			var url := str(font_urls[variant][role])
+			if _downloaded.has(url):
+				fonts[variant + "/" + role] = _downloaded[url]
 	_picked = picked
+	_fonts = fonts
 	_version = int(manifest.get("version", 0))
 	art_changed.emit()
+
+
+## Downloads every URL at once; url -> body for those that came back. (Each request records its own result as it
+## completes, so none is missed by waiting on them in turn.)
+func _fetch_all(urls: Array) -> Dictionary:
+	var out := {}
+	var left := [urls.size()]
+	for url in urls:
+		var http := HTTPRequest.new()
+		add_child(http)
+		http.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
+			if result == HTTPRequest.RESULT_SUCCESS and code == 200 and body.size() > 0:
+				out[url] = body
+			left[0] -= 1
+			http.queue_free())
+		if http.request(_base_url() + url) != OK:
+			left[0] -= 1
+			http.queue_free()
+	while left[0] > 0:
+		await get_tree().process_frame
+	return out
 
 
 func _base_url() -> String:
