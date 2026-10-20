@@ -1,5 +1,6 @@
 // Step 2, Art: a section per category (with how many the main game needs) and a card per symbol. Cycle the takes,
-// pick a frame colour, tick the final set, link references, Reiterate, Refine, Fit, and bin what's not wanted.
+// pick a frame colour, tick the final set, link references, Reiterate (1, 3 or 5 takes), Refine, Fit, bin what's not
+// wanted, move a symbol to another section, and hide symbols not in use (Show › Hidden brings them back).
 // Polling only redraws cards that changed, and never one you're typing in or saving: that card is left behind
 // (behind(), which keeps the wizard polling) and catches up once you've left it.
 const HUE = {gold: "#d39a26", red: "#d0562e", blue: "#3a7be0", purple: "#9550d8", silver: "#9aa4b2", green: "#3fae4c"};
@@ -22,17 +23,20 @@ export function render(ctx, body) {
   if (C.did !== lastDid) { drafts.clear(); open.clear(); lastDid = C.did; }
   els.sum = el("div", {className: "dz-sum"});
   els.gen = el("button", {type: "button", className: "primary", onclick: generate});
+  els.stop = el("button", {type: "button", onclick: cancelAll});
+  els.tidy = el("button", {type: "button", onclick: hideUnused,
+    title: "Hide every symbol that isn't in the final set, on the ladder or followed by an art slot (and isn't marked or being made)"});
   els.board = el("div");
   const seg = el("span", {className: "seg", role: "group", ariaLabel: "Show"},
-    ...[["all", "All"], ["keep", "In set"], ["open", "Not in set"], ["marked", "Marked"]].map(([f, t]) =>
+    ...[["all", "All"], ["keep", "In set"], ["open", "Not in set"], ["marked", "Marked"], ["hidden", "Hidden"]].map(([f, t]) =>
       el("button", {type: "button", textContent: t, ariaPressed: String(f === filter), onclick: e => {
         filter = f;
         for (const b of seg.children) b.ariaPressed = String(b === e.currentTarget);
         for (const s of C.data.symbols) { const r = rows.get(s.id); if (r) r.card.hidden = !visible(s); }
       }})));
   body.append(
-    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes three fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX). ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX."}),
-    el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.gen),
+    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no FLUX). ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to FLUX. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
+    el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
 }
@@ -44,9 +48,11 @@ export const behind = () => [...rows.values()].some(r => r.behind);
 
 const countTag = c => C.el("span", {
   className: "tag " + (c.required == null ? "" : c.in_set === c.required ? "ok" : c.in_set > c.required ? "warn" : "gold"),
-  textContent: c.required == null ? `${c.count} designed` : `${c.in_set} of ${c.required} in set · ${c.count} to choose from`});
+  textContent: (c.required == null ? `${c.count} designed` : `${c.in_set} of ${c.required} in set · ${c.count} to choose from`)
+    + (c.hidden ? ` · ${c.hidden} hidden` : "")});
 
 function visible(s) {
+  if (filter === "hidden" || s.hide) return filter === "hidden" && s.hide;
   return filter === "all" || (filter === "keep" && s.keep) || (filter === "open" && !s.keep)
     || (filter === "marked" && (s.reiterate || s.pending_new || !!s.job));
 }
@@ -57,7 +63,13 @@ function draw(full, force) {
     onclick: () => document.getElementById("dz-cat-" + c.id).scrollIntoView({behavior: "smooth"})}, c.title + " ", countTag(c))));
   els.gen.textContent = d.pending ? `Generate (${d.pending})` : "Generate";
   els.gen.disabled = !d.pending;
-  els.gen.title = d.pending ? "Make three takes of every symbol marked Reiterate or newly added" : "Mark a symbol Reiterate, or add a New one, first";
+  els.gen.title = d.pending ? "Make the takes asked for on every symbol marked Reiterate (three for a newly added one)" : "Mark a symbol Reiterate, or add a New one, first";
+  els.stop.textContent = `Cancel all (${d.art_jobs})`;
+  els.stop.hidden = !d.art_jobs;
+  els.stop.title = "Cancel every Art job that's queued, waiting, being made or failed. The picture FLUX is drawing now is thrown away.";
+  const unused = d.symbols.filter(s => !s.hide && !s.in_use && !s.reiterate && !s.pending_new && !s.job).length;
+  els.tidy.textContent = `Hide unused (${unused})`;
+  els.tidy.disabled = !unused;
   if (full || !cats.size) {
     rows.clear(); cats.clear();
     els.board.replaceChildren(...d.categories.map(c => {
@@ -106,7 +118,9 @@ function draw(full, force) {
           rows.set(s.id, {card, json});
         }
       }
-      rows.get(s.id).card.hidden = !visible(s);
+      const card = rows.get(s.id).card;
+      if (card.parentElement !== cat.list) cat.list.append(card);   // moved to this section
+      card.hidden = !visible(s);
     }
   }
   for (const [sid, row] of rows) {
@@ -126,7 +140,25 @@ function redraw(sid) {
 async function generate() {
   try {
     const r = await C.api("POST", `/api/slot-design/${C.did}/generate`);
-    C.status(`Queued ${r.queued} job${r.queued === 1 ? "" : "s"}: three takes each. They appear here as FLUX finishes them.`, "ok");
+    C.status(`Queued ${r.queued} job${r.queued === 1 ? "" : "s"}. The takes appear here as FLUX finishes them.`, "ok");
+    await C.refresh();
+  } catch (e) { C.status(e.message, "warn"); }
+}
+
+async function cancelAll() {
+  const n = C.data.art_jobs;
+  if (!confirm(`Cancel all ${n} Art job${n === 1 ? "" : "s"}? The picture FLUX is drawing now is thrown away; takes already made stay.`)) return;
+  try {
+    const r = await C.api("DELETE", `/api/slot-design/${C.did}/jobs`);
+    C.status(`Cancelled ${r.cancelled} job${r.cancelled === 1 ? "" : "s"}.`, "ok");
+    await C.refresh();
+  } catch (e) { C.status(e.message, "warn"); }
+}
+
+async function hideUnused() {
+  try {
+    const r = await C.api("POST", `/api/slot-design/${C.did}/hide-unused`);
+    C.status(`Hid ${r.hidden} symbol${r.hidden === 1 ? "" : "s"} not in use. Show › Hidden brings them back.`, "ok");
     await C.refresh();
   } catch (e) { C.status(e.message, "warn"); }
 }
@@ -192,7 +224,8 @@ function jobBits(s) {
   };
   return [el("span", {className: "tag " + (j.status === "failed" ? "warn" : "gold"), textContent: (j.action === "refine" ? "Refine: " : "") + text, title: j.error || ""}),
     j.status === "failed" ? el("button", {type: "button", textContent: "Retry", onclick: go("POST", "/retry")}) : null,
-    j.status !== "running" ? el("button", {type: "button", textContent: "Cancel", onclick: go("DELETE", "")}) : null];
+    el("button", {type: "button", textContent: "Cancel", title: j.status === "running" ? "Stop: the picture FLUX is drawing now is thrown away" : "",
+      onclick: go("DELETE", "")})];
 }
 
 function symRow(s) {
@@ -217,12 +250,21 @@ function symRow(s) {
       el("button", {type: "button", textContent: "Refine", ariaPressed: String(tool === "refine"), onclick: toggle("refine")}),
       el("button", {type: "button", textContent: "Fit", ariaPressed: String(tool === "fit"), onclick: toggle("fit")})) : null);
 
+  const section = el("select", {className: "dz-section", ariaLabel: `Section for ${s.name}`, title: "Section: choose another to move it there"},
+    ...C.data.categories.map(c => el("option", {value: c.id, textContent: c.title})));
+  section.value = s.category;
+  section.addEventListener("change", () => patch(s, {category: section.value}));
   const head = el("div", {className: "card-head"}, el("h3", {textContent: s.name}),
     el("span", {className: "tag", textContent: s.kind === "character" ? "character · framed" : "object"}),
+    s.hide ? el("span", {className: "tag", textContent: "hidden"}) : null,
     s.pending_new ? el("span", {className: "tag gold", textContent: "new · waiting for Generate"}) : null, ...jobBits(s),
     el("label", {className: "confirm", style: "margin-left:auto"},
       el("input", {type: "checkbox", checked: s.keep, onchange: e => patch(s, {keep: e.target.checked})}), "In final set"),
+    section,
     s.binned.length ? el("button", {type: "button", textContent: `Bin (${s.binned.length})`, ariaPressed: String(tool === "bin"), onclick: toggle("bin")}) : null,
+    s.hide ? el("button", {type: "button", textContent: "Unhide", onclick: () => patch(s, {hide: false})})
+      : s.in_use ? null : el("button", {type: "button", textContent: "Hide", title: "Not in use: take it off the board (Show › Hidden brings it back)",
+        onclick: () => patch(s, {hide: true})}),
     s.added ? el("button", {type: "button", textContent: "Remove", onclick: async () => {
       if (!confirm(`Remove ${s.name} from the board? Its images stay in the design folder.`)) return;
       try { await C.api("DELETE", sym(s.id)); await C.refresh(); } catch (e) { C.status(e.message, "warn"); }
@@ -254,9 +296,11 @@ function symRow(s) {
     ...s.refs.map((r, k) => el("option", {value: r, textContent: `From reference ${k + 1}`})));
   base.value = s.base || "";
   base.addEventListener("change", () => patch(s, {base: base.value || null}));
-  const re = el("div", {className: "dz-re"}, el("div", {className: "controls"},
-    el("label", {className: "confirm"}, el("input", {type: "checkbox", checked: s.reiterate,
-      onchange: e => patch(s, {reiterate: e.target.checked})}), "Reiterate: make 3 more takes"), base), note);
+  const takes = el("span", {className: "seg", role: "group", ariaLabel: `Reiterate ${s.name}`},
+    ...[0, 1, 3, 5].map(n => el("button", {type: "button", textContent: n ? `${n} take${n === 1 ? "" : "s"}` : "No",
+      ariaPressed: String(s.reiterate ? n === s.takes : !n),
+      onclick: () => patch(s, n ? {reiterate: true, takes: n} : {reiterate: false})})));
+  const re = el("div", {className: "dz-re"}, el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base), note);
 
   let prompt = null;
   if (s.added || s.prompt) {

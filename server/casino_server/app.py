@@ -642,6 +642,16 @@ def slot_design_generate(design: str, request: Request):
     return {"queued": _design_call(request.app.state.slot_design.generate, design)}
 
 
+@app.delete("/api/slot-design/{design}/jobs")
+def slot_design_cancel_all(design: str, request: Request):
+    return {"cancelled": _design_call(request.app.state.slot_design.cancel_all, design)}
+
+
+@app.post("/api/slot-design/{design}/hide-unused")
+def slot_design_hide_unused(design: str, request: Request):
+    return {"hidden": _design_call(request.app.state.slot_design.hide_unused, design)}
+
+
 @app.post("/api/slot-design/{design}/jobs/{job_id}/retry")
 def slot_design_retry(design: str, job_id: int, request: Request):
     _design_call(request.app.state.slot_design.retry, design, job_id)

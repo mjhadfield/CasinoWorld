@@ -58,6 +58,7 @@
 .dz-link[hidden] { display: none; }
 .dz-link .controls input[type=url] { flex: 1 1 220px; }
 .dz-re { display: grid; gap: 6px; }
+.dz-section { font-size: 12px; padding: 2px 6px; max-width: 13em; }
 .dz-main textarea, .dz-new textarea { font: 13px var(--font); padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 2.6em; width: 100%; }
 .dz-re textarea:disabled { opacity: .5; }
 .dz-new { border-style: dashed; }

@@ -21,7 +21,11 @@ migrations in Design._migrate (applied when the server loads a design), never ha
 
 Generate queues a job per symbol marked Reiterate or newly added; one background task (run(), on
 app.state for the server's lifespan) works through them with FLUX in Odysseus (slot_design_art.py).
-Jobs live in design.json, so a restart carries on where it stopped.
+Jobs live in design.json, so a restart carries on where it stopped. Cancelling a running job throws away
+the picture FLUX is drawing and stops there.
+
+A symbol not in use (not in the final set, on the ladder or followed by an art slot) can be hidden from
+the Art board ("hide"); nothing about it changes otherwise.
 """
 import asyncio
 import hashlib
@@ -43,13 +47,15 @@ from casino_server.slot_design_steps import (DesignError, StepsMixin, art_view, 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
 SERVED = ("source", "ref", "links", "cut", "chars", "scene", "adj")   # adj: art slots with their adjustments baked in
 MAX_IMAGE = 12 * 1024 * 1024
-TAKES = 3  # images per job
+TAKES = 3  # images per job (a Reiterate can ask for 1, 3 or 5)
+TAKE_CHOICES = (1, 3, 5)
 KINDS = ("object", "character")
 KEYS = ("magenta", "green")
 STEPS = [("concept", "Concept"), ("art", "Art"), ("ladder", "Value ladder"), ("scene", "Scene"),
          ("features", "Features"), ("bonuses", "Bonus games"), ("sprites", "Sprites"), ("sounds", "Sounds"),
          ("maths", "Maths & payouts"), ("mockup", "Mockup & sign-off"), ("build", "Build")]
 STATUSES = ("todo", "doing", "done")
+ACTIVE = ("queued", "waiting", "running", "failed")  # a job not yet done
 VOLATILITY = ("low", "medium", "high")
 # The house standard (Armadillo Goes West): 2 high pays, 4 mid, 4 low, a Wild and two scatters.
 TIER_SHAPE = {"high": 2, "mid": 4, "low": 4}
@@ -276,6 +282,7 @@ class DesignBoard(StepsMixin, BuildMixin):
         with self.lock:
             d = self.design(did)
             jobs = d.data["jobs"]
+            used = _in_use(d)
             symbols = []
             for s in d.data["symbols"]:
                 active = [j for j in jobs if j["symbol"] == s["id"] and j["status"] in ("queued", "waiting", "running", "failed")]
@@ -283,6 +290,7 @@ class DesignBoard(StepsMixin, BuildMixin):
                 symbols.append({
                     **{k: s.get(k) for k in ("id", "name", "category", "kind", "key", "keep_text", "prompt", "hue", "note", "base")},
                     "keep": bool(s.get("keep")), "reiterate": bool(s.get("reiterate")), "added": bool(s.get("added")),
+                    "takes": s.get("takes", TAKES), "hide": bool(s.get("hide")), "in_use": s["id"] in used,
                     "pending_new": bool(s.get("pending_new")), "refs": s.get("refs", []),
                     "variants": d.variants(s), "binned": d.binned(s), "fits": s.get("fits", {}),
                     "choice": v["id"] if v else None, "file": d.chosen_file(s),
@@ -290,7 +298,8 @@ class DesignBoard(StepsMixin, BuildMixin):
             categories = []
             for c in d.data["categories"]:
                 mine = [s for s in d.data["symbols"] if s["category"] == c["id"]]
-                categories.append({**c, "count": len(mine), "in_set": sum(bool(s.get("keep")) for s in mine)})
+                categories.append({**c, "count": len(mine), "in_set": sum(bool(s.get("keep")) for s in mine),
+                                   "hidden": sum(bool(s.get("hide")) for s in mine)})
             running = next((j for j in jobs if j["status"] in ("running", "waiting")), None)
             sources = sorted(f"source/{p.name}" for p in (d.folder / "source").glob("*.png")) \
                 if (d.folder / "source").is_dir() else []
@@ -304,7 +313,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                     "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),
                     "pending": sum(bool(s.get("reiterate") or s.get("pending_new")) for s in d.data["symbols"]),
-                    "queued": sum(j["status"] == "queued" for j in jobs), "running": running}
+                    "queued": sum(j["status"] == "queued" for j in jobs), "running": running,
+                    "art_jobs": sum(j["symbol"] is not None and j["status"] in ACTIVE for j in jobs)}
 
     def status(self, did: str) -> dict:
         with self.lock:
@@ -328,6 +338,19 @@ class DesignBoard(StepsMixin, BuildMixin):
                     s["hue"] = v
                 elif k in ("keep", "reiterate"):
                     s[k] = bool(v)
+                    if k == "keep" and v:
+                        s.pop("hide", None)  # in the set means in use
+                elif k == "takes":
+                    if v not in TAKE_CHOICES:
+                        raise DesignError("A Reiterate makes 1, 3 or 5 takes.")
+                    s["takes"] = v
+                elif k == "hide":
+                    if v and s["id"] in _in_use(d):
+                        raise DesignError(f"{s['name']} is in use: take it out of the final set, the ladder and any art slot first.")
+                    if v:
+                        s["hide"] = True
+                    else:
+                        s.pop("hide", None)
                 elif k in ("note", "prompt", "keep_text"):
                     s[k] = str(v or "").strip()[:500]
                 elif k == "name":
@@ -393,6 +416,20 @@ class DesignBoard(StepsMixin, BuildMixin):
             d.data["symbols"].remove(s)
             d.data["jobs"] = [j for j in d.data["jobs"] if not (j["symbol"] == sid and j["status"] in ("queued", "failed"))]
             d.save()
+
+    def hide_unused(self, did: str) -> int:
+        """Hide every symbol that isn't in use and has nothing in hand (no Reiterate mark, no job). Returns how many."""
+        with self.lock:
+            d = self.design(did)
+            used = _in_use(d)
+            busy = {j["symbol"] for j in d.data["jobs"] if j["status"] in ACTIVE}
+            n = 0
+            for s in d.data["symbols"]:
+                if not (s.get("hide") or s["id"] in used or s["id"] in busy or s.get("reiterate") or s.get("pending_new")):
+                    s["hide"] = True
+                    n += 1
+            d.save()
+            return n
 
     def update_category(self, did: str, cid: str, ch: dict) -> None:
         with self.lock:
@@ -660,11 +697,12 @@ class DesignBoard(StepsMixin, BuildMixin):
 
     # ------------------------------------------------------------- jobs
     def generate(self, did: str) -> int:
-        """Queue a job for every symbol marked Reiterate or newly added. Returns how many were queued."""
+        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (3). Returns how many."""
         with self.lock:
             d = self.design(did)
             queued = 0
             for s in d.data["symbols"]:
+                count = TAKES
                 if s.get("pending_new"):
                     ref = s["refs"][0] if s.get("refs") else None
                     job = {"how": "redraw" if ref else "text", "src": ref, "text": s.get("prompt", ""),
@@ -674,9 +712,10 @@ class DesignBoard(StepsMixin, BuildMixin):
                     job = self._reiterate_job(d, s)
                     s["reiterate"] = False
                     s.setdefault("history", []).append({"from": job["src"], "note": job["text"]})
+                    count = s.get("takes", TAKES)
                 else:
                     continue
-                self._queue(d, s, job)
+                self._queue(d, s, job, count)
                 queued += 1
             d.save()
             return queued
@@ -721,10 +760,19 @@ class DesignBoard(StepsMixin, BuildMixin):
         with self.lock:
             d = self.design(did)
             job = next((j for j in d.data["jobs"] if j["id"] == job_id), None)
-            if not job or job["status"] not in ("queued", "failed", "waiting"):
-                raise DesignError("Only a queued, waiting or failed job can be cancelled.")
-            d.data["jobs"].remove(job)
+            if not job or job["status"] not in ACTIVE:
+                raise DesignError("That job has already finished.")
+            d.data["jobs"].remove(job)  # a running one: run() sees it's gone and stops
             d.save()
+
+    def cancel_all(self, did: str) -> int:
+        """Cancel every Art job not yet done (queued, waiting, running or failed); the Scene's are left alone."""
+        with self.lock:
+            d = self.design(did)
+            jobs = d.data["jobs"]
+            d.data["jobs"] = [j for j in jobs if j["symbol"] is None or j["status"] not in ACTIVE]
+            d.save()
+            return len(jobs) - len(d.data["jobs"])
 
     def _next_job(self):
         with self.lock:
@@ -772,6 +820,8 @@ class DesignBoard(StepsMixin, BuildMixin):
         else:
             tile = art.symbol(raw)
         with self.lock:
+            if not _live(d, job):
+                raise Cancelled()
             for sub in ("raw", "cut", "chars"):
                 (d.folder / sub).mkdir(exist_ok=True)
             n = max(n, d.next_n(prefix))  # in case a file appeared meanwhile
@@ -793,6 +843,8 @@ class DesignBoard(StepsMixin, BuildMixin):
             theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
         im = art.flux_generate(art.themed(art.background_prompt(job["text"]), theme), "1344x768")
         with self.lock:
+            if not _live(d, job):
+                raise Cancelled()
             out = self._next_scene(d, "bg")
             art.fit_cover(im, (1280, 720)).save(d.folder / out)
             d.data.setdefault("scene", {}).setdefault("background", out)
@@ -811,12 +863,17 @@ class DesignBoard(StepsMixin, BuildMixin):
                 await asyncio.sleep(15)
                 continue
             with self.lock:
-                if job not in d.data["jobs"]:  # cancelled while waiting
+                if not _live(d, job):  # cancelled while waiting
                     continue
             self._set(d, job, status="running")
             while job["done"] < job["count"]:
+                with self.lock:
+                    if not _live(d, job):  # cancelled between pictures
+                        break
                 try:
                     made = await asyncio.to_thread(self.make_one, d, job)
+                except Cancelled:
+                    break
                 except (art.FluxError, DesignError, OSError) as e:
                     self._set(d, job, status="failed", error=str(e))
                     break
@@ -826,3 +883,19 @@ class DesignBoard(StepsMixin, BuildMixin):
                     d.save()
             else:
                 self._set(d, job, status="done")
+
+
+class Cancelled(Exception):
+    """The job was cancelled while FLUX drew its picture: the picture is thrown away."""
+
+
+def _live(d: Design, job: dict) -> bool:
+    return any(j is job for j in d.data["jobs"])
+
+
+def _in_use(d: Design) -> set[str]:
+    """Symbols in use: in the final set, on the value ladder (scatters too) or followed by an art slot."""
+    used = {s["id"] for s in d.data["symbols"] if s.get("keep")}
+    used |= set(d.data.get("ladder", {}).get("slots", {}).values())
+    used |= {v[4:] for v in d.data.get("art_slots", {}).values() if isinstance(v, str) and v.startswith("sym:")}
+    return used

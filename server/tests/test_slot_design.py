@@ -180,6 +180,79 @@ def test_a_failed_job_can_be_retried(board, monkeypatch):
     assert _sym(_overview(c), "ship")["job"] is None
 
 
+
+def test_reiterate_makes_one_three_or_five_takes(board):
+    c, _ = board
+    assert c.patch("/api/slot-design/demo/symbols/ship", json={"reiterate": True, "takes": 4}).status_code == 400
+    c.patch("/api/slot-design/demo/symbols/ship", json={"choice": "cut/ship_4.png", "reiterate": True, "takes": 5})
+    c.patch("/api/slot-design/demo/symbols/hero", json={"reiterate": True, "takes": 1})
+    assert _sym(_overview(c), "ship")["takes"] == 5
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    o = _overview(c)
+    assert [v["id"] for v in _sym(o, "ship")["variants"]][2:] == [f"cut/ship_{n}.png" for n in range(5, 10)]
+    assert [v["id"] for v in _sym(o, "hero")["variants"]] == ["bust/hero_1", "bust/hero_2"]
+    assert _sym(o, "ship")["takes"] == 5  # remembered for next time
+
+
+def test_cancel_all_stops_the_running_job_and_drops_its_picture(board, monkeypatch):
+    import threading
+    c, d = board
+    drawing, go = threading.Event(), threading.Event()
+    def slow(*a):
+        drawing.set()
+        go.wait(10)
+        return _fake_flux()
+    monkeypatch.setattr(art, "flux_edit", slow)
+    c.patch("/api/slot-design/demo/symbols/ship", json={"choice": "cut/ship_4.png", "reiterate": True})
+    c.patch("/api/slot-design/demo/symbols/hero", json={"reiterate": True})
+    c.post("/api/slot-design/demo/generate")
+    assert drawing.wait(10)
+    o = _overview(c)
+    assert o["art_jobs"] == 2 and o["running"]["status"] == "running"
+    assert c.delete("/api/slot-design/demo/jobs").json()["cancelled"] == 2
+    go.set()
+    _wait_idle(c)
+    o = _overview(c)
+    assert o["art_jobs"] == 0 and all(s["job"] is None for s in o["symbols"])
+    assert not (d / "cut/ship_5.png").exists() and not (d / "raw/bust_hero_2.png").exists()
+    # one job on its own, running, can be cancelled too
+    drawing.clear(); go.clear()
+    c.patch("/api/slot-design/demo/symbols/ship", json={"reiterate": True, "takes": 3})
+    c.post("/api/slot-design/demo/generate")
+    assert drawing.wait(10)
+    job = _sym(_overview(c), "ship")["job"]
+    assert c.delete(f"/api/slot-design/demo/jobs/{job['id']}").status_code == 200
+    go.set()
+    _wait_idle(c)
+    assert not (d / "cut/ship_5.png").exists()
+
+
+def test_hiding_symbols_not_in_use_and_moving_sections(board):
+    c, d = board
+    c.post("/api/slot-design/demo/symbols", json={"name": "Moon", "category": "set2", "prompt": "a cratered moon"})
+    c.patch("/api/slot-design/demo/symbols/ship", json={"keep": True})
+    o = _overview(c)
+    assert _sym(o, "ship")["in_use"] and not _sym(o, "hero")["in_use"]
+    assert c.patch("/api/slot-design/demo/symbols/ship", json={"hide": True}).status_code == 400
+    # Hide unused skips what's in use and what's waiting to be made (the new Moon)
+    assert c.post("/api/slot-design/demo/hide-unused").json()["hidden"] == 1
+    o = _overview(c)
+    assert _sym(o, "hero")["hide"] and not _sym(o, "moon")["hide"]
+    assert next(k for k in o["categories"] if k["id"] == "set1")["hidden"] == 1
+    assert c.patch("/api/slot-design/demo/symbols/hero", json={"hide": False}).status_code == 200
+    assert not _sym(_overview(c), "hero")["hide"]
+    c.patch("/api/slot-design/demo/symbols/hero", json={"hide": True})
+    c.patch("/api/slot-design/demo/symbols/hero", json={"keep": True})  # into the set: back on the board
+    assert not _sym(_overview(c), "hero")["hide"]
+    # an art slot following a symbol puts it in use
+    c.patch("/api/slot-design/demo/symbols/moon", json={"category": "bonus"})
+    c.put("/api/slot-design/demo/art-slots/armadillo", json={"value": "sym:moon"})
+    o = _overview(c)
+    assert _sym(o, "moon")["in_use"] and _sym(o, "moon")["category"] == "bonus"
+    assert [(k["id"], k["count"]) for k in o["categories"]] == [("set1", 1), ("set2", 1), ("bonus", 1)]
+    assert c.patch("/api/slot-design/demo/symbols/moon", json={"category": "nope"}).status_code == 400
+
 def test_keying_and_the_shared_frame():
     tiles = art.compose_character(_fake_flux())
     assert set(tiles) == set(art.HUES) and all(t.size == (512, 512) for t in tiles.values())
