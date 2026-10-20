@@ -3,7 +3,7 @@
 import {createGame} from "../mockup/game.js";
 import {designConfig, loadMath} from "../mockup/design.js";
 
-let C, game = null, parts = {};
+let C, game = null, parts = {}, bgBehind = false;
 
 export function render(ctx, body) {
   C = ctx;
@@ -26,6 +26,9 @@ export function render(ctx, body) {
 }
 
 export function leave() { if (game) { game.destroy(); game = null; } }
+
+// Is the Background pane showing older data (left alone while you type or pick in it)? The wizard keeps refreshing.
+export const behind = () => bgBehind;
 
 export function update(ctx) {
   C = ctx;
@@ -56,7 +59,10 @@ const boardImages = () => [
 // ------------------------------------------------------------------ background
 function drawBg() {
   const {el} = C, sc = C.data.scene;
-  if (parts.bg.contains(document.activeElement)) return;
+  // Don't redraw under a description being typed or a picker being used (a pressed button is fine to redraw).
+  const a = document.activeElement;
+  bgBehind = parts.bg.contains(a) && a.matches("textarea, select");
+  if (bgBehind) return;
   const jobs = C.data.scene_jobs || [];
   const desc = el("textarea", {rows: 2, ariaLabel: "Describe the background", placeholder: "e.g. a starship bridge looking out on a nebula, dim and moody"});
   const file = el("input", {type: "file", accept: "image/png,image/jpeg,image/webp", ariaLabel: "Upload a background"});
@@ -75,7 +81,7 @@ function drawBg() {
       ...sc.backgrounds.map(p => el("button", {type: "button", ariaPressed: String(sc.background === p), title: p.split("/")[1],
         onclick: () => patch({background: p}, "Background chosen.")}, el("img", {src: C.img(p), alt: p, className: "wide", loading: "lazy"})))),
     ...jobs.map(j => el("p", {className: "hint", textContent: `Background: ${{queued: "queued", waiting: "waiting for FLUX", running: `making ${j.done + 1} of ${j.count}`, failed: "failed: " + j.error}[j.status]}`})),
-    el("label", {className: "field"}, el("span", {textContent: "Generate (three takes, about a minute each)"}), desc),
+    el("label", {className: "field"}, el("span", {textContent: "Generate (three takes, about two minutes each)"}), desc),
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Generate", onclick: async () => {
       try { await C.api("POST", `/api/slot-design/${C.did}/scene/backgrounds`, {description: desc.value}); desc.value = ""; C.status("Background queued: the takes appear here as FLUX finishes them.", "ok"); await C.refresh(); }
       catch (e) { C.status(e.message, "warn"); }

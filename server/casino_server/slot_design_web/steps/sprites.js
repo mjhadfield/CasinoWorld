@@ -47,9 +47,12 @@ async function patch(body) {
   } catch (e) { C.status(e.message, "warn"); }
 }
 
+// A field in use here (not a button just pressed, which is fine to redraw under).
+const held = root => root.contains(document.activeElement) && document.activeElement.tagName !== "BUTTON";
+
 function draw() {
   const {el} = C, sp = C.data.sprites;
-  if (!parts.win.contains(document.activeElement)) parts.win.replaceChildren(...GROUPS.map(([g, label]) => {
+  if (!held(parts.win)) parts.win.replaceChildren(...GROUPS.map(([g, label]) => {
     const w = sp.win[g];
     const preset = el("select", {ariaLabel: `${label}: animation`}, ...sp.presets.map(p => el("option", {value: p, textContent: p})));
     preset.value = w.preset;
@@ -59,7 +62,7 @@ function draw() {
     preset.addEventListener("change", send); strength.addEventListener("change", send); colour.addEventListener("change", send);
     return el("div", {className: "wz-row"}, el("b", {textContent: label}), preset, strength, colour);
   }));
-  if (!parts.theme.contains(document.activeElement)) {
+  if (!held(parts.theme)) {
     const fontSel = (key, label) => {
       const s = el("select", {ariaLabel: label}, ...sp.font_list.map(f => el("option", {value: f, textContent: f.replace(/\.(ttf|otf)$/i, "")})));
       s.value = sp.fonts[key];
