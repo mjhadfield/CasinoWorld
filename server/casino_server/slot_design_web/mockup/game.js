@@ -1,6 +1,6 @@
 /* The Slot design wizard's mockup: the signed-off Armadillo mockup (docs/slots/mockup/game.js) made to play any
-   design. The full-screen slot game: reels, feature choreography, wins, the deck, the shared meters, and the three
-   bonus scenes (Trail, Combo Free Games, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
+   design. The full-screen slot game: reels, feature choreography, wins, the deck, the shared meters, and the four
+   bonus scenes (Trail, Combo Free Games, the wave battle, Jackpot Pick), drawn on one 1280x720 canvas laid out the way the Godot
    SlotScreen is. createGame(canvas, cfg) plays cfg.variant (a SlotMath variant) with cfg's art, logo, background,
    frame, theme and texts (design.js builds cfg from a design); setConfig swaps them live, destroy stops it. */
 export function createGame(cv, cfg) {
@@ -73,7 +73,8 @@ export function createGame(cv, cfg) {
     DECK = deckLook(c.deck || { style: FRAME.style }, FRAME.colour);
     TEXT = Object.assign({ tagline: "GOOD LUCK", title: [V.name.toUpperCase()], bonus: ["3+ BONUS", "TRAIL BONUS"],
                            free: ["3+ FREE SPINS", "3 COMBO FREE GAMES"], trailHint: "fire to move along the trail",
-                           pistol: "THE PISTOL", freeName: "COMBO FREE GAMES" }, c.texts || {});
+                           pistol: "THE PISTOL", freeName: "COMBO FREE GAMES", battle: "RED ALERT", battleHint: "tap a ship to fire",
+                           enemy: "ENEMY SHIP", boss: "FLAGSHIP" }, c.texts || {});
     LABELS = c.labels !== false;
   }
   setConfig(cfg);
@@ -84,7 +85,7 @@ export function createGame(cv, cfg) {
     grid: null, landed: false, wins: [], showLines: [], cycle: 0, cycleAt: 0, winShown: 0, winTarget: 0,
     message: "25 LINES \u00b7 " + TEXT.tagline, featureLit: {}, multiplier: 1, cellFx: {}, banner: null,
     overlay: null, particles: [], tweens: [], waits: [], hurry: false, hits: [], free: null, colossal: null,
-    trail: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
+    trail: null, battle: null, pick: null, rig: { features: [], trigger: null, jackpot: null }, shake: 0, flyers: [],
     meters: {}, metersShown: {}, now: 0, hover: null, roller: null,
   };
   for (const t of M.JACKPOT_TIERS) {
@@ -337,7 +338,7 @@ export function createGame(cv, cfg) {
     ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 7); ctx.fillStyle = DECK.ring; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fillStyle = g; ctx.fill();
     ctx.lineWidth = hov ? 5 : 3; ctx.strokeStyle = C.goldHi; ctx.stroke();
-    text(spinning ? "STOP" : S.mode === "trail" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, C.ink);
+    text(spinning ? "STOP" : S.mode === "trail" || S.mode === "battle" ? "FIRE" : "SPIN", cx, cy + 2, 28, COND, C.ink);
     S.hits.push({ id: "spin", x: cx - r, y: cy - r, w: r * 2, h: r * 2 });
     button("cashout", 1172, y + 22, 96, 56, "CASH OUT", { size: 18, disabled: S.busy || S.mode !== "reels" });
     if (S.autoMenu) {
@@ -640,6 +641,7 @@ export function createGame(cv, cfg) {
     if (jackpot) await jackpotPick(jackpot);
     if (o.trigger === "trail") await trailBonus(b, false);
     else if (o.trigger === "free") await freeGames(b);
+    else if (o.trigger === "battle") await battleBonus(b, false);
     S.busy = false;
     const stopAuto = o.trigger || jackpot || o.total >= 25 * b;
     if (S.auto > 0) { S.auto = stopAuto ? 0 : S.auto - 1; if (S.auto > 0) setTimeout(() => spin(), 450 / pace()); }
@@ -785,16 +787,18 @@ export function createGame(cv, cfg) {
   // ------------------------------------------------------------------ ways in
   // Which bonuses a way in plays ("BS", "FS" or "buy"); several means one of them at random.
   const routes = (way) => (V.routes || M.ROUTES)[way] || [];
-  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : TEXT.free[1]).join(" OR ");
+  const plays = (kinds) => kinds.map((k) => k === "trail" ? TEXT.bonus[1] : k === "battle" ? TEXT.battle : TEXT.free[1]).join(" OR ");
   const buyIcon = () => M.SCATTERS.find((s) => routes("buy").some((k) => routes(s).includes(k))) || "BS";
-  function playBonus(kind, b, bought) { return kind === "free" ? freeGames(b, bought) : trailBonus(b, bought); }
+  function playBonus(kind, b, bought) { return kind === "free" ? freeGames(b, bought) : kind === "battle" ? battleBonus(b, bought) : trailBonus(b, bought); }
 
   // ------------------------------------------------------------------ Combo Free Games
-  async function freeGames(b, bought = false) {
-    S.free = { n: 0, of: V.freeGames, total: 0 };
-    await banner(TEXT.freeName, bought ? "bought for " + money(b * V.buyCost) : `${V.freeGames} games \u00b7 a random feature every spin`, 2.2);
-    for (let i = 1; i <= V.freeGames; i++) {
-      S.free.n = i; S.message = `FREE GAME ${i} OF ${V.freeGames}`;
+  // `games`: how many (a battle's ships give their own number; otherwise the slot's).
+  async function freeGames(b, bought = false, games = 0) {
+    const n = games || V.freeGames;
+    S.free = { n: 0, of: n, total: 0 };
+    await banner(TEXT.freeName, bought ? "bought for " + money(b * V.buyCost) : games ? `${n} won in ${TEXT.battle.toLowerCase()} \u00b7 a random feature every spin` : `${n} games \u00b7 a random feature every spin`, 2.2);
+    for (let i = 1; i <= n; i++) {
+      S.free.n = i; S.message = `FREE GAME ${i} OF ${n}`;
       clearWins(); S.winShown = S.winTarget = S.free.total;
       const o = M.spinOutcome(V, b, rng, { free: true });
       await playSpin(o);
@@ -803,7 +807,7 @@ export function createGame(cv, cfg) {
     }
     const total = S.free.total;
     S.balance += total;
-    await summary(TEXT.freeName, `${V.freeGames} games at ${money(b)}`, total);
+    await summary(TEXT.freeName, `${n} games at ${money(b)}`, total);
     if (total >= 10 * b) await bigWin(total, b);
     S.free = null; S.message = `FREE GAMES PAID ${money(total)}`;
     clearWins(); S.winShown = S.winTarget = total;
@@ -1043,6 +1047,256 @@ export function createGame(cv, cfg) {
   }
   function fire() { if (S.trail && S.trail.waiting && S.trail.fire) { const f = S.trail.fire; S.trail.fire = null; f(); } }
 
+  // ------------------------------------------------------------------ the wave battle (Red Alert)
+  // Your ship on the left; each wave's ships in a loose formation on the right, drifting and cloaking now and then
+  // (only for show: a cloaked ship can't be targeted, and the draw is the same whichever ship you shoot). The scene
+  // fills the trail's area; the right-hand panel shows the wave, shields, what's banked and FIRE. Its timings match
+  // bonuses.py _BATTLE_SECONDS (0.6s for the beam, then each event's own).
+  const B_AREA = { x: 18, y: REEL_Y - 18, w: 1010, h: REEL_H + 36 };
+  const HERO = { x: 200, y: 352 };
+  const BOSS_AT = { x: 760, y: 385 };
+  const STARS = Array.from({ length: 140 }, () => ({ x: rng() * 1010, y: rng() * (REEL_H + 36), r: 0.6 + rng() * 1.8, v: 6 + rng() * 40 }));
+  function shipSpot(i, n) {
+    const rows = n <= 2 ? n : n <= 6 ? 2 : 3, cols = Math.ceil(n / rows), r = i % rows, c = Math.floor(i / rows);
+    const dx = cols > 1 ? 380 / (cols - 1) : 0, stagger = r % 2 ? Math.min(60, dx * 0.3) : 0;   // stays clear of the panel
+    return { x: (cols > 1 ? 510 + c * dx : 730) + stagger, y: rows > 1 ? 240 + r * (275 / (rows - 1)) : 378 };
+  }
+  const shipSize = (n) => n <= 6 ? 124 : 104;
+  function battleShips(n, t0) { return Array.from({ length: n }, (_, i) => ({ i, ...shipSpot(i, n), phase: (i * 0.618 + rng() * 0.2) % 1, born: t0, dead: 0, evade: 0 })); }
+  function shipPos(sh) {
+    return { x: sh.x + Math.cos(S.now * 0.9 + sh.i * 1.3) * 7 + Math.max(0, 1 - (S.now - sh.born) / 0.6) * 300, y: sh.y + Math.sin(S.now * 1.3 + sh.i * 1.7) * 9 };
+  }
+  // How cloaked a ship is (0 to 1): a 9-second cycle, cloaked for about a fifth of it, never while it's being shot,
+  // never for the last two, and never all of them at once (drawBattle picks one to stay visible).
+  function cloakOf(sh) {
+    const B = S.battle;
+    if (B.aim === sh.i || B.forced === sh.i) return 0;
+    return rawCloak(sh);
+  }
+  function rawCloak(sh) {
+    if (sh.evade && S.now - sh.evade < 1.2) return Math.sin(Math.min(1, (S.now - sh.evade) / 1.2) * Math.PI);   // it answered
+    if (S.battle.alive < 3) return 0;   // the last two ships stay in sight
+    const f = (S.now / 9 + sh.phase) % 1;
+    return f < 0.72 ? 0 : f < 0.76 ? (f - 0.72) / 0.04 : f < 0.9 ? 1 : f < 0.94 ? 1 - (f - 0.9) / 0.04 : 0;
+  }
+  function targetable() {
+    return S.battle.ships.filter((sh) => !sh.dead && S.now - sh.born > 0.6 && cloakOf(sh) < 0.5);
+  }
+  async function battleBonus(b, bought) {
+    const st = M.battleStart(V, b);
+    S.mode = "battle";
+    S.battle = { st, ships: battleShips(st.ships.length, S.now), shields: st.shields, total: 0, spins: 0, wave: 0, boss: null,
+                 beam: null, bolts: [], booms: [], shieldAt: -9, restoreAt: -9, heroDown: false, aim: null, waiting: false, autoAt: 0, alertAt: S.now };
+    await banner(TEXT.battle, bought ? "bought for " + money(b * V.buyCost) : TEXT.battleHint, 2.6);
+    while (!st.done) {
+      const B = S.battle;
+      B.waiting = true; B.autoAt = S.now + 8;
+      S.message = st.bossHp !== null ? `FIRE ON THE ${TEXT.boss} · SPACE OR CLICK FIRE` : "TAP A SHIP TO FIRE · SPACE FIRES AT ONE";
+      const target = await new Promise((res) => (B.fire = res));
+      B.waiting = false;
+      await animateShot(M.battleShot(V, st, rng, target));
+    }
+    await wait(0.8);
+    const total = st.total;
+    S.balance += total;
+    const spins = st.spins ? ` · ${st.spins} free game${st.spins > 1 ? "s" : ""} to come` : "";
+    await summary(st.won ? `${TEXT.boss} DESTROYED!` : TEXT.battle, `${st.cleared} of ${st.waves} waves cleared${spins}`, total);
+    if (total >= 10 * b) await bigWin(total, b);
+    S.mode = "reels"; S.battle = null; clearWins(); S.winShown = S.winTarget = total;
+    S.message = `${TEXT.battle} PAID ${money(total)}`;
+    if (st.spins) await freeGames(b, false, st.spins);
+  }
+  function fireBattle(target) {
+    const B = S.battle;
+    if (!B || !B.waiting || !B.fire) return;
+    if (target == null && B.st.bossHp === null) { const open = targetable(); target = open.length ? open[Math.floor(rng() * open.length)].i : null; }
+    const f = B.fire; B.fire = null; f(target);
+  }
+  function boom(x, y, size) { S.battle.booms.push({ x, y, size, t0: S.now, bits: Array.from({ length: 14 }, () => ({ a: rng() * 7, v: 0.4 + rng() })) }); }
+  function battlePop(txt, colour, x, y, size = 40) {
+    const f = flyer({ text: txt, x, y: y - 50, textSize: size, colour, s: 0.4 });
+    tween(f, { s: 1, y: y - 95 }, 0.35, ease.back).then(() => wait(0.7)).then(() => tween(f, { a: 0 }, 0.3)).then(() => (f.dead = true));
+  }
+  async function animateShot(shot) {
+    const B = S.battle, boss = shot.target === "boss";
+    const sh = boss ? null : B.ships[shot.target];
+    B.aim = boss ? null : shot.target;
+    const at = () => boss ? BOSS_AT : shipPos(sh);
+    B.beam = { to: at, t0: S.now };
+    await wait(0.6);
+    for (const e of shot.events) {
+      const p = at();
+      switch (e.kind) {
+        case "return_fire":
+          if (sh) sh.evade = S.now;
+          B.bolts.push({ from: { ...p }, t0: S.now }, { from: { x: p.x, y: p.y + 14 }, t0: S.now + 0.12 });
+          await wait(0.45);
+          B.shields = e.shields; B.shieldAt = S.now; S.shake = 0.5;
+          battlePop(e.shields > 0 ? `SHIELDS ${e.shields}/${B.st.maxShields}` : "SHIELDS FAILING", "#ff6a5a", HERO.x, HERO.y - 40, 34);
+          await wait(0.55); break;
+        case "shields_down":
+          B.heroDown = true; boom(HERO.x + 20, HERO.y, 150); S.shake = 1;
+          battlePop("SHIELDS DOWN", "#ff5a48", HERO.x + 60, HERO.y - 60, 46);
+          await wait(1.6); break;
+        case "destroyed":
+          sh.dead = S.now; boom(p.x, p.y, 110); B.aim = null;
+          if (e.spins) { B.spins += e.spins; battlePop(`+${e.spins} FREE GAME${e.spins > 1 ? "S" : ""}`, "#7fd0ff", p.x, p.y); }
+          else { B.total += e.pence; S.winTarget = B.total; S.roller = Math.max(e.pence * 1.4, bet()); battlePop(money(e.pence), C.win, p.x, p.y); }
+          await wait(0.9); break;
+        case "wave_clear":
+          B.total += e.pence; S.winTarget = B.total; S.roller = Math.max(e.pence, bet());
+          battlePop(`WAVE ${e.wave + 1} CLEARED  +${money(e.pence)}`, C.goldHi, 523, 330, 48);
+          coinBurst(523, 330, 30, 1);
+          await wait(1.0);
+          B.shields = B.st.maxShields; B.restoreAt = S.now;
+          await wait(0.8); break;
+        case "wave_start":
+          B.wave = e.wave; B.ships = battleShips(e.ships, S.now + 0.3);
+          battlePop(`WAVE ${e.wave + 1} OF ${B.st.waves}`, "#ff8a6a", 523, 300, 44);
+          await wait(1.6); break;
+        case "boss_start":
+          B.ships = []; B.boss = { hp: e.hp, max: e.hp, t0: S.now, hitAt: -9, dead: 0 }; S.shake = 0.6; B.alertAt = S.now;
+          battlePop(`${TEXT.boss} INCOMING`, "#ff5a48", 523, 220, 52);
+          await wait(2.4); break;
+        case "boss_hit":
+          B.boss.hp = e.hp; B.boss.hitAt = S.now; boom(p.x + (rng() - 0.5) * 120, p.y + (rng() - 0.5) * 80, 70);
+          await wait(0.7); break;
+        case "boss_destroyed":
+          B.boss.dead = S.now; boom(p.x, p.y, 320); S.shake = 1.2; coinRain(80);
+          B.total += e.pence; S.winTarget = B.total; S.roller = Math.max(e.pence, bet());
+          battlePop(`${TEXT.boss} DESTROYED  ${money(e.pence)}`, C.goldHi, 523, 300, 52);
+          await wait(2.6); break;
+      }
+    }
+    B.aim = null;
+  }
+  function drawBattle() {
+    const B = S.battle, st = B.st, A = B_AREA;
+    const alive = B.ships.filter((sh) => !sh.dead);
+    const hidden = alive.length > 0 && alive.every((sh) => rawCloak(sh) >= 0.5);
+    B.forced = hidden ? (alive.some((sh) => sh.i === B.forced) ? B.forced : alive[0].i) : null;
+    B.alive = alive.length;
+    ctx.save();
+    rr(A.x, A.y, A.w, A.h, 18); ctx.clip();
+    const sky = ctx.createLinearGradient(0, A.y, 0, A.y + A.h);
+    sky.addColorStop(0, "#03040c"); sky.addColorStop(1, "#0b1030");
+    ctx.fillStyle = sky; ctx.fillRect(A.x, A.y, A.w, A.h);
+    if (bgImg && ok(bgImg)) { ctx.globalAlpha = 0.25; ctx.drawImage(bgImg, A.x, A.y, A.w, A.h); ctx.globalAlpha = 1; }
+    for (const s of STARS) {
+      const x = A.x + ((s.x - S.now * s.v) % A.w + A.w) % A.w;
+      ctx.fillStyle = `rgba(220,230,255,${0.35 + s.r / 3})`; ctx.fillRect(x, A.y + s.y, s.r, s.r);
+    }
+    // red alert: the edges pulse red for a moment at the start and when the boss arrives
+    const alert = Math.max(0, 1 - (S.now - B.alertAt) / 3);
+    if (alert > 0) {
+      const g = ctx.createRadialGradient(523, 352, 200, 523, 352, 640);
+      g.addColorStop(0, "rgba(255,0,0,0)"); g.addColorStop(1, `rgba(255,30,20,${0.45 * alert * (0.6 + 0.4 * Math.sin(S.now * 10))})`);
+      ctx.fillStyle = g; ctx.fillRect(A.x, A.y, A.w, A.h);
+    }
+    // your ship and its shields
+    const hy = HERO.y + Math.sin(S.now * 1.1) * 6;
+    const hit = Math.max(0, 1 - (S.now - B.shieldAt) / 0.6), up = Math.max(0, 1 - (S.now - B.restoreAt) / 0.9);
+    const strength = B.shields / st.maxShields;
+    if (strength > 0 || hit > 0) {
+      ctx.beginPath(); ctx.ellipse(HERO.x, hy, 140, 100, 0, 0, 7);
+      ctx.fillStyle = `rgba(90,170,255,${0.06 + 0.08 * strength + 0.3 * hit + 0.25 * up})`; ctx.fill();
+      ctx.lineWidth = 2 + 4 * hit; ctx.strokeStyle = `rgba(140,210,255,${0.25 + 0.4 * strength + 0.6 * hit})`; ctx.stroke();
+    }
+    ctx.save(); if (B.heroDown) ctx.globalAlpha = 0.55;
+    drawImg(img("b_hero"), HERO.x - 120, hy - 120, 240, 240); ctx.restore();
+    // the enemy ships
+    const n = B.ships.length, size = shipSize(n), open = B.waiting ? new Set(targetable().map((sh) => sh.i)) : new Set();
+    for (const sh of B.ships) {
+      const age = sh.dead ? S.now - sh.dead : 0;
+      if (sh.dead && age > 0.4) continue;
+      const p = shipPos(sh), cl = cloakOf(sh), z = sh.dead ? 1 - age / 0.4 : 1;
+      if (S.now < sh.born) continue;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (S.now - sh.born) / 0.6) * (1 - 0.88 * cl) * z;
+      drawImg(img("b_enemy"), p.x - size / 2 * z, p.y - size / 2 * z, size * z, size * z);
+      ctx.restore();
+      if (cl > 0.05 && !sh.dead) {   // the cloak's shimmer
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, size * 0.5, size * 0.3, 0, 0, 7);
+        ctx.strokeStyle = `rgba(160,220,255,${0.35 * Math.sin(cl * Math.PI)})`; ctx.lineWidth = 2; ctx.stroke();
+      }
+      if (open.has(sh.i)) {
+        const hover = S.hover === "ship" + sh.i;
+        S.hits.push({ id: "ship" + sh.i, x: p.x - size / 2, y: p.y - size / 2, w: size, h: size });
+        if (hover) {   // the targeting reticle
+          ctx.strokeStyle = "#ff5a48"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.55, 0, 7); ctx.stroke();
+          for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + S.now; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * size * 0.45, p.y + Math.sin(a) * size * 0.45); ctx.lineTo(p.x + Math.cos(a) * size * 0.7, p.y + Math.sin(a) * size * 0.7); ctx.stroke(); }
+        }
+      }
+    }
+    // the boss
+    if (B.boss && !(B.boss.dead && S.now - B.boss.dead > 0.6)) {
+      const bz = B.boss.dead ? 1 - (S.now - B.boss.dead) / 0.6 : 1, enter = Math.min(1, (S.now - B.boss.t0) / 1.2);
+      const bx = BOSS_AT.x + (1 - enter) * 400, by = BOSS_AT.y + Math.sin(S.now * 0.8) * 8, bs = 320 * bz;
+      ctx.save(); ctx.globalAlpha = enter * bz;
+      if (S.now - B.boss.hitAt < 0.15) ctx.filter = "brightness(2)";
+      drawImg(img("b_boss"), bx - bs / 2, by - bs / 2, bs, bs); ctx.restore();
+      if (B.waiting) S.hits.push({ id: "boss", x: bx - 160, y: by - 120, w: 320, h: 240 });
+      rr(bx - 150, by - 150, 300, 20, 10); ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fill();
+      rr(bx - 150, by - 150, 300 * B.boss.hp / B.boss.max, 20, 10); ctx.fillStyle = "#e2402f"; ctx.fill();
+      text(TEXT.boss, bx, by - 168, 22, COND, "#ffb4a6", "center", "700", 4);
+    }
+    // the phaser beam, the return fire and the explosions
+    if (B.beam && S.now - B.beam.t0 < 0.45) {
+      const t = B.beam.to(), k = 1 - (S.now - B.beam.t0) / 0.45;
+      ctx.save(); ctx.lineCap = "round"; ctx.shadowColor = "#ff7a30"; ctx.shadowBlur = 18;
+      ctx.strokeStyle = `rgba(255,140,60,${k})`; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(HERO.x + 100, hy - 6); ctx.lineTo(t.x, t.y); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,240,200,${k})`; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+    }
+    B.bolts = B.bolts.filter((bo) => S.now - bo.t0 < 0.45);
+    for (const bo of B.bolts) {
+      const k = (S.now - bo.t0) / 0.45;
+      if (k < 0) continue;
+      const x = bo.from.x + (HERO.x + 60 - bo.from.x) * k, y = bo.from.y + (hy - bo.from.y) * k;
+      ctx.save(); ctx.shadowColor = "#6aff6a"; ctx.shadowBlur = 16; ctx.fillStyle = "#b8ffb0";
+      ctx.beginPath(); ctx.ellipse(x, y, 16, 6, Math.atan2(hy - bo.from.y, HERO.x - bo.from.x), 0, 7); ctx.fill(); ctx.restore();
+    }
+    B.booms = B.booms.filter((bm) => S.now - bm.t0 < 0.9);
+    for (const bm of B.booms) {
+      const k = (S.now - bm.t0) / 0.9, r = bm.size * (0.3 + k * 0.7);
+      const g = ctx.createRadialGradient(bm.x, bm.y, 0, bm.x, bm.y, r);
+      g.addColorStop(0, `rgba(255,250,210,${1 - k})`); g.addColorStop(0.4, `rgba(255,150,40,${0.9 * (1 - k)})`); g.addColorStop(1, "rgba(120,20,0,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bm.x, bm.y, r, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(255,200,120,${1 - k})`;
+      for (const bit of bm.bits) ctx.fillRect(bm.x + Math.cos(bit.a) * r * bit.v * 1.3, bm.y + Math.sin(bit.a) * r * bit.v * 1.3, 4, 4);
+    }
+    ctx.restore();
+    // the top: wave progress (a pip a wave, then the boss) and the battle's win
+    const steps = st.waves + 1;
+    for (let k = 0; k < steps; k++) {
+      const x = 60 + k * (880 / (steps - 1)), done = k < st.cleared || (k === st.waves && st.won), now = k === st.cleared && !st.done;
+      ctx.beginPath(); ctx.arc(x, REEL_Y + 2, k === st.waves ? 14 : 10, 0, 7);
+      ctx.fillStyle = done ? C.gold : now ? "#e2402f" : "rgba(255,255,255,0.15)"; ctx.fill();
+      if (k < steps - 1) { ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.fillRect(x + 12, REEL_Y + 1, 880 / (steps - 1) - 24, 2); }
+    }
+    text(`${TEXT.battle} WIN ${money(B.total)}`, 523, REEL_Y + 30, 34, COND, C.win, "center", "700", 6, 600);
+    // the panel: wave, shields, ships left, what's banked, FIRE
+    woodPanel(1038, REEL_Y - 18, 224, REEL_H + 36, 16);
+    text(TEXT.battle, 1150, REEL_Y + 10, 26, COND, "#ff6a5a", "center", "700", 0, 200);
+    text(st.bossHp !== null || B.boss ? TEXT.boss : `WAVE ${Math.min(st.wave, st.waves - 1) + 1} OF ${st.waves}`, 1150, REEL_Y + 40, 22, COND, C.goldHi, "center", "700", 0, 200);
+    text("SHIELDS", 1150, REEL_Y + 76, 18, COND, C.cream);
+    const pw = Math.min(40, 180 / st.maxShields);
+    for (let k = 0; k < st.maxShields; k++) {
+      rr(1150 - st.maxShields * pw / 2 + k * pw + 3, REEL_Y + 88, pw - 6, 18, 5);
+      ctx.fillStyle = k < B.shields ? "#5ab4ff" : "rgba(255,255,255,0.12)"; ctx.fill();
+    }
+    const left = B.ships.filter((sh) => !sh.dead).length;
+    text(B.boss ? `HITS LEFT ${B.boss.hp}` : `${TEXT.enemy}: ${left} LEFT`, 1150, REEL_Y + 136, 18, COND, C.cream, "center", "700", 0, 200);
+    text(`FREE GAMES WON ${B.spins}`, 1150, REEL_Y + 166, 18, COND, "#7fd0ff", "center", "700", 0, 200);
+    if (B.waiting) {
+      const wait = Math.max(0, B.autoAt - S.now);
+      button("fire", 1070, REEL_Y + 300, 160, 58, "FIRE", { colour: ["#ffb4a6", "#e2402f", C.alert], size: 32 });
+      text(TEXT.battleHint, 1150, REEL_Y + 380, 16, COND, C.cream, "center", "700", 0, 200);
+      text(`fires itself in ${Math.ceil(wait)}`, 1150, REEL_Y + 402, 16, COND, C.muted);
+      if (wait <= 0) fireBattle(null);
+    }
+  }
+
   // ------------------------------------------------------------------ the frame loop
   let last = performance.now(), running = true;
   // One frame. A design can be half-made (missing pictures, odd settings), so a drawing error is reported and the
@@ -1062,6 +1316,7 @@ export function createGame(cv, cfg) {
     drawBackground();
     drawTop();
     if (S.mode === "trail" && S.trail) drawTrail();
+    else if (S.mode === "battle" && S.battle) drawBattle();
     else {
       drawSides();
       drawFrame();
@@ -1108,6 +1363,7 @@ export function createGame(cv, cfg) {
       return;
     }
     if (id && id.startsWith("coin")) return pickCoin(+id.slice(4));
+    if (S.mode === "battle") { if (id && id.startsWith("ship")) return fireBattle(+id.slice(4)); if (id === "boss" || id === "fire") return fireBattle(null); }
     if (id !== "auto" && !(id && id.startsWith("auto"))) S.autoMenu = false;
     switch (id) {
       case "spin": return spinOrStop();
@@ -1126,6 +1382,7 @@ export function createGame(cv, cfg) {
   function clearIdle() { if (!S.busy) { S.wins = []; S.message = `BET ${money(bet())} \u00b7 25 LINES`; } }
   function spinOrStop() {
     if (S.mode === "trail") return fire();
+    if (S.mode === "battle") return fireBattle(null);
     if (S.busy) { if (reels.some((x) => x.spinning || x.stopping)) S.hurry = true; return; }
     spin();
   }

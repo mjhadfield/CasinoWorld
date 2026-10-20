@@ -4,7 +4,8 @@
 export const STAND_IN = key => `/slot-art/armadillo/flux2/${key}.png`;
 export const SHORT = {armadillo: "Mascot", barrel: "Instant Win prize", cylinder: "Bonus launcher", t_coin: "Trail coins",
   t_gold: "Trail prizepot", t_snake: "Trail hazard", t_heart: "Trail heart", t_forward: "Trail forward", t_lightning: "Trail lightning",
-  t_crate: "Trail coin crate", t_upgrade: "Trail moves doubled", t_double: "Trail coins doubled"};
+  t_crate: "Trail coin crate", t_upgrade: "Trail moves doubled", t_double: "Trail coins doubled",
+  b_hero: "Battle: your ship", b_enemy: "Battle: enemy ship", b_boss: "Battle: boss"};
 
 export function artSlot(C, key) {
   const {el} = C, a = C.data.art[key];

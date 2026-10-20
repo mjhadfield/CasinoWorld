@@ -22,9 +22,16 @@
   };
   const PAYING = Object.keys(PAYS);
   const SCATTERS = ["BS", "FS"];
-  const BONUSES = ["trail", "free"];
+  const BONUSES = ["trail", "free", "battle"];
   // Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus); with more than one, it's one of them at random.
   const ROUTES = { BS: ["trail"], FS: ["free"], buy: ["trail"] };
+  // The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize in bets.
+  const BATTLE = {
+    waves: [4, 5, 6, 7, 8], shields: 3, returnFire: [0.15, 0.2, 0.25, 0.3, 0.34],
+    prizes: [[0.2, 30], [0.4, 26], [0.6, 18], [1, 12], [2, 8], [5, 4], [10, 1.5], [25, 0.5]],
+    spinsChance: 0.015, spins: [[1, 60], [2, 30], [3, 10]], clear: [2, 4, 6, 12, 25],
+    bossHits: 6, bossFire: 0.3, boss: [[100, 50], [200, 30], [300, 12], [500, 6], [1000, 2]],
+  };
   const UPGRADES = { L1: "M3", L2: "M3", L3: "M4", L4: "M4", M3: "M1", M4: "M2", M1: "H2", M2: "H2", H2: "H1" };
   const LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500];
   const FEATURES = ["wilds", "wildReels", "colossal", "multiplier", "upgrade", "repeat", "instant"];
@@ -396,6 +403,76 @@
     return games;
   }
 
+  // ------------------------------------------------------------------ the wave battle (Red Alert)
+  /* A shot either destroys its ship (a prize, or free spins banked for Combo Free Games afterwards) or is answered:
+     the ship cloaks and fires back, shields -1. Shields at 0 end it; clearing a wave pays its reward and restores
+     them. After the last wave a boss takes bossHits hits. Which ship is targeted never changes the draw. */
+  const betPence = (x, bet) => Math.floor(x * bet + 0.5);
+  function battleStart(V, bet) {
+    const B = V.battle;
+    return { bet, wave: 0, waves: B.waves.length, ships: new Array(B.waves[0]).fill(true), shields: B.shields,
+             maxShields: B.shields, bossHp: null, bossMax: B.bossHits, total: 0, spins: 0, shots: 0, cleared: 0,
+             won: false, done: false };
+  }
+  function battleShot(V, st, rng, target) {
+    const B = V.battle, ev = [];
+    st.shots++;
+    const boss = st.bossHp !== null;
+    if (boss) target = "boss";
+    else if (!(Number.isInteger(target) && target >= 0 && target < st.ships.length && st.ships[target])) target = st.ships.indexOf(true);
+    const answered = rng() < (boss ? B.bossFire : B.returnFire[st.wave]);
+    if (answered) {
+      st.shields--;
+      ev.push({ kind: "return_fire", ship: target, shields: st.shields });
+      if (st.shields <= 0) { ev.push({ kind: "shields_down" }); st.done = true; }
+    } else if (boss) {
+      st.bossHp--;
+      ev.push({ kind: "boss_hit", hp: st.bossHp });
+      if (st.bossHp <= 0) {
+        const pence = betPence(weighted(rng, B.boss), st.bet);
+        st.total += pence;
+        ev.push({ kind: "boss_destroyed", pence });
+        st.won = st.done = true;
+      }
+    } else {
+      st.ships[target] = false;
+      if (rng() < B.spinsChance) {
+        const n = weighted(rng, B.spins);
+        st.spins += n;
+        ev.push({ kind: "destroyed", ship: target, spins: n });
+      } else {
+        const pence = betPence(weighted(rng, B.prizes), st.bet);
+        st.total += pence;
+        ev.push({ kind: "destroyed", ship: target, pence });
+      }
+      if (!st.ships.some(Boolean)) {
+        const pence = betPence(B.clear[st.wave], st.bet);
+        st.total += pence; st.cleared++;
+        ev.push({ kind: "wave_clear", wave: st.wave, pence });
+        st.wave++; st.shields = st.maxShields;
+        if (st.wave < st.waves) {
+          st.ships = new Array(B.waves[st.wave]).fill(true);
+          ev.push({ kind: "wave_start", wave: st.wave, ships: st.ships.length, shields: st.shields });
+        } else {
+          st.ships = []; st.bossHp = st.bossMax;
+          ev.push({ kind: "boss_start", hp: st.bossHp, shields: st.shields });
+        }
+      }
+    }
+    return { target, answered, events: ev, done: st.done };
+  }
+  function battlePlayOut(V, st, rng) {   // a player who leaves mid-battle (and the simulator): fire to the end
+    const shots = [];
+    for (let i = 0; i < 2000 && !st.done; i++) shots.push(battleShot(V, st, rng));
+    return shots;
+  }
+  /* One battle fought to the end, plus the free games its ships gave, in pence. */
+  function battleValue(V, bet, rng) {
+    const st = battleStart(V, bet);
+    battlePlayOut(V, st, rng);
+    return { st, total: st.total + (st.spins ? freeGames(V, bet, rng, st.spins).reduce((a, g) => a + g.total, 0) : 0) };
+  }
+
   // ------------------------------------------------------------------ the shared progressives
   const JACKPOT_TIERS = [
     // seed in pence, share of every bet, and how often it's won (1 in N pence wagered)
@@ -429,7 +506,8 @@
   function simulate(V, spins, bet, seed) {
     const rng = mulberry32(seed);
     const r = { spins, bet, staked: spins * bet, plain: 0, featured: 0, repeatExtra: 0, instant: 0, trail: 0, free: 0,
-                hits: 0, trails: 0, frees: 0, featureSpins: 0, featureCounts: {}, max: 0, sumSq: 0, prizepots: 0 };
+                battle: 0, hits: 0, trails: 0, frees: 0, battles: 0, featureSpins: 0, featureCounts: {}, max: 0, sumSq: 0,
+                prizepots: 0 };
     for (let i = 0; i < spins; i++) {
       const o = spinOutcome(V, bet, rng);
       let won = o.total;
@@ -448,6 +526,9 @@
       } else if (o.trigger === "free") {
         const fs = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
         r.frees++; r.free += fs; won += fs;
+      } else if (o.trigger === "battle") {
+        const b = battleValue(V, bet, rng).total;
+        r.battles++; r.battle += b; won += b;
       }
       if (won > 0) r.hits++;
       r.max = Math.max(r.max, won);
@@ -456,8 +537,8 @@
     }
     const pct = (v) => (100 * v) / r.staked;
     r.rtp = { plain: pct(r.plain), featured: pct(r.featured), repeat: pct(r.repeatExtra), instant: pct(r.instant),
-              trail: pct(r.trail), free: pct(r.free), jackpot: 100 * jackpotRtp() };
-    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free;
+              trail: pct(r.trail), free: pct(r.free), battle: pct(r.battle), jackpot: 100 * jackpotRtp() };
+    r.rtp.game = r.rtp.plain + r.rtp.featured + r.rtp.repeat + r.rtp.instant + r.rtp.trail + r.rtp.free + r.rtp.battle;
     r.rtp.total = r.rtp.game + r.rtp.jackpot;
     const mean = r.rtp.game / 100;
     r.sd = Math.sqrt(r.sumSq / spins - mean * mean);
@@ -469,7 +550,9 @@
     let won = 0, max = 0, prizepots = 0, rolls = 0;
     for (let i = 0; i < n; i++) {
       let total;
-      if (pickBonus(rng, routes) === "free") total = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
+      const kind = pickBonus(rng, routes);
+      if (kind === "free") total = freeGames(V, bet, rng, V.freeGames).reduce((a, g) => a + g.total, 0);
+      else if (kind === "battle") total = battleValue(V, bet, rng).total;
       else {
         const s = trailStart(V, bet, rng);
         trailPlayOut(V, s, rng);
@@ -491,6 +574,17 @@
       if (s.pos >= s.board.length - 1) prizepots++;
     }
     return { n, mean: won / n / bet, prizepots };
+  }
+  /* The mean wave battle win (its free games included), in bets, from `n` battles on their own. */
+  function simulateBattle(V, n, bet, seed) {
+    const rng = mulberry32(seed);
+    let won = 0, bosses = 0;
+    for (let i = 0; i < n; i++) {
+      const b = battleValue(V, bet, rng);
+      won += b.total;
+      if (b.st.won) bosses++;
+    }
+    return { n, mean: won / n / bet, bosses };
   }
   /* What the progressives return: every bet's share, plus each seed paid out once per win. */
   function jackpotRtp() { return JACKPOT_TIERS.reduce((a, t) => a + t.rate + t.seed / t.every, 0); }
@@ -525,6 +619,7 @@
     V.upgrades = p.upgrades || UPGRADES;
     V.features = p.features || FEATURES;
     V.routes = p.routes || ROUTES;
+    V.battle = Object.assign({}, BATTLE, p.battle || {});
     V.strips = p.strips || p.counts.map((c, i) => buildStrip(c, 1000 + i));
     V.freeStrips = p.freeStrips || p.counts.map((c, i) => buildStrip(Object.fromEntries(Object.entries(c).filter(([s]) => !SCATTERS.includes(s))), 2000 + i));
     V.bigStrip = p.bigStrip || buildStrip(p.bigCounts, 3000);
@@ -559,9 +654,9 @@
     freeGames: 3,
   });
 
-  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
+  const api = { REELS, ROWS, LINES, PAYS, PAYING, SCATTERS, BONUSES, ROUTES, BATTLE, UPGRADES, LADDER, FEATURES, JACKPOT_TIERS, JACKPOT_PER_PENCE,
     mulberry32, weighted, buildStrip, evaluate, countScatters, exactLineRtp, spinOutcome, gridFromStops,
-    makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, jackpotTrigger, pickSequence, presentationSeconds,
+    makeBoard, trailStart, trailRoll, trailPlayOut, freeGames, battleStart, battleShot, battlePlayOut, battleValue, simulateBattle, betPence, jackpotTrigger, pickSequence, presentationSeconds,
     simulate, simulateBuy, simulateTrail, pickBonus, jackpotRtp,
     makeVariant, ARMADILLO };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

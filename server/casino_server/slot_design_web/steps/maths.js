@@ -6,7 +6,7 @@ import {typing} from "./artslot.js";
 
 let C, worker = null, busy = false, last = null, tuned = null, spins = 500000;
 const key = p => JSON.stringify([p.pays, p.counts, p.bigCounts, p.features, p.rates, p.freeRates, p.wildCounts, p.wildReelCounts,
-  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.freeGames, p.buyCost, p.routes, p.upgrades]);
+  p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.battle, p.freeGames, p.buyCost, p.routes, p.upgrades]);
 
 function run(msg, onProgress) {
   worker ??= new Worker("/slot-design-ui/mockup/sim_worker.js");
@@ -41,12 +41,14 @@ function reportTable(r, target) {
     el("table", {}, el("tbody", {},
       row("Line wins, no feature", pct(rt.plain)), row("Line wins with features", pct(rt.featured)), row("Repeat Win extra", pct(rt.repeat)),
       row("Instant Win", pct(rt.instant)), row("Trail bonus", pct(rt.trail)), row("Free games", pct(rt.free)),
+      ...(r.battles || rt.battle ? [row("Battle bonus (its free games too)", pct(rt.battle))] : []),
       row("The game", pct(rt.game), "strong"), row("Shared jackpots", "+" + pct(rt.jackpot)), row("In all", pct(rt.total), "strong"))),
     el("div", {className: "pane"},
       el("span", {className: "tag " + (Math.abs(d) <= 0.5 ? "ok" : "warn"), textContent: `${d >= 0 ? "+" : ""}${d.toFixed(2)} against the ${target}% target`}),
       el("table", {}, el("tbody", {},
         row("Spins measured", r.spins.toLocaleString("en-GB")), row("A win", oneIn(r.spins, r.hits)), row("A feature", oneIn(r.spins, r.featureSpins)),
         row("The trail bonus", oneIn(r.spins, r.trails)), row("Free games", oneIn(r.spins, r.frees)),
+        ...(r.battles ? [row("The battle bonus", oneIn(r.spins, r.battles)), row("Its boss destroyed", r.bosses ? `${(100 * r.bosses / r.battleRun).toFixed(1)}% of battles` : "never")] : []),
         row("Biggest win", Math.round(r.max).toLocaleString("en-GB") + "× bet"), row("Volatility (SD)", `${r.sd.toFixed(2)}: ${vol(r.sd)}`),
         row("Buy Bonus returns", r.buy && isFinite(r.buy.rtp) ? pct(r.buy.rtp) : "off"), row("Exact line return (no features)", pct(r.exact))))));
 }

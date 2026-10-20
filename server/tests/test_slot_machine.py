@@ -116,6 +116,65 @@ def test_trail_fires_itself_when_left():
     assert any(e["kind"] == "trail_end" for e in ev) and m.phase == "idle"
 
 
+def battle_cabinet(seed=1):
+    import dataclasses
+    m, p = cabinet(seed, battle_auto=8.0)
+    m.variant = dataclasses.replace(m.variant, routes={"BS": ["battle"], "FS": ["free"], "buy": ["battle"]})
+    return m, p
+
+
+def test_battle_waits_for_a_ship_and_pays_at_the_end():
+    m, p = battle_cabinet()
+    m.rig = {"trigger": "battle"}
+    assert m.spin(0, 100, now=0.0)[0]["features_next"] == ["battle"]
+    ev, now = run(m, 0.0, until=lambda m: m.phase == "battle")
+    start = next(e for e in ev if e["kind"] == "battle_start")
+    assert start["battle"]["ships"] == [True] * 4 and start["battle"]["shields"] == 3
+    with pytest.raises(TableError):
+        m.battle_fire(0, 9, now=now)                  # no ship there
+    shots = 0
+    while m.phase == "battle":
+        now = max(now, m.battle_ready_at)
+        st = m.battle
+        target = None if st["boss_hp"] is not None else max(i for i, there in enumerate(st["ships"]) if there)
+        ev = m.battle_fire(0, target, now=now)
+        shots += 1
+        assert ev[0]["kind"] == "battle_shot" and ev[0]["shot"]["target"] == (target if target is not None else "boss")
+        if not ev[0]["shot"]["done"]:
+            with pytest.raises(TableError):
+                m.battle_fire(0, None, now=now)       # wait for the last shot
+    end = next(e for e in ev if e["kind"] == "battle_end")
+    assert (end["total"], "battle bonus") in p.log and end["shots"] == shots
+
+
+def test_battle_fires_itself_and_its_free_spins_follow():
+    for seed in range(1, 200):
+        m, p = battle_cabinet(seed)
+        m.rig = {"trigger": "battle"}
+        m.spin(0, 100, now=0.0)
+        ev, _ = run(m, 0.0)
+        end = next(e for e in ev if e["kind"] == "battle_end")
+        assert m.phase == "idle"
+        if end["spins"]:
+            start = next(e for e in ev if e["kind"] == "free_start")
+            assert start["of"] == end["spins"] and start["source"] == "battle"
+            assert len([e for e in ev if e["kind"] == "free_game"]) == end["spins"]
+            assert [e["kind"] for e in ev].index("free_start") > [e["kind"] for e in ev].index("battle_end")
+            return
+        assert not any(e["kind"] == "free_start" for e in ev)
+    pytest.fail("no battle gave free spins")
+
+
+def test_standing_mid_battle_plays_it_out_and_pays():
+    m, p = battle_cabinet(seed=3)
+    m.buy_bonus(0, 100, now=0.0)
+    assert m.phase == "battle"
+    ev = m.stand(0, now=3.0, reason="")
+    end = next(e for e in ev if e["kind"] == "battle_end")
+    assert end["finished_for_you"] and (end["total"], "battle bonus") in p.log
+    assert m.phase == "idle" and m.battle is None and not m.pending
+
+
 def test_free_games_play_by_the_clock_and_pay_the_total():
     m, p = cabinet(seed=2)
     m.rig = {"trigger": "free"}

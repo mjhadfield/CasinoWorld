@@ -766,7 +766,7 @@ class NpcDirector:
     SLOT_ROUND = 10     # spins that count as one "round" toward a visit's length
 
     def _play_slot(self, npc: Npc, m, runner, now: float):
-        """Spin at a pace that lets the screen finish, fire the trail and pick coins after a
+        """Spin at a pace that lets the screen finish, fire the trail or on a battle's ships and pick coins after a
         moment's thought, and leave only with nothing on screen. A Gambler sometimes buys the
         bonus."""
         def after_thought(lo, hi):
@@ -781,6 +781,14 @@ class NpcDirector:
             if now >= m.trail_ready_at and after_thought(1.0, 2.0):
                 try:
                     runner.act("trail_fire", npc.seat)
+                except TableError:
+                    pass
+            return
+        if m.phase == "battle":
+            if m.battle and not m.battle["done"] and now >= m.battle_ready_at and after_thought(0.6, 1.6):
+                ships = [i for i, there in enumerate(m.battle["ships"]) if there]
+                try:
+                    runner.act("battle_fire", npc.seat, self.rng.choice(ships) if ships else None)
                 except TableError:
                     pass
             return

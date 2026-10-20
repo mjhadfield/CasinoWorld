@@ -20,6 +20,16 @@ Sitting at a cabinet opens a full-screen game that grows out of its little scree
 - **Combo Free Games:** 3 or more crossed-pistol scatters give three free games, each with guaranteed
   features.
 - **Buy Bonus:** 45x the bet goes straight to the Trail Bonus.
+- **Red Alert (the battle bonus):** in the library for any built slot, off until its design switches it on (Star
+  Trek's will start from its bonus scatter). Your ship faces five waves of enemy ships (4, 5, 6, 7 and 8 by
+  default), then a boss. Tap a ship to fire (FIRE or Space fires at one; it fires itself after 8 seconds). Each
+  shot's result is drawn when it's fired, so which ship you pick never changes the odds; ships cloak now and then
+  for show, and a cloaked one can't be tapped. A shot either destroys its ship, which reveals a prize (0.2x to 25x
+  the bet) or, 1.5% of the time, 1 to 3 free games, or is answered: the ship cloaks and fires back, costing a
+  shield. Shields hold 3 hits a wave: lose them all and the battle ends with what you've won. Clearing a wave pays
+  its reward (2x, 4x, 6x, 12x, 25x) and restores the shields. After the last wave the boss takes 6 hits and pays
+  100x to 1,000x. The free games its ships gave play afterwards as Combo Free Games, that many of them. It's
+  worth about 43x the bet on average with the defaults; about 7% of battles reach the boss and 4% destroy it.
 - **Jackpot Pick:** a random trigger on any spin, more likely the bigger the bet. Pick coins from a board of
   12 until three match, and win that meter: Mini, Minor, Major or Grand. The four meters are shared by every
   cabinet, grow from every bet (players' and NPCs'), and are separate from the card tables' jackpot. It picks
@@ -40,7 +50,8 @@ Only the four progressive meters persist.
 
 ## NPCs
 
-NPCs play the slots too, and always leave at least two cabinets of the bank free for real players.
+NPCs play the slots too (firing on the trail and a battle's ships after a moment's thought), and always leave
+at least two cabinets of the bank free for real players.
 
 ## Admin
 

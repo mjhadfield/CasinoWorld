@@ -6,7 +6,7 @@ so every method runs under the board's lock and saves through its Design.
   Scene          the background (FLUX or uploaded), the logo lettering (rendered here: FLUX can't spell) and the
                  reel frame's style, and the deck's (the bottom bar, readouts and buttons: the frame's by default)
   Features       which of the library's random features the slot uses, their rates and value tables
-  Bonus games    each library bonus (the Trail, the free games): on or off, the scatter that starts it, whether
+  Bonus games    each library bonus (the Trail, the free games, the wave battle): on or off, the scatter that starts it, whether
                  Buy Bonus can give it, and its settings; Buy Bonus's price. These make the variant's routes
                  (which bonuses each way in plays, one at random when there are several). A scatter that
                  starts nothing comes off the reels and the Value ladder.
@@ -60,15 +60,23 @@ ART_SLOTS = {
     "t_forward": ("Trail space: forward / back", "bonuses"), "t_lightning": ("Trail space: lightning roll", "bonuses"),
     "t_crate": ("Trail space: collect coins nearby", "bonuses"), "t_upgrade": ("Trail space: moves doubled", "bonuses"),
     "t_double": ("Trail space: all coins doubled", "bonuses"),
+    "b_hero": ("Battle: your ship", "bonuses"),
+    "b_enemy": ("Battle: an enemy ship (cloaks, fires back, reveals prizes)", "bonuses"),
+    "b_boss": ("Battle: the boss ship after the last wave", "bonuses"),
 }
 TRAIL_SPACES = ("snake", "heart", "forward", "back", "lightning", "crate")
 # Each bonus's way in, as Armadillo has it: the trail from the bonus scatter or Buy Bonus, the free games from theirs.
 BONUS_WAYS = {"trail": {"enabled": True, "scatter": "BS", "buyable": True},
-              "free": {"enabled": True, "scatter": "FS", "buyable": False}}
+              "free": {"enabled": True, "scatter": "FS", "buyable": False},
+              "battle": {"enabled": False, "scatter": "BS", "buyable": True}}   # not Armadillo's: off until switched on
+BONUS_TITLES = {"trail": "The trail bonus", "free": "The free games", "battle": "The battle bonus"}
 TRAIL_WORDS = ("name", "launcher", "hint")   # the trail's words: not part of its maths
+BATTLE_WORDS = {"name": "RED ALERT", "hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss_name": "FLAGSHIP"}
+BATTLE_PAIRS = ("prizes", "spins", "boss")   # the battle's value tables
 WAYS = tuple(BONUS_WAYS["trail"])
 # What each art slot is drawn for: a feature, or a bonus (a picture for something switched off isn't needed).
-ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",)}
+ART_USE = {"armadillo": ("wildReels", "trail"), "barrel": ("instant",),
+           "b_hero": ("battle",), "b_enemy": ("battle",), "b_boss": ("battle",)}
 WIN_PRESETS = ("none", "pulse", "bounce", "shine", "glow", "spin")
 WIN_DEFAULTS = {"wild": "glow", "high": "shine", "mid": "pulse", "low": "pulse", "scatter": "bounce"}
 # The screen's colours (the mockup's names; Armadillo's values) and fonts.
@@ -117,7 +125,9 @@ def bonuses_view(d) -> dict:
     t.setdefault("name", "TRAIL BONUS")
     t.setdefault("launcher", "THE LAUNCHER")
     t.setdefault("hint", "fire to move along the trail")
+    bt = {**BONUS_WAYS["battle"], **json.loads(json.dumps(base.BATTLE)), **BATTLE_WORDS, **b.get("battle", {})}
     view = {"trail": t, "free": {"games": ARMADILLO.free_games, "name": "COMBO FREE GAMES", **BONUS_WAYS["free"], **b.get("free", {})},
+            "battle": bt,
             "buy": {"enabled": True, "cost": ARMADILLO.buy_cost, **b.get("buy", {})},
             "specs": [x for x in d.data.get("specs", []) if x["kind"] == "bonus"]}
     view["routes"] = routes_of(view)
@@ -152,6 +162,11 @@ def _armadillo_scatters(s: str) -> list[int]:
     return [strip.count(s) for strip in ARMADILLO.strips]
 
 
+def battle_maths(x: dict) -> dict:
+    """The battle's settings the engine uses (not its words or its way in)."""
+    return {k: x[k] for k in base.BATTLE}
+
+
 def _paying(tiers) -> list:
     return [t for t in tiers if t not in ("BS", "FS")]
 
@@ -162,6 +177,8 @@ def _settings_hash(d) -> str:
     blob = {"pays": lad["pays"], "upgrades": lad["upgrades"], "features": {k: f[k] for k in ("enabled", "rates", "free_rates", "tables")},
             "trail": trail_maths(b["trail"]), "free": b["free"]["games"], "buy": b["buy"]["enabled"] and b["buy"]["cost"],
             "routes": b["routes"]}
+    if b["battle"]["enabled"]:   # (only when it's on, so switching the library's new bonus in doesn't stale a freeze)
+        blob["battle"] = battle_maths(b["battle"])
     return hashlib.sha1(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:12]
 
 
@@ -197,7 +214,7 @@ def variant_from_design(d):
         trail={**trail_maths(b["trail"]), "coins": pair(b["trail"]["coins"]), "crate_radius": pair(b["trail"]["crate_radius"])},
         buy_cost=b["buy"]["cost"] if b["routes"]["buy"] else 0, free_games=b["free"]["games"], routes=b["routes"],
         pays={k: tuple(v) for k, v in lad["pays"].items() if k in _paying(lad["tiers"])}, upgrades=lad["upgrades"],
-        features=f["enabled"])
+        features=f["enabled"], battle=battle_maths(b["battle"]))
 
 
 def default_rules(d) -> list[str]:
@@ -209,7 +226,7 @@ def default_rules(d) -> list[str]:
     for frm, to in lad["upgrades"].items():
         ups.setdefault(to, []).append(nm(frm))
     r = b["routes"]
-    title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}"}
+    title = {"trail": b["trail"]["name"], "free": f"{b['free']['games']} {b['free']['name'].lower()}", "battle": b["battle"]["name"]}
     plays = lambda ks: title[ks[0]] if len(ks) == 1 else " or ".join(title[k] for k in ks) + ", at random"
     scatters = [s for s in base.SCATTERS if r[s]]
     ways = [f"3+ {nm(s)}: {plays(r[s])}." for s in scatters]
@@ -582,7 +599,7 @@ class StepsMixin:
             try:
                 self._apply_bonuses(d, ch)
                 view = bonuses_view(d)
-                for k, what in (("trail", "The trail bonus"), ("free", "The free games")):
+                for k, what in BONUS_TITLES.items():
                     x = view[k]
                     if x["enabled"] and not x["scatter"] and not (x["buyable"] and view["buy"]["enabled"]):
                         raise DesignError(f"{what} needs a way in: a scatter, or Buy Bonus.")
@@ -651,6 +668,8 @@ class StepsMixin:
             if sum({**bonuses_view(d)["trail"]["counts"], **cur.get("counts", {})}.values()) > length // 2:
                 raise DesignError("Special spaces can fill at most half the trail; the rest are coins.")
             b["trail"] = cur
+        if "battle" in ch:
+            b["battle"] = StepsMixin._battle_settings(d, ch["battle"], dict(b.get("battle", {})))
         if "free" in ch:
             fr = ch["free"]
             cur = dict(b.get("free", {}))
@@ -671,6 +690,54 @@ class StepsMixin:
                     raise DesignError("Buy Bonus costs 10 to 500 times the bet.")
                 cur["cost"] = by["cost"]
             b["buy"] = cur
+
+    @staticmethod
+    def _battle_settings(d, t: dict, cur: dict) -> dict:
+        """The battle's words and settings, checked. The per-wave lists (return fire, rewards) follow the waves."""
+        if not isinstance(t, dict):
+            raise DesignError("The battle's settings are an object.")
+        now = bonuses_view(d)["battle"]
+        for k in BATTLE_WORDS:
+            if k in t:
+                cur[k] = str(t[k] or "").strip()[:40] or now[k]
+        if "waves" in t:
+            w = t["waves"]
+            if not isinstance(w, list) or not 1 <= len(w) <= 8 or any(not isinstance(n, int) or not 1 <= n <= 12 for n in w):
+                raise DesignError("Waves: 1 to 8 of them, each 1 to 12 ships.")
+            cur["waves"] = w
+        if "shields" in t:
+            if not isinstance(t["shields"], int) or not 1 <= t["shields"] <= 9:
+                raise DesignError("Shields: 1 to 9 hits a wave.")
+            cur["shields"] = t["shields"]
+        if "return_fire" in t:
+            if not isinstance(t["return_fire"], list):
+                raise DesignError("Return fire: a chance for each wave.")
+            cur["return_fire"] = [_rate(x, "return fire") for x in t["return_fire"]]
+        if "clear" in t:
+            c = t["clear"]
+            if not isinstance(c, list) or any(not isinstance(x, (int, float)) or not 0 <= x <= 10000 for x in c):
+                raise DesignError("Wave rewards: 0 to 10,000 times the bet for each wave.")
+            cur["clear"] = c
+        for k in BATTLE_PAIRS:
+            if k in t:
+                cur[k] = _pairs(t[k], {"prizes": "Ship prizes", "spins": "Free spins", "boss": "Boss prizes"}[k])
+                if k == "spins" and any(not float(v).is_integer() or v > 20 for v, _ in cur[k]):
+                    raise DesignError("Free spins: whole numbers of games, up to 20.")
+        if "spins_chance" in t:
+            cur["spins_chance"] = _rate(t["spins_chance"], "free spins chance")
+        if "boss_hits" in t:
+            if not isinstance(t["boss_hits"], int) or not 1 <= t["boss_hits"] <= 20:
+                raise DesignError("The boss takes 1 to 20 hits.")
+            cur["boss_hits"] = t["boss_hits"]
+        if "boss_fire" in t:
+            cur["boss_fire"] = _rate(t["boss_fire"], "boss return fire")
+        x = {**now, **cur}
+        if any(r > 0.9 for r in x["return_fire"] + [x["boss_fire"]]):
+            raise DesignError("Return fire tops out at 0.9: a battle needs some shots to land.")
+        n = len(x["waves"])
+        if len(x["return_fire"]) != n or len(x["clear"]) != n:
+            raise DesignError(f"Give return fire and a reward for each of the {n} waves.")
+        return cur
 
     # ------------------------------------------------------------- art slots and specs
     def set_art_slot(self, did: str, key: str, value) -> None:

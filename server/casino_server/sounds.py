@@ -97,7 +97,7 @@ refresh_sets()
 # Page order. Each: title, when it plays, its section on the page, its home set, which
 # sets below home use it (a USERS key), and whether it loops while it lasts.
 SECTIONS = ["Interface", "Room", "Cards", "Chips", "Wheel", "Dice",
-            "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick"]
+            "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Battle Bonus", "Jackpot Pick"]
 
 
 def _m(title, when, section, home="casino", uses="none", loop=False):
@@ -145,7 +145,7 @@ MOMENTS = {
     "feature_wilds": _m("Random Wild shot", "Each wild shot onto the reels.", "Features", "slots", "slots"),
     "feature_upgrade": _m("Symbol Upgrade", "Symbols flipping one step up the chain.", "Features", "slots", "slots"),
     "instant_win": _m("Instant Win barrel", "The Random Prize barrel bursting.", "Features", "slots", "slots"),
-    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins.", "Bonuses", "slots", "slots"),
+    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins (the battle has its own red alert).", "Bonuses", "slots", "slots"),
     "free_spin": _m("Free game", "Each Combo Free Game starting.", "Bonuses", "slots", "slots"),
     "bonus_end": _m("Bonus paid", "The total of a Trail Bonus or the free games coming up.", "Bonuses", "slots", "slots"),
     "trail_fire": _m("Pistol loaded", "The cylinder loading and spinning before the armadillo moves.", "Trail Bonus", "slots", "slots"),
@@ -154,6 +154,11 @@ MOMENTS = {
     "trail_special": _m("Special space", "Landing on double, spin upgrade, lightning roll, forward or back.", "Trail Bonus", "slots", "slots"),
     "trail_heart": _m("Heart", "A heart picked up, or one saving you from a snake.", "Trail Bonus", "slots", "slots"),
     "trail_snake": _m("Snake", "A snake strikes (the bonus ends unless a heart saves you).", "Trail Bonus", "slots", "slots"),
+    "battle_alert": _m("Red alert", "The battle bonus beginning, and its boss arriving.", "Battle Bonus", "slots", "slots"),
+    "battle_phaser": _m("Fire", "Each shot fired at an enemy ship or the boss.", "Battle Bonus", "slots", "slots"),
+    "battle_boom": _m("Explosion", "A ship destroyed, the boss hit or destroyed, or your shields failing.", "Battle Bonus", "slots", "slots"),
+    "battle_hit": _m("Shields hit", "An enemy ship cloaking and firing back.", "Battle Bonus", "slots", "slots"),
+    "battle_wave": _m("Wave cleared", "Every ship in a wave destroyed: its reward, and shields restored.", "Battle Bonus", "slots", "slots"),
     "pick_reveal": _m("Coin turned", "Each coin turned over in the Jackpot Pick.", "Jackpot Pick", "slots", "slots"),
     "jackpot_win": _m("Jackpot won", "Three matching coins: a Mini, Minor, Major or Grand (and nearby, when someone else wins one).", "Jackpot Pick", "slots", "slots"),
 }
@@ -219,6 +224,11 @@ FACTORY = {
         "trail_special": _c("kenney-digital/threeTone1.ogg", gain=-15.0),
         "trail_heart": _c("sparkles/LilMati_462095.ogg", gain=-12.5),
         "trail_snake": _c(_ki + "error_004.ogg", gain=-4.0),
+        "battle_alert": _c("kenney-digital/twoTone1.ogg", gain=-10.0),
+        "battle_phaser": _c("kenney-digital/phaserDown1.ogg", "kenney-digital/phaserDown3.ogg", gain=-8.0),
+        "battle_boom": _c(*[f"kenney-digital/spaceTrash{n}.ogg" for n in (1, 2, 3)], gain=-2.0),
+        "battle_hit": _c(*[f"kenney-impact/impactMetal_heavy_00{n}.ogg" for n in range(3)], gain=-6.0),
+        "battle_wave": _c("kenney-digital/powerUp3.ogg", gain=-8.0),
         "pick_reveal": _c(_ki + "glass_002.ogg", gain=-1.0),
         "jackpot_win": _c(_sl + "univ_lyon3_367462-jackpot-bell.ogg", gain=-5.5),
     },
@@ -250,12 +260,12 @@ FACTORY = {
 
 # Library folders: what's in each (the picker's folder list), and which sections it suits.
 FOLDERS = {
-    "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick"]),
+    "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick", "Battle Bonus"]),
     "western": ("Wild West: guns, banjo, harmonica, snakes, horses", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus"]),
-    "kenney-jingles": ("Kenney music jingles", ["Wins", "Bonuses", "Jackpot Pick"]),
-    "kenney-impact": ("Kenney impacts: wood, metal, bells", ["Spin", "Features", "Trail Bonus", "Dice"]),
+    "kenney-jingles": ("Kenney music jingles", ["Wins", "Bonuses", "Jackpot Pick", "Battle Bonus"]),
+    "kenney-impact": ("Kenney impacts: wood, metal, bells", ["Spin", "Features", "Trail Bonus", "Dice", "Battle Bonus"]),
     "kenney-rpg": ("Kenney coins, latches and creaks", ["Wins", "Chips", "Trail Bonus", "Features"]),
-    "kenney-digital": ("Kenney digital blips and power-ups", ["Spin", "Features", "Bonuses", "Trail Bonus", "Interface"]),
+    "kenney-digital": ("Kenney digital blips and power-ups", ["Spin", "Features", "Bonuses", "Trail Bonus", "Interface", "Battle Bonus"]),
     "kenney-casino": ("Kenney casino: cards, chips, dice", ["Cards", "Chips", "Dice", "Wins"]),
     "edited": ("Edited card slides, and the wooden reel loop", ["Cards", "Spin"]),
     "rooms": ("Casino floor recordings", ["Room"]),

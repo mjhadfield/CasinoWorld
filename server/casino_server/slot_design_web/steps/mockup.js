@@ -14,7 +14,7 @@ export function render(ctx, body) {
   const {el} = C, d = C.data;
   const canvas = el("canvas", {width: 1280, height: 720, className: "wz-canvas", ariaLabel: "The mockup"});
   const boxes = d.features.enabled.map(f => el("label", {className: "confirm"}, el("input", {type: "checkbox", value: f}), NAMES[f] || f));
-  const trigger = el("select", {ariaLabel: "Bonus on the next spin"}, ...[["", "no bonus"], ["trail", d.bonuses.trail.name], ["free", d.bonuses.free.name]].map(([v, t]) => el("option", {value: v, textContent: t})));
+  const trigger = el("select", {ariaLabel: "Bonus on the next spin"}, ...[["", "no bonus"], ["trail", d.bonuses.trail.name], ["free", d.bonuses.free.name], ...(d.bonuses.battle.enabled ? [["battle", d.bonuses.battle.name]] : [])].map(([v, t]) => el("option", {value: v, textContent: t})));
   const jackpot = el("select", {ariaLabel: "Jackpot Pick on the next spin"}, ...["", "mini", "minor", "major", "grand"].map(v => el("option", {value: v, textContent: v ? v[0].toUpperCase() + v.slice(1) + " jackpot" : "no jackpot"})));
   const speed = el("select", {ariaLabel: "Speed"}, ...[[0.5, "half speed"], [1, "normal speed"], [2, "double speed"]].map(([v, t]) => el("option", {value: v, textContent: t})));
   speed.value = 1;

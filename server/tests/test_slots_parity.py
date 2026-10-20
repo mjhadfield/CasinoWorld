@@ -1,13 +1,14 @@
 """The Python slot engine against the signed-off mockup's maths (docs/slots/mockup/slots_math.js):
-the same seed must give the same spin, trail, pick and simulation totals. The fixture is made
+the same seed must give the same spin, trail, battle, pick and simulation totals. The fixture is made
 by docs/slots/tools/make_parity_fixture.js."""
+import dataclasses
 import json
 from pathlib import Path
 
 import pytest
 
 from casino_server.slots import base, jackpots, sim
-from casino_server.slots.bonuses import trail_play_out, trail_start
+from casino_server.slots.bonuses import battle_shot, battle_start, trail_play_out, trail_start
 from casino_server.slots.outcome import spin_outcome
 from casino_server.slots.rng import mulberry32
 from casino_server.slots.variants.armadillo import VARIANT as V
@@ -38,11 +39,16 @@ def test_free_games_match():
         assert view(spin_outcome(V, 100, mulberry32(case["seed"]), free=True)) == case["o"], case["seed"]
 
 
+# The fixture's variant whose bonus scatter and Buy Bonus play the battle.
+VB = dataclasses.replace(V, routes={"BS": ["battle"], "FS": ["free", "battle"], "buy": ["battle"]})
+
+
 def test_rigged_spins_match():
     for case in FIX["rigged"]:
         rig = {"features": case["features"]} if "features" in case else {"trigger": case["trigger"]}
         bet = 250 if "features" in case else 100
-        assert view(spin_outcome(V, bet, mulberry32(case["seed"]), rig=rig)) == case["o"], case
+        v = VB if case.get("trigger") == "battle" else V
+        assert view(spin_outcome(v, bet, mulberry32(case["seed"]), rig=rig)) == case["o"], case
 
 
 def test_trails_match():
@@ -53,6 +59,17 @@ def test_trails_match():
         assert [[r["bullets"], r["from"], r["path"], r["events"]] for r in rolls] == case["rolls"], case["seed"]
         assert (st["total"], st["pos"]) == (case["total"], case["pos"])
         assert st["board"] == case["board"]
+
+
+def test_battles_match():
+    for case in FIX["battles"]:
+        rng, st, shots = mulberry32(case["seed"]), battle_start(V, case["bet"]), []
+        while not st["done"]:
+            alive = [i for i, there in enumerate(st["ships"]) if there]
+            r = battle_shot(V, st, rng, alive[-1] if alive and case["seed"] % 2 == 0 else None)
+            shots.append([r["target"], r["answered"], r["events"]])
+        assert shots == case["shots"], case["seed"]
+        assert (st["total"], st["spins"], st["cleared"], st["won"]) == (case["total"], case["spins"], case["cleared"], case["won"])
 
 
 def test_jackpot_picks_and_triggers_match():
@@ -74,3 +91,8 @@ def test_simulations_match():
     b = sim.simulate_buy(V, 2000, 100, 9)
     assert b["prizepots"] == FIX["buy"]["prizepots"]
     assert b["mean"] == pytest.approx(FIX["buy"]["mean"], rel=1e-12)
+    js = FIX["battleSim"]
+    r = sim.simulate(VB, 20000, 100, 7)
+    assert (r["battle"], r["battles"], r["free"], r["frees"], r["hits"]) == (js["battle"], js["battles"], js["free"], js["frees"], js["hits"])
+    assert sim.simulate_buy(VB, 2000, 100, 9)["mean"] == pytest.approx(js["buyMean"], rel=1e-12)
+    assert sim.simulate_battle(VB, 2000, 100, 9) == pytest.approx(js["mean"], rel=1e-12)

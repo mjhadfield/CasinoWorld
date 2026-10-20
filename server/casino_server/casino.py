@@ -145,7 +145,7 @@ class Casino:
             "shoot": self._table_action, "take_dice": self._table_action, "pass_dice": self._table_action,
             "working": self._table_action,
             "spin": self._table_action, "buy_bonus": self._table_action, "trail_fire": self._table_action,
-            "jackpot_pick": self._table_action,
+            "jackpot_pick": self._table_action, "battle_fire": self._table_action,
         }.get(kind)
         if handler is None:
             return session.error(f"Unknown message type: {kind}")
@@ -285,7 +285,7 @@ class Casino:
                 runner.act("take_dice", seat, bool(msg.get("on", True)))
             elif kind == "working":
                 runner.act("set_working", seat, bool(msg.get("on")))
-            elif kind in ("spin", "buy_bonus", "trail_fire", "jackpot_pick") and not hasattr(runner.machine, "spin"):
+            elif kind in ("spin", "buy_bonus", "trail_fire", "jackpot_pick", "battle_fire") and not hasattr(runner.machine, "spin"):
                 raise TableError("That's for the slot machines.")
             elif kind == "spin":
                 runner.act("spin", seat, msg.get("bet"))
@@ -295,6 +295,8 @@ class Casino:
                 runner.act("trail_fire", seat)
             elif kind == "jackpot_pick":
                 runner.act("jackpot_pick", seat, msg.get("index"))
+            elif kind == "battle_fire":
+                runner.act("battle_fire", seat, msg.get("index"))
         except TableError as e:
             session.error(str(e))
 

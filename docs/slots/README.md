@@ -11,7 +11,7 @@ Casino World's slot machines. The first variant is **Armadillo Goes West**.
 | `mockup/art/flux/` | FLUX.2-klein candidates 1 and 2, cut out at 512². Candidate 2 is flagged as promising, for the admin Slots › Art page. |
 | `flux_raw/` | The raw 1024px FLUX outputs, before cutout. |
 | `../../server/slot_designs/startrek/` | The Star Trek slot's art, now designed on the admin page's **Slot design** tab (see the main README). Its `source/` holds Mike's two reference sheets and `startrek_variants.png` the round-1 contact sheet. |
-| `tools/` | `tune.js` (`node tune.js 1000000`), the trail sweeps, `gen_svg.py`, and the FLUX scripts (`flux_gen.py` calls Odysseus's diffusion server inside the container; `process_flux.py` keys out the magenta background). `startrek_crop.py` cut the Star Trek reference sheets into the design's `ref/` crops; everything after that happens on the Slot design tab (`flux_edit.py` is the command-line version of its reference edit). |
+| `tools/` | `tune.js` (`node tune.js 1000000`), the trail sweeps, `gen_svg.py`, `battle_standins.py` (the battle bonus's stand-in ships, in `server/slot_art/armadillo/flux2/`), `make_parity_fixture.js` (the engines' parity test fixture), and the FLUX scripts (`flux_gen.py` calls Odysseus's diffusion server inside the container; `process_flux.py` keys out the magenta background). `startrek_crop.py` cut the Star Trek reference sheets into the design's `ref/` crops; everything after that happens on the Slot design tab (`flux_edit.py` is the command-line version of its reference edit). |
 | `reference/` | The official rules PDF and its line chart. |
 
 ## Adding another slot
@@ -32,7 +32,9 @@ How a built slot reaches the game:
   and the slot screen and cabinet draw from the variant's `theme` (`slot_screen.gd` `_apply_theme`,
   `slot_cabinet.gd` `look`). No client export is needed for a new slot.
 
-Something the library doesn't have (a new random feature or a different bonus game) is written up as a spec on the
+The library's bonus games are the Trail Bonus, Combo Free Games and the wave battle (Red Alert, `bonuses.py`
+`battle_*`, built from Star Trek's spec; its settings are `base.BATTLE`). Something the library doesn't have (a new
+random feature or a different bonus game) is written up as a spec on the
 Features or Bonus games step. Building one means: the engine (`slots/outcome.py` or `slots/bonuses.py`, wired into
 `tables/slot_machine.py`), the same in `mockup/slots_math.js` (the wizard's mockup and simulator run it), the
 mockup's choreography (`server/casino_server/slot_design_web/mockup/game.js`) and the game's

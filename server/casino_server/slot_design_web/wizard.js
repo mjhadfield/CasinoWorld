@@ -177,7 +177,7 @@ async function checkFlux() {
 }
 
 // The mockup in a dialog, from the Scene step on: the base game with this design's art, scene and (once tuned) maths.
-// opts.rig forces the first spin: {features: [...]} or {trigger: "trail"|"free"} or {jackpot: tier}; opts.bonus plays
+// opts.rig forces the first spin: {features: [...]} or {trigger: "trail"|"free"|"battle"} or {jackpot: tier}; opts.bonus plays
 // a bonus straight away (one no scatter starts).
 async function playMockup(opts = {}) {
   const {el} = H;

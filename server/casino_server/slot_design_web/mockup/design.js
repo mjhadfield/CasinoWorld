@@ -25,7 +25,7 @@ export function fontFamily(did, name) {
 // Feature and bonus pictures the base game and bonuses draw. Until a design gives its own (Features and Bonus
 // games steps), Armadillo's painted set stands in.
 export const EXTRA_ART = ["barrel", "armadillo", "cylinder", "t_coin", "t_double", "t_forward", "t_heart", "t_lightning",
-  "t_crate", "t_upgrade", "t_gold", "t_snake"];
+  "t_crate", "t_upgrade", "t_gold", "t_snake", "b_hero", "b_enemy", "b_boss"];
 const armadillo = id => `/slot-art/armadillo/flux2/${id}.png`;
 
 // Armadillo's per-reel symbol counts stretched to another tier shape: a tier Armadillo has keeps its count; an
@@ -49,7 +49,7 @@ export function designParams(data) {
   const paying = lad.tiers.filter(t => !["BS", "FS"].includes(t));
   const sym = t => data.symbols.find(s => s.id === lad.slots[t]);
   const symbols = Object.fromEntries(lad.tiers.map(t => [t, sym(t)?.name || A.symbols[t] || t]));
-  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail;
+  const maths = data.maths || {}, f = data.features, b = data.bonuses, tr = b.trail, bt = b.battle;
   // every tier's count (a scatter that starts no bonus is on the Value ladder's tiers no more, and stays at 0)
   const all = [...lad.tiers, ...b.unused_scatters];
   const counts = (maths.counts || stretch(A.counts, all)).map(c => ({...c, ...Object.fromEntries(b.unused_scatters.map(s => [s, 0]))}));
@@ -63,6 +63,8 @@ export function designParams(data) {
     multipliers: f.tables.multipliers, repeats: f.tables.repeats, instants: f.tables.instants,
     trail: {length: tr.length, prizepot: tr.prizepot, counts: tr.counts, upgradeChance: tr.upgrade_chance,
             doubleChance: tr.double_chance, coins: tr.coins, crateRadius: tr.crate_radius},
+    battle: {waves: bt.waves, shields: bt.shields, returnFire: bt.return_fire, prizes: bt.prizes, spinsChance: bt.spins_chance,
+             spins: bt.spins, clear: bt.clear, bossHits: bt.boss_hits, bossFire: bt.boss_fire, boss: bt.boss},
     freeGames: b.free.games, buyCost: b.routes.buy.length ? b.buy.cost : 0, routes: b.routes,
   };
 }
@@ -101,6 +103,8 @@ export function designConfig(data, img) {
     texts: {title: logoLines.map(l => l.toUpperCase()), tagline: "GOOD LUCK",
             bonus: [`3+ ${(symbols.BS || "BS").toUpperCase()}`, tr.name.toUpperCase()],
             free: [`3+ ${(symbols.FS || "FS").toUpperCase()}`, `${V.freeGames} ${b.free.name.toUpperCase()}`],
-            freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint},
+            freeName: b.free.name.toUpperCase(), pistol: tr.launcher.toUpperCase(), trailHint: tr.hint,
+            battle: b.battle.name.toUpperCase(), battleHint: b.battle.hint, enemy: b.battle.enemy.toUpperCase(),
+            boss: b.battle.boss_name.toUpperCase()},
   };
 }

@@ -7,7 +7,9 @@ A slot cabinet: one seat, one variant (slots/variants), the shared progressives.
   jackpot_pick  12 coins; each pick reveals the next of a sequence drawn up front. Picks
                 itself when you're idle.
   trail         The Trail Bonus: FIRE moves the armadillo; fires itself after `trail_auto`.
-  free_games    Three Combo Free Games, played by the clock.
+  free_games    Three Combo Free Games, played by the clock (or as many as a battle's ships gave).
+  battle        The wave battle (Red Alert): tap a ship to fire (battle_fire); fires itself after `battle_auto`.
+                Free spins its ships give follow it as Combo Free Games.
 
 Which bonus a scatter or Buy Bonus plays comes from the variant's routes (one of several at random).
   summary       A beat to show what a feature paid, then the next feature or idle.
@@ -45,6 +47,8 @@ class Timings:
     trail_intro: float = 2.2
     trail_auto: float = 6.0       # FIRE fires itself after this
     free_intro: float = 2.2
+    battle_intro: float = 2.6
+    battle_auto: float = 8.0      # it fires itself after this
     free_gap: float = 0.9
     summary: float = 5.0          # a feature's total on screen (it collects itself)
     idle_stand: float = 300.0     # a player who does nothing this long is stood up
@@ -86,11 +90,13 @@ class SlotMachine(TableMachine):
     def _reset_session(self):
         self.bet = base.LADDER[3]
         self.last: dict | None = None        # the last spin shown
-        self.pending: list = []              # features still to come: ("pick", tier) | ("trail", bet, bought) | ("free", bet, bought)
+        self.pending: list = []              # features still to come: ("pick", tier) | (bonus, bet, bought[, free games])
         self.pick: dict | None = None
         self.trail: dict | None = None
         self.trail_ready_at = 0.0
         self.free: dict | None = None
+        self.battle: dict | None = None
+        self.battle_ready_at = 0.0
         self.spun_at = -1e9
         self.last_action = 0.0
 
@@ -100,7 +106,7 @@ class SlotMachine(TableMachine):
                 "pays": {k: list(p) for k, p in v.pays.items()}, "upgrades": v.upgrades, "ladder": base.LADDER,
                 "features": v.features, "art": v.art, "theme": v.theme,
                 "strips": v.strips, "free_strips": v.free_strips, "big_strip": v.big_strip, "buy_cost": v.buy_cost,
-                "free_games": v.free_games, "routes": v.routes, "tiers": [{k: t[k] for k in ("id", "name", "seed")} for t in jackpots.TIERS],
+                "free_games": v.free_games, "routes": v.routes, "battle": v.battle, "tiers": [{k: t[k] for k in ("id", "name", "seed")} for t in jackpots.TIERS],
                 "seats": 1}
 
     # ------------------------------------------------------------------ seating
@@ -151,10 +157,8 @@ class SlotMachine(TableMachine):
         self.last, self.spun_at = o, now
         if tier:
             self.pending.append(("pick", tier))
-        if o["trigger"] == "trail":
-            self.pending.append(("trail", bet, False))
-        elif o["trigger"] == "free":
-            self.pending.append(("free", bet, False))
+        if o["trigger"]:
+            self.pending.append((o["trigger"], bet, False))
         secs = presentation_seconds(o) * self.timings.present
         event = {"kind": "spin", "seat": 0, "outcome": outcome_view(o), "meters": self.progressives.amounts(), "rates": self.progressives.rates(),
                  "secs": round(secs, 2), "features_next": [f[0] for f in self.pending], "_paid": [p]}
@@ -187,6 +191,23 @@ class SlotMachine(TableMachine):
             raise TableError("Wait for the armadillo.")
         self.last_action = now
         return self._fire(now)
+
+    def battle_fire(self, seat: int, index, now: float) -> list:
+        self._player()
+        if self.phase != "battle" or self.battle is None:
+            raise TableError("There's no battle on.")
+        if now < self.battle_ready_at:
+            raise TableError("Wait for the last shot.")
+        st = self.battle
+        if st["boss_hp"] is None:
+            try:
+                index = int(index)
+            except (TypeError, ValueError):
+                raise TableError("Pick a ship.")
+            if not 0 <= index < len(st["ships"]) or not st["ships"][index]:
+                raise TableError("Pick another ship.")
+        self.last_action = now
+        return self._shoot(now, index)
 
     def jackpot_pick(self, seat: int, index: int, now: float) -> list:
         self._player()
@@ -222,6 +243,8 @@ class SlotMachine(TableMachine):
             return self._fire(now)
         if self.phase == "free_games":
             return self._free_game(now)
+        if self.phase == "battle":
+            return self._shoot(now, None, auto=True)
         if self.phase == "idle" and self.seats[0].participant is not None and self.seats[0].participant.is_human:
             if now >= self.last_action + self.timings.idle_stand:
                 return self.stand(0, now, reason="idle")
@@ -229,7 +252,7 @@ class SlotMachine(TableMachine):
         return []
 
     def _next_feature(self, now: float) -> list:
-        self.pick = self.trail = self.free = None
+        self.pick = self.trail = self.free = self.battle = None
         if not self.pending:
             self.phase = "idle"
             self._idle_deadline(now)
@@ -249,10 +272,19 @@ class SlotMachine(TableMachine):
             self.trail_ready_at = now + self.timings.trail_intro
             self.deadline = now + self.timings.trail_intro + self.timings.trail_auto
             return [{"kind": "trail_start", "seat": 0, "bought": bought, "trail": bonuses.trail_view(self.trail)}]
+        if step[0] == "battle":
+            _, bet, bought = step
+            self.phase = "battle"
+            self.battle = bonuses.battle_start(self.variant, bet)
+            self.battle_ready_at = now + self.timings.battle_intro
+            self.deadline = now + self.timings.battle_intro + self.timings.battle_auto
+            return [{"kind": "battle_start", "seat": 0, "bought": bought, "battle": bonuses.battle_view(self.battle)}]
         self.phase = "free_games"
-        self.free = {"bet": step[1], "n": 0, "of": self.variant.free_games, "total": 0}
+        won = len(step) > 3                 # free spins a battle's ships gave
+        self.free = {"bet": step[1], "n": 0, "of": step[3] if won else self.variant.free_games, "total": 0}
         self.deadline = now + self.timings.free_intro
-        return [{"kind": "free_start", "seat": 0, "of": self.free["of"], "bet": step[1], "bought": step[2]}]
+        return [{"kind": "free_start", "seat": 0, "of": self.free["of"], "bet": step[1], "bought": step[2],
+                 "source": "battle" if won else "scatter"}]
 
     # ------------------------------------------------------------------ the Jackpot Pick
     def _reveal(self, index: int, now: float, auto: bool = False) -> list:
@@ -313,6 +345,26 @@ class SlotMachine(TableMachine):
         self.phase, self.deadline = "summary", now + secs + self.timings.summary
         return events
 
+    # ------------------------------------------------------------------ the wave battle
+    def _shoot(self, now: float, target, auto: bool = False) -> list:
+        st = self.battle
+        shot = bonuses.battle_shot(self.variant, st, self.rng, target)
+        secs = bonuses.battle_shot_seconds(shot) * self.timings.present
+        events = [{"kind": "battle_shot", "seat": 0, "shot": shot, "total": st["total"], "spins": st["spins"],
+                   "shields": st["shields"], "auto": auto, "secs": round(secs, 2)}]
+        if not st["done"]:
+            self.battle_ready_at = now + secs
+            self.deadline = now + secs + self.timings.battle_auto
+            return events
+        p = self.seats[0].participant
+        p.credit(st["total"], "battle bonus")
+        events.append({"kind": "battle_end", "seat": 0, "total": st["total"], "spins": st["spins"], "cleared": st["cleared"],
+                       "won": st["won"], "shots": st["shots"], "_paid": [p]})
+        if st["spins"]:
+            self.pending.insert(0, ("free", st["bet"], False, st["spins"]))
+        self.phase, self.deadline = "summary", now + secs + self.timings.summary
+        return events
+
     # ------------------------------------------------------------------ walking away mid-feature
     def _finish_everything(self, now: float) -> list:
         """Plays out the feature on screen and everything queued after it, paying as it goes."""
@@ -324,6 +376,9 @@ class SlotMachine(TableMachine):
             elif self.phase == "trail" and self.trail and not self.trail["done"]:
                 while not self.trail["done"]:
                     events += self._fire(now)
+            elif self.phase == "battle" and self.battle and not self.battle["done"]:
+                while not self.battle["done"]:
+                    events += self._shoot(now, None, auto=True)
             elif self.phase == "free_games" and self.free and self.free["n"] < self.free["of"]:
                 while self.free["n"] < self.free["of"]:
                     events += self._free_game(now)
@@ -341,10 +396,12 @@ class SlotMachine(TableMachine):
         if self.pick:
             pick = {"coins": self.pick["coins"], "done": self.pick["done"],
                     "tier": self.pick["tier"] if self.pick["done"] else None}
-        timer = round(max(0.0, self.deadline - now), 1) if self.deadline is not None and self.phase in ("trail", "jackpot_pick") else None
+        timer = round(max(0.0, self.deadline - now), 1) if self.deadline is not None and self.phase in ("trail", "jackpot_pick", "battle") else None
         return {"game": self.game, "variant": self.variant.id, "phase": self.phase, "seats": seats, "bet": self.bet,
                 "last": outcome_view(self.last) if self.last else None, "pending": [f[0] for f in self.pending],
                 "pick": pick, "trail": bonuses.trail_view(self.trail) if self.trail else None,
                 "trail_ready_in": round(max(0.0, self.trail_ready_at - now), 1) if self.trail else None,
+                "battle": bonuses.battle_view(self.battle) if self.battle else None,
+                "battle_ready_in": round(max(0.0, self.battle_ready_at - now), 1) if self.battle else None,
                 "free": dict(self.free) if self.free else None, "meters": self.progressives.amounts(), "rates": self.progressives.rates(),
                 "timer": timer, "my_seat": viewer}

@@ -110,7 +110,7 @@ func apply_snapshot(state: Dictionary) -> void:
 	phase = str(state.get("phase", "idle"))
 	if state.get("last") != null:
 		grid = state.last.grid
-	_bonus = phase in ["trail", "free_games", "jackpot_pick"]
+	_bonus = phase in ["trail", "free_games", "jackpot_pick", "battle"]
 	_last_bet = int(state.get("bet", 100))
 	_stool.queue_redraw()
 
@@ -134,7 +134,7 @@ func handle_event(ev: Dictionary) -> void:
 				_flash_until = _spin_until + 3.0
 				if int(ev.get("seat", 0)) != my_seat or mode == "":
 					_after(1.4).timeout.connect(func(): sfx_at("big_win", global_position))
-		"trail_start", "free_start", "jackpot_start":
+		"trail_start", "free_start", "jackpot_start", "battle_start":
 			_bonus = true
 		"features_done":
 			_bonus = false

@@ -70,7 +70,8 @@ const ARMADILLO_TEXTS := {
 	"trail_message": "FIRE THE PISTOL  ·  SPACE OR CLICK FIRE", "launcher": "THE PISTOL", "launcher_hint": "1 to 6 bullets a shot",
 	"launcher_up": "moves 2 spaces per bullet", "free": "COMBO FREE GAMES", "free_banner": "COMBO FREE GAME %d OF %d",
 	"free_summary": "FREE GAMES", "free_sub": "%d combo free games at %s", "bonus_line": "3+ WAGONS", "free_line": "3+ PISTOLS",
-	"buy_text": "Go straight to the Trail Bonus for %s", "buy_sub": "%d × your %s bet. Trail wins pay at %s."}
+	"buy_text": "Go straight to the Trail Bonus for %s", "buy_sub": "%d × your %s bet. Trail wins pay at %s.",
+	"battle": "RED ALERT", "battle_hint": "tap a ship to fire", "enemy": "ENEMY SHIP", "boss": "FLAGSHIP"}
 const ARMADILLO_TIPS := ["Wild stands in for everything except the Wagon and the Pistols. Pays left to right on 25 lines; the longest match on each line pays.",
 	"Random features can hit any spin. Wilds, Wild Reels, Colossal Reels and the Multiplier land before the reels stop;",
 	"Symbol Upgrade, Repeat Win and Instant Win come after. 3+ Wagons: Trail Bonus. 3+ Pistols: 3 Combo Free Games.",
@@ -163,6 +164,7 @@ var reels: Array = []
 var colossal := {}
 var free := {}
 var trail := {}
+var battle := {}
 var pick := {}
 var auto := 0
 var auto_menu := false
@@ -250,7 +252,9 @@ func _apply_theme() -> void:
 			"trail_message": "%s  ·  SPACE OR CLICK FIRE" % launcher, "launcher": launcher, "launcher_hint": "1 to 6 spaces a shot",
 			"launcher_up": "moves doubled", "free": free_name, "free_banner": free_name + " %d OF %d", "free_summary": free_name,
 			"free_sub": "%d games at %s", "bonus_line": str(t.get("bonus_line", "3+ BONUS")), "free_line": str(t.get("free_line", "3+ FREE SPINS")),
-			"buy_text": "Go straight to the " + trail_name.capitalize() + " for %s", "buy_sub": "%d × your %s bet. Bonus wins pay at %s."}, true)
+			"buy_text": "Go straight to the " + trail_name.capitalize() + " for %s", "buy_sub": "%d × your %s bet. Bonus wins pay at %s.",
+			"battle": str(t.get("battle", "RED ALERT")), "battle_hint": str(t.get("battle_hint", "tap a ship to fire")),
+			"enemy": str(t.get("enemy", "ENEMY SHIP")), "boss": str(t.get("boss", "FLAGSHIP"))}, true)
 	tips = theme.get("rules", ARMADILLO_TIPS)
 	labels = bool(theme.get("labels", true))
 	var fr: Dictionary = theme.get("frame", {})
@@ -299,6 +303,7 @@ func _reset_state() -> void:
 	colossal = {}
 	free = {}
 	trail = {}
+	battle = {}
 	pick = {}
 	landed = true
 	win_shown = 0.0
@@ -327,6 +332,11 @@ func apply_snapshot(state: Dictionary) -> void:
 				_begin_trail(state.trail)
 				trail.waiting = float(state.get("trail_ready_in", 0.0)) <= 0.0
 				trail.auto_at = _now + float(state.get("timer", 6.0) if state.get("timer") != null else 6.0)
+		"battle":
+			if state.get("battle") != null:
+				_begin_battle(state.battle)
+				battle.waiting = float(state.get("battle_ready_in", 0.0)) <= 0.0
+				battle.auto_at = _now + float(state.get("timer", 8.0) if state.get("timer") != null else 8.0)
 		"free_games":
 			if state.get("free") != null:
 				free = {"n": int(state.free.n), "of": int(state.free.of), "total": int(state.free.total)}
@@ -437,11 +447,52 @@ func _handle(ev: Dictionary) -> void:
 			win_shown = float(ev.total)
 			win_target = win_shown
 			message = "%s PAID %s" % [texts.trail, Money.format(int(ev.total))]
+		"battle_start":
+			_begin_battle(ev.battle)
+			_sfx("battle_alert")
+			await _banner(texts.battle, "bought for %s" % Money.format(int(ev.battle.bet) * int(rules.get("buy_cost", 45)))
+				if ev.get("bought", false) else texts.battle_hint, 2.6)
+			if ep != _epoch:
+				return
+			_battle_ready()
+		"battle_shot":
+			if not battle.is_empty():
+				battle.waiting = false
+				await _animate_shot(ev.shot)
+				if ep != _epoch:
+					return
+				battle.total = int(ev.total)
+				if not ev.shot.done:
+					_battle_ready()
+		"battle_end":
+			await _wait(0.6)
+			if ep != _epoch:
+				return
+			_credit_adj += int(ev.total)
+			var b_bet := int(battle.get("bet", 100))
+			var games := " · %d free game%s to come" % [int(ev.spins), "" if int(ev.spins) == 1 else "s"] if int(ev.spins) > 0 else ""
+			await _summary("%s DESTROYED!" % texts.boss if ev.get("won", false) else texts.battle,
+				"%d of %d waves cleared%s" % [int(ev.cleared), int(battle.get("waves", 5)), games], int(ev.total))
+			if ep != _epoch:
+				return
+			if int(ev.total) >= 10 * b_bet:
+				await _big_win(int(ev.total), b_bet)
+			if ep != _epoch:
+				return
+			battle = {}
+			_clear_wins()
+			win_shown = float(ev.total)
+			win_target = win_shown
+			message = "%s PAID %s" % [texts.battle, Money.format(int(ev.total))]
 		"free_start":
 			free = {"n": 0, "of": int(ev.of), "total": 0, "bet": int(ev.bet)}
 			_sfx("bonus_trigger")
-			await _banner(texts.free, "bought for %s" % Money.format(int(ev.bet) * int(rules.get("buy_cost", 45)))
-				if ev.get("bought", false) else "%d games  ·  a random feature every spin" % int(ev.of), 2.2)
+			var sub := "%d games  ·  a random feature every spin" % int(ev.of)
+			if ev.get("bought", false):
+				sub = "bought for %s" % Money.format(int(ev.bet) * int(rules.get("buy_cost", 45)))
+			elif str(ev.get("source", "")) == "battle":
+				sub = "%d won in %s  ·  a random feature every spin" % [int(ev.of), texts.battle.to_lower()]
+			await _banner(texts.free, sub, 2.2)
 		"free_game":
 			free.n = int(ev.n)
 			_sfx("free_spin")
@@ -570,6 +621,8 @@ func _process(delta: float) -> void:
 		cycle_at = _now + 1.4
 	if not trail.is_empty() and trail.get("waiting", false) and _now >= float(trail.get("auto_at", 1e9)) + 1.0:
 		trail.waiting = false   # the server fires it itself; its roll is on the way
+	if not battle.is_empty() and battle.get("waiting", false) and _now >= float(battle.get("auto_at", 1e9)) + 1.0:
+		battle.waiting = false   # ...and the same for the battle's shot
 	_place_layers()
 	_under.queue_redraw()
 	_reels_layer.queue_redraw()
@@ -644,20 +697,24 @@ func _draw_layer(ci: CanvasItem, which: String) -> void:
 			_draw_top(ci)
 			if not trail.is_empty():
 				_draw_trail(ci)
+			elif not battle.is_empty():
+				_draw_battle(ci)
 			else:
 				_draw_sides(ci)
 				_draw_frame(ci)
 		"reels":
-			if trail.is_empty():
+			if trail.is_empty() and battle.is_empty():
 				_draw_reels(ci)
 		"over":
-			if trail.is_empty():
+			if not trail.is_empty():
+				_draw_trail_hud(ci)
+			elif not battle.is_empty():
+				_draw_battle_hud(ci)
+			else:
 				_draw_reel_overlay(ci)
 				_draw_wins(ci)
 				if not pick.is_empty():
 					_draw_pick(ci)
-			else:
-				_draw_trail_hud(ci)
 			if not free.is_empty():
 				_rr(ci, Rect2(440, REEL_Y - 16, 400, 34), 10, ALERT, 2, GOLD)
 				_text(ci, texts.free_banner % [int(free.n), int(free.of)], Vector2(640, REEL_Y + 1), 22, COND, GOLD_HI, "center", 0, 380)
@@ -795,7 +852,7 @@ func _can_buy() -> bool:
 func _plays(kinds: Array) -> String:
 	var names := []
 	for k in kinds:
-		names.append(texts.trail if k == "trail" else "%d %s" % [int(rules.get("free_games", 3)), texts.free])
+		names.append(texts.trail if k == "trail" else (texts.battle if k == "battle" else "%d %s" % [int(rules.get("free_games", 3)), texts.free]))
 	return " OR ".join(names)
 
 
@@ -967,7 +1024,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	var credit := Session.shown_balance + _credit_adj
 	_deck_box(ci, Rect2(20, top, 210, h), "CREDIT", Money.format(credit), Color.WHITE)
 	_deck_box(ci, Rect2(242, top, 230, h), "BET", Money.format(_bet()), Color.WHITE, 112)
-	var idle := not _running and pick.is_empty() and trail.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and free.is_empty()
 	_button(ci, "bet-", Rect2(252, top + 36, 40, 38), "−", false, not idle or _bet_idx == 0, 30)
 	_button(ci, "bet+", Rect2(422, top + 36, 40, 38), "+", false, not idle or _bet_idx == _ladder.size() - 1, 30)
 	_deck_box(ci, Rect2(484, top, 230, h), "FREE GAMES WIN" if not free.is_empty() else "WIN",
@@ -983,7 +1040,7 @@ func _draw_deck(ci: CanvasItem) -> void:
 	ci.draw_circle(c, SPIN_R, SPIN_COL.darkened(0.18) if spinning else SPIN_COL)
 	ci.draw_circle(c + Vector2(-10, -14), SPIN_R * 0.45, Color(1, 0.95, 0.7, 0.45))
 	ci.draw_arc(c, SPIN_R, 0, TAU, 64, GOLD_HI, 5 if hov else 3, true)
-	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() else "SPIN")
+	var label := "STOP" if spinning else ("FIRE" if not trail.is_empty() or not battle.is_empty() else "SPIN")
 	_text(ci, label, c + Vector2(0, 2), 28, COND, INK, "center", 0, SPIN_R * 1.6)
 	_add_hit("spin", Rect2(c - Vector2(SPIN_R, SPIN_R), Vector2(SPIN_R, SPIN_R) * 2.0))
 	_button(ci, "cashout", Rect2(1172, by, 96, 56), "CASH OUT", false, false, 18)
@@ -1923,6 +1980,374 @@ func _draw_trail_hud(ci: CanvasItem) -> void:
 		_text(ci, "fires itself in %d" % ceili(left), Vector2(cyc.x, cyc.y + 176), 16, COND, MUTED)
 
 
+# ------------------------------------------------------------------ the wave battle (Red Alert)
+# Your ship on the left; each wave's ships in a loose formation on the right, drifting and cloaking now and then (for
+# show: a cloaked ship can't be tapped, and the server's draw is the same whichever ship is shot). It fills the
+# trail's area, with its panel on the right. The wizard's mockup (game.js drawBattle) is the same scene; the timings
+# match bonuses.py _BATTLE_SECONDS.
+const B_AREA := Rect2(18, REEL_Y - 18, 1010, REEL_H + 36)
+const HERO := Vector2(200, 352)
+const BOSS_AT := Vector2(760, 385)
+var _stars: Array = []
+
+
+func _ship_spot(i: int, n: int) -> Vector2:
+	var rows := n if n <= 2 else (2 if n <= 6 else 3)
+	var cols := ceili(float(n) / rows)
+	var r := i % rows
+	var c := floori(float(i) / rows)
+	var dx := 380.0 / (cols - 1) if cols > 1 else 0.0
+	var stagger := minf(60.0, dx * 0.3) if r % 2 == 1 else 0.0   # stays clear of the panel
+	var x := (510.0 + c * dx if cols > 1 else 730.0) + stagger
+	return Vector2(x, 240.0 + r * (275.0 / (rows - 1)) if rows > 1 else 378.0)
+
+
+func _battle_ships(n: int, born: float) -> Array:
+	var out := []
+	for i in n:
+		var p := _ship_spot(i, n)
+		out.append({"i": i, "x": p.x, "y": p.y, "phase": fmod(i * 0.618 + randf() * 0.2, 1.0), "born": born, "dead": 0.0, "evade": 0.0})
+	return out
+
+
+func _begin_battle(b: Dictionary) -> void:
+	if _stars.is_empty():
+		for i in 140:
+			_stars.append(Vector4(randf() * B_AREA.size.x, randf() * B_AREA.size.y, 0.6 + randf() * 1.8, 6.0 + randf() * 40.0))
+	var ships := _battle_ships((b.ships as Array).size(), _now)
+	for sh in ships:
+		if not b.ships[sh.i]:
+			sh.dead = -10.0   # already destroyed (a resync mid-wave)
+	battle = {"bet": int(b.bet), "wave": int(b.wave), "waves": int(b.waves), "max_shields": int(b.max_shields), "shields": int(b.shields),
+		"ships": ships, "boss": {}, "total": int(b.total), "spins": int(b.spins), "cleared": int(b.cleared), "won": false,
+		"waiting": false, "auto_at": 1e9, "aim": -1, "forced": -1, "alive": ships.size(), "beam": {}, "bolts": [], "booms": [],
+		"shield_at": -10.0, "restore_at": -10.0, "hero_down": false, "alert_at": _now}
+	if b.get("boss_hp") != null:
+		battle.boss = {"hp": int(b.boss_hp), "max": int(b.boss_max), "t0": _now - 2.0, "hit_at": -10.0, "dead": 0.0}
+	_clear_wins()
+
+
+func _battle_ready() -> void:
+	battle.waiting = true
+	battle.auto_at = _now + 8.0
+	message = ("FIRE ON THE %s  ·  SPACE OR CLICK FIRE" % texts.boss) if not battle.boss.is_empty() else "TAP A SHIP TO FIRE  ·  SPACE FIRES AT ONE"
+
+
+func _ship_pos(sh: Dictionary) -> Vector2:
+	var warp := maxf(0.0, 1.0 - (_now - float(sh.born)) / 0.6) * 300.0
+	return Vector2(float(sh.x) + cos(_now * 0.9 + sh.i * 1.3) * 7.0 + warp, float(sh.y) + sin(_now * 1.3 + sh.i * 1.7) * 9.0)
+
+
+## How cloaked a ship is (0..1): a 9-second cycle, cloaked about a fifth of it; never while it's shot, never the last
+## two, never all at once (one is kept in sight); and it cloaks when it answers a shot.
+func _raw_cloak(sh: Dictionary) -> float:
+	if float(sh.evade) > 0.0 and _now - float(sh.evade) < 1.2:
+		return sin(minf(1.0, (_now - float(sh.evade)) / 1.2) * PI)
+	if int(battle.alive) < 3:
+		return 0.0
+	var f := fmod(_now / 9.0 + float(sh.phase), 1.0)
+	if f < 0.72:
+		return 0.0
+	if f < 0.76:
+		return (f - 0.72) / 0.04
+	if f < 0.9:
+		return 1.0
+	if f < 0.94:
+		return 1.0 - (f - 0.9) / 0.04
+	return 0.0
+
+
+func _cloak(sh: Dictionary) -> float:
+	if int(battle.aim) == int(sh.i) or int(battle.forced) == int(sh.i):
+		return 0.0
+	return _raw_cloak(sh)
+
+
+func _targetable() -> Array:
+	return (battle.ships as Array).filter(func(sh): return float(sh.dead) == 0.0 and _now - float(sh.born) > 0.6 and _cloak(sh) < 0.5)
+
+
+func _fire_battle(target: int) -> void:
+	if battle.is_empty() or not battle.get("waiting", false):
+		return
+	if target < 0 and battle.boss.is_empty():
+		var open := _targetable()
+		if open.is_empty():
+			open = (battle.ships as Array).filter(func(sh): return float(sh.dead) == 0.0)
+		if open.is_empty():
+			return
+		target = int(open[randi() % open.size()].i)
+	battle.waiting = false
+	Net.send("battle_fire", {"index": target if battle.boss.is_empty() else null})
+
+
+func _boom(at: Vector2, size: float) -> void:
+	var bits := []
+	for i in 14:
+		bits.append(Vector2(randf() * TAU, 0.4 + randf()))
+	(battle.booms as Array).append({"at": at, "size": size, "t0": _now, "bits": bits})
+
+
+func _battle_pop(txt: String, colour: Color, at: Vector2, size := 40) -> void:
+	var f := _flyer({"text": txt, "x": at.x, "y": at.y - 50, "text_size": size, "colour": colour, "s": 0.4})
+	await _tw(f, {"s": 1.0, "y": at.y - 95}, 0.35, "back")
+	await get_tree().create_timer(0.7).timeout
+	await _tw(f, {"a": 0.0}, 0.3)
+	f.dead = true
+
+
+func _animate_shot(shot: Dictionary) -> void:
+	var b := battle
+	var ep := _epoch
+	var boss := str(shot.target) == "boss"
+	var sh: Dictionary = {} if boss else b.ships[int(shot.target)]
+	b.aim = -1 if boss else int(shot.target)
+	b.beam = {"boss": boss, "ship": sh, "t0": _now}
+	_sfx("battle_phaser")
+	await _wait(0.6)
+	for e in shot.events:
+		if ep != _epoch:
+			return
+		var p := BOSS_AT if boss else _ship_pos(sh)
+		match str(e.kind):
+			"return_fire":
+				if not boss:
+					sh.evade = _now
+				(b.bolts as Array).append({"from": p, "t0": _now})
+				(b.bolts as Array).append({"from": p + Vector2(0, 14), "t0": _now + 0.12})
+				await _wait(0.45)
+				b.shields = int(e.shields)
+				b.shield_at = _now
+				shake = 0.5
+				_sfx("battle_hit")
+				_battle_pop("SHIELDS %d/%d" % [int(e.shields), int(b.max_shields)] if int(e.shields) > 0 else "SHIELDS FAILING",
+					Color("ff6a5a"), HERO + Vector2(0, -40), 34)
+				await _wait(0.55)
+			"shields_down":
+				b.hero_down = true
+				_boom(HERO + Vector2(20, 0), 150)
+				shake = 1.0
+				_sfx("battle_boom")
+				_battle_pop("SHIELDS DOWN", Color("ff5a48"), HERO + Vector2(60, -60), 46)
+				await _wait(1.6)
+			"destroyed":
+				sh.dead = _now
+				b.aim = -1
+				_boom(p, 110)
+				_sfx("battle_boom")
+				if e.has("spins"):
+					b.spins = int(b.spins) + int(e.spins)
+					_battle_pop("+%d FREE GAME%s" % [int(e.spins), "" if int(e.spins) == 1 else "S"], Color("7fd0ff"), p)
+				else:
+					b.total = int(b.total) + int(e.pence)
+					win_target = float(b.total)
+					roller = maxf(float(e.pence) * 1.4, float(_bet()))
+					_battle_pop(Money.format(int(e.pence)), Color("ffe27a"), p)
+				await _wait(0.9)
+			"wave_clear":
+				b.total = int(b.total) + int(e.pence)
+				b.cleared = int(b.cleared) + 1
+				win_target = float(b.total)
+				roller = maxf(float(e.pence), float(_bet()))
+				_sfx("battle_wave")
+				_battle_pop("WAVE %d CLEARED  +%s" % [int(e.wave) + 1, Money.format(int(e.pence))], GOLD_HI, Vector2(523, 330), 48)
+				_coin_burst(523, 330, 30, 1.0)
+				await _wait(1.0)
+				b.shields = int(b.max_shields)
+				b.restore_at = _now
+				await _wait(0.8)
+			"wave_start":
+				b.wave = int(e.wave)
+				b.ships = _battle_ships(int(e.ships), _now + 0.3)
+				_battle_pop("WAVE %d OF %d" % [int(e.wave) + 1, int(b.waves)], Color("ff8a6a"), Vector2(523, 300), 44)
+				await _wait(1.6)
+			"boss_start":
+				b.ships = []
+				b.boss = {"hp": int(e.hp), "max": int(e.hp), "t0": _now, "hit_at": -10.0, "dead": 0.0}
+				b.alert_at = _now
+				shake = 0.6
+				_sfx("battle_alert")
+				_battle_pop("%s INCOMING" % texts.boss, Color("ff5a48"), Vector2(523, 220), 52)
+				await _wait(2.4)
+			"boss_hit":
+				b.boss.hp = int(e.hp)
+				b.boss.hit_at = _now
+				_boom(p + Vector2(randf_range(-60, 60), randf_range(-40, 40)), 70)
+				_sfx("battle_boom")
+				await _wait(0.7)
+			"boss_destroyed":
+				b.boss.dead = _now
+				b.won = true
+				_boom(p, 320)
+				shake = 1.2
+				_sfx("battle_boom")
+				_coin_rain(80)
+				b.total = int(b.total) + int(e.pence)
+				win_target = float(b.total)
+				roller = maxf(float(e.pence), float(_bet()))
+				_battle_pop("%s DESTROYED  %s" % [texts.boss, Money.format(int(e.pence))], GOLD_HI, Vector2(523, 300), 52)
+				await _wait(2.6)
+	b.aim = -1
+
+
+func _ellipse(ci: CanvasItem, c: Vector2, rx: float, ry: float, fill: Color, edge := Color.TRANSPARENT, width := 2.0) -> void:
+	ci.draw_set_transform(c, 0, Vector2(1, ry / rx))
+	if fill.a > 0.0:
+		ci.draw_circle(Vector2.ZERO, rx, fill)
+	if edge.a > 0.0:
+		ci.draw_arc(Vector2.ZERO, rx, 0, TAU, 64, edge, width * rx / ry, true)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_battle(ci: CanvasItem) -> void:
+	var b := battle
+	var A := B_AREA
+	var alive: Array = (b.ships as Array).filter(func(sh): return float(sh.dead) == 0.0)
+	b.alive = alive.size()
+	var hidden := not alive.is_empty() and alive.all(func(sh): return _raw_cloak(sh) >= 0.5)
+	if not hidden:
+		b.forced = -1
+	elif not alive.any(func(sh): return int(sh.i) == int(b.forced)):
+		b.forced = int(alive[0].i)
+	# deep space, a dim wash of the slot's background, and drifting stars
+	_rr(ci, A, 18, Color("05071a"))
+	var bg := _tex("bg") if background else null
+	if bg:
+		ci.draw_texture_rect(bg, A.grow(-4), false, Color(1, 1, 1, 0.22))
+	for st in _stars:
+		var x := A.position.x + fposmod(st.x - _now * st.w, A.size.x)
+		ci.draw_rect(Rect2(x, A.position.y + st.y, st.z, st.z), Color(0.86, 0.9, 1.0, 0.35 + st.z / 3.0))
+	# red alert: the edges pulse red at the start and when the boss arrives
+	var alert := maxf(0.0, 1.0 - (_now - float(b.alert_at)) / 3.0)
+	if alert > 0.0:
+		var a := 0.45 * alert * (0.6 + 0.4 * sin(_now * 10.0))
+		for k in 6:
+			_rr(ci, A.grow(-k * 10.0), 18, Color.TRANSPARENT, 10, Color(1, 0.12, 0.08, a * (1.0 - k / 6.0)))
+	# your ship and its shields
+	var hy := HERO.y + sin(_now * 1.1) * 6.0
+	var hit := maxf(0.0, 1.0 - (_now - float(b.shield_at)) / 0.6)
+	var up := maxf(0.0, 1.0 - (_now - float(b.restore_at)) / 0.9)
+	var strength := float(b.shields) / maxf(1.0, float(b.max_shields))
+	if strength > 0.0 or hit > 0.0:
+		_ellipse(ci, Vector2(HERO.x, hy), 140, 100, Color(0.35, 0.67, 1.0, 0.06 + 0.08 * strength + 0.3 * hit + 0.25 * up),
+			Color(0.55, 0.82, 1.0, 0.25 + 0.4 * strength + 0.6 * hit), 2.0 + 4.0 * hit)
+	var hero := _tex("b_hero")
+	if hero:
+		ci.draw_texture_rect(hero, Rect2(HERO.x - 120, hy - 120, 240, 240), false, Color(1, 1, 1, 0.55 if b.hero_down else 1.0))
+	# the enemy ships
+	var n: int = (b.ships as Array).size()
+	var size := 124.0 if n <= 6 else 104.0
+	var enemy := _tex("b_enemy")
+	var open := {}
+	if b.waiting:
+		for sh in _targetable():
+			open[int(sh.i)] = true
+	for sh in b.ships:
+		if _now < float(sh.born):
+			continue
+		var age := _now - float(sh.dead) if float(sh.dead) != 0.0 else 0.0
+		if float(sh.dead) != 0.0 and age > 0.4:
+			continue
+		var p := _ship_pos(sh)
+		var cl := _cloak(sh)
+		var z := 1.0 - age / 0.4 if float(sh.dead) != 0.0 else 1.0
+		var alpha := minf(1.0, (_now - float(sh.born)) / 0.6) * (1.0 - 0.88 * cl) * z
+		if enemy:
+			ci.draw_texture_rect(enemy, Rect2(p.x - size / 2.0 * z, p.y - size / 2.0 * z, size * z, size * z), false, Color(1, 1, 1, alpha))
+		if cl > 0.05 and float(sh.dead) == 0.0:   # the cloak's shimmer
+			_ellipse(ci, p, size * 0.5, size * 0.3, Color.TRANSPARENT, Color(0.63, 0.86, 1.0, 0.35 * sin(cl * PI)), 2.0)
+		if open.has(int(sh.i)):
+			var r := Rect2(p - Vector2(size, size) / 2.0, Vector2(size, size))
+			_add_hit("ship%d" % int(sh.i), r)
+			if _hover == "ship%d" % int(sh.i):   # the targeting reticle
+				var red := Color("ff5a48")
+				ci.draw_arc(p, size * 0.55, 0, TAU, 48, red, 3, true)
+				for k in 4:
+					var ang := k * PI / 2.0 + _now
+					ci.draw_line(p + Vector2(cos(ang), sin(ang)) * size * 0.45, p + Vector2(cos(ang), sin(ang)) * size * 0.7, red, 3)
+	# the boss
+	var bo: Dictionary = b.boss
+	if not bo.is_empty() and not (float(bo.dead) != 0.0 and _now - float(bo.dead) > 0.6):
+		var bz := 1.0 - (_now - float(bo.dead)) / 0.6 if float(bo.dead) != 0.0 else 1.0
+		var enter := minf(1.0, (_now - float(bo.t0)) / 1.2)
+		var bp := Vector2(BOSS_AT.x + (1.0 - enter) * 400.0, BOSS_AT.y + sin(_now * 0.8) * 8.0)
+		var bs := 320.0 * bz
+		var flash := 1.8 if _now - float(bo.hit_at) < 0.15 else 1.0
+		var boss_tex := _tex("b_boss")
+		if boss_tex:
+			ci.draw_texture_rect(boss_tex, Rect2(bp - Vector2(bs, bs) / 2.0, Vector2(bs, bs)), false, Color(flash, flash, flash, enter * bz))
+		if b.waiting and enter >= 1.0:
+			_add_hit("boss", Rect2(bp - Vector2(160, 120), Vector2(320, 240)))
+		_rr(ci, Rect2(bp.x - 150, bp.y - 150, 300, 20), 10, Color(0, 0, 0, 0.6))
+		if int(bo.hp) > 0:
+			_rr(ci, Rect2(bp.x - 150, bp.y - 150, maxf(20.0, 300.0 * float(bo.hp) / float(bo.max)), 20), 10, Color("e2402f"))
+		_text(ci, texts.boss, Vector2(bp.x, bp.y - 168), 22, COND, Color("ffb4a6"), "center", 4, 300)
+	# the phaser beam, the return fire and the explosions
+	var bm: Dictionary = b.beam
+	if not bm.is_empty() and _now - float(bm.t0) < 0.45:
+		var to := BOSS_AT if bm.boss else _ship_pos(bm.ship)
+		var k := 1.0 - (_now - float(bm.t0)) / 0.45
+		var from := Vector2(HERO.x + 100, hy - 6)
+		ci.draw_line(from, to, Color(1, 0.48, 0.19, 0.25 * k), 22)
+		ci.draw_line(from, to, Color(1, 0.55, 0.24, k), 9)
+		ci.draw_line(from, to, Color(1, 0.94, 0.78, k), 3)
+	b.bolts = (b.bolts as Array).filter(func(x): return _now - float(x.t0) < 0.45)
+	for bolt in b.bolts:
+		var k := (_now - float(bolt.t0)) / 0.45
+		if k < 0.0:
+			continue
+		var from: Vector2 = bolt.from
+		var at := from.lerp(Vector2(HERO.x + 60, hy), k)
+		ci.draw_set_transform(at, (Vector2(HERO.x, hy) - from).angle(), Vector2(1, 0.38))
+		ci.draw_circle(Vector2.ZERO, 22, Color(0.42, 1, 0.42, 0.3))
+		ci.draw_circle(Vector2.ZERO, 16, Color(0.72, 1, 0.69))
+		ci.draw_set_transform(Vector2.ZERO)
+	b.booms = (b.booms as Array).filter(func(x): return _now - float(x.t0) < 0.9)
+	for boom in b.booms:
+		var k := (_now - float(boom.t0)) / 0.9
+		var r := float(boom.size) * (0.3 + k * 0.7)
+		var at: Vector2 = boom.at
+		ci.draw_circle(at, r, Color(0.47, 0.08, 0.0, 0.25 * (1.0 - k)))
+		ci.draw_circle(at, r * 0.75, Color(1, 0.59, 0.16, 0.6 * (1.0 - k)))
+		ci.draw_circle(at, r * 0.4, Color(1, 0.98, 0.82, 1.0 - k))
+		for bit in boom.bits:
+			ci.draw_rect(Rect2(at + Vector2(cos(bit.x), sin(bit.x)) * r * bit.y * 1.3, Vector2(4, 4)), Color(1, 0.78, 0.47, 1.0 - k))
+
+
+func _draw_battle_hud(ci: CanvasItem) -> void:
+	var b := battle
+	var waves := int(b.waves)
+	# the top: a pip a wave, then the boss, and the battle's win
+	var steps := waves + 1
+	var gap := 880.0 / (steps - 1)
+	for k in steps:
+		var x := 60.0 + k * gap
+		var done: bool = k < int(b.cleared) or (k == waves and b.won)
+		var now: bool = k == int(b.cleared) and not b.won
+		if k < steps - 1:
+			ci.draw_rect(Rect2(x + 12, REEL_Y + 1, gap - 24, 2), Color(1, 1, 1, 0.15))
+		ci.draw_circle(Vector2(x, REEL_Y + 2), 14.0 if k == waves else 10.0, GOLD if done else (Color("e2402f") if now else Color(1, 1, 1, 0.15)))
+	_text(ci, "%s WIN %s" % [texts.battle, Money.format(int(b.total))], Vector2(523, REEL_Y + 30), 34, COND, Color("ffe27a"), "center", 6, 600)
+	# the panel: wave, shields, ships left, what's banked, FIRE
+	_wood(ci, Rect2(1038, REEL_Y - 18, 224, REEL_H + 36), 16)
+	_text(ci, texts.battle, Vector2(1150, REEL_Y + 10), 26, COND, Color("ff6a5a"), "center", 0, 200)
+	var stage: String = texts.boss if not b.boss.is_empty() else "WAVE %d OF %d" % [mini(int(b.wave), waves - 1) + 1, waves]
+	_text(ci, stage, Vector2(1150, REEL_Y + 40), 22, COND, GOLD_HI, "center", 0, 200)
+	_text(ci, "SHIELDS", Vector2(1150, REEL_Y + 76), 18, COND, CREAM)
+	var ms := int(b.max_shields)
+	var pw := minf(40.0, 180.0 / maxf(1.0, ms))
+	for k in ms:
+		_rr(ci, Rect2(1150 - ms * pw / 2.0 + k * pw + 3, REEL_Y + 88, pw - 6, 18), 5, Color("5ab4ff") if k < int(b.shields) else Color(1, 1, 1, 0.12))
+	var left := (b.ships as Array).filter(func(sh): return float(sh.dead) == 0.0).size()
+	var line := "HITS LEFT %d" % int(b.boss.hp) if not b.boss.is_empty() else "%s: %d LEFT" % [texts.enemy, left]
+	_text(ci, line, Vector2(1150, REEL_Y + 136), 18, COND, CREAM, "center", 0, 200)
+	_text(ci, "FREE GAMES WON %d" % int(b.spins), Vector2(1150, REEL_Y + 166), 18, COND, Color("7fd0ff"), "center", 0, 200)
+	if b.waiting:
+		_button(ci, "fire", Rect2(1070, REEL_Y + 300, 160, 58), "FIRE", false, false, 32, [Color("ffb4a6"), Color("7d130c")])
+		_text(ci, texts.battle_hint, Vector2(1150, REEL_Y + 380), 16, COND, CREAM, "center", 0, 200)
+		_text(ci, "fires itself in %d" % ceili(maxf(0.0, float(b.auto_at) - _now)), Vector2(1150, REEL_Y + 402), 16, COND, MUTED)
+
+
 # ------------------------------------------------------------------ input
 func _virtual(p: Vector2) -> Vector2:
 	var r := _canvas_rect()
@@ -1975,6 +2400,9 @@ func _act(id: String) -> void:
 				_sfx("cash_out")
 				stand_requested.emit()
 		return
+	if not battle.is_empty() and (id.begins_with("ship") or id == "boss"):
+		_fire_battle(int(id.substr(4)) if id.begins_with("ship") else -1)
+		return
 	if id.begins_with("coin"):
 		var i := int(id.substr(4))
 		if not pick.is_empty() and not pick.done and pick.coins[i].tier == "" and not pick.coins[i].asked:
@@ -1983,12 +2411,15 @@ func _act(id: String) -> void:
 		return
 	if id != "auto" and not id.begins_with("auto"):
 		auto_menu = false
-	var idle := not _running and pick.is_empty() and trail.is_empty() and free.is_empty()
+	var idle := not _running and pick.is_empty() and trail.is_empty() and battle.is_empty() and free.is_empty()
 	match id:
 		"spin":
 			_spin_or_stop()
 		"fire":
-			_fire()
+			if not battle.is_empty():
+				_fire_battle(-1)
+			else:
+				_fire()
 		"bet-":
 			if idle:
 				_bet_idx = maxi(0, _bet_idx - 1)
@@ -2030,7 +2461,7 @@ func _bet_changed() -> void:
 
 func _cash_out() -> void:
 	auto = 0
-	if not pick.is_empty() or not trail.is_empty() or not free.is_empty():
+	if not pick.is_empty() or not trail.is_empty() or not battle.is_empty() or not free.is_empty():
 		overlay = {"kind": "cashout"}
 	else:
 		_sfx("cash_out")
@@ -2044,6 +2475,8 @@ func _bet() -> int:
 func _spin_or_stop() -> void:
 	if not trail.is_empty():
 		return _fire()
+	if not battle.is_empty():
+		return _fire_battle(-1)
 	if reels.any(func(x): return x.spinning or x.stopping):
 		_hurry = true
 		return

@@ -5,9 +5,15 @@ The bonus games. Each is a small state machine the cabinet steps through:
   armadillo moves that many spaces along a 120-space trail, collecting what it lands on.
   A Snake ends it unless a Heart is held; the end pays the prizepot (2,000x, 4,000x doubled).
 - Combo Free Spins (3+ free-spin scatters): three free games with a random feature every spin.
+- The wave battle, Red Alert (any way in a design gives it): your ship fires on waves of enemy ships. A shot either
+  destroys its ship, which reveals a prize or free spins (banked, played as Combo Free Games afterwards), or is
+  answered (the ship cloaks and fires back: shields -1). Shields at 0 end it; clearing a wave pays its reward and
+  restores them. After the last wave a boss takes `boss_hits` hits and pays a big prize.
 
-Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames), draw for draw.
+Ported from the mockup (slots_math.js makeBoard / trailRoll / freeGames / battleShot), draw for draw.
 """
+import math
+
 from casino_server.slots.outcome import spin_outcome
 from casino_server.slots.rng import randint, shuffle, weighted
 
@@ -198,3 +204,99 @@ def trail_roll_seconds(roll: dict) -> float:
         t += 0.5 if abs(p - at) > 1 else 0.2  # a slide (a signpost) or a hop
         at = p
     return t + sum(_EVENT_SECONDS.get(e["kind"], 0.5) for e in roll["events"])
+
+
+# ------------------------------------------------------------------ the wave battle (Red Alert)
+def bet_pence(x, bet: int) -> int:
+    """A prize of x bets in pence, rounded half up (Python's round() rounds halves to even; the JS twin can't)."""
+    return math.floor(x * bet + 0.5)
+
+
+def battle_start(v, bet: int) -> dict:
+    """A fresh battle: wave 0's ships all there, full shields. Nothing is drawn until a shot is fired."""
+    b = v.battle
+    return {"bet": bet, "wave": 0, "waves": len(b["waves"]), "ships": [True] * b["waves"][0], "shields": b["shields"],
+            "max_shields": b["shields"], "boss_hp": None, "boss_max": b["boss_hits"], "total": 0, "spins": 0,
+            "shots": 0, "cleared": 0, "won": False, "done": False}
+
+
+def battle_shot(v, st: dict, rng, target=None) -> dict:
+    """One shot; `st` advances. `target` is a ship still there (any other, or None, takes the first one left; the boss
+    needs none). Which ship is hit never changes the draw. Returns {target, answered, events, done}. Events:
+    return_fire {ship, shields}, shields_down, destroyed {ship, pence | spins}, wave_clear {wave, pence},
+    wave_start {wave, ships, shields}, boss_start {hp, shields}, boss_hit {hp}, boss_destroyed {pence}."""
+    b, ev = v.battle, []
+    st["shots"] += 1
+    boss = st["boss_hp"] is not None
+    if boss:
+        target = "boss"
+    elif not (isinstance(target, int) and 0 <= target < len(st["ships"]) and st["ships"][target]):
+        target = st["ships"].index(True)
+    answered = rng() < (b["boss_fire"] if boss else b["return_fire"][st["wave"]])
+    if answered:
+        st["shields"] -= 1
+        ev.append({"kind": "return_fire", "ship": target, "shields": st["shields"]})
+        if st["shields"] <= 0:
+            ev.append({"kind": "shields_down"})
+            st["done"] = True
+    elif boss:
+        st["boss_hp"] -= 1
+        ev.append({"kind": "boss_hit", "hp": st["boss_hp"]})
+        if st["boss_hp"] <= 0:
+            pence = bet_pence(_draw(rng, b["boss"]), st["bet"])
+            st["total"] += pence
+            ev.append({"kind": "boss_destroyed", "pence": pence})
+            st["won"] = st["done"] = True
+    else:
+        st["ships"][target] = False
+        if rng() < b["spins_chance"]:
+            n = _draw(rng, b["spins"])
+            st["spins"] += n
+            ev.append({"kind": "destroyed", "ship": target, "spins": n})
+        else:
+            pence = bet_pence(_draw(rng, b["prizes"]), st["bet"])
+            st["total"] += pence
+            ev.append({"kind": "destroyed", "ship": target, "pence": pence})
+        if not any(st["ships"]):
+            pence = bet_pence(b["clear"][st["wave"]], st["bet"])
+            st["total"] += pence
+            st["cleared"] += 1
+            ev.append({"kind": "wave_clear", "wave": st["wave"], "pence": pence})
+            st["wave"] += 1
+            st["shields"] = st["max_shields"]
+            if st["wave"] < st["waves"]:
+                st["ships"] = [True] * b["waves"][st["wave"]]
+                ev.append({"kind": "wave_start", "wave": st["wave"], "ships": len(st["ships"]), "shields": st["shields"]})
+            else:
+                st["ships"] = []
+                st["boss_hp"] = st["boss_max"]
+                ev.append({"kind": "boss_start", "hp": st["boss_hp"], "shields": st["shields"]})
+    return {"target": target, "answered": answered, "events": ev, "done": st["done"]}
+
+
+def _draw(rng, table):
+    return weighted(rng, [tuple(p) for p in table])
+
+
+def battle_play_out(v, st: dict, rng) -> list:
+    """A player who leaves mid-battle (and the simulator): it fires itself to the end."""
+    shots = []
+    for _ in range(2000):
+        if st["done"]:
+            break
+        shots.append(battle_shot(v, st, rng))
+    return shots
+
+
+def battle_view(st: dict) -> dict:
+    """The battle as clients see it."""
+    return dict(st, ships=list(st["ships"]))
+
+
+# How long the screen takes to play each part of a shot (game.js / slot_screen.gd), so the server waits for it.
+_BATTLE_SECONDS = {"return_fire": 1.0, "shields_down": 1.6, "destroyed": 0.9, "wave_clear": 1.8, "wave_start": 1.6,
+                   "boss_start": 2.4, "boss_hit": 0.7, "boss_destroyed": 2.6}
+
+
+def battle_shot_seconds(shot: dict) -> float:
+    return 0.6 + sum(_BATTLE_SECONDS.get(e["kind"], 0.5) for e in shot["events"])

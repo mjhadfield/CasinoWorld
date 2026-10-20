@@ -37,6 +37,7 @@ class SlotVariant:
     pays: dict = field(default_factory=lambda: dict(base.PAYS))           # tier -> pays for 3, 4, 5 (line bets)
     upgrades: dict = field(default_factory=lambda: dict(base.UPGRADES))   # Symbol Upgrade: tier -> the tier above
     features: list = field(default_factory=lambda: list(base.FEATURES))   # in library order (draw order matters)
+    battle: dict = field(default_factory=lambda: json.loads(json.dumps(base.BATTLE)))   # the wave battle's settings
     art: dict = field(default_factory=dict)      # role -> art id, for feature and bonus pictures (the client's SlotArt)
     theme: dict = field(default_factory=dict)    # the screen's and cabinet's look (Sprites step); {} = Armadillo's
     extras: dict = field(default_factory=dict)
@@ -62,4 +63,5 @@ def from_json(path: Path) -> SlotVariant:
         buy_cost=d.get("buy_cost", 45), free_games=d.get("free_games", 3),
         routes=d.get("routes") or {k: list(v) for k, v in base.ROUTES.items()},
         pays={k: tuple(v) for k, v in d["pays"].items()}, upgrades=d["upgrades"], features=d["features"],
+        battle={**base.BATTLE, **d.get("battle", {})},
         art=d.get("art", {}), theme=d.get("theme", {}), extras=d.get("extras", {}))

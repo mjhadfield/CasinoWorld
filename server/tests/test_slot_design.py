@@ -404,6 +404,31 @@ def test_bonus_switches_and_ways_in(board):
     assert not o["art"]["t_coin"]["used"] and o["art"]["armadillo"]["used"]
 
 
+def test_battle_bonus(board):
+    """The wave battle is off until switched on (and then shares the bonus scatter); its settings are checked, and
+    switching it on or changing it changes what a freeze measured."""
+    from casino_server import slot_design_steps as steps
+    c, _ = board
+    api = "/api/slot-design/demo/bonuses"
+    b = _overview(c)["bonuses"]
+    assert not b["battle"]["enabled"] and b["battle"]["name"] == "RED ALERT" and b["battle"]["waves"] == [4, 5, 6, 7, 8]
+    assert not _overview(c)["art"]["b_hero"]["used"]
+    assert c.patch(api, json={"battle": {"enabled": True}, "trail": {"enabled": False}}).status_code == 200
+    o = _overview(c)
+    assert o["bonuses"]["routes"] == {"BS": ["battle"], "FS": ["free"], "buy": ["battle"]} and o["art"]["b_enemy"]["used"]
+    assert any("RED ALERT" in line for line in o["signoff"]["rules"])
+    assert c.patch(api, json={"battle": {"name": "Red Alert!", "enemy": "Bird of Prey", "waves": [3, 4, 5], "return_fire": [0.1, 0.2, 0.3],
+                                         "clear": [1, 2, 50], "spins": [[2, 1]], "boss_hits": 4}}).status_code == 200
+    bt = _overview(c)["bonuses"]["battle"]
+    assert (bt["name"], bt["enemy"], bt["waves"], bt["clear"], bt["boss_hits"]) == ("Red Alert!", "Bird of Prey", [3, 4, 5], [1, 2, 50], 4)
+    before = _overview(c)["bonuses"]
+    for body in [{"waves": [4, 5]}, {"waves": [0]}, {"return_fire": [0.95, 0.1, 0.1]}, {"shields": 0}, {"spins": [[1.5, 1]]},
+                 {"prizes": "lots"}, {"boss_hits": 50}, {"clear": [1, 2, -3]}]:
+        assert c.patch(api, json={"battle": body}).status_code == 400, body
+        assert _overview(c)["bonuses"] == before, body
+    assert steps.battle_maths(bt)["waves"] == [3, 4, 5] and "name" not in steps.battle_maths(bt)
+
+
 def test_art_slots_and_specs(board):
     c, _ = board
     a = _overview(c)["art"]

@@ -1,10 +1,11 @@
-// Step 6, Bonus games: a card per library bonus (the Trail bonus, the free games) with everything about it: on or off,
+// Step 6, Bonus games: a card per library bonus (the Trail bonus, the free games, the wave battle) with everything about it: on or off,
 // how players get in (a scatter, Buy Bonus, or both; bonuses sharing a way in play one at random), its settings and
 // its pictures. Then Buy Bonus's price and the shared Jackpot Pick. "Try it" plays the mockup straight into a bonus.
 import {SHORT, STAND_IN, artSlot, parseTable, specs, tableText, typing} from "./artslot.js";
 
 const SPACES = [["snake", "Hazards"], ["heart", "Hearts"], ["forward", "Forward"], ["back", "Back"], ["lightning", "Lightning rolls"], ["crate", "Coin crates"]];
 const TRAIL_ART = ["armadillo", "cylinder", "t_coin", "t_gold", "t_snake", "t_heart", "t_forward", "t_lightning", "t_crate", "t_upgrade", "t_double"];
+const BATTLE_ART = ["b_hero", "b_enemy", "b_boss"];
 const SCATTERS = [["BS", "bonus scatter"], ["FS", "free-spins scatter"]];
 let C, picked = null;          // the trail picture open for changing
 const opened = new Set();      // <details> left open, kept across redraws
@@ -16,6 +17,7 @@ export function render(ctx, body) {
     el("p", {className: "lead", textContent: "The bonus games: switch each on or off, choose how players get in, and set how it plays and looks. Bonuses that share a way in take turns at random. What they're worth is measured on the Maths step."}),
     waysCard(),
     el("div", {className: "wz-cards"}, trailCard(b.trail), el("div", {className: "pane"}, freeCard(b.free), buyCard(b.buy), pickCard())),
+    battleCard(b.battle),
     folded("ideas", "New bonus ideas", ideas()));
 }
 
@@ -34,7 +36,7 @@ function ideas() {
 }
 
 // ------------------------------------------------------------------ helpers
-const TITLE = {trail: "The trail bonus", free: "The free games"};
+const TITLE = {trail: "The trail bonus", free: "The free games", battle: "The battle bonus"};
 const field = (label, input) => C.el("label", {className: "field"}, C.el("span", {textContent: label}), input);
 const num = (v, min, max, step = 1, label = "") => C.el("input", {type: "number", min, max, step, value: v, className: "wz-num", ariaLabel: label});
 const txt = (v, label = "") => C.el("input", {value: v, ariaLabel: label});
@@ -57,7 +59,7 @@ const scatterImg = t => { const s = scatterSym(t); return s && s.file ? C.img(s.
 
 // What a way in plays, in words: one bonus, or several "at random".
 function plays(kinds) {
-  const b = C.data.bonuses, name = k => k === "trail" ? b.trail.name : `${b.free.games} ${b.free.name}`;
+  const b = C.data.bonuses, name = k => k === "free" ? `${b.free.games} ${b.free.name}` : b[k].name;
   return kinds.length ? kinds.map(name).join(" or ") + (kinds.length > 1 ? ", at random" : "") : null;
 }
 
@@ -100,12 +102,11 @@ function waysIn(kind, x) {
   sel.addEventListener("change", () => save({[kind]: {scatter: sel.value || null}}, `${TITLE[kind]}: way in saved.`));
   const buy = el("input", {type: "checkbox", checked: x.buyable, disabled: !x.enabled,
     onchange: () => save({[kind]: {buyable: buy.checked}}, `${TITLE[kind]}: Buy Bonus ${buy.checked ? "can" : "can't"} give it now.`)});
-  const other = kind === "trail" ? "free" : "trail";
-  const shared = x.enabled && x.scatter && b[other].enabled && b[other].scatter === x.scatter;
+  const others = Object.keys(TITLE).filter(k => k !== kind && x.enabled && x.scatter && b[k].enabled && b[k].scatter === x.scatter);
   return el("div", {className: "wz-in"},
     el("label", {className: "field"}, el("span", {textContent: "Started by"}), sel),
     el("label", {className: "confirm"}, buy, "Buy Bonus can give it"),
-    shared ? el("span", {className: "tag gold", textContent: `shares ${scatterName(x.scatter)} with ${TITLE[other].toLowerCase()}: one at random`}) : null);
+    others.length ? el("span", {className: "tag gold", textContent: `shares ${scatterName(x.scatter)} with ${others.map(k => TITLE[k].toLowerCase()).join(" and ")}: one at random`}) : null);
 }
 
 const offNote = what => C.el("p", {className: "hint", textContent: `Off: nothing plays ${what}, and its pictures aren't needed. Its settings are kept.`});
@@ -139,17 +140,17 @@ function trailCard(t) {
 // A bonus's pictures as a strip of tiles; the one picked opens below to be changed.
 function pictures(keys) {
   const {el} = C, art = C.data.art;
-  if (!keys.includes(picked)) picked = null;
+  const open = keys.includes(picked) ? picked : null;   // (each bonus card has its own strip)
   const tiles = keys.map(k => el("button", {type: "button", className: "wz-pic", ariaPressed: String(k === picked), title: art[k].label,
     onclick: () => { picked = picked === k ? null : k; update(C); }},
     el("img", {src: art[k].file ? C.img(art[k].file) : STAND_IN(k), alt: "", className: art[k].file ? "" : "standin"}),
-    el("span", {textContent: (SHORT[k] || k).replace(/^Trail /, "")})));
+    el("span", {textContent: (SHORT[k] || k).replace(/^(Trail |Battle: )/, "")})));
   const own = keys.filter(k => art[k].file).length;
   return el("div", {className: "pane"},
     el("div", {className: "controls"}, el("b", {textContent: "Pictures"}),
-      el("span", {className: "hint", textContent: own === keys.length ? "all its own" : `${keys.length - own} of ${keys.length} still Armadillo's (faded): pick one to change it`})),
+      el("span", {className: "hint", textContent: own === keys.length ? "all its own" : `${keys.length - own} of ${keys.length} still stand-ins (faded): pick one to change it`})),
     el("div", {className: "wz-pics"}, ...tiles),
-    picked ? artSlot(C, picked) : null);
+    open ? artSlot(C, open) : null);
 }
 
 // ------------------------------------------------------------------ the free games
@@ -162,6 +163,44 @@ function freeCard(f) {
     el("p", {className: "hint", textContent: "Paid at the triggering bet, with at least one random feature on every game (their free-game chances are on the Features step). They play on the reels, so they need no pictures of their own."}),
     el("div", {className: "grid2"}, field("Their name", name), field("How many", games)),
     el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Save", onclick: () => save({free: {name: name.value, games: +games.value}}, "Free games saved.")})));
+  return card;
+}
+
+// ------------------------------------------------------------------ the wave battle (Red Alert)
+const list = v => v.join(", ");
+const parseList = text => text.split(/[,;\s]+/).filter(Boolean).map(Number);
+const pcts = v => v.map(x => +(x * 100).toFixed(1)).join(", ");
+
+function battleCard(x) {
+  const {el} = C, card = el("div", {className: "card" + (x.enabled ? "" : " wz-off")},
+    bonusHead("battle", x, "Battle bonus", "your ship against waves of enemy ships, then a boss"), waysIn("battle", x));
+  if (!x.enabled) { card.append(offNote("it")); return card; }
+  const T = {name: txt(x.name, "Its name"), hint: txt(x.hint, "Hint on its banner"), enemy: txt(x.enemy, "What the enemy ships are called"),
+    boss_name: txt(x.boss_name, "What the boss is called"),
+    waves: txt(list(x.waves), "Ships in each wave"), shields: num(x.shields, 1, 9, 1, "Shields"),
+    fire: txt(pcts(x.return_fire), "Return fire chance by wave"), clear: txt(list(x.clear), "Wave rewards"),
+    prizes: txt(tableText(x.prizes), "Ship prizes"), spinsChance: num(+(x.spins_chance * 100).toFixed(2), 0, 100, 0.1, "Free spins chance"),
+    spins: txt(tableText(x.spins), "Free spins"), bossHits: num(x.boss_hits, 1, 20, 1, "Boss hits"),
+    bossFire: num(+(x.boss_fire * 100).toFixed(1), 0, 90, 0.5, "Boss return fire"), boss: txt(tableText(x.boss), "Boss prizes")};
+  const waves = x.waves.length;
+  card.append(
+    el("p", {className: "hint", textContent: `Tap an enemy ship to fire. A hit destroys it for a prize (or free spins, played as ${C.data.bonuses.free.name.toLowerCase()} after the battle); a miss lets it cloak and fire back, costing a shield. Lose every shield and the battle ends; clear a wave for its reward and fresh shields. After ${waves} waves the boss arrives.`}),
+    pictures(BATTLE_ART),
+    el("div", {className: "grid2"}, field("Its name", T.name), field("Hint on its banner", T.hint),
+      field("The enemy ships are called", T.enemy), field("The boss is called", T.boss_name)),
+    folded("waves", "The waves: ships, shields, return fire and rewards",
+      el("div", {className: "grid2"}, field("Ships in each wave", T.waves), field("Shields (hits a wave)", T.shields),
+        field("Return fire by wave, %", T.fire), field("Wave rewards (× bet)", T.clear),
+        field("Ship prizes (× bet, value:weight)", T.prizes), field("Free spins chance a ship, %", T.spinsChance),
+        field("Free spins (games, value:weight)", T.spins))),
+    folded("boss", "The boss",
+      el("div", {className: "grid2"}, field("Hits to destroy it", T.bossHits), field("Its return fire, %", T.bossFire),
+        field("Its prize (× bet, value:weight)", T.boss))),
+    el("div", {className: "controls"}, el("button", {type: "button", className: "primary", textContent: "Save the battle", onclick: () => save({battle: {
+      name: T.name.value, hint: T.hint.value, enemy: T.enemy.value, boss_name: T.boss_name.value,
+      waves: parseList(T.waves.value), shields: +T.shields.value, return_fire: parseList(T.fire.value).map(v => v / 100),
+      clear: parseList(T.clear.value), prizes: parseTable(T.prizes.value), spins_chance: +T.spinsChance.value / 100,
+      spins: parseTable(T.spins.value), boss_hits: +T.bossHits.value, boss_fire: +T.bossFire.value / 100, boss: parseTable(T.boss.value)}}, "Battle saved.")})));
   return card;
 }
 

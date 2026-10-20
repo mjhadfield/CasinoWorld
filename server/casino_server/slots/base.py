@@ -21,9 +21,22 @@ PAYS = {
     "L1": (4, 8, 20), "L2": (4, 8, 20), "L3": (4, 8, 20), "L4": (4, 8, 20),
 }
 SCATTERS = ("BS", "FS")   # the bonus scatter and the free-spin scatter: never substituted, pay nothing
-BONUSES = ("trail", "free")   # the library's bonus games: the Trail Bonus and Combo Free Games
+BONUSES = ("trail", "free", "battle")   # the library's bonus games: the Trail Bonus, Combo Free Games, the wave battle
 # Which bonuses each way in plays (3+ BS, 3+ FS, Buy Bonus). With more than one, it's one of them at random.
 ROUTES = {"BS": ["trail"], "FS": ["free"], "buy": ["trail"]}
+# The wave battle (Red Alert): five waves of ships, then a boss. Prizes, wave rewards and the boss's prize are in bets.
+BATTLE = {
+    "waves": [4, 5, 6, 7, 8],                        # ships in each wave
+    "shields": 3,                                    # hits your ship takes in a wave; restored for the next
+    "return_fire": [0.15, 0.2, 0.25, 0.3, 0.34],     # chance a shot is answered (the ship cloaks and fires back), by wave
+    "prizes": [[0.2, 30], [0.4, 26], [0.6, 18], [1, 12], [2, 8], [5, 4], [10, 1.5], [25, 0.5]],
+    "spins_chance": 0.015,                           # a destroyed ship gives free spins instead of a prize
+    "spins": [[1, 60], [2, 30], [3, 10]],
+    "clear": [2, 4, 6, 12, 25],                      # each wave's reward for clearing it
+    "boss_hits": 6,
+    "boss_fire": 0.3,
+    "boss": [[100, 50], [200, 30], [300, 12], [500, 6], [1000, 2]],
+}
 UPGRADES = {"L1": "M3", "L2": "M3", "L3": "M4", "L4": "M4", "M3": "M1", "M4": "M2", "M1": "H2", "M2": "H2", "H2": "H1"}
 LADDER = [25, 50, 75, 100, 150, 250, 500, 1000, 2500]   # total bet in pence (a whole-pence line bet)
 FEATURES = ["wilds", "wildReels", "colossal", "multiplier", "upgrade", "repeat", "instant"]
