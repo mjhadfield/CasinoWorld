@@ -202,6 +202,33 @@ def test_prompts_panel_sets_first_takes_and_rewrites_styles(board, monkeypatch):
     assert p["text"][1] == art.TEXT_STYLES[2] and p["bust"] == art.BUST
 
 
+def test_first_generate_on_any_card(board, monkeypatch):
+    c, _ = board
+    o = _overview(c)
+    assert not _sym(o, "ship")["pending_new"] and _sym(o, "ship")["first_takes"] == 3
+    assert c.patch("/api/slot-design/demo/symbols/ship", json={"first": 4}).status_code == 400
+    # marking one clears the other
+    c.patch("/api/slot-design/demo/symbols/ship", json={"reiterate": True})
+    c.patch("/api/slot-design/demo/symbols/ship", json={"first": 2})
+    s = _sym(_overview(c), "ship")
+    assert s["pending_new"] and s["first_takes"] == 2 and not s["reiterate"]
+    c.patch("/api/slot-design/demo/symbols/ship", json={"reiterate": True})
+    assert not _sym(_overview(c), "ship")["pending_new"]
+    c.patch("/api/slot-design/demo/symbols/ship", json={"first": 2})
+    # it redraws the reference in the first two styles, not a variation of the chosen take
+    prompts = []
+    monkeypatch.setattr(art, "flux_edit", lambda im, p: prompts.append(p) or _fake_flux())
+    before = len(_sym(_overview(c), "ship")["variants"])
+    assert c.post("/api/slot-design/demo/symbols/ship/queue", json={}).json()["queued"] == 1
+    _wait_idle(c)
+    s = _sym(_overview(c), "ship")
+    assert len(s["variants"]) == before + 2 and not s["pending_new"]
+    assert art.STYLES[1] in prompts[0] and art.STYLES[2] in prompts[1]
+    c.patch("/api/slot-design/demo/symbols/ship", json={"first": 1})
+    c.patch("/api/slot-design/demo/symbols/ship", json={"first": 0})
+    assert _overview(c)["pending"] == 0
+
+
 def test_reiterating_from_a_reference_uses_the_description(board):
     c, _ = board
     sid = c.post("/api/slot-design/demo/symbols", json={"name": "Wheel", "category": "bonus", "prompt": "a prize wheel"}).json()["id"]

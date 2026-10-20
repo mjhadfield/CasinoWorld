@@ -303,7 +303,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                 symbols.append({
                     **{k: s.get(k) for k in ("id", "name", "category", "kind", "key", "keep_text", "prompt", "hue", "note", "base")},
                     "keep": bool(s.get("keep")), "reiterate": bool(s.get("reiterate")), "added": bool(s.get("added")),
-                    "takes": s.get("takes", TAKES), "hide": bool(s.get("hide")), "in_use": s["id"] in used,
+                    "takes": s.get("takes", TAKES), "first_takes": first_takes(d, s),
+                    "hide": bool(s.get("hide")), "in_use": s["id"] in used,
                     "pending_new": bool(s.get("pending_new")), "refs": s.get("refs", []),
                     "variants": d.variants(s), "binned": d.binned(s), "fits": s.get("fits", {}),
                     "choice": v["id"] if v else None, "file": d.chosen_file(s),
@@ -355,6 +356,16 @@ class DesignBoard(StepsMixin, BuildMixin):
                     s[k] = bool(v)
                     if k == "keep" and v:
                         s.pop("hide", None)  # in the set means in use
+                    if k == "reiterate" and v:
+                        s["pending_new"] = False  # one or the other: a Reiterate or a first generate
+                elif k == "first":
+                    # A first generate: the style prompts, from the reference or the description, as when it was new
+                    if v not in (0,) + FIRST_TAKES:
+                        raise DesignError("A first generate makes 1, 2 or 3 takes (0 for none).")
+                    s["pending_new"] = bool(v)
+                    if v:
+                        s["first_takes"], s["reiterate"] = v, False
+                        s.pop("hide", None)
                 elif k == "takes":
                     if v not in TAKE_CHOICES:
                         raise DesignError("A Reiterate makes 1, 3 or 5 takes.")
@@ -789,20 +800,19 @@ class DesignBoard(StepsMixin, BuildMixin):
 
     # ------------------------------------------------------------- jobs
     def generate(self, did: str, sid: str | None = None) -> int:
-        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or newly added (the Prompts panel's 1, 2
-        or 3), or just for `sid` (a card's Queue). Returns how many."""
+        """Queue a job for every symbol marked Reiterate (its 1, 3 or 5 takes) or for a first generate (new, or marked
+        on its card: 1, 2 or 3 takes), or just for `sid` (a card's Queue). Returns how many."""
         with self.lock:
             d = self.design(did)
             queued = 0
             for s in [d.symbol(sid)] if sid else d.data["symbols"]:
                 if s.get("pending_new"):
-                    count = d.prompts()["first_takes"]
-                    ref = s["refs"][0] if s.get("refs") else None
+                    count = first_takes(d, s)
+                    refs = s.get("refs") or []
+                    ref = s["base"] if s.get("base") in refs else refs[0] if refs else None
                     job = {"how": "redraw" if ref else "text", "src": ref, "text": s.get("prompt", ""),
                            "out": s["kind"], "action": "new"}
                     s["pending_new"] = False
-                    if s.get("from_sheet"):
-                        count = 1  # a sheet cut: the faithful redraw only (style 1)
                 elif s.get("reiterate"):
                     job = self._reiterate_job(d, s)
                     s["reiterate"] = False
@@ -984,6 +994,12 @@ class DesignBoard(StepsMixin, BuildMixin):
 
 class Cancelled(Exception):
     """The job was cancelled while FLUX drew its picture: the picture is thrown away."""
+
+
+def first_takes(d: Design, s: dict) -> int:
+    """How many takes a symbol's first generate makes: its own pick, else 1 for a sheet cut (the faithful redraw),
+    else the Prompts panel's default."""
+    return s.get("first_takes") or (1 if s.get("from_sheet") else d.prompts()["first_takes"])
 
 
 def _live(d: Design, job: dict) -> bool:

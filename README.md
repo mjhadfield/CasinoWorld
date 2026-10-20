@@ -93,8 +93,9 @@ and Tailscale. It has six tabs:
     cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols (Generate makes one faithful redraw of each).
   - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
     pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
-    art on the board), **Reiterate** (1, 3 or 5 fresh takes from the chosen take or a reference, with a note; a reference redraw also
-    goes by the symbol's description),
+    art on the board), **First generate** (1, 2 or 3 takes in the Prompts styles from reference 1 or the description, as a new
+    symbol gets; on any card, e.g. one whose first Generate was cancelled), **Reiterate** (1, 3 or 5 fresh takes from the chosen
+    take or a reference, with a note; a reference redraw also goes by the symbol's description; marking one clears the other),
     **Refine** (one image-model edit that keeps everything but what you name), **Fit** (rescale, nudge and rotate it in its
     tile, previewed live; saved as a new take), **Split** (asks for a name, then moves the take shown into a new symbol of its own in the
     same section; the original goes to the Bin) and the **Bin** (✕ on a take; restorable, nothing is deleted).
@@ -105,7 +106,7 @@ and Tailscale. It has six tabs:
     drawn is thrown away). A card's **Section** moves the symbol to another category. **Hide** takes a symbol that
     isn't in use (not in the final set, on the ladder or followed by an art slot) off the board, **Hide unused** does
     all of them at once, and **Hidden** shows them to unhide. The **Prompts** fold at the top sets how many takes a
-    new symbol's first Generate makes (1, 2 or 3; take n uses style n) and rewrites the three redraw-from-a-reference
+    new symbol's first Generate makes by default (1, 2 or 3; take n uses style n; a sheet cut makes 1) and rewrites the three redraw-from-a-reference
     styles, the three from-a-description styles and the character portrait style, per design (`art_prompts` in
     design.json; an emptied box or **Default** goes back to the code's prompt). One worker draws every job, one picture
     at a time.

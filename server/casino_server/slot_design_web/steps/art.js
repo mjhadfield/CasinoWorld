@@ -37,7 +37,7 @@ export function render(ctx, body) {
       }})));
   body.append(
     promptsPanel(),
-    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. Reiterate makes 1, 3 or 5 fresh takes; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no image model); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to the image model; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
+    el("p", {className: "lead", textContent: "Pick each symbol's best take and tick it into the final set. First generate makes 1, 2 or 3 takes in the Prompts styles, from the reference or the description, as a new symbol gets; Reiterate makes 1, 3 or 5 fresh takes from the chosen take; Refine changes one thing on a take and keeps the rest; Fit rescales or nudges a take (no image model); Split moves the take shown out into a new symbol of its own. ✕ moves a take to the Bin, where it can be restored. Generate sends everything marked to the image model; a card's Queue sends just that one. Section moves a symbol to another section; Hide takes a symbol that isn't in use off the board (Hidden shows them)."}),
     el("div", {className: "dz-bar"}, seg, el("span", {className: "grow"}), els.tidy, els.stop, els.gen),
     els.sum, el("p", {className: "hint", textContent: C.data.note || ""}), els.board);
   draw(true);
@@ -289,7 +289,7 @@ function symRow(s) {
 
   const view = el("div", {className: "dz-view"},
     el("div", {className: "dz-big"}, v ? el("img", {src: C.img(s.file), alt: `${s.name}: ${v.label}`})
-        : el("span", {className: "hint", textContent: s.pending_new ? "New: press Generate" : "No art yet"}),
+        : el("span", {className: "hint", textContent: s.pending_new ? "New: press Generate" : "No art yet: pick First generate"}),
       v ? el("span", {className: "lbl" + (v.fav ? " fav" : ""), textContent: (v.fav ? "★ " : "") + v.label}) : null),
     el("div", {className: "dz-nav"},
       el("button", {type: "button", className: "icon", textContent: "◀", disabled: i <= 0, ariaLabel: "Previous take", onclick: () => choose(-1)}),
@@ -317,7 +317,7 @@ function symRow(s) {
   const head = el("div", {className: "card-head"}, el("h3", {textContent: s.name}),
     el("span", {className: "tag", textContent: s.kind === "character" ? "character · framed" : "object"}),
     s.hide ? el("span", {className: "tag", textContent: "hidden"}) : null,
-    s.pending_new ? el("span", {className: "tag gold", textContent: "new · waiting for Generate"}) : null, ...jobBits(s),
+    s.pending_new ? el("span", {className: "tag gold", textContent: `${vs.length ? "first generate" : "new"} · ${s.first_takes} take${s.first_takes === 1 ? "" : "s"} waiting for Generate`}) : null, ...jobBits(s),
     el("label", {className: "confirm", style: "margin-left:auto"},
       el("input", {type: "checkbox", checked: s.keep, onchange: e => patch(s, {keep: e.target.checked})}), "In final set"),
     section,
@@ -360,12 +360,22 @@ function symRow(s) {
     ...[0, 1, 3, 5].map(n => el("button", {type: "button", textContent: n ? `${n} take${n === 1 ? "" : "s"}` : "No",
       ariaPressed: String(s.reiterate ? n === s.takes : !n),
       onclick: () => patch(s, n ? {reiterate: true, takes: n} : {reiterate: false})})));
+  // A first generate: the style prompts (Prompts, at the top) from the reference or the description, like a new symbol.
+  const firstFrom = s.refs.length ? (s.refs.includes(s.base) ? `reference ${s.refs.indexOf(s.base) + 1}` : "reference 1") : "the description";
+  const first = el("span", {className: "seg", role: "group", ariaLabel: `First generate ${s.name}`},
+    ...[0, 1, 2, 3].map(n => el("button", {type: "button", textContent: n ? `${n} take${n === 1 ? "" : "s"}` : "No",
+      ariaPressed: String(s.pending_new ? n === s.first_takes : !n),
+      title: n ? `Take 1${n > 1 ? ` to ${n}` : ""} in the Prompts styles, from ${firstFrom}` : "",
+      onclick: () => patch(s, {first: n})})));
   const queue = s.reiterate || s.pending_new ? el("button", {type: "button", className: "primary", textContent: "Queue",
     title: `Send ${s.name} to the image model now, on its own (Generate sends everything marked)`, onclick: async () => {
       while (saving.get(s.id)) await new Promise(r => setTimeout(r, 50));   // the note just typed lands first
       await act(s, "queue", {}, `Queued ${s.name}. The takes appear here as the image model finishes them.`);
     }}) : null;
-  const re = el("div", {className: "dz-re"}, el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base, queue), note);
+  const re = el("div", {className: "dz-re"},
+    el("div", {className: "controls"}, el("span", {textContent: "First generate"}), first,
+      el("span", {className: "hint", textContent: `style prompts, from ${firstFrom}`})),
+    el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base, queue), note);
 
   let prompt = null;
   if (s.added || s.prompt) {
