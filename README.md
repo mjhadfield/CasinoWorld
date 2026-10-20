@@ -92,7 +92,7 @@ and Tailscale. It has six tabs:
     high, mid and low pays, which sets the Art step's counts), the target return and volatility, and the sheet
     cutter: upload a reference sheet, drag a box round each symbol, and cut them into new symbols (Generate makes one faithful redraw of each).
   - **Art:** a section per category with how many the main game needs, and a card per symbol: cycle its takes,
-    pick a character's frame colour, tick it into the final set, link reference images (upload, a web address, or
+    pick a character's frame colour, a royal's colour or a special's word, change its **Kind**, tick it into the final set, link reference images (upload, a web address, or
     art on the board), **First generate** (1, 2 or 3 takes in the Prompts styles from reference 1 or the description, as a new
     symbol gets; on any card, e.g. one whose first Generate was cancelled), **Reiterate** (1, 3 or 5 fresh takes from the chosen
     take or a reference, with a note; a reference redraw also goes by the symbol's description; marking one clears the other),
@@ -107,8 +107,10 @@ and Tailscale. It has six tabs:
     isn't in use (not in the final set, on the ladder or followed by an art slot) off the board, **Hide unused** does
     all of them at once, and **Hidden** shows them to unhide. The **Prompts** fold at the top sets how many takes a
     new symbol's first Generate makes by default (1, 2 or 3; take n uses style n; a sheet cut makes 1) and rewrites the three redraw-from-a-reference
-    styles, the three from-a-description styles and the character portrait style, per design (`art_prompts` in
-    design.json; an emptied box or **Default** goes back to the code's prompt). One worker draws every job, one picture
+    styles, the three from-a-description styles, the character portrait style, the specials' emblem style and the
+    royals' repaint, per design (`art_prompts` in design.json; an emptied box or **Default** goes back to the code's
+    prompt). Its **Lettering** sets the specials' font and colours and the royals' font (`lettering`; unset, the
+    Sprites step's display font and theme gold). One worker draws every job, one picture
     at a time.
   - **Value ladder:** order the final set by value into the tiers of the tier shape (Wild, the bonus and
     free-spins scatters, then H1…, M1…, L1…), by dragging or click-to-place, with each tier's pays shown and the
@@ -170,8 +172,14 @@ and Tailscale. It has six tabs:
     **Install** restarts the live server, which loads it: the cabinets appear and the game downloads their art,
     fonts and sounds. No client export is needed (`docs/slots/README.md` explains the path).
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
-    layout. Variants are found from the files. Characters are drawn as a bust and put into one shared frame in
-    code, in six colours, so every character matches. Format changes are migrations applied when the server loads
+    layout. Variants are found from the files. A symbol's kind decides how its takes are made, and for every kind
+    but a plain object the code draws the part that has to match across the set. Characters are drawn as a bust
+    and put into one shared frame in code, in six colours. Specials are drawn as an emblem with no words, and the
+    code lays their word (Wild, Bonus, Scatter, Free spins or their own) over it in the design's shared lettering
+    (font and colours in the Prompts fold, with a live sample). A lettering change redoes every special at once,
+    with no image model. Royals start from their rank drawn by the code in the royal font, at one height, in their
+    colour; the image model repaints it and the tile keeps that size and place. Switching a symbol's kind keeps
+    its takes; the next ones are made the new way. Format changes are migrations applied when the server loads
     a design, because the live server saves over `design.json`.
 - **Settings:** punters on the floor, cooldowns, dealer shift length.
 

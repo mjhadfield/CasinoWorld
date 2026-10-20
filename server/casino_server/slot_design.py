@@ -10,9 +10,16 @@ instance):
   source/          reference sheets (uploaded on the Concept step, where the sheet cutter cuts them up)
   ref/             one reference crop per symbol
   links/           reference images linked on the page (uploaded or fetched from a URL)
-  raw/             what FLUX returned, before keying: <id>_<n>.png (objects), bust_<id>_<n>.png (characters)
-  cut/             objects, keyed and fitted to 512²: <id>_<n>.png
+  raw/             what FLUX returned, before keying: <id>_<n>.png (objects and royals), bust_<id>_<n>.png
+                   (characters), badge_<id>_<n>.png (specials' emblems)
+  cut/             objects and royals, keyed and fitted to 512²: <id>_<n>.png
   chars/           characters in the shared frame, one per frame colour: <id>_<n>_<hue>.png
+  specials/        specials' emblems with each word in the design's lettering: <id>_<n>_<word>_<style tag>.png
+                   (made again under a new tag when the lettering changes)
+A symbol's kind says how its takes are made (art.py has the details): an object is redrawn and cut out; a
+character is a bust in the shared frame; a special is an emblem with its word (Wild, Bonus, Scatter, Free spins
+or its own) laid on in the shared lettering; a royal is a rank the code draws, in its frame colour, and the image
+model repaints. Switching a symbol's kind leaves its takes as they are; the next ones are made the new way.
 A symbol's variants are found from those files, so anything added by hand shows up too; binned ones (the Art
 step's Bin) are hidden until restored, and nothing is ever deleted.
 
@@ -41,16 +48,17 @@ from PIL import Image, UnidentifiedImageError
 
 from casino_server import slot_design_art as art
 from casino_server.slot_design_build import BuildMixin
-from casino_server.slot_design_steps import (DesignError, StepsMixin, art_view, bonuses_view, features_view, ladder_view,
-                                             maths_view, scene_view, signoff_view, sounds_view, sprites_view)
+from casino_server.slot_design_steps import (FONT_DEFAULTS, THEME_DEFAULTS, DesignError, StepsMixin, _font_path, _fonts,
+                                             art_view, bonuses_view, features_view, ladder_view, maths_view, scene_view,
+                                             signoff_view, sounds_view, sprites_view)
 
 DEFAULT_DESIGNS_DIR = Path(__file__).resolve().parents[1] / "slot_designs"
-SERVED = ("source", "ref", "links", "cut", "chars", "scene", "adj")   # adj: art slots with their adjustments baked in
+SERVED = ("source", "ref", "links", "cut", "chars", "specials", "scene", "adj")   # adj: art slots with their adjustments baked in
 MAX_IMAGE = 12 * 1024 * 1024
 TAKES = 3  # images per job (a Reiterate can ask for 1, 3 or 5)
 TAKE_CHOICES = (1, 3, 5)
 FIRST_TAKES = (1, 2, 3)  # what a newly added symbol's first Generate makes (Art's Prompts panel), one per style
-KINDS = ("object", "character")
+KINDS = ("object", "character", "special", "royal")
 KEYS = ("magenta", "green")
 STEPS = [("concept", "Concept"), ("art", "Art"), ("ladder", "Value ladder"), ("scene", "Scene"),
          ("features", "Features"), ("bonuses", "Bonus games"), ("sprites", "Sprites"), ("sounds", "Sounds"),
@@ -64,30 +72,35 @@ TIER_LIMITS = {"high": (1, 6), "mid": (1, 8), "low": (2, 8)}
 ROLE_TITLES = {"low": "Royals", "high": "Symbol set 1 · high pays", "mid": "Symbol set 2 · mid pays",
                "specials": "Specials · wild & scatters", None: "Bonus screens"}
 ROYALS = ["A", "K", "Q", "J", "10", "9", "8", "7"]
-SPECIALS = [("wild", "Wild", "word WILD", "the WILD symbol: the word WILD on an emblem of the theme"),
-            ("bonus_scatter", "Bonus scatter", "word BONUS", "the bonus scatter symbol: the word BONUS on a badge of the theme"),
-            ("free_spins", "Free-spins scatter", "words FREE SPINS", "the free-spins scatter symbol: the words FREE SPINS on a badge of the theme")]
+ROYAL_HUES = {"A": "red", "K": "blue", "Q": "purple", "J": "green", "10": "gold", "9": "silver", "8": "red", "7": "blue"}
+SPECIALS = [("wild", "Wild", "WILD", "the wild symbol's emblem: the theme's most iconic emblem"),
+            ("bonus_scatter", "Bonus scatter", "BONUS", "the bonus scatter's emblem: a striking badge of the theme"),
+            ("free_spins", "Free-spins scatter", "FREE SPINS", "the free-spins scatter's emblem: a bright badge of the theme")]
 
 
 def _template(name: str, brief: str) -> dict:
     """A new design: the house standard's categories, and starter royals and specials waiting for Generate."""
     cats = [{"id": cid, "title": ROLE_TITLES[role], "role": role, "kind": kind,
              "required": TIER_SHAPE[role] if role in TIER_SHAPE else 3 if role == "specials" else None}
-            for cid, role, kind in (("royals", "low", "object"), ("set1", "high", "character"), ("set2", "mid", "object"),
-                                    ("specials", "specials", "object"), ("bonus", None, "object"))]
-    symbols = [{"id": _slug(r), "name": r, "category": "royals", "kind": "object", "key": "magenta",
-                "keep_text": f"{'number' if r.isdigit() else 'letter'} {r}", "refs": [], "added": True,
-                "pending_new": True, "hue": "gold",
-                "prompt": f"the {'number' if r.isdigit() else 'letter'} {r} as a royal (card rank) symbol"}
+            for cid, role, kind in (("royals", "low", "royal"), ("set1", "high", "character"), ("set2", "mid", "object"),
+                                    ("specials", "specials", "special"), ("bonus", None, "object"))]
+    symbols = [{"id": _slug(r), "name": r, "category": "royals", "kind": "royal", "rank": r, "key": "magenta",
+                "refs": [], "added": True, "pending_new": True, "hue": ROYAL_HUES.get(r, "gold"), "prompt": ""}
                for r in ROYALS[:TIER_SHAPE["low"]]]
-    symbols += [{"id": sid, "name": nm, "category": "specials", "kind": "object", "key": "magenta", "keep_text": keep,
+    symbols += [{"id": sid, "name": nm, "category": "specials", "kind": "special", "word": word, "key": "magenta",
                  "refs": [], "added": True, "pending_new": True, "hue": "gold", "prompt": prompt}
-                for sid, nm, keep, prompt in SPECIALS]
+                for sid, nm, word, prompt in SPECIALS]
     return {"name": name, "concept": {"brief": brief}, "categories": cats, "symbols": symbols, "jobs": []}
 
 
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:40]
+
+
+def _word_for(s: dict) -> str:
+    """A special's word when it has none yet: the standard one its name or keep-text names, else WILD."""
+    said = " ".join(str(s.get(k) or "") for k in ("name", "keep_text", "id")).upper().replace("-", " ").replace("_", " ")
+    return next((w for w in ("FREE SPINS", "WILD", "BONUS", "SCATTER") if w in said), "WILD")
 
 
 def _numbered(folder: Path, prefix: str) -> dict[int, Path]:
@@ -120,6 +133,9 @@ class Design:
         roles = {"royals": "low", "set1": "high", "set2": "mid", "specials": "specials"}
         for c in d.setdefault("categories", []):
             c.setdefault("role", roles.get(c["id"]))
+            # Royals and specials have kinds of their own now: new ones (and sheet cuts) start that way
+            if c.get("kind", "object") == "object" and c["role"] in ("low", "specials"):
+                c["kind"] = "royal" if c["role"] == "low" else "special"
         req = {c["role"]: c.get("required") for c in d["categories"] if c.get("role") in TIER_SHAPE}
         concept = d.setdefault("concept", {})
         concept.setdefault("brief", "")
@@ -183,6 +199,9 @@ class Design:
             hues = {h: f"chars/{sid}_{n}_{h}.png" for h in art.HUES if (self.folder / f"chars/{sid}_{n}_{h}.png").exists()}
             if hues:
                 out.append({"id": f"bust/{sid}_{n}", "label": f"Framed {n}", "hues": hues})
+        for n in _numbered(self.folder / "raw", f"badge_{sid}"):
+            if words := self.badge_tiles(s, n):
+                out.append({"id": f"badge/{sid}_{n}", "label": f"Badge {n}", "words": words})
         labels = s.get("labels", {})
         for v in out:
             v["label"] = labels.get(v["id"], v["label"])
@@ -208,8 +227,8 @@ class Design:
         fit = s.get("fits", {}).get(vid)
         if fit:
             return fit["src"], fit["fit"]
-        if vid.startswith("bust/"):
-            return f"raw/bust_{vid.split('/', 1)[1]}.png", {}
+        if vid.startswith(("bust/", "badge/")):
+            return f"raw/{vid.replace('/', '_', 1)}.png", {}
         raw = "raw/" + Path(vid).name
         return (raw if (self.folder / raw).is_file() else vid), {}
 
@@ -221,7 +240,73 @@ class Design:
         v = self.chosen(s)
         if not v:
             return None
-        return v["hues"].get(s.get("hue"), next(iter(v["hues"].values()))) if "hues" in v else v["src"]
+        if "hues" in v:
+            return v["hues"].get(s.get("hue"), next(iter(v["hues"].values())))
+        if "words" in v:
+            return v["words"].get(s.get("word"), next(iter(v["words"].values())))
+        return v["src"]
+
+    @staticmethod
+    def out_of(s: dict, v: dict) -> str:
+        """How a take was made, so its Reiterate, Refine and Fit are made the same way: a framed character, a
+        special's badge, or a cut-out picture (a royal's when the symbol is a royal)."""
+        return "character" if "hues" in v else "special" if "words" in v else "royal" if s.get("kind") == "royal" else "object"
+
+    # ------------------------------------------------------------- lettering: specials' words, royals' ranks
+    def lettering(self) -> dict:
+        """The shared lettering: the specials' font and colours and the royals' font. Unset, the fonts are the
+        Sprites step's display font and the colours its gold and ink."""
+        sp = self.data.get("sprites", {})
+        theme = {**THEME_DEFAULTS, **sp.get("colours", {})}
+        font = sp.get("fonts", {}).get("display") or FONT_DEFAULTS["display"]
+        return {"special_font": font, "royal_font": font, "top": theme["goldHi"], "bottom": theme["goldLo"],
+                "outline": theme["ink"], **self.data.get("lettering", {})}
+
+    def font(self, name: str) -> Path:
+        try:
+            return _font_path(self, name)
+        except DesignError:
+            return _font_path(self, FONT_DEFAULTS["display"])  # a design font that's gone: the house one
+
+    def letter_style(self, lettering: dict | None = None) -> tuple[dict, str]:
+        """(the style compose_special takes, its tag): the tag names the specials' tiles, so a new style gets new
+        files and the page never shows a stale one."""
+        l = lettering or self.lettering()
+        path = self.font(l["special_font"])
+        style = {"font": path, "top": l["top"], "bottom": l["bottom"], "outline": l["outline"]}
+        tag = hashlib.sha1(json.dumps([path.name, path.stat().st_mtime_ns, l["top"], l["bottom"], l["outline"]]).encode())
+        return style, tag.hexdigest()[:8]
+
+    def words(self, s: dict) -> list[str]:
+        return list(art.WORDS) + ([s["word"]] if s.get("word") and s["word"] not in art.WORDS else [])
+
+    @staticmethod
+    def tile_name(sid: str, n: int, word: str, tag: str) -> str:
+        return f"specials/{sid}_{n}_{art.word_slug(word)}_{tag}.png"
+
+    def badge_tiles(self, s: dict, n: int) -> dict[str, str]:
+        """A badge take's tile for each of the symbol's words in the current lettering ({word: path}), making any
+        that's missing (a new word, a new lettering, a fresh checkout) and removing ones in an old lettering."""
+        sid = s["id"]
+        style, tag = self.letter_style()
+        want = {w: self.tile_name(sid, n, w, tag) for w in self.words(s)}
+        missing = [w for w, rel in want.items() if not (self.folder / rel).is_file()]
+        if missing:
+            raw = self.folder / f"raw/badge_{sid}_{n}.png"
+            fit = s.get("fits", {}).get(f"badge/{sid}_{n}", {}).get("fit")
+            try:
+                tiles = art.compose_special(Image.open(raw).convert("RGB"), fit, missing, style)
+            except (OSError, art.FluxError):
+                return {}
+            (self.folder / "specials").mkdir(exist_ok=True)
+            for w, im in tiles.items():
+                im.save(self.folder / want[w], optimize=True)
+            slugs = "|".join(re.escape(art.word_slug(w)) for w in want)
+            for old in (self.folder / "specials").glob(f"{sid}_{n}_*.png"):
+                if re.fullmatch(rf"{re.escape(sid)}_{n}_({slugs})_[0-9a-f]{{8}}", old.stem) and old.name not in \
+                        {Path(r).name for r in want.values()}:
+                    old.unlink()
+        return want
 
     def adjusted(self, key: str, rel: str, a: dict) -> str:
         """An art slot's picture with its adjustments baked in (adj/<key>_<hash>.png, made once and replacing the
@@ -255,7 +340,8 @@ class Design:
         p, mine = art.default_prompts(), self.data.get("art_prompts", {})
         for k in ("redraw", "text"):
             p[k] = [mine.get(k, {}).get(str(i)) or v for i, v in enumerate(p[k])]
-        p["bust"] = mine.get("bust") or p["bust"]
+        for k in ("bust", "special", "royal"):
+            p[k] = mine.get(k) or p[k]
         p["first_takes"] = mine.get("first_takes", TAKES)
         return p
 
@@ -301,7 +387,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                 active = [j for j in jobs if j["symbol"] == s["id"] and j["status"] in ("queued", "waiting", "running", "failed")]
                 v = d.chosen(s)
                 symbols.append({
-                    **{k: s.get(k) for k in ("id", "name", "category", "kind", "key", "keep_text", "prompt", "hue", "note", "base")},
+                    **{k: s.get(k) for k in ("id", "name", "category", "kind", "key", "keep_text", "prompt", "hue", "note", "base",
+                                             "word", "rank")},
                     "keep": bool(s.get("keep")), "reiterate": bool(s.get("reiterate")), "added": bool(s.get("added")),
                     "takes": s.get("takes", TAKES), "first_takes": first_takes(d, s),
                     "hide": bool(s.get("hide")), "in_use": s["id"] in used,
@@ -327,6 +414,7 @@ class DesignBoard(StepsMixin, BuildMixin):
                     "steps": [{"id": k, "title": t, "status": d.data["steps"].get(k, "todo")} for k, t in STEPS],
                     "categories": categories, "symbols": symbols, "hues": list(art.HUES),
                     "prompts": d.prompts(), "default_prompts": art.default_prompts(),
+                    "lettering": d.lettering(), "fonts": _fonts(d), "words": list(art.WORDS),
                     "pending": sum(bool(s.get("reiterate") or s.get("pending_new")) for s in d.data["symbols"]),
                     "queued": sum(j["status"] == "queued" for j in jobs), "running": running,
                     "art_jobs": sum(j["symbol"] is not None and j["status"] in ACTIVE for j in jobs)}
@@ -352,6 +440,17 @@ class DesignBoard(StepsMixin, BuildMixin):
                     if v not in art.HUES:
                         raise DesignError(f"There's no {v!r} frame.")
                     s["hue"] = v
+                elif k == "word":
+                    s["word"] = _word(v)
+                    for n in _numbered(d.folder / "raw", f"badge_{sid}"):
+                        d.badge_tiles(s, n)  # a new word: its tile on every badge take, now
+                elif k == "rank":
+                    s["rank"] = _rank(v)
+                elif k == "kind":
+                    if v not in KINDS:
+                        raise DesignError("A symbol is an object, a character, a special or a royal.")
+                    s["kind"] = v
+                    _kind_defaults(s)
                 elif k in ("keep", "reiterate"):
                     s[k] = bool(v)
                     if k == "keep" and v:
@@ -419,16 +518,22 @@ class DesignBoard(StepsMixin, BuildMixin):
             if category not in d.category_ids():
                 raise DesignError(f"There's no category {category!r}.")
             if kind not in KINDS:
-                raise DesignError("A symbol is an object or a character.")
+                raise DesignError("A symbol is an object, a character, a special or a royal.")
             if ref and not d.path(ref):
                 raise DesignError(f"Not on the board: {ref}")
-            if not prompt and not ref:
+            if not prompt and not ref and kind != "royal":  # a royal starts from its rank
                 raise DesignError("Describe the new symbol, or link a reference image for it (or both).")
             sid = self._new_id(d, name)
-            d.data["symbols"].append({"id": sid, "name": name, "category": category, "kind": kind,
-                                      "key": body.get("key") if body.get("key") in KEYS else "magenta",
-                                      "prompt": prompt, "refs": [ref] if ref else [], "added": True, "pending_new": True,
-                                      "hue": "gold"})
+            s = {"id": sid, "name": name, "category": category, "kind": kind,
+                 "key": body.get("key") if body.get("key") in KEYS else "magenta",
+                 "prompt": prompt, "refs": [ref] if ref else [], "added": True, "pending_new": True,
+                 "hue": body.get("hue") if body.get("hue") in art.HUES else "gold"}
+            if kind == "royal" and str(body.get("rank") or "").strip():
+                s["rank"] = _rank(body["rank"])
+            if kind == "special" and str(body.get("word") or "").strip():
+                s["word"] = _word(body["word"])
+            _kind_defaults(s, explicit_hue="hue" in body)
+            d.data["symbols"].append(s)
             d.save()
             return sid
 
@@ -546,8 +651,9 @@ class DesignBoard(StepsMixin, BuildMixin):
             d.save()
 
     def update_prompts(self, did: str, ch: dict) -> None:
-        """Rewrite the Art step's prompts: {first_takes}, {redraw|text: {index: text}}, {bust}. An empty text or the
-        default itself drops the rewrite, so the design follows the code's default again."""
+        """Rewrite the Art step's prompts: {first_takes}, {redraw|text: {index: text}}, {bust|special|royal}, and the
+        shared {lettering: {special_font, royal_font, top, bottom, outline}}. An empty text or the default itself
+        drops the rewrite, so the design follows the code's default again (the lettering likewise, key by key)."""
         defaults = art.default_prompts()
         with self.lock:
             d = self.design(did)
@@ -566,15 +672,49 @@ class DesignBoard(StepsMixin, BuildMixin):
                             mine.setdefault(k, {})[i] = text
                         else:
                             mine.get(k, {}).pop(i, None)
-                elif k == "bust":
+                elif k in ("bust", "special", "royal"):
                     text = str(v or "").strip()[:600]
-                    if text and text != defaults["bust"]:
-                        mine["bust"] = text
+                    if text and text != defaults[k]:
+                        mine[k] = text
                     else:
-                        mine.pop("bust", None)
+                        mine.pop(k, None)
+                elif k == "lettering":
+                    self._set_lettering(d, v)
                 else:
                     raise DesignError(f"Can't change {k!r}.")
             d.save()
+
+    def _set_lettering(self, d: Design, v) -> None:
+        """Change the shared lettering; the specials' tiles in the new lettering are made when the board next lists
+        them (and the old ones removed then)."""
+        if not isinstance(v, dict) or set(v) - {"special_font", "royal_font", "top", "bottom", "outline"}:
+            raise DesignError("The lettering is special_font, royal_font, top, bottom and outline.")
+        mine = d.data.setdefault("lettering", {})
+        for k, x in v.items():
+            if not x:
+                mine.pop(k, None)  # back to the design's default
+            elif k.endswith("_font"):
+                _font_path(d, x)  # raises if there's no such font
+                mine[k] = x
+            elif not art.is_colour(x):
+                raise DesignError(f"The lettering's {k} colour is like #f4c94f.")
+            else:
+                mine[k] = x.lower()
+        if not mine:
+            d.data.pop("lettering")
+
+    def lettering_preview(self, did: str, lettering: dict | None = None) -> bytes:
+        """A sample of the lettering (saved, or as changed by `lettering`, unsaved): the four words on a plain
+        emblem, then the royals A K Q J 10 as the image model is given them."""
+        with self.lock:
+            d = self.design(did)
+            l = {**d.lettering(), **{k: x for k, x in (lettering or {}).items() if x}}
+            for k in ("top", "bottom", "outline"):
+                if not art.is_colour(l[k]):
+                    raise DesignError(f"The lettering's {k} colour is like #f4c94f.")
+            style, _ = d.letter_style(l)
+            rank_font = d.font(l["royal_font"])
+        return art.lettering_sample(style, rank_font)
 
     def set_step(self, did: str, step: str, status: str) -> None:
         if step not in dict(STEPS) or status not in STATUSES:
@@ -621,7 +761,7 @@ class DesignBoard(StepsMixin, BuildMixin):
                     raise DesignError(f"There's no category {category!r}.")
                 kind = b.get("kind") or next(c.get("kind", "object") for c in d.data["categories"] if c["id"] == category)
                 if kind not in KINDS:
-                    raise DesignError("A symbol is an object or a character.")
+                    raise DesignError("A symbol is an object, a character, a special or a royal.")
                 sid = self._new_id(d, name)
                 (d.folder / "ref").mkdir(exist_ok=True)
                 art.fit_square(im.crop((x, y, x + w, y + h)), 1024).save(d.folder / f"ref/{sid}.png")
@@ -629,6 +769,7 @@ class DesignBoard(StepsMixin, BuildMixin):
                                           "key": b.get("key") if b.get("key") in KEYS else "magenta", "prompt": "",
                                           "refs": [f"ref/{sid}.png"], "added": True, "pending_new": True, "hue": "gold",
                                           "from_sheet": True})
+                _kind_defaults(d.data["symbols"][-1])
                 made.append(sid)
             d.save()
             return made
@@ -702,7 +843,11 @@ class DesignBoard(StepsMixin, BuildMixin):
             new = self._new_id(d, name)
             for sub in ("raw", "cut", "chars"):
                 (d.folder / sub).mkdir(exist_ok=True)
-            if "hues" in v:
+            if "words" in v:
+                n = vid.split("/", 1)[1]
+                shutil.copyfile(d.folder / f"raw/badge_{n}.png", d.folder / f"raw/badge_{new}_1.png")
+                nvid = f"badge/{new}_1"  # its tiles are made when the board next lists it
+            elif "hues" in v:
                 n = vid.split("/", 1)[1]
                 shutil.copyfile(d.folder / f"raw/bust_{n}.png", d.folder / f"raw/bust_{new}_1.png")
                 for hue, rel in v["hues"].items():
@@ -714,8 +859,8 @@ class DesignBoard(StepsMixin, BuildMixin):
                 if raw.is_file():
                     shutil.copyfile(raw, d.folder / f"raw/{new}_1.png")
                 nvid = f"cut/{new}_1.png"
-            sym = {"id": new, "name": name, "category": s["category"], "kind": "character" if "hues" in v else "object",
-                   **{k: s[k] for k in ("key", "keep_text", "prompt", "hue") if k in s},
+            sym = {"id": new, "name": name, "category": s["category"], "kind": d.out_of(s, v),
+                   **{k: s[k] for k in ("key", "keep_text", "prompt", "hue", "word", "rank") if k in s},
                    "refs": list(s.get("refs", [])), "added": True, "choice": nvid}
             fit = s.get("fits", {}).get(vid)
             if fit:  # a fitted take keeps refitting from the picture it was fitted from
@@ -741,27 +886,33 @@ class DesignBoard(StepsMixin, BuildMixin):
             if not d.path(src, SERVED + ("raw",)):
                 raise DesignError("There's no picture behind that variant to refine.")
             job = self._queue(d, s, {"how": "refine", "src": src, "text": instruction, "action": "refine",
-                                     "out": "character" if "hues" in v else "object",
+                                     "out": d.out_of(s, v),
                                      "label": f"{v['label']}, refined"}, count=1)
             d.save()
             return job
 
-    def _fit_render(self, d: Design, s: dict, vid: str, fit: dict, hues=None):
+    def _fit_render(self, d: Design, s: dict, vid: str, fit: dict, hues=None, words=None):
+        """(the picture fitted, the fitted tile): a dict of tiles by frame colour for a character, by word for a
+        special (just `hues` or `words` for a preview)."""
         v = d.variant(s, vid)
         src, _ = d.raw_of(s, vid)
         path = d.path(src, SERVED + ("raw",))
         if not path:
             raise DesignError("There's no picture behind that variant to fit.")
         im = Image.open(path)
-        if "hues" in v:
+        out = d.out_of(s, v)
+        if out == "character":
             return src, art.compose_character(im.convert("RGB"), fit, hues)
-        return src, art.symbol(im if im.mode == "RGBA" else im.convert("RGB"), fit)
+        if out == "special":
+            return src, art.compose_special(im.convert("RGB"), fit, words or d.words(s), d.letter_style()[0])
+        im = im if im.mode == "RGBA" else im.convert("RGB")
+        return src, art.royal_tile(im, fit) if out == "royal" else art.symbol(im, fit)
 
     def fit_preview(self, did: str, sid: str, vid: str, fit: dict, hue: str = "gold") -> bytes:
         with self.lock:
             d = self.design(did)
             s = d.symbol(sid)
-        _, out = self._fit_render(d, s, vid, fit, [hue if hue in art.HUES else "gold"])
+        _, out = self._fit_render(d, s, vid, fit, [hue if hue in art.HUES else "gold"], [s.get("word") or "WILD"])
         im = next(iter(out.values())) if isinstance(out, dict) else out
         buf = io.BytesIO()
         im.save(buf, "PNG")
@@ -775,15 +926,23 @@ class DesignBoard(StepsMixin, BuildMixin):
             s = d.symbol(sid)
             label = d.variant(s, vid)["label"]
         f = art.fit_values(fit)
+        with self.lock:
+            kind = d.out_of(s, d.variant(s, vid))
         src, out = self._fit_render(d, s, vid, f)
         with self.lock:
-            character = isinstance(out, dict)
-            prefix = f"bust_{sid}" if character else sid
+            character = kind == "character"
+            prefix = {"character": f"bust_{sid}", "special": f"badge_{sid}"}.get(kind, sid)
             n = d.next_n(prefix)
             (d.folder / "raw").mkdir(exist_ok=True)
             if src.startswith("raw/"):
                 shutil.copyfile(d.folder / src, d.folder / f"raw/{prefix}_{n}.png")
-            if character:
+            if kind == "special":
+                (d.folder / "specials").mkdir(exist_ok=True)
+                tag = d.letter_style()[1]
+                for word, im in out.items():
+                    im.save(d.folder / d.tile_name(sid, n, word, tag), optimize=True)
+                new = f"badge/{sid}_{n}"
+            elif character:
                 (d.folder / "chars").mkdir(exist_ok=True)
                 for hue, im in out.items():
                     im.save(d.folder / f"chars/{sid}_{n}_{hue}.png", optimize=True)
@@ -848,9 +1007,8 @@ class DesignBoard(StepsMixin, BuildMixin):
             if s.get("refs"):
                 return {"how": "redraw", "src": s["refs"][0], "text": described, "out": s["kind"], "action": "reiterate"}
             return {"how": "text", "src": None, "text": described, "out": s["kind"], "action": "reiterate"}
-        src, _ = d.raw_of(s, v["id"])  # a framed character varies the bust it was made from
-        return {"how": "variation", "src": src, "text": note, "out": "character" if "hues" in v else "object",
-                "action": "reiterate"}
+        src, _ = d.raw_of(s, v["id"])  # a framed character varies the bust it was made from, a special its emblem
+        return {"how": "variation", "src": src, "text": note, "out": d.out_of(s, v), "action": "reiterate"}
 
     def retry(self, did: str, job_id: int) -> None:
         with self.lock:
@@ -896,47 +1054,70 @@ class DesignBoard(StepsMixin, BuildMixin):
         """One FLUX picture for a job, keyed and saved; returns the raw file's name."""
         if job["out"] == "background":
             return self._make_background(d, job)
+        out = job["out"]
         with self.lock:
             s = d.symbol(job["symbol"])
             key, keep_text = s.get("key", "magenta"), s.get("keep_text")
-            prefix = f"bust_{s['id']}" if job["out"] == "character" else s["id"]
+            prefix = {"character": f"bust_{s['id']}", "special": f"badge_{s['id']}"}.get(out, s["id"])
             n = d.next_n(prefix)
             c = d.data["concept"]
             theme = "; ".join(x for x in (c.get("brief", ""), c.get("style", "")) if x.strip())
             p = d.prompts()
+            rank, hue = s.get("rank") or s["name"][:3], s.get("hue", "gold")
+            if out == "royal":
+                key = art.royal_key(hue)
+                rank_font = d.font(d.lettering()["royal_font"])
+            if out == "special":
+                style, tag = d.letter_style()
+                words = d.words(s)
         i, text, how = job["done"] % 3, job.get("text", ""), job["how"]  # takes cycle through the three styles
+        ref = None
         if how == "refine":
-            prompt = art.refine_prompt(job["out"], key, text)
-        elif job["out"] == "character":
-            prompt = (art.bust_text_prompt(key, text, p["bust"]) if how == "text" else
-                      art.variation_prompt("character", key, text, p["bust"]) if how == "variation" else
-                      art.bust_prompt(key, text, p["bust"]))
+            prompt = art.refine_prompt(out, key, text)
+        elif how == "variation" and out in ("character", "special", "royal"):
+            prompt = art.variation_prompt(out, key, text, p[{"character": "bust"}.get(out, out)])
+        elif out == "character":
+            prompt = (art.bust_text_prompt(key, text, p["bust"]) if how == "text" else art.bust_prompt(key, text, p["bust"]))
+        elif out == "special":
+            prompt = (art.special_text_prompt(key, text, p["special"]) if how == "text" else
+                      art.special_prompt(key, text, p["special"]))
+        elif out == "royal":  # always from the rank the code draws, whatever reference the symbol has
+            ref, how = art.render_rank(rank, rank_font, hue), "rank"
+            prompt = art.royal_prompt(key, rank, text, p["royal"])
         else:
             prompt = (art.object_text_prompt(p["text"][i], key, text) if how == "text" else
                       art.variation_prompt("object", key, text) if how == "variation" else
                       art.object_prompt(p["redraw"][i], key, keep_text, text))
         if how == "text":
             raw = art.flux_generate(art.themed(prompt, theme))
+        elif ref is not None:
+            raw = art.flux_edit(ref, art.themed(prompt, theme))
         else:
             src = d.path(job["src"], SERVED + ("raw",))
             if not src:
                 raise art.FluxError(f"The reference {job['src']} has gone.")
             raw = art.flux_edit(Image.open(src), art.themed(prompt, theme))
-        if job["out"] == "character":
+        if out == "character":
             tiles = art.compose_character(raw)
+        elif out == "special":
+            tiles = art.compose_special(raw, None, words, style)
         else:
-            tile = art.symbol(raw)
+            tile = art.royal_tile(raw) if out == "royal" else art.symbol(raw)
         with self.lock:
             if not _live(d, job):
                 raise Cancelled()
-            for sub in ("raw", "cut", "chars"):
+            for sub in ("raw", "cut", "chars", "specials"):
                 (d.folder / sub).mkdir(exist_ok=True)
             n = max(n, d.next_n(prefix))  # in case a file appeared meanwhile
             raw.save(d.folder / f"raw/{prefix}_{n}.png")
-            if job["out"] == "character":
+            if out == "character":
                 for hue, im in tiles.items():
                     im.save(d.folder / f"chars/{s['id']}_{n}_{hue}.png", optimize=True)
                 vid = f"bust/{s['id']}_{n}"
+            elif out == "special":
+                for word, im in tiles.items():
+                    im.save(d.folder / d.tile_name(s["id"], n, word, tag), optimize=True)
+                vid = f"badge/{s['id']}_{n}"
             else:
                 tile.save(d.folder / f"cut/{prefix}_{n}.png", optimize=True)
                 vid = f"cut/{prefix}_{n}.png"
@@ -994,6 +1175,30 @@ class DesignBoard(StepsMixin, BuildMixin):
 
 class Cancelled(Exception):
     """The job was cancelled while FLUX drew its picture: the picture is thrown away."""
+
+
+def _word(v) -> str:
+    word = " ".join(str(v or "").upper().split())
+    if not 1 <= len(word) <= 16:
+        raise DesignError("A special's word is 1 to 16 letters.")
+    return word
+
+
+def _rank(v) -> str:
+    rank = str(v or "").strip().upper()
+    if not 1 <= len(rank) <= 3:
+        raise DesignError("A royal's rank is 1 to 3 characters, like A or 10.")
+    return rank
+
+
+def _kind_defaults(s: dict, explicit_hue: bool = False) -> None:
+    """What a special or royal needs once it is one: a special its word, a royal its rank and that rank's colour."""
+    if s["kind"] == "special":
+        s.setdefault("word", _word_for(s))
+    elif s["kind"] == "royal":
+        s.setdefault("rank", s["name"].strip().upper()[:3] or "A")
+        if not explicit_hue and s.get("hue", "gold") == "gold":
+            s["hue"] = ROYAL_HUES.get(s["rank"], "gold")
 
 
 def first_takes(d: Design, s: dict) -> int:

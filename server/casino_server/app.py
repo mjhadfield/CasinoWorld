@@ -442,9 +442,17 @@ async def slot_design_concept(design: str, request: Request):
 
 @app.patch("/api/slot-design/{design}/prompts")
 async def slot_design_prompts(design: str, request: Request):
-    body = await _json_body(request, "{first_takes, redraw: {i: text}, text: {i: text}, bust}")
+    body = await _json_body(request, "{first_takes, redraw: {i: text}, text: {i: text}, bust, special, royal, lettering}")
     _design_call(request.app.state.slot_design.update_prompts, design, body)
     return {"ok": True}
+
+
+@app.post("/api/slot-design/{design}/lettering-preview")
+async def slot_design_lettering_preview(design: str, request: Request):
+    """A sample of the shared lettering, as saved or with the {special_font, royal_font, top, bottom, outline} given."""
+    body = await _json_body(request, "{special_font, royal_font, top, bottom, outline}")
+    png = await run_in_threadpool(_design_call, request.app.state.slot_design.lettering_preview, design, body)
+    return Response(png, media_type="image/png", headers=NO_STORE)
 
 
 @app.put("/api/slot-design/{design}/steps/{step}")

@@ -5,6 +5,7 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
@@ -346,6 +347,100 @@ def test_keying_and_the_shared_frame():
     assert corner[3] == 0  # outside the frame is clear
     sym = art.symbol(_fake_flux())
     assert sym.size == (512, 512) and sym.getpixel((256, 256))[:3] == (240, 150, 60)
+
+
+FONT = Path(__file__).resolve().parents[2] / "client/assets/fonts/Rye-Regular.ttf"
+STYLE = {"font": FONT, "top": "#fff1b0", "bottom": "#9a6614", "outline": "#2b1004"}
+
+
+def test_a_special_is_an_emblem_with_the_shared_lettering():
+    tiles = art.compose_special(_fake_flux(), None, art.WORDS, STYLE)
+    assert list(tiles) == list(art.WORDS) and all(t.size == (512, 512) for t in tiles.values())
+    word = lambda t: t.crop((0, 330, 512, 470))
+    assert tiles["WILD"].tobytes() != tiles["BONUS"].tobytes()
+    # a Fit moves the emblem, never the word
+    moved = art.compose_special(_fake_flux(), {"dy": -60}, ["WILD"], STYLE)["WILD"]
+    assert moved.getchannel("A").getbbox() != tiles["WILD"].getchannel("A").getbbox()
+    assert word(moved).tobytes() == word(art.compose_special(_fake_flux(), None, ["WILD"], STYLE)["WILD"]).tobytes() or \
+        word(moved).getbbox() == word(tiles["WILD"]).getbbox()
+    assert art.label("WILD", STYLE).getbbox()[1] > 300  # across the lower part
+    assert word(art.label("FREE SPINS", STYLE)).getbbox()  # long words still fit (on two lines)
+
+
+def test_every_rank_is_drawn_the_same_height():
+    def glyph(rank):
+        a = np.asarray(art.cutout(art.render_rank(rank, FONT, "gold")))[..., 3]
+        ys, xs = np.nonzero(a > 128)
+        return ys.min(), ys.max(), xs.min(), xs.max()
+    A, ten = glyph("A"), glyph("10")
+    assert abs(A[0] - ten[0]) < 12 and abs(A[1] - ten[1]) < 12  # the same top and bottom
+    assert ten[3] - ten[2] <= 1024 * art.RANK_W + 2  # a wide rank is squeezed in
+    assert art.royal_key("purple") == "green" and art.royal_key("green") == "magenta"
+
+
+def test_special_and_royal_kinds_on_the_board(board, monkeypatch):
+    c, d = board
+    edits = []
+    monkeypatch.setattr(art, "flux_edit", lambda im, p: edits.append((im, p)) or _fake_flux())
+    wild = c.post("/api/slot-design/demo/symbols", json={"name": "Wild", "category": "set2", "kind": "special",
+                                                          "prompt": "a gold delta"}).json()["id"]
+    ace = c.post("/api/slot-design/demo/symbols", json={"name": "A", "category": "set2", "kind": "royal"}).json()["id"]
+    king = c.post("/api/slot-design/demo/symbols", json={"name": "King", "category": "set2", "kind": "royal", "rank": "k"}).json()["id"]
+    assert c.post("/api/slot-design/demo/symbols", json={"name": "X", "category": "set2", "kind": "royal", "rank": "ABCD"}).status_code == 400
+    c.patch("/api/slot-design/demo/prompts", json={"first_takes": 1})
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    o = _overview(c)
+    w, a = _sym(o, wild), _sym(o, ace)
+    assert w["word"] == "WILD" and a["rank"] == "A" and a["hue"] == "red"
+    assert _sym(o, king)["rank"] == "K" and _sym(o, king)["hue"] == "blue"  # the rank's usual colour
+    v = w["variants"][0]
+    assert v["id"] == f"badge/{wild}_1" and list(v["words"]) == list(art.WORDS) and w["file"] == v["words"]["WILD"]
+    # the royal was repainted from the rank the code drew, not drawn from words
+    assert len(edits) == 2 and "letter A" in edits[0][1] and edits[0][0].getpixel((0, 0)) == (255, 0, 255)
+    assert a["variants"][0]["id"] == f"cut/{ace}_1.png" and (d / f"raw/{ace}_1.png").is_file()
+    # the word is picked like a frame colour; a custom one gets its tile on every badge take
+    assert c.patch(f"/api/slot-design/demo/symbols/{wild}", json={"word": ""}).status_code == 400
+    c.patch(f"/api/slot-design/demo/symbols/{wild}", json={"word": "red  alert"})
+    w = _sym(_overview(c), wild)
+    assert w["word"] == "RED ALERT" and w["file"] == w["variants"][0]["words"]["RED ALERT"] and (d / w["file"]).is_file()
+    # a new lettering makes new tiles (new names, so no stale picture) and drops the old ones
+    old = w["file"]
+    assert c.patch("/api/slot-design/demo/prompts", json={"lettering": {"top": "red"}}).status_code == 400
+    assert c.patch("/api/slot-design/demo/prompts", json={"lettering": {"special_font": "nope.ttf"}}).status_code == 400
+    c.patch("/api/slot-design/demo/prompts", json={"lettering": {"top": "#FF0000", "special_font": "Cinzel-SemiBold.ttf"}})
+    o = _overview(c)
+    w = _sym(o, wild)
+    assert o["lettering"]["top"] == "#ff0000" and w["file"] != old and (d / w["file"]).is_file() and not (d / old).exists()
+    r = c.post("/api/slot-design/demo/lettering-preview", json={"outline": "#000000"})
+    assert r.status_code == 200 and Image.open(io.BytesIO(r.content)).size == (160 * 9, 160)
+    # Fit and Split keep a badge a badge
+    vid = w["variants"][0]["id"]
+    new = c.post(f"/api/slot-design/demo/symbols/{wild}/fit", json={"variant": vid, "fit": {"scale": 0.8}}).json()["variant"]
+    assert new == f"badge/{wild}_2" and _sym(_overview(c), wild)["choice"] == new
+    split = c.post(f"/api/slot-design/demo/symbols/{wild}/split", json={"variant": new, "name": "Scatter"}).json()["id"]
+    s2 = _sym(_overview(c), split)
+    assert s2["kind"] == "special" and s2["variants"][0]["id"] == f"badge/{split}_1" and s2["word"] == "RED ALERT"
+    # a Reiterate varies the emblem with the specials prompt; switching kind keeps the old takes
+    c.patch(f"/api/slot-design/demo/symbols/{wild}", json={"reiterate": True, "takes": 1})
+    c.post("/api/slot-design/demo/generate")
+    _wait_idle(c)
+    assert "emblem" in edits[-1][1] and "no text" in edits[-1][1].lower()
+    c.patch("/api/slot-design/demo/symbols/ship", json={"kind": "royal"})
+    ship = _sym(_overview(c), "ship")
+    assert ship["kind"] == "royal" and ship["rank"] == "SHI" and len(ship["variants"]) == 2
+    assert c.patch("/api/slot-design/demo/symbols/ship", json={"kind": "blob"}).status_code == 400
+
+
+def test_new_designs_start_with_royal_and_special_kinds(board):
+    c, _ = board
+    did = c.post("/api/slot-design", json={"name": "Kinds", "brief": "space"}).json()["id"]
+    o = c.get(f"/api/slot-design/{did}").json()
+    kinds = {k["id"]: k["kind"] for k in o["categories"]}
+    assert kinds["royals"] == "royal" and kinds["specials"] == "special"
+    syms = {s["id"]: s for s in o["symbols"]}
+    assert syms["a"]["kind"] == "royal" and syms["q"]["hue"] == "purple" and syms["free_spins"]["word"] == "FREE SPINS"
+    assert o["prompts"]["special"] == art.SPECIAL and o["prompts"]["royal"] == art.ROYAL
 
 
 # ------------------------------------------------------------------ the wizard (Phase 1)

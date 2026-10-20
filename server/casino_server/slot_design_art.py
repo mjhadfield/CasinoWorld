@@ -11,8 +11,11 @@ out of memory, because CPU offload keeps the ~8 GB text encoder on the GPU while
 reference. Text-only generations (a New symbol with no reference) run at 1024².
 
 Every picture is asked for on a flat magenta background (green for purple symbols) and keyed out here.
-Objects get the set's drop shadow; characters are drawn as a bust only and put into the board's shared
-portrait frame (compose_character), so every character matches.
+Objects get the set's drop shadow. The other kinds leave to the code whatever has to match across the set:
+characters are drawn as a bust only and put into the board's shared portrait frame (compose_character);
+specials are drawn as an emblem with no words and given their word in the design's shared lettering
+(compose_special); royals start from a rank the code draws in one font, size and place (render_rank), which the
+image model repaints, and keep that size and place (royal_tile).
 """
 import base64
 import io
@@ -52,6 +55,12 @@ BUST = ("a slot machine character portrait in a bold painted style like premium 
         "dark ink outline around the figure, smooth soft painted shading, glossy highlights, no cross-hatching. "
         "Head and shoulders, facing the viewer, the shoulders wide and cut off flat at the bottom edge of the "
         "image, the head in the upper half. Maintain the original facial features.")
+SPECIAL = ("a slot machine special-symbol emblem in bold premium casino slot art: one striking badge or icon of the "
+           "theme, glossy, rim-lit, rich fine detail, a thick dark outline. No lettering, no words, no numbers.")
+ROYAL = ("Repaint this card-rank symbol as premium glossy casino slot art: keep the exact character shape, thickness, "
+         "size, position and colour; give it a bevelled edge, glossy highlights, rich shading and rim light, and tuck "
+         "a small emblem of the theme into its lower part.")
+WORDS = ("WILD", "BONUS", "SCATTER", "FREE SPINS")  # a special's word buttons; a custom word is added per symbol
 
 
 def _bg(key: str) -> str:
@@ -65,7 +74,8 @@ def _keep(text: str | None) -> str:
 
 def default_prompts() -> dict:
     """The style prompts a design starts with; its Art step can rewrite them (Design.prompts)."""
-    return {"redraw": [STYLES[n] for n in (1, 2, 3)], "text": [TEXT_STYLES[n] for n in (1, 2, 3)], "bust": BUST}
+    return {"redraw": [STYLES[n] for n in (1, 2, 3)], "text": [TEXT_STYLES[n] for n in (1, 2, 3)], "bust": BUST,
+            "special": SPECIAL, "royal": ROYAL}
 
 
 def object_prompt(style: str, key: str, keep_text: str | None = None, note: str = "") -> str:
@@ -90,12 +100,37 @@ def bust_text_prompt(key: str, description: str, bust: str = BUST) -> str:
     return f"{description}, drawn as {bust.strip()} {_bg(key)}. No frame, no text."
 
 
-def variation_prompt(kind: str, key: str, note: str = "", bust: str = BUST) -> str:
-    """Another take on an image already on the board (Reiterate)."""
+def special_prompt(key: str, note: str = "", style: str = SPECIAL) -> str:
+    """Redraw a reference as a special's emblem: its words are left out (the code letters it)."""
+    extra = f" {note.rstrip('.')}." if note else ""
+    return (f"Redraw this as {style.strip()} Keep the emblem's subject, shape and colours, but leave out every letter "
+            f"and word on it.{extra} Centred, filling most of the frame. Remove the frame, the border and the whole "
+            f"background. {_bg(key)}. No text.")
+
+
+def special_text_prompt(key: str, description: str, style: str = SPECIAL) -> str:
+    return f"{description}, drawn as {style.strip()} Centred, filling most of the frame. {_bg(key)}. No border, no text."
+
+
+def royal_prompt(key: str, rank: str, note: str = "", style: str = ROYAL) -> str:
+    """Repaint the rank render_rank drew."""
+    what = "number" if rank.isdigit() else "letter"
+    extra = f" {note.rstrip('.')}." if note else ""
+    return f"{style.strip()} It is the {what} {rank}.{extra} {_bg(key)}, as it is now. No border, no other text."
+
+
+def variation_prompt(kind: str, key: str, note: str = "", style: str = BUST) -> str:
+    """Another take on an image already on the board (Reiterate); `style` is the kind's prompt (bust, special, royal)."""
     change = f" Change: {note.rstrip('.')}." if note else ""
     if kind == "character":
-        return (f"Make a fresh variation of this character portrait, drawn as {bust.strip()}{change} "
+        return (f"Make a fresh variation of this character portrait, drawn as {style.strip()}{change} "
                 f"{_bg(key)}. No frame, no background, no text.")
+    if kind == "special":
+        return (f"Make a fresh variation of this emblem, drawn as {style.strip()}{change} Centred, filling most of "
+                f"the frame. {_bg(key)}. No border, no text.")
+    if kind == "royal":
+        return (f"Make a fresh variation of this card-rank symbol. {style.strip()}{change} The character keeps its "
+                f"exact shape, size and position. {_bg(key)}, as it is now. No border, no other text.")
     return (f"Make a fresh variation of this slot machine symbol: same subject, same style and colours, crisp "
             f"high-detail glossy casino slot game art.{change} Centred, filling most of the frame. {_bg(key)}. "
             "No extra text, no border.")
@@ -103,7 +138,8 @@ def variation_prompt(kind: str, key: str, note: str = "", bust: str = BUST) -> s
 
 def refine_prompt(kind: str, key: str, instruction: str) -> str:
     """A targeted edit of one image: everything stays except what the instruction names."""
-    what = "character portrait" if kind == "character" else "slot machine symbol"
+    what = {"character": "character portrait", "special": "slot symbol emblem", "royal": "card-rank symbol"}.get(
+        kind, "slot machine symbol")
     return (f"Keep this {what} exactly as it is: the same subject, pose, style, colours and composition. Change only "
             f"this: {instruction.strip().rstrip('.')}. {_bg(key)}, as it is now. No text, no border.")
 
@@ -196,33 +232,51 @@ def is_colour(v) -> bool:
     return isinstance(v, str) and len(v) == 7 and v[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in v[1:])
 
 
-def render_logo(lines: list[str], font_path, top: str, bottom: str, outline: str, emblem: Image.Image | None = None) -> Image.Image:
-    """The logo's lettering: each line fitted to the width (the first biggest), filled with a top-to-bottom
-    gradient, outlined and shadowed, with an optional emblem to the left; trimmed to fit the screen's logo box."""
-    from PIL import ImageDraw, ImageFont
-    W, H = 1200, 420
-    tx, tw = (0, W) if emblem is None else (int(H * 0.95), W - int(H * 0.95))
-    weights = [1.25] + [1.0] * (len(lines) - 1)
-    heights = [H * w / sum(weights) for w in weights]
-    mask = Image.new("L", (W, H), 0)
-    stroke = Image.new("L", (W, H), 0)
-    y = 0.0
+def _fit_lines(lines, font_path, heights, tw, cap=None):
+    """[(font, bbox, stroke width)] per line: the biggest size (at most `cap`) that fits the width and the line."""
+    from PIL import ImageFont
+    out = []
     for line, lh in zip(lines, heights):
-        size = int(lh * 0.86)
+        size = int(min(lh * 0.86, cap or lh))
         while size > 10:
             font = ImageFont.truetype(str(font_path), size)
             box = font.getbbox(line, stroke_width=max(2, size // 14))
             if box[2] - box[0] <= tw - 16 and box[3] - box[1] <= lh:
                 break
             size -= 4
-        sw = max(2, size // 14)
+        out.append((font, box, max(2, size // 14)))
+    return out
+
+
+def _lettering(lines: list[str], font_path, top: str, bottom: str, outline: str, W: int, H: int, tx: int = 0,
+               tw: int | None = None, weights=None, cap: int | None = None, per_line: bool = False) -> Image.Image:
+    """Lines of lettering on a transparent W×H: each fitted to the width tw from x tx (and to at most `cap` px),
+    filled with a top-to-bottom gradient (across the whole box, or each line's own band), outlined and shadowed.
+    The logo's lettering and a special's word."""
+    from PIL import ImageDraw
+    tw = W if tw is None else tw
+    weights = weights or [1.0] * len(lines)
+    heights = [H * w / sum(weights) for w in weights]
+    mask = Image.new("L", (W, H), 0)
+    stroke = Image.new("L", (W, H), 0)
+    t, b = _rgb(top), _rgb(bottom)
+    ramp = np.zeros((H, 3), np.float32)
+    y = 0.0
+    for line, lh, (font, box, sw) in zip(lines, heights, _fit_lines(lines, font_path, heights, tw, cap)):
         x = tx + (tw - (box[2] - box[0])) / 2 - box[0]
         yy = y + (lh - (box[3] - box[1])) / 2 - box[1]
         ImageDraw.Draw(stroke).text((x, yy), line, font=font, fill=255, stroke_width=sw, stroke_fill=255)
         ImageDraw.Draw(mask).text((x, yy), line, font=font, fill=255)
+        if per_line:  # the gradient runs over the glyphs' own height, so every word shades alike
+            g0, g1 = int(yy + box[1]), int(yy + box[3])
+            k = np.clip((np.arange(H) - g0) / max(1, g1 - g0), 0, 1)[:, None]
+            band = slice(int(y), int(round(y + lh)))
+            ramp[band] = (t * (1 - k) + b * k)[band]
         y += lh
-    t, b = _rgb(top), _rgb(bottom)
-    col = (t[None, :] * (1 - np.linspace(0, 1, H)[:, None]) + b[None, :] * np.linspace(0, 1, H)[:, None]).astype(np.uint8)
+    if not per_line:
+        k = np.linspace(0, 1, H)[:, None]
+        ramp = t[None, :] * (1 - k) + b[None, :] * k
+    col = ramp.astype(np.uint8)
     grad = Image.fromarray(np.dstack([np.repeat(col[:, None, :], W, axis=1), np.full((H, W), 255, np.uint8)]), "RGBA")
     out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -233,6 +287,15 @@ def render_logo(lines: list[str], font_path, top: str, bottom: str, outline: str
     out.alpha_composite(ring)
     grad.putalpha(mask)
     out.alpha_composite(grad)
+    return out
+
+
+def render_logo(lines: list[str], font_path, top: str, bottom: str, outline: str, emblem: Image.Image | None = None) -> Image.Image:
+    """The logo's lettering: each line fitted to the width (the first biggest), filled with a top-to-bottom
+    gradient, outlined and shadowed, with an optional emblem to the left; trimmed to fit the screen's logo box."""
+    W, H = 1200, 420
+    tx, tw = (0, W) if emblem is None else (int(H * 0.95), W - int(H * 0.95))
+    out = _lettering(lines, font_path, top, bottom, outline, W, H, tx, tw, [1.25] + [1.0] * (len(lines) - 1))
     if emblem is not None:
         e = emblem.copy()
         e.thumbnail((int(H * 0.95), int(H * 0.95)), Image.LANCZOS)
@@ -290,9 +353,9 @@ def fit_values(fit: dict | None) -> dict:
     return f
 
 
-def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
-    """A keyed object, trimmed, fitted to 86% of 512² and given the set's drop shadow. An RGBA picture is taken
-    as already keyed (a tile with no raw FLUX picture behind it)."""
+def _fitted(im: Image.Image, fit: dict | None, size: float = 0.86, dy: float = -6) -> Image.Image:
+    """A picture keyed (an RGBA one is taken as keyed already), trimmed, rotated, scaled to `size` of 512² and
+    placed `dy` from the centre, all with its Fit; on a transparent 512²."""
     f = fit_values(fit)
     im = im if im.mode == "RGBA" else cutout(im)
     bbox = im.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox()
@@ -301,10 +364,131 @@ def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
     im = im.crop(bbox)
     if f["rot"]:
         im = im.rotate(-f["rot"], resample=Image.BICUBIC, expand=True)
-    scale = 0.86 * S / max(im.size) * f["scale"]
+    scale = size * S / max(im.size) * f["scale"]
     im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
     layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    layer.paste(im, (round((S - im.width) / 2 + f["dx"]), round((S - im.height) / 2 - 6 + f["dy"])))
+    layer.paste(im, (round((S - im.width) / 2 + f["dx"]), round((S - im.height) / 2 + dy + f["dy"])))
+    return layer
+
+
+def symbol(im: Image.Image, fit: dict | None = None) -> Image.Image:
+    """A keyed object, trimmed, fitted to 86% of 512² and given the set's drop shadow. An RGBA picture is taken
+    as already keyed (a tile with no raw FLUX picture behind it)."""
+    return _shadow(_fitted(im, fit), 14)
+
+
+# ------------------------------------------------------------------ specials: an emblem and the shared lettering
+LABEL_W, LABEL_H, LABEL_CAP = 492, 176, 152   # a special's word: one line, every word the same height if it fits
+LABEL_Y = 396                                  # the word's centre line, over the emblem's lower part
+
+
+def word_slug(word: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in word.lower()).strip("_") or "word"
+
+
+def label(word: str, style: dict) -> Image.Image:
+    """A special's word in the design's lettering (style: font path, top, bottom, outline), on a transparent 512²:
+    one line where it fits at a good size, else (a word with a space) two."""
+    def one(lines, h, cap):
+        return _lettering(lines, style["font"], style["top"], style["bottom"], style["outline"], LABEL_W, h,
+                          cap=cap, per_line=True)
+    lines = [word]
+    font, box, _ = _fit_lines([word], style["font"], [LABEL_H], LABEL_W, LABEL_CAP)[0]
+    if " " in word.strip() and font.size < LABEL_CAP * 0.7:
+        a, b = word.strip().split(" ", 1)
+        lines = [a, b]
+    h = LABEL_H if len(lines) == 1 else int(LABEL_H * 1.45)
+    im = one(lines, h, LABEL_CAP if len(lines) == 1 else int(LABEL_CAP * 0.75))
+    tile = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    y = LABEL_Y - h // 2 if len(lines) == 1 else S - 12 - h
+    tile.alpha_composite(im, ((S - LABEL_W) // 2, y))
+    return tile
+
+
+def compose_special(raw: Image.Image, fit: dict | None = None, words=WORDS, style: dict | None = None) -> dict[str, Image.Image]:
+    """A special's emblem (its Fit moves only the emblem) with each word laid over its lower part, every word in
+    the same lettering: {word: tile}."""
+    emblem = _fitted(raw, fit, 0.8, -34)
+    out = {}
+    for w in words:
+        tile = emblem.copy()
+        tile.alpha_composite(label(w, style))
+        out[w] = _shadow(tile, 14)
+    return out
+
+
+# ------------------------------------------------------------------ royals: a code-drawn rank, repainted
+RANK_CAP, RANK_W = 0.6, 0.84   # the rank's cap height and widest it may be, as parts of the tile
+
+
+def royal_key(hue: str) -> str:
+    """Purple letters key off green; every other frame colour off magenta (green ones would key off green)."""
+    return "green" if hue == "purple" else "magenta"
+
+
+def render_rank(rank: str, font_path, hue: str = "gold", size: int = 1024) -> Image.Image:
+    """The reference a royal is repainted from: the rank in the design's royal font, every rank the same cap height
+    and centred (a wide one, 10, squeezed to fit rather than shrunk), filled from the frame colour's light to dark,
+    thickly outlined, on the flat key colour."""
+    from PIL import ImageDraw, ImageFont
+    probe = ImageFont.truetype(str(font_path), 200)
+    cap = probe.getbbox("H")
+    pt = round(200 * size * RANK_CAP / (cap[3] - cap[1]))
+    font = ImageFont.truetype(str(font_path), pt)
+    cap = font.getbbox("H")
+    sw = max(4, pt // 13)
+    box = font.getbbox(rank, stroke_width=sw)
+    W, H = box[2] - box[0] + 8, size
+    y = (size - (cap[3] - cap[1])) / 2 - cap[1]
+    mask, stroke = Image.new("L", (W, H), 0), Image.new("L", (W, H), 0)
+    ImageDraw.Draw(stroke).text((4 - box[0], y), rank, font=font, fill=255, stroke_width=sw, stroke_fill=255)
+    ImageDraw.Draw(mask).text((4 - box[0], y), rank, font=font, fill=255)
+    if W > size * RANK_W:
+        W2 = round(size * RANK_W)
+        mask, stroke = mask.resize((W2, H), Image.LANCZOS), stroke.resize((W2, H), Image.LANCZOS)
+        W = W2
+    dark, mid, light = (_rgb(c) for c in HUES[hue][:3])
+    top, bot = cap[1] + y, cap[3] + y
+    k = np.clip((np.arange(H, dtype=np.float32) - top) / (bot - top), 0, 1)
+    col = _ramp(k, [light * 0.55 + mid * 0.45, mid, dark * 0.6 + mid * 0.4])
+    out = Image.new("RGB", (size, size), (255, 0, 255) if royal_key(hue) == "magenta" else (0, 255, 0))
+    x = (size - W) // 2
+    ink = Image.new("RGB", (W, H), tuple(int(c) for c in _rgb(HUES[hue][0]) * 0.35))
+    out.paste(ink, (x, 0), stroke)
+    fill = Image.fromarray(np.repeat(col[:, None, :], W, axis=1).astype(np.uint8), "RGB")
+    out.paste(fill, (x, 0), mask)
+    return out
+
+
+def lettering_sample(style: dict, rank_font, tile: int = 160) -> bytes:
+    """The Prompts panel's lettering preview (PNG): each standard word on a plain emblem, then A K Q J 10 as
+    render_rank draws them for the image model, keyed."""
+    y, x = np.mgrid[0:S, 0:S].astype(np.float32)
+    r = np.hypot(x - S / 2, y - S / 2 + 34) / 190
+    col = _ramp(r, [_rgb("#6a7a96"), _rgb("#2a3346"), _rgb("#141a26")])
+    disc = Image.fromarray(np.dstack([col, np.clip((1 - r) * 40, 0, 1) * 255]).astype(np.uint8), "RGBA")
+    tiles = list(compose_special(disc, None, WORDS, style).values())
+    tiles += [royal_tile(cutout(render_rank(rk, rank_font, h, S))) for rk, h in
+              (("A", "red"), ("K", "blue"), ("Q", "purple"), ("J", "green"), ("10", "gold"))]
+    out = Image.new("RGBA", (tile * len(tiles), tile), (0, 0, 0, 0))
+    for i, im in enumerate(tiles):
+        out.alpha_composite(im.resize((tile, tile), Image.LANCZOS), (i * tile, 0))
+    buf = io.BytesIO()
+    out.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def royal_tile(raw: Image.Image, fit: dict | None = None) -> Image.Image:
+    """A repainted royal keyed and kept where render_rank put it (no trim and refit, so every rank matches), its
+    Fit scaling it about the centre and nudging it; with the set's drop shadow."""
+    f = fit_values(fit)
+    im = (raw if raw.mode == "RGBA" else cutout(raw)).resize((S, S), Image.LANCZOS)
+    if f["rot"]:
+        im = im.rotate(-f["rot"], resample=Image.BICUBIC)
+    if f["scale"] != 1:
+        im = im.resize((round(S * f["scale"]), round(S * f["scale"])), Image.LANCZOS)
+    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    layer.paste(im, (round((S - im.width) / 2 + f["dx"]), round((S - im.height) / 2 + f["dy"])))
     return _shadow(layer, 14)
 
 
@@ -460,7 +644,8 @@ def compose_character(raw: Image.Image, fit: dict | None = None, hues=None) -> d
 
 if __name__ == "__main__":
     # python -m casino_server.slot_design_art rebuild <design>: redo every framed character from its raw bust
-    # and its Fit (after changing the frame, or on a fresh checkout, where chars/ isn't kept).
+    # and its Fit (after changing the frame, or on a fresh checkout, where chars/ isn't kept). Specials' tiles
+    # need no rebuild: the board makes any that's missing when it lists them.
     import sys
     from pathlib import Path
     if sys.argv[1:2] != ["rebuild"] or len(sys.argv) != 3:

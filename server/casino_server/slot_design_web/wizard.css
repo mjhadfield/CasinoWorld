@@ -60,6 +60,11 @@
 .dz-link .controls input[type=url] { flex: 1 1 220px; }
 .dz-re { display: grid; gap: 6px; }
 .dz-section { font-size: 12px; padding: 2px 6px; max-width: 13em; }
+.dz-words { justify-content: center; max-width: 180px; }
+.dz-words button { font-size: 11px; padding: 2px 6px; }
+.dz-royal { display: grid; gap: 4px; justify-items: center; }
+.dz-rank { width: 3.5em; text-align: center; }
+.dz-letters { max-width: 100%; background: var(--stage); border-radius: 8px; }
 .dz-main textarea, .dz-new textarea { font: 13px var(--font); padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 2.6em; width: 100%; }
 .dz-re textarea:disabled { opacity: .5; }
 .dz-new { border-style: dashed; }

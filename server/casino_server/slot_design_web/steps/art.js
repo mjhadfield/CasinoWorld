@@ -1,10 +1,14 @@
 // Step 2, Art: a section per category (with how many the main game needs) and a card per symbol. Cycle the takes,
-// pick a frame colour, tick the final set, link references, Reiterate (1, 3 or 5 takes), Refine, Fit, bin what's not
-// wanted, move a symbol to another section, and hide symbols not in use (Show › Hidden brings them back).
-// The Prompts fold at the top sets how many takes a new symbol's first Generate makes and rewrites the style prompts.
+// pick a frame colour (a character's frame, a royal's colour) or a special's word, tick the final set, link references,
+// Reiterate (1, 3 or 5 takes), Refine, Fit, bin what's not wanted, change a symbol's kind, move it to another section,
+// and hide symbols not in use (Show › Hidden brings them back).
+// The Prompts fold at the top sets how many takes a new symbol's first Generate makes, rewrites the style prompts and
+// sets the shared lettering (the specials' words and the royals' ranks).
 // Polling only redraws cards that changed, and never one you're typing in or saving: that card is left behind
 // (behind(), which keeps the wizard polling) and catches up once you've left it.
 const HUE = {gold: "#d39a26", red: "#d0562e", blue: "#3a7be0", purple: "#9550d8", silver: "#9aa4b2", green: "#3fae4c"};
+const KINDS = [["object", "Object · cut out"], ["character", "Character · framed"], ["special", "Special · lettered"],
+  ["royal", "Royal · drawn rank"]];
 let C, filter = "all", lastDid = null, promptsOpen = false;
 const rows = new Map();     // symbol id -> {card, json, behind}
 const cats = new Map();     // category id -> {list, box, count, need}
@@ -15,7 +19,27 @@ const saving = new Map();   // symbol id -> PATCHes in flight
 let els = {};
 
 const sym = sid => `/api/slot-design/${C.did}/symbols/${encodeURIComponent(sid)}`;
-const thumbOf = (s, w) => w.hues ? (w.hues[s.hue] || Object.values(w.hues)[0]) : w.src;
+const thumbOf = (s, w) => w.hues ? (w.hues[s.hue] || Object.values(w.hues)[0])
+  : w.words ? (w.words[s.word] || Object.values(w.words)[0]) : w.src;
+
+// Colour swatches: a character's frame, a royal's colour.
+function swatches(current, pick, what) {
+  return C.el("div", {className: "swatches", role: "group", ariaLabel: what}, ...Object.keys(HUE).map(h =>
+    C.el("button", {type: "button", className: "sw", title: `${h} ${what.toLowerCase()}`, ariaLabel: `${h} ${what.toLowerCase()}`,
+      ariaPressed: String(h === current), style: `background:${HUE[h]}`, onclick: () => pick(h)})));
+}
+
+// A special's word: the standard ones, or its own (Custom asks for it).
+function wordPicker(current, pick) {
+  const {el} = C, words = C.data.words, own = current && !words.includes(current);
+  return el("span", {className: "seg dz-words", role: "group", ariaLabel: "Word"},
+    ...words.map(w => el("button", {type: "button", textContent: w, ariaPressed: String(w === current), onclick: () => pick(w)})),
+    el("button", {type: "button", textContent: own ? current : "Custom…", ariaPressed: String(!!own), title: "A word of your own",
+      onclick: () => {
+        const w = prompt("The word on this special (up to 16 letters):", own ? current : "");
+        if (w && w.trim()) pick(w.trim().toUpperCase());
+      }}));
+}
 
 export function render(ctx, body) {
   C = ctx;
@@ -88,9 +112,55 @@ function promptsPanel() {
     el("div", {className: "wz-sec"}, el("h4", {textContent: "From a description only (a New symbol without a reference)"}),
       ...[0, 1, 2].map(i => take("text", i, "style words, after the description"))),
     el("div", {className: "wz-sec"}, el("h4", {textContent: "Characters (every take)"}),
-      box("Portrait style: the character is drawn as …", p.bust, def.bust, v => ({bust: v}), 4)));
+      box("Portrait style: the character is drawn as …", p.bust, def.bust, v => ({bust: v}), 4)),
+    el("div", {className: "wz-sec"}, el("h4", {textContent: "Specials (every take)"}),
+      box("Emblem style: drawn with no words, the code lays the word on in the lettering below", p.special, def.special, v => ({special: v}), 3)),
+    el("div", {className: "wz-sec"}, el("h4", {textContent: "Royals (every take)"}),
+      box("Repaint: the image model is given the rank drawn in the royal font and its colour, and told …", p.royal, def.royal, v => ({royal: v}), 3)),
+    letteringPanel(save));
   d.addEventListener("toggle", () => { promptsOpen = d.open; });
   return d;
+}
+
+// The shared lettering: the specials' font and colours, the royals' font, with a live sample (saved on change).
+function letteringPanel(save) {
+  const {el} = C, l = {...C.data.lettering};
+  const sample = el("img", {className: "dz-letters", alt: "Lettering sample: the specials' words, then the royals as the image model gets them"});
+  let t = null, n = 0;
+  const preview = () => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const mine = ++n;
+      try {
+        const r = await fetch(`/api/slot-design/${C.did}/lettering-preview`, {method: "POST",
+          headers: {"Content-Type": "application/json"}, body: JSON.stringify(l)});
+        if (!r.ok) throw new Error(await r.text());
+        const url = URL.createObjectURL(await r.blob());
+        if (mine === n) { URL.revokeObjectURL(sample.src); sample.src = url; }
+      } catch (e) { C.status("Lettering preview failed: " + e.message, "warn"); }
+    }, 200);
+  };
+  const set = (k, v) => { l[k] = v; preview(); save({lettering: {[k]: v}}); };
+  const font = k => {
+    const s = el("select", {ariaLabel: k === "special_font" ? "Specials' font" : "Royals' font"},
+      ...C.data.fonts.map(f => el("option", {value: f, textContent: f.replace(/\.[ot]tf$/, "")})));
+    s.value = l[k];
+    s.addEventListener("change", () => set(k, s.value));
+    return s;
+  };
+  const colour = (k, label) => {
+    const i = el("input", {type: "color", value: l[k], ariaLabel: label});
+    i.addEventListener("change", () => set(k, i.value));
+    return el("label", {className: "field"}, el("span", {textContent: label}), i);
+  };
+  preview();
+  return el("div", {className: "wz-sec"}, el("h4", {textContent: "Lettering (specials' words, royals' ranks)"}),
+    el("div", {className: "controls"},
+      el("label", {className: "field"}, el("span", {textContent: "Specials' font"}), font("special_font")),
+      colour("top", "Top"), colour("bottom", "Bottom"), colour("outline", "Outline"),
+      el("label", {className: "field"}, el("span", {textContent: "Royals' font"}), font("royal_font"))),
+    el("p", {className: "hint", textContent: "Unset, both fonts are the Sprites step's display font. A special's word is laid on by the code, so every special matches and changing this redoes them all at once (no image model). A royal's rank is drawn in its font and colour before the image model repaints it, so a change here shows on its next takes."}),
+    sample);
 }
 
 export function update(ctx, force) { C = ctx; draw(false, force); }
@@ -295,9 +365,9 @@ function symRow(s) {
       el("button", {type: "button", className: "icon", textContent: "◀", disabled: i <= 0, ariaLabel: "Previous take", onclick: () => choose(-1)}),
       el("span", {textContent: `${vs.length ? i + 1 : 0} / ${vs.length}`}),
       el("button", {type: "button", className: "icon", textContent: "▶", disabled: i >= vs.length - 1, ariaLabel: "Next take", onclick: () => choose(1)})),
-    v && v.hues ? el("div", {className: "swatches", role: "group", ariaLabel: "Frame colour"}, ...Object.keys(v.hues).map(h =>
-      el("button", {type: "button", className: "sw", title: h + " frame", ariaLabel: h + " frame", ariaPressed: String(h === s.hue),
-        style: `background:${HUE[h] || "#888"}`, onclick: () => patch(s, {hue: h})}))) : null,
+    v && v.hues ? swatches(s.hue, h => patch(s, {hue: h}), "Frame") : null,
+    s.kind === "special" ? wordPicker(s.word, w => patch(s, {word: w})) : null,
+    s.kind === "royal" ? royalBits(s) : null,
     v ? el("div", {className: "dz-tools"},
       el("button", {type: "button", textContent: "Refine", ariaPressed: String(tool === "refine"), onclick: toggle("refine")}),
       el("button", {type: "button", textContent: "Fit", ariaPressed: String(tool === "fit"), onclick: toggle("fit")}),
@@ -315,7 +385,7 @@ function symRow(s) {
   section.value = s.category;
   section.addEventListener("change", () => patch(s, {category: section.value}));
   const head = el("div", {className: "card-head"}, el("h3", {textContent: s.name}),
-    el("span", {className: "tag", textContent: s.kind === "character" ? "character · framed" : "object"}),
+    kindSelect(s),
     s.hide ? el("span", {className: "tag", textContent: "hidden"}) : null,
     s.pending_new ? el("span", {className: "tag gold", textContent: `${vs.length ? "first generate" : "new"} · ${s.first_takes} take${s.first_takes === 1 ? "" : "s"} waiting for Generate`}) : null, ...jobBits(s),
     el("label", {className: "confirm", style: "margin-left:auto"},
@@ -361,7 +431,9 @@ function symRow(s) {
       ariaPressed: String(s.reiterate ? n === s.takes : !n),
       onclick: () => patch(s, n ? {reiterate: true, takes: n} : {reiterate: false})})));
   // A first generate: the style prompts (Prompts, at the top) from the reference or the description, like a new symbol.
-  const firstFrom = s.refs.length ? (s.refs.includes(s.base) ? `reference ${s.refs.indexOf(s.base) + 1}` : "reference 1") : "the description";
+  const firstFrom = s.kind === "royal" ? "the drawn rank"
+    : s.refs.length ? (s.refs.includes(s.base) ? `reference ${s.refs.indexOf(s.base) + 1}` : "reference 1") : "the description";
+  const firstHow = {character: "the portrait prompt", special: "the specials prompt", royal: "the royals prompt"}[s.kind] || "style prompts";
   const first = el("span", {className: "seg", role: "group", ariaLabel: `First generate ${s.name}`},
     ...[0, 1, 2, 3].map(n => el("button", {type: "button", textContent: n ? `${n} take${n === 1 ? "" : "s"}` : "No",
       ariaPressed: String(s.pending_new ? n === s.first_takes : !n),
@@ -374,12 +446,13 @@ function symRow(s) {
     }}) : null;
   const re = el("div", {className: "dz-re"},
     el("div", {className: "controls"}, el("span", {textContent: "First generate"}), first,
-      el("span", {className: "hint", textContent: `style prompts, from ${firstFrom}`})),
+      el("span", {className: "hint", textContent: `${firstHow}, from ${firstFrom}`})),
     el("div", {className: "controls"}, el("span", {textContent: "Reiterate"}), takes, base, queue), note);
 
   let prompt = null;
   if (s.added || s.prompt) {
-    prompt = el("textarea", {rows: 2, value: s.prompt || "", ariaLabel: `Description of ${s.name}`, placeholder: "Describe it for the image model"});
+    prompt = el("textarea", {rows: 2, value: s.prompt || "", ariaLabel: `Description of ${s.name}`,
+      placeholder: s.kind === "royal" ? "The emblem tucked into it (optional), e.g. 'a small Starfleet delta'" : "Describe it for the image model"});
     typed(s, "prompt", prompt);
   }
   const failed = s.job && s.job.status === "failed" ? el("p", {className: "hint", textContent: "Failed: " + s.job.error}) : null;
@@ -387,6 +460,24 @@ function symRow(s) {
     el("div", {className: "dz-main"}, head, failed, strip, panel, prompt, refs, linkBox, re));
   card.dataset.sid = s.id;
   return card;
+}
+
+function kindSelect(s) {
+  const k = C.el("select", {className: "dz-section", ariaLabel: `Kind of ${s.name}`,
+    title: "Kind: how its next takes are made (the takes it has stay as they are)"},
+    ...KINDS.map(([v, t]) => C.el("option", {value: v, textContent: t})));
+  k.value = s.kind;
+  k.addEventListener("change", () => patch(s, {kind: k.value}));
+  return k;
+}
+
+// A royal's rank and colour: drawn by the code, so they show on the next take.
+function royalBits(s) {
+  const {el} = C;
+  const rank = el("input", {value: s.rank || "", size: 3, maxLength: 3, ariaLabel: `Rank of ${s.name}`, className: "dz-rank"});
+  typed(s, "rank", rank);
+  return el("div", {className: "dz-royal"}, swatches(s.hue, h => patch(s, {hue: h}), "Colour"),
+    el("label", {className: "hint"}, "Rank ", rank, " · next take"));
 }
 
 function refinePanel(s, v) {
@@ -458,8 +549,26 @@ function draftForm(c) {
   let ref = null;
   const name = el("input", {placeholder: "e.g. Shuttlecraft", ariaLabel: "Name"});
   const kind = el("select", {ariaLabel: "Kind"}, el("option", {value: "object", textContent: "Object (cut out)"}),
-    el("option", {value: "character", textContent: "Character (in the shared frame)"}));
+    el("option", {value: "character", textContent: "Character (in the shared frame)"}),
+    el("option", {value: "special", textContent: "Special (emblem + the shared lettering)"}),
+    el("option", {value: "royal", textContent: "Royal (a drawn rank, repainted)"}));
   kind.value = c.kind || "object";
+  // A special's word, or a royal's rank and colour, chosen before the first take
+  const extra = {word: "WILD", rank: "", hue: null};   // no colour picked: the rank's own (A red, K blue, ...)
+  const kindBox = el("div", {className: "field", style: "grid-column: 1 / -1"});
+  const showKind = () => {
+    if (kind.value === "special") {
+      const pick = w => { extra.word = w; showKind(); };
+      kindBox.replaceChildren(el("span", {textContent: "Word (laid on by the code; change it any time)"}), wordPicker(extra.word, pick));
+    } else if (kind.value === "royal") {
+      const rank = el("input", {value: extra.rank, size: 3, maxLength: 3, placeholder: "A", ariaLabel: "Rank"});
+      rank.addEventListener("input", () => { extra.rank = rank.value; });
+      kindBox.replaceChildren(el("span", {textContent: "Rank and colour (blank: from the name, and the rank's usual colour)"}),
+        el("div", {className: "controls"}, rank, swatches(extra.hue, h => { extra.hue = h; showKind(); }, "Colour")));
+    } else kindBox.replaceChildren();
+  };
+  kind.addEventListener("change", showKind);
+  showKind();
   const key = el("select", {ariaLabel: "Background to key off"}, el("option", {value: "magenta", textContent: "Magenta (most art)"}),
     el("option", {value: "green", textContent: "Green (purple or pink art)"}));
   const desc = el("textarea", {rows: 2, ariaLabel: "Description", placeholder: "Describe it for the image model, e.g. 'a Starfleet shuttlecraft, three-quarter view'"});
@@ -470,7 +579,8 @@ function draftForm(c) {
       el("label", {className: "field"}, el("span", {textContent: "Name"}), name),
       el("label", {className: "field"}, el("span", {textContent: "Kind"}), kind),
       el("label", {className: "field"}, el("span", {textContent: "Background to key off"}), key),
-      el("label", {className: "field", style: "grid-column: 1 / -1"}, el("span", {textContent: "Description"}), desc)),
+      kindBox,
+      el("label", {className: "field", style: "grid-column: 1 / -1"}, el("span", {textContent: "Description (a royal's: the emblem tucked into it, optional)"}), desc)),
     el("div", {className: "field"}, el("span", {textContent: "Reference image (optional: with one, the image model redraws it; without, it draws from the description)"}),
       linker(C, path => {
         ref = path;
@@ -480,7 +590,8 @@ function draftForm(c) {
     el("div", {className: "controls"},
       el("button", {type: "button", className: "primary", textContent: "Add to " + c.title, onclick: async () => {
         try {
-          await C.api("POST", `/api/slot-design/${C.did}/symbols`, {name: name.value, category: c.id, kind: kind.value, key: key.value, prompt: desc.value, ref});
+          await C.api("POST", `/api/slot-design/${C.did}/symbols`, {name: name.value, category: c.id, kind: kind.value, key: key.value, prompt: desc.value, ref,
+            ...(kind.value === "special" ? {word: extra.word} : kind.value === "royal" ? {rank: extra.rank, ...(extra.hue ? {hue: extra.hue} : {})} : {})});
           const n = C.data.prompts.first_takes;
           C.status(`${name.value} added: Generate makes ${n} take${n === 1 ? "" : "s"}.`, "ok");
           discard();
