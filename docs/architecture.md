@@ -118,7 +118,8 @@ A Godot 4.7 project exported to the web.
   The camera itself never turns, and avatars keep themselves upright. The navigation region sits outside World,
   so the nav map stays in World's frame through a turn; a bake waits until the floor is upright. The rooms
   (the main floor and the Blackjack pit room, joined by a doorway), the tables and the felt are drawn in code,
-  so they stay sharp at any zoom.
+  so they stay sharp at any zoom. A static body on collision layer 2 (the Blackjack pit's `PitFence`) is in the
+  navigation bake but not in your way: NPCs path round it, players walk through.
 - **Avatars:** `avatar.gd` shows a look, a name tag (an MSDF font) and a speech bubble. `local_player.gd`
   drives you (keys, click-to-walk, click and hold), and `entity_avatar.gd` drives everyone else: other
   players' reported moves are smoothed, and NPC walks are pathed.

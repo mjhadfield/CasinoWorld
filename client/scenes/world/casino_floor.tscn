@@ -17,7 +17,6 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_hud"]
 [ext_resource type="Script" path="res://scenes/world/pit_podium.gd" id="17_podium"]
 [ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="18_avatar"]
-[ext_resource type="Script" path="res://scenes/world/pit_rope.gd" id="19_rope"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_h"]
 size = Vector2(1940, 80)
@@ -36,6 +35,12 @@ size = Vector2(24, 320)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_podium"]
 size = Vector2(30, 10)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fence_gap"]
+size = Vector2(36, 6)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fence_end"]
+size = Vector2(6, 278)
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_floor"]
 parsed_geometry_type = 1
@@ -173,25 +178,25 @@ position = Vector2(2400, 604)
 look = "dealer"
 display_name = "Pit Boss"
 
-[node name="RopeGapNorth" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+[node name="PitFence" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="GapNorth" type="CollisionShape2D" parent="World/PitFence"]
 position = Vector2(2400, 464)
-script = ExtResource("19_rope")
-posts = PackedVector2Array(-15, 0, 15, 0)
+shape = SubResource("RectangleShape2D_fence_gap")
 
-[node name="RopeGapSouth" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+[node name="GapSouth" type="CollisionShape2D" parent="World/PitFence"]
 position = Vector2(2400, 736)
-script = ExtResource("19_rope")
-posts = PackedVector2Array(-15, 0, 15, 0)
+shape = SubResource("RectangleShape2D_fence_gap")
 
-[node name="RopeWest" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-position = Vector2(2059, 736)
-script = ExtResource("19_rope")
-posts = PackedVector2Array(0, -272, 0, -204, 0, -136, 0, -68, 0, 0)
+[node name="West" type="CollisionShape2D" parent="World/PitFence"]
+position = Vector2(2059, 600)
+shape = SubResource("RectangleShape2D_fence_end")
 
-[node name="RopeEast" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-position = Vector2(2741, 736)
-script = ExtResource("19_rope")
-posts = PackedVector2Array(0, -272, 0, -204, 0, -136, 0, -68, 0, 0)
+[node name="East" type="CollisionShape2D" parent="World/PitFence"]
+position = Vector2(2741, 600)
+shape = SubResource("RectangleShape2D_fence_end")
 
 [node name="SlotCabinets" type="Node2D" parent="World"]
 

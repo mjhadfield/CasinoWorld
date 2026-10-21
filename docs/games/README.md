@@ -26,8 +26,8 @@ fourth column to the east holds the wheel and the dice:
 
 **The Blackjack pit room** is east of the main floor (1000×1160), through a doorway low in the shared wall. Its
 four blackjack tables stand close together in two rows facing apart across a narrow pit, with the dealers back to
-back and the pit boss at a podium between them. Brass posts and velvet rope close the gaps between the tables and
-the pit's ends, so players can't get in. The far row (`bj_2`, `bj_3`) is turned upside down, so its players sit on
+back and the pit boss at a podium between them. An invisible fence (`PitFence`, which only the navigation map sees)
+closes the gaps between the tables and the pit's ends, so NPCs never walk into the pit. Players can. The far row (`bj_2`, `bj_3`) is turned upside down, so its players sit on
 the north side.
 When you sit there, the view turns round so the table is the right way up, and it turns back when you stand. The
 near row (`bj_4`, `bj_5`) is the usual way round. The pit boss is decoration for now.
