@@ -2,7 +2,11 @@
 
 Vegas rules, eight places at the rail, where players stand rather than sit. Each free place is marked on the floor
 in the seating style's look (`craps_spot`: footprints on a brass-rimmed plate by default) and glows while you're
-walking; a taken one shows its player's colour. Signed off on Mike's Craps mockup (v1). The bet catalogue and
+walking; a taken one shows its player's colour. While you're at the table the free ones are hidden. Each player
+has a run of chips in the rail's groove beside them (on the stickman's side of their head, so it isn't hidden):
+the edge-on chips of the dealer's rack, in the denominations they bet in (the biggest bet, odds aside, they've
+had down since they came; the table minimum, or your picked chip, before that). It isn't their balance. Signed
+off on Mike's Craps mockup (v1). The bet catalogue and
 payouts are in the docstring of `server/casino_server/engines/craps.py`; the table's flow is in `tables/craps.py`.
 
 ## Bets
@@ -14,7 +18,9 @@ debit per seat per roll), and taking a paid-for bet down refunds it at once.
 - **Come and Don't Come:** the same for a new point, any roll after the come-out. They travel to their number,
   where you can take odds on them.
 - **Place** 4/10 9 to 5, 5/9 7 to 5, 6/8 7 to 6. **Buy** pays true odds less 5% of the bet; **Lay** true odds
-  against, less 5% of the win.
+  against, less 5% of the win. Each number box is split as in a casino, and a click on a strip is that bet:
+  Lay along the top (where don't come bets go too), Place on the number (with come bets), Buy along the bottom.
+- **Odds on a come bet:** click your own come (or don't come) chip on its number.
 - **Field** (3, 4, 9, 10, 11 even money; 2 double, 12 triple), **Big 6** and **Big 8**.
 - **Hardways** (4/10 7 to 1, 6/8 9 to 1) and the one-roll props: Any 7, Any Craps, 2, 3, 11, 12, Horn, C&E.
 - £5 minimum on the main bets, £1 on hardways and props. Payouts round down to the penny.

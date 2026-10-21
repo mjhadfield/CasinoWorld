@@ -2,9 +2,10 @@
 extends TableFelt
 ## The craps table in the house Mahogany & Brass: the wood rail (leather padding
 ## on the dealers' side) and crimson felt of every table, cut to the craps
-## table's shape (CrapsTable.shape), the rubber pyramids lining both end walls,
-## the chip rack in the boxman's bay, and the double-ended layout, printed in
-## cream: at each end the point boxes, Don't Come, Come, the Field, Big 6/8,
+## table's shape (CrapsTable.shape), the rubber pyramids lining both end walls
+## and round their corners, the chip rack in the boxman's bay, the groove of the
+## players' chip rail, and the double-ended layout, printed in cream: at each end
+## the point boxes (each split Lay / Place / Buy), Don't Come, Come, the Field, Big 6/8,
 ## Don't Pass; in the middle, the proposition box, its rows level with the ends'
 ## lines; and the Pass Line (with the odds behind it) running the length of the
 ## front, through the middle, and curving up both ends. What a hovered bet covers lights up under the chips.
@@ -47,14 +48,31 @@ func paint() -> void:
 	draw_colored_polygon(felt, Color(1, 1, 1, 0.25), grain_uv, GRAIN)
 	_loop(CrapsTable.shape(-0.9), Color(0, 0, 0, 0.3), 1.4)
 	_loop(CrapsTable.shape(-0.3), BRASS, 0.6)
-	# The rubber pyramids lining both end walls: the dice have to hit them.
-	for x0 in [-CrapsTable.FELT_HALF, CrapsTable.FELT_HALF - 4.0]:
-		draw_rect(Rect2(x0, -113, 4, 108), Color("1b1413"))
-		var y := -113.0
-		while y < -5.0:
-			draw_polyline(PackedVector2Array([Vector2(x0, y), Vector2(x0 + 2, y + 1.5), Vector2(x0 + 4, y)]), Color(1, 1, 1, 0.18), 0.35)
-			draw_polyline(PackedVector2Array([Vector2(x0, y + 3), Vector2(x0 + 2, y + 1.5), Vector2(x0 + 4, y + 3)]), Color(1, 1, 1, 0.18), 0.35)
-			y += 3.0
+	# The rubber pyramids lining both end walls (the dice have to hit them), following the
+	# rail round the corners to where it turns level: a lattice of ridges, seen as two zigzags.
+	var rw := CrapsTable.RUBBER_W
+	for h in [1, -1]:
+		var band := CrapsTable.rubber_path(h, 0.0)
+		var inner := CrapsTable.rubber_path(h, rw)
+		inner.reverse()
+		band.append_array(inner)
+		draw_colored_polygon(band, Color("1b1413"))
+		var zig := [PackedVector2Array(), PackedVector2Array()]
+		var marks := _along(CrapsTable.rubber_path(h, rw / 2), rw * 0.75)
+		for k in marks.size():
+			var across: Vector2 = marks[k][1].orthogonal() * (rw / 2)
+			zig[0].append(marks[k][0] + across * (1 if k % 2 == 0 else -1))
+			zig[1].append(marks[k][0] - across * (1 if k % 2 == 0 else -1))
+		for z in zig:
+			draw_polyline(z, Color(1, 1, 1, 0.18), 0.35)
+	# The chip rail: a groove along the players' rail, either side of the stickman.
+	for h in [1, -1]:
+		var g := CrapsTable.GROOVE
+		var groove := Rect2(minf(CrapsTable.mx(g.position.x, h), CrapsTable.mx(g.end.x, h)), g.position.y, g.size.x, g.size.y)
+		draw_colored_polygon(_rounded(groove.grow(0.4), 2.4), Color(WOOD_DARK, 0.9))
+		draw_colored_polygon(_rounded(groove, 2.0), RECESS)
+		draw_line(groove.position + Vector2(2, 0.5), Vector2(groove.end.x - 2, groove.position.y + 0.5), Color(0, 0, 0, 0.6), 0.6)
+		draw_line(Vector2(groove.position.x + 2, groove.end.y + 0.3), groove.end + Vector2(-2, 0.3), Color(WOOD_SHINE, 0.25), 0.4)
 	_chip_tray(t)
 	_layout(t)
 	draw_set_transform(-position)
@@ -70,7 +88,7 @@ func _layout(t: CrapsTable) -> void:
 			draw_colored_polygon(CrapsTable.pass_line(), HILITE)
 		elif hv.id == "pass_odds":
 			draw_colored_polygon(CrapsTable.odds_strip(), Color(HILITE, 0.28))
-		else:
+		elif CrapsTable.zones(int(hv.h)).has(hv.id):   # (odds on your come bet: its ghost chip shows it)
 			draw_colored_polygon(CrapsTable.zone_poly(hv.id, int(hv.h)), HILITE)
 	# Then the printed lines: each end's boxes, the proposition box, and the Pass Line
 	# round the front of the table joining them up.
@@ -92,8 +110,10 @@ func _layout(t: CrapsTable) -> void:
 		_mini_die(dc + Vector2(3.2, 7.5), 6, 5.0)
 		for n in CrapsTable.NUMS:
 			var label: String = {6: "SIX", 9: "NINE"}.get(n, str(n))
-			_textf(label, z["box_%d" % n].get_center() + Vector2(0, 1), 5.2 if label.length() > 2 else 8.2,
+			_textf(label, z["place_%d" % n].get_center() + Vector2(0, 0.5), 5.2 if label.length() > 2 else 8.2,
 				GOLD if n in [6, 8] else CREAM, CINZEL)
+			_textf("LAY", z["lay_%d" % n].get_center() + Vector2(0, 0.3), 2.6, CREAM, CINZEL)
+			_textf("BUY", z["buy_%d" % n].get_center() + Vector2(0, 0.3), 2.6, CREAM, CINZEL)
 		_textf("COME", z.come.get_center() + Vector2(0, 0.5), 13.0, RED, CINZEL)
 		var fi: Rect2 = z.field
 		var fy := fi.get_center().y
@@ -133,6 +153,22 @@ func _layout(t: CrapsTable) -> void:
 	_textf("C", ce + Vector2(-5, 0.3), 3.8, CREAM, CINZEL)
 	_textf("E", ce + Vector2(5, 0.3), 3.8, CREAM, CINZEL)
 	_textf("ANY CRAPS  ·  7 TO 1", pc.call("any_craps") + Vector2(0, 0.3), 3.6, RED, CINZEL)
+
+
+## Points every `step` along a path, each with the path's direction there: [[point, direction], ...].
+static func _along(path: PackedVector2Array, step: float) -> Array:
+	var out := []
+	var d := 0.0   # how far into the current segment the next point is
+	for i in path.size() - 1:
+		var seg := path[i].distance_to(path[i + 1])
+		if seg <= 0.0:
+			continue
+		var dir := (path[i + 1] - path[i]) / seg
+		while d <= seg:
+			out.append([path[i] + dir * d, dir])
+			d += step
+		d -= seg
+	return out
 
 
 ## A small printed die (on the Don't bars and in the prop box).

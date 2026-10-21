@@ -311,7 +311,7 @@ def chips_on_table(seat_bets: dict) -> list[tuple[float, float]]:
 # Seat 0 is the right-hand end of the near rail; the dice go round clockwise, 0 -> 7.
 WALL_X = 183.5                    # the inside face of the pyramids at each end
 FELT_Y = (-111.0, -15.0)          # where the dice may come to rest
-HAND_Y = -2.0                     # the shooter's hand, just over the near rail
+HAND_Y = -13.0                    # the shooter's hand, reaching in clear of the heads at the rail (CrapsDice.HAND_Y)
 HIT = 6.6                         # a die's middle comes no closer than this to a stack's (chip 3.3 + die 3.3)
 
 

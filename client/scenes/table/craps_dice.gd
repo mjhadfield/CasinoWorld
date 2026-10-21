@@ -17,7 +17,11 @@ extends Node2D
 signal knock(kind: String, strength: float)
 
 const SIZE := 6.2
-const HOME := [Vector2(-4.5, -2.5), Vector2(4.5, -2.5)]
+# Where the dice wait: in front of the stickman, and pushed out to the shooter's hand (the
+# server's HAND_Y). Both are far enough in that no one's head at the rail covers them, as
+# the tallest hair would at the felt's edge (the dice are drawn over people).
+const HOME := [Vector2(-4.5, -13), Vector2(4.5, -13)]
+const HAND_Y := -13.0
 const PIPS := {1: [Vector2(0, 0)], 2: [Vector2(-1, -1), Vector2(1, 1)], 3: [Vector2(-1, -1), Vector2(0, 0), Vector2(1, 1)],
 	4: [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)],
 	5: [Vector2(-1, -1), Vector2(1, -1), Vector2(0, 0), Vector2(-1, 1), Vector2(1, 1)],

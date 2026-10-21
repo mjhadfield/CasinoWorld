@@ -171,17 +171,30 @@ func _chip_tray(t: CasinoTable) -> void:
 		var channel := Rect2(inner.position.x + i * w + 0.3, inner.position.y, w - 0.6, inner.size.y)
 		draw_colored_polygon(_rounded(channel, 1.2), RECESS)
 		draw_line(channel.position + Vector2(0.6, 0.4), Vector2(channel.end.x - 0.6, channel.position.y + 0.4), Color(0, 0, 0, 0.6), 0.6)
-		var colours: Array = ChipButton.COLOURS[TRAY_DENOMS[i]]
 		var count := int(round(TRAY_FILL[i] * floorf((channel.size.y - 0.6) / CHIP_EDGE)))
 		for k in count:  # stacked from the front of the channel back towards the dealer
 			var chip := Rect2(channel.position.x + 0.35, channel.end.y - 0.3 - (k + 1) * CHIP_EDGE, channel.size.x - 0.7, CHIP_EDGE - 0.12)
-			draw_rect(chip, colours[0])
-			var stripe := 0.18 + 0.32 * (k % 2)  # the edge spots, staggered chip to chip
-			for f in [stripe, stripe + 0.5]:
-				draw_rect(Rect2(chip.position.x + chip.size.x * f, chip.position.y, chip.size.x * 0.12, chip.size.y), Color(1, 1, 1, 0.8))
-			draw_line(Vector2(chip.position.x, chip.end.y), chip.end, colours[1], 0.15)
+			edge_chip(self, chip, TRAY_DENOMS[i], k)
 		if count > 0:  # light catching the front chip's rim
 			draw_line(Vector2(channel.position.x + 0.5, channel.end.y - 0.5), Vector2(channel.end.x - 0.5, channel.end.y - 0.5), Color(1, 1, 1, 0.25), 0.3)
+
+
+## One chip standing on its edge in a channel, seen from above, filling `chip`: the k-th in
+## its row (the edge spots are staggered chip to chip). `upright` for a channel running
+## left to right, where the chips stand across it.
+static func edge_chip(ci: CanvasItem, chip: Rect2, denom: int, k: int, upright := false) -> void:
+	var colours: Array = ChipButton.COLOURS[denom]
+	ci.draw_rect(chip, colours[0])
+	var stripe := 0.18 + 0.32 * (k % 2)
+	for f in [stripe, stripe + 0.5]:
+		if upright:
+			ci.draw_rect(Rect2(chip.position.x, chip.position.y + chip.size.y * f, chip.size.x, chip.size.y * 0.12), Color(1, 1, 1, 0.8))
+		else:
+			ci.draw_rect(Rect2(chip.position.x + chip.size.x * f, chip.position.y, chip.size.x * 0.12, chip.size.y), Color(1, 1, 1, 0.8))
+	if upright:
+		ci.draw_line(Vector2(chip.end.x, chip.position.y), chip.end, colours[1], 0.15)
+	else:
+		ci.draw_line(Vector2(chip.position.x, chip.end.y), chip.end, colours[1], 0.15)
 
 
 func _text(s: String, centre: Vector2, size: int, colour: Color, font: Font) -> void:

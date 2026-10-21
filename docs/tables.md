@@ -26,7 +26,8 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   Seat0..n markers (editable in the editor) set the seat count and spacing. A seat's column of spots and its
   cards line up above its marker.
 - **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table; a game's felt only prints
-  its layout. **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
+  its layout. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the dealer's chip tray, the
+  craps chip rail). **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).

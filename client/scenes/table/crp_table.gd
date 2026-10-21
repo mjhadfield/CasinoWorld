@@ -11,10 +11,12 @@ extends CasinoTable
 ## in the middle, in front of the stickman, is shared.
 ##
 ## Bets stay on the layout from roll to roll; each seat's chips are its own
-## colour, as at the roulette table. A click on a number box is a Place, Buy,
-## Lay or Come odds bet depending on the Numbers button; after the point, a
-## click on the Pass Line (or just behind it) puts odds down, on Don't Pass lays
-## them.
+## colour, as at the roulette table. Each number box is split as in a casino:
+## Lay along the top, Place across the number, Buy along the bottom, and a click
+## on one is that bet. A click on your own come (or don't come) bet on its number
+## backs it with odds; after the point, a click on the Pass Line (or just behind
+## it) puts odds down, on Don't Pass lays them. Each player's chips wait in the
+## rail in front of them, in the denominations they bet in.
 ##
 ## A roll: "Dice are out", the throw (the server's plan, played by CrapsDice),
 ## the stickman's call, the losers swept into the rack, the winners paid beside
@@ -27,6 +29,12 @@ const FELT_TOP := -121.0
 const FELT_FRONT := 0.0
 const RAIL_W := 9.0
 const CORNER := 17.0
+const RUBBER_W := 4.0            # the pyramids lining the end walls, round the corners to where the rail turns level
+# The chip rail: a groove along the players' rail, each side of the stickman. A player's
+# chips start just inboard of them (towards the stickman), clear of their head.
+const GROOVE := Rect2(20, 2.2, 158, 4.6)   # the right-hand side's; mirrored on the left
+const RAIL_HEAD := 12.0         # how far either side of a player their head hides the rail
+const RAIL_MAX := 15             # chips in one player's run (the gap to the next player's head)
 const BAY_HALF := 35.0           # the boxman's bay: half its width at the felt,
 const BAY_FLOOR := -107.0        # how far into the table it reaches,
 const BAY_CORNER := 5.0          # and its corners
@@ -37,6 +45,8 @@ const NUMS := [4, 5, 6, 8, 9, 10]
 const BOXW := 124.0 / 6.0
 const NUM_TOP := -117.0
 const NUM_H := 30.0
+const LAY_H := 8.0               # each number box's Lay strip along the top,
+const BUY_H := 8.0               # and its Buy strip along the bottom (Place is the number between)
 # The proposition box in the middle: its rows line up with the lines at each end
 # (the bottom of the point boxes, the Come, the Field and the Don't Pass Bar).
 const PROPS := {
@@ -57,8 +67,6 @@ const ODDS_X := {4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3}
 const SEAT_COLOURS := [Color("5ab0e8"), Color("f2c14e"), Color("ef7aa0"), Color("5fd3a0"),
 	Color("a98ef2"), Color("e8935a"), Color("e85a5a"), Color("9ad94f")]
 const CHIP_SCALE := 0.6
-const MODES := ["place", "buy", "lay", "odds"]
-const MODE_LABELS := {"place": "Place", "buy": "Buy", "lay": "Lay", "odds": "Come odds"}
 # The settle's pace (the server's Timings).
 const T_CALL := 1.4
 const T_SWEEP := 1.0
@@ -75,12 +83,14 @@ var shooter := -1
 var human_shooter := false
 var want_dice := []
 var working := {}                # seat -> bool
-var number_mode := "place"
 var hover := {}                  # {id, h} under the pointer while you can bet
 var chip_value := 100
 var result_text := ""
 var _locked := {}                # the local player's bets that are already paid for
 var _puck := {1: Vector2(49, -106), -1: Vector2(-49, -106)}
+var _bet_size := {}              # seat -> the biggest bet (not odds) they've had down since sitting
+var _rail_drawn := {}            # what the chip rail shows: seat -> bet size
+var _rail: Node2D                # the chips in the rail (redrawn only when they change)
 
 @onready var dice: CrapsDice = $Felt/Dice
 @onready var sign_board: CrapsSign = $Sign
@@ -91,7 +101,11 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	dice.position = -_felt.position
-	dice.z_index = 2   # over the chips (which sit over cards at z 1)
+	dice.z_index = 2   # over the chips (which sit over cards at z 1); the dice only rest where no one's head reaches
+	_rail = Node2D.new()
+	_rail.position = -_felt.position
+	_rail.draw.connect(_draw_rail)
+	_felt.add_child(_rail)
 	dice.knock.connect(func(kind: String, strength: float):
 		sfx_at("dice_land" if kind == "land" else "dice_bounce", to_global(Vector2(0, -60)), lerpf(-12.0, 0.0, strength)))
 	dealer.set_action("idle", "up")
@@ -259,13 +273,46 @@ static func box_cx(n: int, h: int) -> float:
 	return box_x(n, h) + BOXW / 2
 
 
-## Each end's printed areas: region id -> Rect2.
+## Each end's printed areas: region id -> Rect2. A number box's three strips are
+## named for the bet a click there makes (lay_6, place_6, buy_6).
 static func zones(h: int) -> Dictionary:
 	var z := {"dont_come": _r(38, -117, 60, -87, h), "come": _r(38, -87, 170, -59, h), "field": _r(38, -59, 148, -37, h),
 		"big6": _r(148, -59, 170, -43, h), "big8": _r(148, -43, 170, -27, h), "dont_pass": _r(38, -37, 148, -27, h)}
 	for n in NUMS:
-		z["box_%d" % n] = Rect2(box_x(n, h), NUM_TOP, BOXW, NUM_H)
+		var x := box_x(n, h)
+		z["lay_%d" % n] = Rect2(x, NUM_TOP, BOXW, LAY_H)
+		z["place_%d" % n] = Rect2(x, NUM_TOP + LAY_H, BOXW, NUM_H - LAY_H - BUY_H)
+		z["buy_%d" % n] = Rect2(x, NUM_TOP + NUM_H - BUY_H, BOXW, BUY_H)
 	return z
+
+
+## A number's whole box (all three strips).
+static func number_box(n: int, h: int) -> Rect2:
+	return Rect2(box_x(n, h), NUM_TOP, BOXW, NUM_H)
+
+
+## The rubber lining an end wall (h: which end), `inset` in from the felt's edge: from where
+## the rail turns level at the back, round the corner, down the wall and round to the front.
+static func rubber_path(h: int, inset: float) -> PackedVector2Array:
+	var rad := Vector2(CORNER - inset, CORNER - inset)
+	var x := FELT_HALF - CORNER
+	var pts := PackedVector2Array()
+	_arc(pts, Vector2(x, FELT_TOP + CORNER), rad, -PI / 2, 0, 10)
+	_arc(pts, Vector2(x, FELT_FRONT - CORNER), rad, 0, PI / 2, 10)
+	if h == -1:
+		for i in pts.size():
+			pts[i].x = -pts[i].x
+	return pts
+
+
+## The felt inside the rubber: what the layout is printed on.
+static func _printable() -> PackedVector2Array:
+	if _printable_poly.is_empty():
+		_printable_poly = shape(-RUBBER_W, true, 12)
+	return _printable_poly
+
+
+static var _printable_poly := PackedVector2Array()
 
 
 static var _pass_poly := PackedVector2Array()
@@ -304,11 +351,16 @@ static func odds_strip() -> PackedVector2Array:
 
 
 ## An end's printed area as a polygon: its rectangle, but Big 8's outside corner
-## follows the curve of the Pass Line.
+## follows the curve of the Pass Line, and the outside number box's the corner of the rail.
 static func zone_poly(id: String, h: int) -> PackedVector2Array:
 	var r: Rect2 = zones(h)[id]
 	if id != "big8":
-		return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+		var pts := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+		if maxf(absf(r.position.x), absf(r.end.x)) > FELT_HALF - CORNER:
+			var inside := Geometry2D.intersect_polygons(pts, _printable())
+			if not inside.is_empty():
+				return inside[0]
+		return pts
 	var pts := PackedVector2Array([Vector2(148, -43), Vector2(170, -43)])
 	_arc(pts, CURVE_AT, Vector2(PASS_IN, PASS_IN), 0, PI / 2, 6)
 	pts.append(Vector2(148, -27))
@@ -338,18 +390,23 @@ static func region_at(p: Vector2) -> Dictionary:
 	return {}
 
 
+## What's under the pointer for the local player: their own come (or don't come) bet on a
+## number, which a click backs with odds (come_odds_6); otherwise the printed region there.
+func region_here(p: Vector2) -> Dictionary:
+	if my_seat >= 0:
+		for spot in _chips_for(my_seat):
+			if (spot.begins_with("come_") or spot.begins_with("dcome_")) and not "odds" in spot \
+					and p.distance_to(spot_pos(my_seat, spot)) <= ChipStack2D.TINT_RADIUS * CHIP_SCALE + 0.5:
+				return {"id": spot.replace("come_", "come_odds_"), "h": half(my_seat)}
+	return region_at(p)
+
+
 ## The bet a click on `region` makes for the local player.
 func spot_for(region: String) -> String:
 	if region == "pass":
 		return "pass" if point < 0 else "pass_odds"
 	if region == "dont_pass":
 		return "dont_pass" if point < 0 else "dont_odds"
-	if region.begins_with("box_"):
-		var n := int(region.substr(4))
-		if number_mode == "odds":
-			var mine := _chips_for(my_seat) if my_seat >= 0 else {}
-			return "dcome_odds_%d" % n if mine.has("dcome_%d" % n) and not mine.has("come_%d" % n) else "come_odds_%d" % n
-		return "%s_%d" % [number_mode, n]
 	return region
 
 
@@ -388,6 +445,8 @@ func spot_pos(seat: int, spot: String) -> Vector2:
 	if PROPS.has(spot):
 		var r: Rect2 = PROPS[spot]
 		return r.get_center() + Vector2((7 - seat - 3.5) * 3.6, 1)
+	# A number box: lay bets and don't come bets in the Lay strip, come bets and place bets
+	# on the number, buy bets in the Buy strip.
 	if spot.begins_with("lay_"):
 		return Vector2(box_cx(n, h) + fan, -113.5)
 	if spot.begins_with("dcome_odds_"):
@@ -395,10 +454,12 @@ func spot_pos(seat: int, spot: String) -> Vector2:
 	if spot.begins_with("dcome_"):
 		return Vector2(box_cx(n, h) + fan, -111.5)
 	if spot.begins_with("come_odds_"):
-		return Vector2(box_cx(n, h) + fan + 1.4, -103)
+		return Vector2(box_cx(n, h) + fan + 1.4, -107)
 	if spot.begins_with("come_"):
-		return Vector2(box_cx(n, h) + fan, -101.5)
-	return Vector2(box_cx(n, h) + fan, -92)   # place, buy
+		return Vector2(box_cx(n, h) + fan, -105.5)
+	if spot.begins_with("buy_"):
+		return Vector2(box_cx(n, h) + fan, -91)
+	return Vector2(box_cx(n, h) + fan, -99)   # place
 
 
 func payout_pos(seat: int, spot: String, _bonus := false) -> Vector2:
@@ -433,7 +494,7 @@ func title_y() -> float:
 
 
 func countdown_pos() -> Vector2:
-	return Vector2(-22, -7.5)   # behind the line, left of the stickman's speech bubble
+	return Vector2(-36, -7.5)   # behind the line, left of the dice and the stickman's speech bubble
 
 
 func stool_pos(seat: int) -> Vector2:
@@ -517,7 +578,6 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	elif my_seat >= 0 and shooter != my_seat:
 		actions.append({"id": "take_dice", "label": "Dice coming" if my_seat in want_dice else "Take dice  [T]", "key": "T",
 			"pressed": my_seat in want_dice})
-	actions.append({"id": "mode", "label": "%s  [N]" % MODE_LABELS[number_mode], "key": "N"})
 	actions.append({"id": "working", "label": "Working  [W]", "key": "W", "pressed": working.get(my_seat, false)})
 	return {"info": info_text, "actions": actions, "my_turn": my_roll, "hide": ["ready", "rebet", "auto_rebet"],
 		"quiet_betting": true}
@@ -533,8 +593,6 @@ func action_message(id: String) -> Array:
 			return ["take_dice", {"on": not my_seat in want_dice}]
 		"working":
 			return ["working", {"on": not working.get(my_seat, false)}]
-		"mode":
-			number_mode = MODES[(MODES.find(number_mode) + 1) % MODES.size()]
 	return []
 
 
@@ -569,7 +627,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 
 
 func _hand(seat: int) -> Vector2:
-	return Vector2(seat_x(seat) + 2 * half(seat), -2) if seat >= 0 else CrapsDice.HOME[0]
+	return Vector2(seat_x(seat) + 2 * half(seat), CrapsDice.HAND_Y) if seat >= 0 else CrapsDice.HOME[0]
 
 
 # ------------------------------------------------------------------ events -> animation
@@ -582,6 +640,9 @@ func _note_event(ev: Dictionary) -> void:
 					_take_stack(seat, spot, chair_pos(seat), 1.0)
 			working.erase(seat)
 			want_dice.erase(seat)
+			_bet_size.erase(seat)
+		"seated":
+			_bet_size.erase(int(ev.seat))
 		"bet_changed":
 			if int(ev.seat) == my_seat:
 				for spot in _locked.keys():
@@ -746,10 +807,14 @@ func _process(delta: float) -> void:
 		return
 	var h := {}
 	if mode == "seated" and my_seat >= 0 and accepting_bets():
-		h = region_at(get_local_mouse_position())
+		h = region_here(get_local_mouse_position())
 	if h != hover:
 		hover = h
 		_felt.queue_redraw()
+	var rail := _rail_contents()
+	if rail != _rail_drawn:
+		_rail_drawn = rail
+		_rail.queue_redraw()
 	sign_board.footer = _countdown_text(timer_left()) if phase == "betting" else ("DICE ARE OUT" if phase == "throwing" else "")
 
 
@@ -762,7 +827,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventMouseButton and event.pressed):
 		return
-	var h := region_at(get_local_mouse_position())
+	var h := region_here(get_local_mouse_position())
 	if h.is_empty():
 		return
 	var spot := spot_for(h.id)
@@ -773,9 +838,60 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+# ------------------------------------------------------------------ the chip rail
+## What the rail shows: seat -> the bet size that player's chips are for. That's the biggest
+## bet (odds aside) they've had down since they came to the table; before their first, the
+## chip you've picked, or the table minimum for anyone else.
+func _rail_contents() -> Dictionary:
+	var out := {}
+	for seat in occupants:
+		var size := int(_bet_size.get(seat, 0))
+		var chips := _chips_for(seat)
+		for spot in chips:
+			if not "odds" in spot:
+				size = maxi(size, int(chips[spot].amount))
+		_bet_size[seat] = size
+		out[seat] = size if size > 0 else (chip_value if seat == my_seat else 500)
+	return out
+
+
+## A player's run of chips in the rail, highest first: mostly the chip they bet in, a couple
+## of the next one up, and some smaller ones for change (a few more or less player to player).
+static func rail_chips(seat: int, bet: int) -> Array:
+	var denoms: Array = ChipButton.COLOURS.keys()
+	denoms.sort()
+	var i := 0
+	while i + 1 < denoms.size() and denoms[i + 1] <= bet:
+		i += 1
+	var counts := {denoms[i]: 6 + (seat * 3) % 4}
+	if i + 1 < denoms.size():
+		counts[denoms[i + 1]] = 1 + seat % 2 + (1 if bet >= 3 * denoms[i] else 0)
+	if i > 0:
+		counts[denoms[i - 1]] = 3 + (seat + 1) % 3
+	var out := []
+	for k in range(denoms.size() - 1, -1, -1):
+		for c in counts.get(denoms[k], 0):
+			out.append(denoms[k])
+	return out.slice(0, RAIL_MAX)
+
+
+## The chips in the rail, on their edges in the groove: each player's run starts by their
+## head and goes on in towards the stickman.
+func _draw_rail() -> void:
+	var w := TableFelt.CHIP_EDGE
+	for seat in _rail_drawn:
+		var side := signf(seat_x(seat))
+		var from := seat_x(seat) - side * RAIL_HEAD
+		var chips := rail_chips(seat, _rail_drawn[seat])
+		for k in chips.size():
+			var x := from - side * (k + 0.5) * w
+			var chip := Rect2(x - (w - 0.12) / 2, GROOVE.position.y + 0.4, w - 0.12, GROOVE.size.y - 0.8)
+			TableFelt.edge_chip(_rail, chip, chips[k], k, true)
+
+
 # ------------------------------------------------------------------ overlays
 func _puck_target(h: int) -> Vector2:
-	return Vector2(box_cx(point, h), -107.5) if point > 0 else Vector2(mx(49, h), -106)
+	return Vector2(box_cx(point, h), -102) if point > 0 else Vector2(mx(49, h), -106)   # (ON: on the number)
 
 
 func _puck_moving() -> bool:
@@ -783,8 +899,11 @@ func _puck_moving() -> bool:
 
 
 ## A standing spot on the floor by the rail, in the seating style's look (Seating.draw_spot):
-## it glows while it's free and you're walking; a taken one wears its player's colour.
+## it glows while it's free and you're walking; a taken one wears its player's colour. While
+## you're at the table the free ones aren't shown.
 func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
+	if mode == "seated" and not occupants.has(seat):
+		return
 	Seating.draw_spot(self, chair_pos(seat) + Vector2(0, 4), str(Seating.style(table_id).craps_spot), glow, pulse,
 		SEAT_COLOURS[seat % SEAT_COLOURS.size()] if occupants.has(seat) else null)
 
@@ -799,24 +918,18 @@ func _draw_game(now: float, _pulse: float) -> void:
 		_disc(p, 4.4, Color("f6f2e8") if on else Color("121010"))
 		draw_arc(p, 3.6, 0, TAU, 32, Color("121010") if on else Color("f6f2e8"), 0.5, true)
 		_label(p + Vector2(0, 0.2), "ON" if on else "OFF", 2.8 if on else 2.3, Color("121010") if on else Color("f6f2e8"))
-	# The dealer's buttons on bets: OFF (not working this come-out), BUY, LAY.
+	# The dealer's OFF button on bets that aren't working this come-out (a buy or lay bet
+	# needs no button: it's in its own strip of the number box).
 	for seat in _seat_chips:
 		for spot in _seat_chips[seat]:
-			var marker := ""
 			if point < 0 and off_on_come_out(spot) and not working.get(seat, false):
-				marker = "OFF"
-			elif spot.begins_with("buy_"):
-				marker = "BUY"
-			elif spot.begins_with("lay_"):
-				marker = "LAY"
-			if marker != "":
 				var at: Vector2 = _seat_chips[seat][spot].position + Vector2(2.6, -3.4)
-				_disc(at, 1.9, Color("111111") if marker == "OFF" else Color("f4efe4"))
+				_disc(at, 1.9, Color("111111"))
 				draw_arc(at, 1.9, 0, TAU, 16, BRASS_RING, 0.3, true)
-				_label(at + Vector2(0, 0.1), marker, 1.2, Color.WHITE if marker == "OFF" else Color("111111"))
+				_label(at + Vector2(0, 0.1), "OFF", 1.2, Color.WHITE)
 	# The stickman's stick, out towards the dice.
 	var hand := dealer.position + Vector2(7, -1)
-	var tip := Vector2(10, -6) if phase != "throwing" else Vector2(7, 1)
+	var tip := Vector2(9.5, -14) if phase != "throwing" else Vector2(7, -5)
 	draw_line(hand, tip, Color("d8c49a"), 0.9, true)
 	draw_polyline(PackedVector2Array([tip, tip + Vector2(2.4, -0.4), tip + Vector2(2.2, 2)]), Color("d8c49a"), 1.1, true)
 	# The shooter's badge, at their feet.
