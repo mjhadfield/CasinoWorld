@@ -446,6 +446,18 @@ def slot_banks_ui(rel: str):
     return FileResponse(path, headers=NO_STORE)
 
 
+# The Tables tab's designer (table_styles_web/), never cached, so an edit shows on reload.
+TABLE_STYLES_WEB = Path(__file__).resolve().parent / "table_styles_web"
+
+
+@app.get("/table-styles-ui/{rel:path}")
+def table_styles_ui(rel: str):
+    path = (TABLE_STYLES_WEB / rel).resolve()
+    if not path.is_relative_to(TABLE_STYLES_WEB) or not path.is_file():
+        raise HTTPException(404, "No such file")
+    return FileResponse(path, headers=NO_STORE)
+
+
 # ------------------------------------------------------------------ slot design (the admin page)
 # The Slot design tab's board (slot_design.py). Generating runs in the board's own background task.
 def _design_call(fn, *args):
@@ -839,7 +851,7 @@ def slot_design_file(design: str, rel: str, request: Request):
 # building a sprite sheet (pure image work) goes to a worker thread.
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 
-from casino_server import art, floor, roster, seating  # noqa: E402
+from casino_server import art, floor, roster, seating, table_styles  # noqa: E402
 
 
 def _npc_view(request: Request, rec: dict) -> dict:
@@ -1077,6 +1089,49 @@ async def seating_tables_put(request: Request):
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _seating_changed(request)
+
+
+# ------------------------------------------------------------------ table styles
+def _table_styles_changed(request: Request) -> dict:
+    """Every client restyles its card tables."""
+    current = table_styles.load(request.app.state.casino.store)
+    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": current})
+    return current
+
+
+@app.get("/api/table-styles")
+async def table_styles_get(request: Request):
+    return JSONResponse({**table_styles.load(request.app.state.casino.store), "games": table_styles.styled_tables(),
+                         "choices": table_styles.CHOICES}, headers=NO_STORE)
+
+
+@app.put("/api/table-styles/styles/{style_id}")
+async def table_style_put(style_id: str, request: Request):
+    try:
+        table_styles.save_style(request.app.state.casino.store, style_id, await _body(request))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e) or "That style doesn't make sense.")
+    return _table_styles_changed(request)
+
+
+@app.delete("/api/table-styles/styles/{style_id}")
+async def table_style_delete(style_id: str, request: Request):
+    try:
+        table_styles.delete_style(request.app.state.casino.store, style_id)
+    except KeyError:
+        raise HTTPException(404, "No such style.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _table_styles_changed(request)
+
+
+@app.put("/api/table-styles/tables")
+async def table_styles_tables_put(request: Request):
+    try:
+        table_styles.assign(request.app.state.casino.store, await _body(request))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _table_styles_changed(request)
 
 
 @app.get("/api/players")
