@@ -204,6 +204,14 @@ and Tailscale. It has six tabs:
     colour; the image model repaints it and the tile keeps that size and place. Switching a symbol's kind keeps
     its takes; the next ones are made the new way. Format changes are migrations applied when the server loads
     a design, because the live server saves over `design.json`.
+- **Tables:** how the card tables look. A designer draws a table in any style on the game's real layout (pick the
+  game, the view, a hand in play, the Jackpot lit, and "Fixed layout" to see where the game puts every spot and
+  card), with every part swappable: the felt, border line, rail (wood, leather armrest or leather all round, the
+  bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting spots, Jackpot disc,
+  shuffler, shoe, discard rack, card backs and chips. Save a style, then place it: every card table uses the
+  default (House) unless Placement gives it another. Saving restyles the floor straight away. The four mockup
+  styles are built in (Save as new to change one). Roulette and Craps keep their own look. The designer is in
+  `table_styles_web/` and draws with the game's own tiles and fonts.
 - **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
   game opens, and the craps standing spot). Saving updates the floor straight away. The API
@@ -260,6 +268,10 @@ in `LOOKS`), `client/assets/sprites/CREDITS.md`, the carpet, the felt grain and 
 (`build_art.py tiles` does just the tiles). The layers come from the Universal LPC Spritesheet Character Generator, pinned to one commit,
 under CC-BY-SA/GPL. Looks designed on the admin page are built by the server instead.
 
+`server/.venv/bin/python tools/build_table_tiles.py` rebuilds the table styles' wood, leather and felt tiles (Poly
+Haven CC0, cached in `.dev/polyhaven/`) for the game and the admin page's table designer; the sources are in
+`docs/table_styles/LICENSES.md`.
+
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
 library for the admin page's Slots tab. New slot art is designed on the admin page's Slot design tab.
 
@@ -275,6 +287,8 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
+  - `table_styles.py`: the card tables' styles (House, the built-ins, saved designs) and which table uses which;
+    the Tables tab's designer in `table_styles_web/` (`render.js` draws, `designer.js` is the tab).
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
   - `slot_design.py`, `slot_design_steps.py`, `slot_design_scene.py`, `slot_design_build.py`, `slot_design_art.py`: the
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
@@ -285,9 +299,11 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
   - `scripts/seating.gd`: draws the chairs and craps standing spots and plays the sit-down, from the seating styles.
+  - `scripts/table_style.gd`: the table styles from the server (`TableStyle.design(table_id)`), and their tiles and fonts.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`,
-    `felt_cache` (a felt shown as one picture), the shoe, shuffler, discard rack, cards and chips, the roulette
-    wheel and the craps dice.
+    `felt_cache` (a felt shown as one picture), `styled_felt` (a card table drawn in its table style; Roulette and
+    Craps draw on `table_felt`), `chip_face` (chips in a style), the shoe, shuffler, discard rack, cards and chips,
+    the roulette wheel and the craps dice.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
@@ -297,4 +313,6 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
     `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader` and
     `slot_art`.
-- **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`.
+- **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`,
+  `build_table_tiles.py` (the table styles' wood, leather and felt tiles from Poly Haven, for the game and the
+  designer), `table_geometry.gd` (the card tables' layout for the designer: rerun it if a table's layout changes).

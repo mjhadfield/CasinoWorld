@@ -11,10 +11,11 @@ take a style later.
 
 ## Files
 - **Phase A (mockup):** `docs/table_styles/` and `tools/table_geometry.gd` only.
-- **Phase B (build):** `client/scenes/table/table_felt.gd` and every `*_felt.gd`, `card_shuffler.gd`,
-  `card_shoe.gd`, `discard_rack.gd`, `jackpot_lights.gd`, `card_2d.gd`, `chip_stack_2d.gd`, a new
-  `classic_look.gd`, a new `client/scripts/table_style.gd`, a new `server/casino_server/table_styles.py`, the
-  admin page and `server/protocol.md`.
+- **Phase B (build):** the eight card `*_felt.gd`, new `styled_felt.gd` and `chip_face.gd`, `card_shuffler.gd`,
+  `card_shoe.gd`, `discard_rack.gd`, `jackpot_lights.gd`, `card_2d.gd`, `chip_stack_2d.gd`, `casino_table.gd`
+  (and `styled()` in `rou_table.gd`/`crp_table.gd`), `casino_floor.gd`, a new `client/scripts/table_style.gd`, a
+  new `server/casino_server/table_styles.py` with `table_styles_web/`, the admin page and `server/protocol.md`.
+  `table_felt.gd` stays as it was: it's Roulette's and Craps' look.
 
 ## Done when
 - [x] Mike picked his default (House) on the mockup, 2026-10-21
