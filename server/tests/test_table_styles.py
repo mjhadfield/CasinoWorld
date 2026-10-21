@@ -34,7 +34,7 @@ def test_editing_house_reaches_the_floor(client):
         assert r.status_code == 200, r.text
         house = recv_until(ws, "table_styles")["table_styles"]["styles"]["house"]["design"]
         assert house["felt"]["colour"] == "#0f5b3f" and house["chips"] == "vintage"
-        assert house["rail"]["wood"] == "mahogany"   # (what wasn't changed stays)
+        assert house["rail"] == table_styles.HOUSE["rail"]   # (what wasn't changed stays)
     for bad in ({"border": "neon"}, {"felt": {"colour": "red"}}, {"felt": {"vignette": 2}}, {"print": {"font": "comic"}}):
         assert client.put("/api/table-styles/styles/house", json={"name": "House", "design": bad}).status_code == 400
     assert client.put("/api/table-styles/styles/house", json={"name": ""}).status_code == 400

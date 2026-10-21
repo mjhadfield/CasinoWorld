@@ -4,7 +4,7 @@ table_styles_web/, the same renderer as the signed-off mockup in docs/table_styl
 
 A style is only looks: the felt, rail, chip tray, printing, betting spots, Jackpot disc, shuffler, shoe, discard
 rack, card backs and chips. Where anything sits on the felt never changes. Every card table uses the default
-style (House, Mike's pick on the mockup, 2026-10-21) unless `tables` gives it another. Roulette and Craps keep
+style (House, Mike's design, 2026-10-21) unless `tables` gives it another. Roulette and Craps keep
 their own look for now (STYLED_GAMES), so they can't be given one.
 
 Saved in the meta table under "table_styles":
@@ -20,8 +20,23 @@ from casino_server import floor
 KEY = "table_styles"
 HOUSE_ID = "house"
 
-# Mike's default table, from the mockup (2026-10-21).
+# Mike's default table: picked on the mockup, then changed on the test server's Tables tab (2026-10-21).
 HOUSE = {
+    "felt": {"colour": "#93141f", "texture": "weave", "vignette": 0.95},
+    "border": "led", "led": "#ffd28a",
+    "rail": {"wood": "rosewood", "armrest": "all", "leather": "#1b1a1a", "bead": "gold"},
+    "tray": {"mode": "ledge", "finish": "wood"},
+    "shuffler": "black", "shufflerTint": "#cfccc4", "shufflerWood": "match",
+    "shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
+    "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
+    "spots": "deco",
+    "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
+    "back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
+}
+
+# What the built-in presets are written as changes to (Mike's first pick on the mockup), so they stay as they
+# were on the mockup whatever House becomes.
+_PRESET_BASE = {
     "felt": {"colour": "#93141f", "texture": "velvet", "vignette": 0.55},
     "border": "none", "led": "#9a7bff",
     "rail": {"wood": "mahogany", "armrest": "all", "leather": "#1b1a1a", "bead": "brass"},
@@ -36,7 +51,7 @@ HOUSE = {
 
 
 def _preset(name: str, **changes) -> dict:
-    design = copy.deepcopy(HOUSE)
+    design = copy.deepcopy(_PRESET_BASE)
     for path, value in changes.items():
         *parents, last = path.split("__")
         node = design

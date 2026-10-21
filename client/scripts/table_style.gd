@@ -10,16 +10,16 @@ class_name TableStyle
 
 ## House, as the server has it (table_styles.HOUSE): what a table shows before the welcome, and in the editor.
 const HOUSE := {
-	"felt": {"colour": "#93141f", "texture": "velvet", "vignette": 0.55},
-	"border": "none", "led": "#9a7bff",
-	"rail": {"wood": "mahogany", "armrest": "all", "leather": "#1b1a1a", "bead": "brass"},
+	"felt": {"colour": "#93141f", "texture": "weave", "vignette": 0.95},
+	"border": "led", "led": "#ffd28a",
+	"rail": {"wood": "rosewood", "armrest": "all", "leather": "#1b1a1a", "bead": "gold"},
 	"tray": {"mode": "ledge", "finish": "wood"},
-	"shuffler": "black", "shufflerTint": "#3a3e44", "shufflerWood": "match",
-	"shoe": "acrylic", "shoeTint": "#141416", "shoeWood": "match",
+	"shuffler": "black", "shufflerTint": "#cfccc4", "shufflerWood": "match",
+	"shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
 	"rack": "wood", "rackTint": "#12305e", "rackWood": "match",
-	"spots": "double",
+	"spots": "deco",
 	"print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
-	"back": "emerald", "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
+	"back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
 }
 
 const WOODS := {
