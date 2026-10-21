@@ -333,15 +333,24 @@ def chip_pos(seat: int, spot: str) -> tuple[float, float]:
     n = number_of(spot)
     cx = (60 if h == 1 else -184) + NUMBERS.index(n) * BOX_W + BOX_W / 2 + fan
     for prefix, dx, y in (("lay_", 0, -113.5), ("dcome_odds_", 1.4, -113), ("dcome_", 0, -111.5),
-                          ("come_odds_", 1.4, -103), ("come_", 0, -101.5)):
+                          ("come_odds_", 1.4, -107), ("come_", 0, -105.5), ("buy_", 0, -91)):
         if spot.startswith(prefix):
             return cx + dx, y
-    return cx, -92   # place, buy
+    return cx, -99   # place
 
 
 def chips_on_table(seat_bets: dict) -> list[tuple[float, float]]:
     """Every stack on the layout: {seat: bets} -> [(x, y), ...]."""
     return [chip_pos(seat, spot) for seat, bets in seat_bets.items() for spot, a in bets.items() if a]
+
+
+OFF_BUTTON_AT = (2.6, -3.4)        # the dealer's OFF button on a bet that's off this come-out, from the bet
+
+
+def off_buttons(seat_bets: dict, working: dict) -> list[tuple[float, float]]:
+    """The OFF buttons on the layout coming out: {seat: bets}, {seat: working} -> [(x, y), ...]."""
+    return [(x + OFF_BUTTON_AT[0], y + OFF_BUTTON_AT[1]) for seat, bets in seat_bets.items() if not working.get(seat)
+            for spot, a in bets.items() if a and off_on_come_out(spot) for x, y in [chip_pos(seat, spot)]]
 
 
 def pucks_at(point: int | None) -> list[tuple[float, float]]:
@@ -380,6 +389,7 @@ FELT_Y = (-111.0, -15.0)          # where the dice may come to rest
 HAND_Y = -13.0                    # the shooter's hand, reaching in clear of the heads at the rail (CrapsDice.HAND_Y)
 HIT = 6.6                         # a die's middle comes no closer than this to a stack's (chip 3.3 + die 3.3)
 PUCK_HIT = 7.7                    # ...or to a puck's (puck 4.4 + die 3.3)
+BUTTON_HIT = 5.2                  # ...or to an OFF button's (button 1.9 + die 3.3)
 
 
 def _first_hit(x, y, dx, dy, solids):
@@ -413,15 +423,18 @@ def _first_hit(x, y, dx, dy, solids):
 
 
 def plan_throw(shooter: int, faces: tuple, rng: random.Random, chips: list | None = None,
-               payouts: list | None = None, pucks: list | None = None, puck_way: list | None = None) -> list:
+               payouts: list | None = None, pucks: list | None = None, puck_way: list | None = None,
+               buttons: list | None = None, buttons_after: list | None = None) -> list:
     """Each die's path: a list of segments {k: "air"|"slide", t0, t1, x0, y0, x1, y1, h
     (an arc's height), f (the face showing), r0, r1 (its turn), kn (how hard it knocks
     something at the end, 0-1)}. The last two segments show the drawn face. `chips` are
-    the stacks on the layout and `pucks` where the pucks are, to bounce off; the dice don't
-    stop on those, `payouts` or `puck_way` (where the pucks will slide once it's called)."""
-    solids = [(x, y, HIT) for x, y in chips or []] + [(x, y, PUCK_HIT) for x, y in pucks or []]
+    the stacks on the layout, `pucks` where the pucks are and `buttons` the OFF buttons on
+    them, to bounce off; the dice don't stop on those, `payouts`, `puck_way` (where the pucks
+    will slide once it's called) or `buttons_after` (the OFF buttons that will be up then)."""
+    solids = ([(x, y, HIT) for x, y in chips or []] + [(x, y, PUCK_HIT) for x, y in pucks or []]
+              + [(x, y, BUTTON_HIT) for x, y in buttons or []])
     keep_clear = (solids + [(x, y, HIT) for x, y in payouts or []]
-                  + [(x, y, PUCK_HIT) for x, y in puck_way or []])
+                  + [(x, y, PUCK_HIT) for x, y in puck_way or []] + [(x, y, BUTTON_HIT) for x, y in buttons_after or []])
     to_left = shooter < 4            # right-hand players throw to the left-hand end, and vice versa
     d = -1 if to_left else 1
     wall = d * WALL_X

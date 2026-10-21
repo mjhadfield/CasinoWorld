@@ -47,8 +47,9 @@ debit per seat per roll), and taking a paid-for bet down refunds it at once.
    closes ("Dice out in 5"). A human shooter rolls with **Roll** (or **Space**) within 20 seconds, or the dice
    pass on.
 2. **"Dice are out":** no more bets. The dice are drawn and their path is planned on the server
-   (`engines/craps.plan_throw`), so every viewer sees the same throw bounce off the walls, the chips and the
-   pucks. A die never comes to rest on a puck, or where one is about to slide to once the roll is called.
+   (`engines/craps.plan_throw`), so every viewer sees the same throw bounce off the walls, the chips, the
+   pucks and the dealer's OFF buttons. A die never comes to rest on one, or where a puck is about to slide to
+   (or an OFF button will go up) once the roll is called.
 3. **Settling:** the stickman calls it; the base dealers sweep the losers and pay the winners beside their
    bets (and take the vig off any buy or lay win); winnings go back to the players; come bets travel to their numbers; the puck turns over. Then
    betting opens again.

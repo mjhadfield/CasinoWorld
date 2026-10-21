@@ -1,8 +1,10 @@
 """Craps: the bet catalogue and its arithmetic, the dice's choreography, the table's
 roll flow (bets that stay up, the shooter, taking the dice), and the NPCs' place at it."""
 import random
+import re
 from fractions import Fraction
 from itertools import product
+from pathlib import Path
 
 import pytest
 
@@ -400,8 +402,43 @@ def test_chip_positions_match_the_layout():
     assert cr.chip_pos(0, "pass") == (164, -20) and cr.chip_pos(7, "pass_odds") == (-164, -7.5)
     assert cr.chip_pos(3, "field") == (56, -48) and cr.chip_pos(4, "come") == (-56, -72)
     assert cr.chip_pos(0, "field") == (142, -48)          # kept inside the Field
-    assert cr.chip_pos(1, "place_6") == (60 + 2 * cr.BOX_W + cr.BOX_W / 2 + 2.2, -92)
+    assert cr.chip_pos(1, "place_6") == (60 + 2 * cr.BOX_W + cr.BOX_W / 2 + 2.2, -99)
     assert cr.chip_pos(0, "hard8") == (-19 + 3.5 * 3.6, -79)
+
+
+
+def test_the_number_box_chips_and_off_buttons_sit_where_the_client_draws_them():
+    # The dice bounce off what crp_table.gd draws, so read its numbers rather than copy them.
+    gd = (Path(__file__).parents[2] / "client/scenes/table/crp_table.gd").read_text()
+    drawn = dict(re.findall(r'begins_with\("(\w+_)"\):\n\t\treturn Vector2\(box_cx\(n, h\) \+ fan(?: \+ [\d.]+)?, (-[\d.]+)\)', gd))
+    drawn["place_"] = re.search(r'return Vector2\(box_cx\(n, h\) \+ fan, (-[\d.]+)\)   # place', gd).group(1)
+    assert set(drawn) == {"lay_", "dcome_odds_", "dcome_", "come_odds_", "come_", "buy_", "place_"}
+    for prefix, y in drawn.items():
+        assert cr.chip_pos(0, f"{prefix}6")[1] == float(y), prefix
+    dx, dy = re.search(r"_seat_chips\[seat\]\[spot\]\.position \+ Vector2\(([\d.-]+), ([\d.-]+)\)", gd).groups()
+    assert cr.OFF_BUTTON_AT == (float(dx), float(dy))
+
+
+@pytest.mark.parametrize("seed", range(24))
+def test_the_dice_bounce_off_the_off_buttons_and_never_stop_on_one(seed):
+    rng = random.Random(seed)
+    shooter = seed % 8
+    far = 1 if shooter >= 4 else -1
+    seats = (0, 1, 2, 3) if far == 1 else (4, 5, 6, 7)
+    bets = {s: {f"{kind}_{n}": 600 for kind in ("place", "come_odds", "buy") for n in (6, 8, 9, 10)} for s in seats}
+    buttons = cr.off_buttons(bets, {})
+    assert buttons and cr.off_buttons(bets, {s: True for s in seats}) == []
+    faces = (rng.randint(1, 6), rng.randint(1, 6))
+    plan = cr.plan_throw(shooter, faces, rng, buttons=buttons, buttons_after=buttons)
+    for segs in plan:
+        for s in segs[2:]:
+            for cx, cy in buttons:
+                for k in range(11):
+                    x = s["x0"] + (s["x1"] - s["x0"]) * k / 10
+                    y = s["y0"] + (s["y1"] - s["y0"]) * k / 10
+                    assert ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 >= cr.BUTTON_HIT - 0.1
+    for x, y, *_ in cr.resting(plan):
+        assert all(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 >= cr.BUTTON_HIT - 0.05 for cx, cy in buttons)
 
 
 def test_taking_bets_down():
