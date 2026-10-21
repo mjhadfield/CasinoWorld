@@ -2,6 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
+uid="uid://caqcaixu5j03d"
+path="res://.godot/imported/Montserrat-SemiBold.ttf-6086a97dc2fcb684054d9f5bbbb469a2.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/Montserrat-SemiBold.ttf"
+dest_files=["res://.godot/imported/Montserrat-SemiBold.ttf-6086a97dc2fcb684054d9f5bbbb469a2.fontdata"]
 
 [params]
 

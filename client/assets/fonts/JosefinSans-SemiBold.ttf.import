@@ -2,6 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
+uid="uid://dkrchmwoauf4e"
+path="res://.godot/imported/JosefinSans-SemiBold.ttf-d17649cdbec94d8f51055367213cdb9f.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/JosefinSans-SemiBold.ttf"
+dest_files=["res://.godot/imported/JosefinSans-SemiBold.ttf-d17649cdbec94d8f51055367213cdb9f.fontdata"]
 
 [params]
 

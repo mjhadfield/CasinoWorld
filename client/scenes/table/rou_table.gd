@@ -304,6 +304,11 @@ func _show_bets(seat: int, b: Dictionary, d: float) -> void:
 				_relayout(spot, d))
 
 
+## Roulette keeps its own look for now (no table style).
+func styled() -> bool:
+	return false
+
+
 func _make_stack(seat: int) -> ChipStack2D:
 	var stack := ChipStack2D.new()
 	stack.tint = SEAT_COLOURS[seat % SEAT_COLOURS.size()]

@@ -64,6 +64,7 @@ const QUEUED_TINT := Color(1, 1, 1, 0.55)
 var _dealer_cards := []
 var _dealer_home := Vector2.ZERO  # where the dealer stands (the scene's spot), in the bay behind the felt
 var _shown_turn := 0.0            # the screen_turn() last drawn
+var look := {}                    # this table's style's design (TableStyle), filled in by style()
 
 @onready var dealer: Avatar = $Dealer
 @onready var _felt: Node2D = $Felt
@@ -248,6 +249,43 @@ func _betting_info(ctx: Dictionary) -> String:
 	if left > 0:
 		return "Place your bets -- %ds" % left
 	return "Pick a chip, then tap a spot on the felt"
+
+
+# ------------------------------------------------------------------ its style
+## Whether the table takes a table style (TableStyle). Roulette and Craps keep their own look for now.
+func styled() -> bool:
+	return true
+
+
+## The design it's drawn in: its style's, or House before the server has said (and in the editor).
+func style() -> Dictionary:
+	if look.is_empty():
+		look = TableStyle.design(table_id)
+	return look
+
+
+## The table styles changed (the admin page's Tables tab): draw the table, its machines and what's on it again.
+func restyle() -> void:
+	if not styled():
+		return
+	look = TableStyle.design(table_id)
+	_felt.queue_redraw()
+	for path in ["Felt/Fixtures", "Felt/Machines", "Felt/Lights"]:
+		var layer := get_node_or_null(path)
+		if layer:
+			for n in layer.get_children():
+				if n is CanvasItem:
+					n.queue_redraw()
+	_restyle_under(_dyn)
+
+
+func _restyle_under(node: Node) -> void:
+	for n in node.get_children():
+		if n is ChipStack2D:
+			n.style = look
+		elif n is Card2D:
+			n.back = str(look.back)
+		_restyle_under(n)
 
 
 # ------------------------------------------------------------------ geometry
@@ -725,13 +763,18 @@ func _queued_promoted(_seats: Array) -> void:
 	pass
 
 
-## A new stack of chips for a seat (Roulette's are in the seat's colour).
+## A new stack of chips for a seat (Roulette's are in the seat's colour), in the table's style.
 func _make_stack(_seat: int) -> ChipStack2D:
-	return ChipStack2D.new()
+	var stack := ChipStack2D.new()
+	if styled():
+		stack.style = style()
+	return stack
 
 
 func _new_card(code: String, pos: Vector2) -> Card2D:
 	var card := Card2D.new()
+	if styled():
+		card.back = str(style().back)
 	card.code = code
 	card.position = pos
 	card.rotation = 0.0

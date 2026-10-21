@@ -27,6 +27,11 @@ const MAX_LAYERS := 8
 		if v != label:
 			label = v
 			queue_redraw()
+## The table style's design these chips are drawn in (ChipFace); empty: the game's own chips (Roulette, Craps).
+var style := {}:
+	set(v):
+		style = v
+		queue_redraw()
 @export var lift := 0.0:  # drawn this far up, sitting on another stack (craps: come odds on the come bet)
 	set(v):
 		if v != lift:
@@ -72,13 +77,20 @@ func _draw() -> void:
 	draw_set_transform(Vector2(0.5, 1.2), 0, Vector2(1, 0.55))
 	draw_circle(Vector2.ZERO, RADIUS + 0.5, Color(0, 0, 0, 0.3))
 	draw_set_transform(Vector2.ZERO)
+	var styled: bool = style.get("chips", "classic") != "classic"
 	for i in chips.size() - 1:
-		var c: Array = ChipButton.COLOURS[chips[i]]
 		var y := -i * LAYER
+		if styled:
+			ChipFace.layer(self, Vector2(0, y), RADIUS, chips[i], style)
+			continue
+		var c: Array = ChipButton.COLOURS[chips[i]]
 		draw_circle(Vector2(0, y), RADIUS, c[1])
 		draw_arc(Vector2(0, y), RADIUS * 0.85, 0, TAU, 16, Color(1, 1, 1, 0.5), 0.6)
 	var top_y := -(chips.size() - 1) * LAYER
-	ChipButton.draw_chip(self, Vector2(0, top_y), RADIUS, chips[-1], _label(amount))
+	if styled:
+		ChipFace.draw(self, Vector2(0, top_y), RADIUS, chips[-1], _label(amount), style)
+	else:
+		ChipButton.draw_chip(self, Vector2(0, top_y), RADIUS, chips[-1], _label(amount))
 
 
 func _draw_colour_chips() -> void:

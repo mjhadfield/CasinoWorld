@@ -1,10 +1,23 @@
 # Table styles: external assets and their licences
 
 Every outside asset the table styles use, where it came from, and what was done to it. Casino World is a
-non-profit project, but every asset here allows commercial use anyway. When an asset moves into the game
-(`client/assets/`), add it to that folder's `CREDITS.md` as well.
+non-profit project, but every asset here allows commercial use anyway.
+
+The assets live in three places:
+- **The game's tiles:** `client/assets/tiles/table/`, with a pointer back here in that folder's `CREDITS.md`.
+- **The admin designer's copies:** `server/casino_server/table_styles_web/textures/` and `fonts/`.
+- **The mockup's own processed copies:** `docs/table_styles/mockup/textures/`.
+
+`tools/build_table_tiles.py` makes the first two from the same downloads, so they match. Change its `WOODS`/`SHADES`, and this file, together.
 
 ## Textures (Poly Haven, CC0)
+
+The game and designer tiles are the same scans, processed by `tools/build_table_tiles.py`:
+- **Woods** (`wood_<name>.jpg`, 512 px): the adjustments below, plus a faint warm tint laid over with "screen".
+- **Leather and felt** (`leather_shade.png`, `velvet_shade.png`, `weave_shade.png`): the high-pass detail turned
+  into white where lighter and black where darker, with the difference as alpha.
+
+The table below describes the mockup's copies.
 
 All of these are from [Poly Haven](https://polyhaven.com) under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 That means no attribution is required, but we give it anyway. Each was fetched on 2026-10-21 as its 1k diffuse JPG
@@ -26,9 +39,17 @@ through `https://api.polyhaven.com/files/<id>`. They were then processed by the 
 
 ## Fonts (Google Fonts, SIL Open Font License 1.1)
 
-The mockup loads these from Google Fonts. Any that go into the game are bundled as a static instance with
-overlapping outlines merged (as Cinzel was, see `docs/tables.md`), with their OFL text alongside, as for
-`client/assets/fonts/Cinzel-OFL.txt`.
+The mockup loads these from Google Fonts. The game bundles them in `client/assets/fonts/`, as static instances with
+overlapping outlines merged (as Cinzel was, see `docs/tables.md`), each with its OFL text alongside:
+`Cinzel-OFL.txt`, `OFL-CormorantSC.txt`, `OFL-JosefinSans.txt` and `OFL-Montserrat.txt`.
+
+The game's copies came from the Google Fonts repository (`github.com/google/fonts`, `ofl/`) on 2026-10-21:
+- **Cormorant SC:** `CormorantSC-Bold.ttf`, overlaps removed.
+- **Josefin Sans:** `JosefinSans[wght].ttf`, instanced at weight 600 with `--remove-overlaps`.
+- **Montserrat:** `Montserrat[wght].ttf`, instanced at weight 600 with `--remove-overlaps`.
+
+The admin designer serves copies of the game's files, plus DejaVu Sans Bold (already in the game, with
+`DejaVu-LICENSE.txt`).
 
 | Font | Used for | Licence |
 |---|---|---|

@@ -8,6 +8,7 @@ table designer alike, so both draw from the same pictures:
                                                  than its average, black where darker, the difference as alpha,
                                                  so drawn over any colour it lightens and darkens it
   server/casino_server/table_styles_web/textures/  the same files, plus the carpet and the dealer for the designer
+  server/casino_server/table_styles_web/fonts/     the game's lettering fonts, for the designer
 
 Downloads are cached in .dev/polyhaven/. Every source and what's done to it is in docs/table_styles/LICENSES.md;
 change that too if you change SOURCES. Run it with the server's venv (it needs Pillow):
@@ -97,6 +98,11 @@ def main():
     # The designer's stage: the floor's carpet and the dealer, as the game has them.
     shutil.copy(ROOT / "client" / "assets" / "tiles" / "carpet.png", OUT_WEB / "carpet.png")
     shutil.copy(ROOT / "client" / "assets" / "sprites" / "characters" / "dealer.png", OUT_WEB / "dealer.png")
+    # ...and the game's lettering, so the designer prints with the very same fonts.
+    fonts = OUT_WEB.parent / "fonts"
+    fonts.mkdir(exist_ok=True)
+    for name in ("Cinzel-SemiBold", "CormorantSC-Bold", "JosefinSans-SemiBold", "Montserrat-SemiBold", "DejaVuSans-Bold"):
+        shutil.copy(ROOT / "client" / "assets" / "fonts" / f"{name}.ttf", fonts / f"{name}.ttf")
     print(f"wrote {len(WOODS)} woods and {len(SHADES)} shades to {OUT_GAME.relative_to(ROOT)} and {OUT_WEB.relative_to(ROOT)}")
 
 

@@ -17,28 +17,29 @@ take a style later.
   admin page and `server/protocol.md`.
 
 ## Done when
-- [ ] Mike signs off a set of styles and a chip-tray option on the mockup
-- [ ] Built in the worktree. The layout audit output is identical before and after, and Roulette and Craps shots
-      are pixel-identical.
-- [ ] Mike signs off in test, on the worktree's dev instance
+- [x] Mike picked his default (House) on the mockup, 2026-10-21
+- [x] Built in the worktree. The layout audit output is identical before and after; Roulette and Craps code is
+      untouched (TableFelt, rou_felt, crp_felt, the wheel and ChipButton are unchanged; their tables only say styled() false)
+- [ ] Mike signs off in test, on the worktree's dev instance (8672/8673)
 - [ ] `tools/dev.sh test` passes, merged, exported and restarted live
 
 ## Handoff
-- **State:** Phase A is done and waiting for Mike's review. Nothing has been built in the game, and live is untouched.
-- **Mockup:** https://claude.ai/artifact/QhfdafyZkdYpyE3pH2h9QC (source in `docs/table_styles/mockup/`).
-  - Presets: Grand Mahogany, Monte Carlo, Midnight Deco and Modern Vegas.
-  - Every component is swappable.
-  - A ledge vs sunk tray comparison.
-  - A "Fixed layout" overlay.
-  - Saved designs go to the artifact db collection `designs`: read them with ArtifactData `list`. Comments are
-    on the artifact.
-- **Geometry:** `docs/table_styles/mockup/geometry.json` comes from `tools/table_geometry.gd`
-  (`cd client && CASINO_SERVER_URL=ws://127.0.0.1:1/ws godot --headless --path . -s ../tools/table_geometry.gd`).
-  Rerun it if a table's layout changes.
-- **The mockup's ledge:** the felt outline replaced behind the dealer's cards by `tongue()`. It is 38 wide each
-  side of centre, with 9-radius fillets into the dealer's edge and 4-radius front corners, and its front sits at
-  the tray's front (-122.39). The well is x -35.5..35.5, y -132.2..-124.3.
-- **Textures:** Poly Haven CC0, processed by a scratch tile script. Its recipe (resize to 1024², then 512²;
-  high-pass greyscale detail maps for leather and felt) is in `docs/table_styles/LICENSES.md`.
-- **Questions for Mike:** which preset(s) to build first, ledge or sunk, any component changes, and whether
-  styles are picked per table on the admin page (the plan's default).
+- **State:** built and running on the worktree's dev instance, waiting for Mike's test sign-off. Live is untouched.
+- **Server:** `table_styles.py`, with House as the default (`HOUSE` = Mike's design) and grand/monte/deco/vegas
+  built in. The API is `/api/table-styles` (+ `/styles/{id}`, `/tables`). It's sent in the welcome and in the
+  `table_styles` broadcast. Tests are in `tests/test_table_styles.py`.
+- **Admin:** the Tables tab loads `table_styles_web/designer.js` (UI) and `render.js` (the mockup's renderer, using
+  the game's tiles and fonts).
+- **Client:**
+  - `scripts/table_style.gd` holds the styles. `StyledFelt` draws the table and every card felt extends it;
+    `ChipFace` draws the chips.
+  - `ChipStack2D.style`, `Card2D.back`, and the shuffler, shoe, rack and Jackpot lights read their table's
+    `style()`. `CasinoTable.restyle()` runs on a change.
+- **Assets:**
+  - `tools/build_table_tiles.py` makes the tiles and copies the fonts for the designer.
+  - `tools/table_geometry.gd` writes the designer's and the mockup's geometry.json.
+- **Testing on dev:**
+  - Export to `.dev/web` with `godot --export-release Web ../.dev/web/index.html` from client/.
+  - Run `CASINO_WEB_DIR=$PWD/.dev/web tools/dev.sh server`: the game is on https://<host>:8673/, the admin on http://<host>:8672/admin#tables.
+- **Going live:** merge `task/table-styles`, then `tools/dev.sh test`, `tools/dev.sh export` and
+  `tools/dev.sh restart`. House shows on every card table at once.

@@ -307,6 +307,13 @@ func _drop_cabinet(c: SlotCabinet) -> void:
 	c.queue_free()
 
 
+## Every card table in its table style again.
+func _restyle_tables() -> void:
+	for t in tables.values():
+		if t is CasinoTable:
+			t.restyle()
+
+
 func _redraw_chairs() -> void:
 	for t in tables.values():
 		t.redraw_chairs()
@@ -591,6 +598,8 @@ func _on_message(msg: Dictionary) -> void:
 	match msg.get("type"):
 		"welcome":
 			Seating.configure(msg.get("seating", {}))
+			TableStyle.configure(msg.get("table_styles", {}))
+			_restyle_tables()
 			_sync_cabinets(msg.get("cabinets", []))
 			_redraw_chairs()
 			player.avatar.look = Session.look
@@ -644,6 +653,9 @@ func _on_message(msg: Dictionary) -> void:
 		"seating":   # the admin page changed the seating styles
 			Seating.configure(msg.get("seating", {}))
 			_redraw_chairs()
+		"table_styles":   # the admin page changed the table styles
+			TableStyle.configure(msg.get("table_styles", {}))
+			_restyle_tables()
 		"pg_check":
 			hud.sorter.on_check(msg)
 		"pg_suggest":

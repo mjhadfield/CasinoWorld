@@ -39,10 +39,32 @@ func _lift(n: int) -> float:
 	return minf(n * LAYER, MAX_LIFT)
 
 
+## Its table's design (House in the editor, or anywhere without a table).
+func _look() -> Dictionary:
+	var n := get_parent()
+	while n != null and not n is CasinoTable:
+		n = n.get_parent()
+	return (n as CasinoTable).style() if n else TableStyle.fill({})
+
+
 func _draw() -> void:
 	var r := Rect2(-SIZE / 2, SIZE)
+	var look := _look()
+	var kind: String = look.rack   # clear (the original), smoked (tinted) or wood-backed
+	var tint := TableStyle.colour(look, "rackTint")
 	draw_rect(Rect2(r.position + Vector2(0.6, 1.0), r.size), Color(0, 0, 0, 0.3))      # its shadow
-	draw_rect(r, Color(0.8, 0.9, 0.95, 0.16))                                        # clear acrylic base
+	match kind:
+		"wood":
+			var pts := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+			var uv := PackedVector2Array()
+			for p in pts:
+				uv.append(p / 30.0 + Vector2(0.5, 0.5))
+			draw_colored_polygon(pts, Color.WHITE, uv, TableStyle.WOODS[TableStyle.wood_of(look, str(look.rackWood))])
+			draw_rect(Rect2(r.position + Vector2(1.4, 1.4), r.size - Vector2(2.8, 1.4)), TableStyle.colour(look, "felt.colour").darkened(0.35))
+		"smoked":
+			draw_rect(r, Color(tint, 0.45))
+		_:
+			draw_rect(r, Color(0.8, 0.9, 0.95, 0.16))                                    # clear acrylic base
 	if count > 0:
 		# The stack: card edges showing under the top cards, as deep as it is full.
 		var lift := _lift(count)
@@ -54,12 +76,20 @@ func _draw() -> void:
 		for k in range(maxi(0, count - 3), count):  # the top few, a little untidy
 			var place := slot(k)
 			draw_set_transform(place[0] - position, place[1] - PI / 2)
-			Card2D.draw_back(self, Rect2(Vector2(-10, -7), Vector2(20, 14)))
+			Card2D.draw_back(self, Rect2(Vector2(-10, -7), Vector2(20, 14)), str(look.back))
 		draw_set_transform(Vector2.ZERO)
 	# Walls on three sides, open at the front for the dealer's hand.
 	var wall := Color(0.9, 0.96, 1.0, 0.55)
-	draw_line(r.position, Vector2(r.end.x, r.position.y), wall, 1.2)
-	draw_line(r.position, Vector2(r.position.x, r.end.y), wall, 1.2)
-	draw_line(Vector2(r.end.x, r.position.y), r.end, wall, 1.2)
+	var thick := 1.2
+	if kind == "wood":
+		wall = Color("2a160b")
+		thick = 1.6
+	elif kind == "smoked":
+		wall = Color(tint.lightened(0.12), 0.85)
+	draw_line(r.position, Vector2(r.end.x, r.position.y), wall, thick)
+	draw_line(r.position, Vector2(r.position.x, r.end.y), wall, thick)
+	draw_line(Vector2(r.end.x, r.position.y), r.end, wall, thick)
+	if kind == "wood":   # a brass edge on the inside of its walls
+		draw_polyline(PackedVector2Array([Vector2(r.position.x + 0.8, r.end.y), r.position + Vector2(0.8, 0.8), Vector2(r.end.x - 0.8, r.position.y + 0.8), Vector2(r.end.x - 0.8, r.end.y)]), Color("c9a24a"), 0.3)
 	draw_line(Vector2(r.position.x, r.end.y), r.end, Color(1, 1, 1, 0.25), 0.4)       # the low front edge
 	draw_line(r.position + Vector2(1.2, 1.4), Vector2(r.position.x + 6, r.position.y + 1.4), Color(1, 1, 1, 0.45), 0.35)  # shine

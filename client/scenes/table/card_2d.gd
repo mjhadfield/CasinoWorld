@@ -19,6 +19,12 @@ const BACK_FRAME := Color("c9a24a")
 	set(v):
 		code = v
 		queue_redraw()
+## Its back's design (the table style's `back`; Card2D.draw_back).
+var back := "charcoal":
+	set(v):
+		if v != back:
+			back = v
+			queue_redraw()
 
 
 const _RANKS := {"Jkr": 15, "A": 14, "K": 13, "Q": 12, "J": 11}
@@ -44,19 +50,19 @@ func flip_to(new_code: String, duration := 0.25) -> Tween:
 
 
 func _draw() -> void:
-	paint(self, code)
+	paint(self, code, Transform2D.IDENTITY, back)
 
 
 ## Draws a card (face, back for "??", or the Joker for "Jkr") centred on the
 ## origin of `xform`, on any canvas item -- the felt's cards at their own size,
 ## the Pai Gow sorter's scaled up. The suits are drawn as shapes, not font
 ## glyphs, and every edge is antialiased, so a card stays crisp at any size.
-static func paint(ci: CanvasItem, card_code: String, xform := Transform2D.IDENTITY) -> void:
+static func paint(ci: CanvasItem, card_code: String, xform := Transform2D.IDENTITY, back_design := "charcoal") -> void:
 	ci.draw_set_transform_matrix(xform)
 	var r := Rect2(-SIZE / 2, SIZE)
 	_round_rect(ci, Rect2(r.position + Vector2(0.6, 0.8), r.size), Color(0, 0, 0, 0.25))  # shadow
 	if card_code == "??":
-		draw_back(ci, r)
+		draw_back(ci, r, back_design)
 	else:
 		_round_rect(ci, r, Color("fbfaf5"), Color("b9b4a5"))
 		var joker := card_code == "Jkr"
@@ -156,10 +162,20 @@ static func _round_rect(ci: CanvasItem, r: Rect2, fill: Color, edge := Color(0, 
 	ci.draw_polyline(closed, edge if edge.a > 0 else fill, 0.3 if edge.a > 0 else 0.12, true)
 
 
+## The card backs a table style can have (TableStyle `back`), by their main colour.
+const BACKS := {"charcoal": BACK, "lattice": Color("8e1a22"), "sunburst": Color("4d1616"), "monogram": Color("5a1322"),
+	"stripe": Color("141414"), "emerald": Color("145238")}
+
+
 ## A card's back in `r` on any canvas item (the discard rack draws its stack
-## with this): charcoal with a brass frame and a white border.
-static func draw_back(ci: CanvasItem, r: Rect2) -> void:
+## with this), in a table style's design: charcoal with a brass frame (the game's
+## own), a red or emerald lattice, a garnet sunburst, a burgundy monogram or a black
+## and red stripe, all inside a white border.
+static func draw_back(ci: CanvasItem, r: Rect2, design := "charcoal") -> void:
 	_round_rect(ci, r, Color("f4f2ec"), Color(0, 0, 0, 0.35))  # white border
+	if design != "charcoal" and BACKS.has(design):
+		_styled_back(ci, r.grow(-1.3), design)
+		return
 	ci.draw_rect(r.grow(-1.3), BACK)
 	ci.draw_rect(r.grow(-2.6), Color(BACK_FRAME, 0.85), false, 0.4)
 	var inner := r.grow(-2.6)
@@ -167,3 +183,51 @@ static func draw_back(ci: CanvasItem, r: Rect2) -> void:
 		var f := (i + 1) / 5.0
 		ci.draw_line(Vector2(inner.position.x, inner.position.y + inner.size.y * f), Vector2(inner.position.x + inner.size.x * f, inner.position.y), Color(1, 1, 1, 0.1), 0.3)
 		ci.draw_line(Vector2(inner.end.x - inner.size.x * f, inner.end.y), Vector2(inner.end.x, inner.end.y - inner.size.y * f), Color(1, 1, 1, 0.1), 0.3)
+
+
+static func _styled_back(ci: CanvasItem, inner: Rect2, design: String) -> void:
+	ci.draw_rect(inner, BACKS[design])
+	var c := inner.get_center()
+	match design:
+		"lattice", "emerald":
+			var line := Color(1.0, 0.92, 0.88, 0.55) if design == "lattice" else Color(0.94, 0.89, 0.77, 0.5)
+			var ix := inner.position.x
+			var iy := inner.position.y
+			var iw := inner.size.x
+			var ih := inner.size.y
+			var t := -ih
+			while t < iw + ih:   # 45-degree lines both ways, cut to the inner rectangle
+				var u0 := maxf(0.0, t - iw)
+				var u1 := minf(ih, t)
+				if u1 > u0:
+					ci.draw_line(Vector2(ix + t - u0, iy + u0), Vector2(ix + t - u1, iy + u1), line, 0.18)
+				u0 = maxf(0.0, ih - t)
+				u1 = minf(ih, ih - t + iw)
+				if u1 > u0:
+					ci.draw_line(Vector2(ix + t - ih + u0, iy + u0), Vector2(ix + t - ih + u1, iy + u1), line, 0.18)
+				t += 1.6
+			ci.draw_rect(inner.grow(-1.3), Color(1, 1, 1, 0.7), false, 0.4)
+		"sunburst":
+			var gold := Color("e0b84e")
+			var half := inner.size / 2
+			for i in 24:
+				var dir := Vector2.from_angle(i * PI / 12)
+				var reach := minf(half.x / maxf(absf(dir.x), 0.001), half.y / maxf(absf(dir.y), 0.001))
+				ci.draw_line(c, c + dir * reach, Color(gold, 0.45), 0.2)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -4), c + Vector2(3, 0), c + Vector2(0, 4), c + Vector2(-3, 0)]), gold)
+			ci.draw_rect(inner.grow(-0.9), gold, false, 0.35)
+			ci.draw_rect(inner.grow(-1.7), gold, false, 0.18)
+		"monogram":
+			var gold := Color("d9b453")
+			ci.draw_rect(inner.grow(-1.0), gold, false, 0.35)
+			ci.draw_rect(inner.grow(-1.8), gold, false, 0.18)
+			ci.draw_arc(c, 3.3, 0, TAU, 32, gold, 0.3, true)
+			var font: Font = TableStyle.FONTS.cormorant
+			var w := font.get_string_size("CW", HORIZONTAL_ALIGNMENT_LEFT, -1, 3).x
+			ci.draw_string(font, c + Vector2(-w / 2, 1.05), "CW", HORIZONTAL_ALIGNMENT_LEFT, -1, 3, Color("e8cf86"))
+		"stripe":
+			var x := inner.position.x
+			var y := inner.position.y
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(x, y + inner.size.y * 0.62), Vector2(inner.end.x, y + inner.size.y * 0.22),
+				Vector2(inner.end.x, y + inner.size.y * 0.38), Vector2(x, y + inner.size.y * 0.78)]), Color("c8202b"))
+			ci.draw_rect(inner.grow(-0.9), Color("c9d0d6"), false, 0.3)

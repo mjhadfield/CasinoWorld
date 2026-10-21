@@ -209,6 +209,39 @@ details summary { cursor: pointer; }
 .fl-problems { margin-top: 14px; border-color: var(--warn); }
 .fl-problems h3 { margin: 0; font-size: 15px; color: var(--warn); }
 .fl-problems ul { margin: 0; padding-left: 20px; font-size: 13px; }
+/* Tables: the table styles' designer (table_styles_web/designer.js) -- styles and placement, the table, the design */
+.ts { display: grid; grid-template-columns: 250px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+@media (max-width: 1250px) { .ts { grid-template-columns: 250px minmax(0, 1fr); } .ts-ctl { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .ts { grid-template-columns: minmax(0, 1fr); } }
+.ts .hint { color: var(--muted); font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.ts-list { padding: 6px; gap: 2px; }
+.ts-style { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; text-align: left; border: 1px solid transparent; padding: 6px 8px; }
+.ts-style > span:first-child { flex: 1 1 auto; font-weight: 600; }
+.ts-style.picked { border-color: var(--gold); background: var(--target); }
+.ts-tables { display: grid; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.ts-table { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name show" "pick pick"; gap: 2px 6px; font-size: 13px; }
+.ts-table > span { grid-area: name; } .ts-table select { grid-area: pick; width: 100%; } .ts-table button { grid-area: show; }
+.ts-stage .seg button { padding: 4px 8px; }
+.ts-toggle { display: inline-flex; gap: 4px; align-items: center; font-size: 13px; color: var(--muted); }
+.ts-canvas { position: relative; background: var(--stage); border-radius: 10px; overflow: hidden; }
+.ts-canvas canvas, .ts-compare canvas { display: block; width: 100%; height: auto; }
+.ts-warn { position: absolute; left: 10px; bottom: 10px; font-size: 12px; padding: 3px 8px; border-radius: 6px; background: rgba(10, 14, 12, .82); color: #ff9a8a; }
+.ts-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ts-compare figure { margin: 0; padding: 6px; cursor: pointer; }
+.ts-compare figure[aria-pressed="true"] { outline: 2px solid var(--gold); }
+.ts-compare figcaption { font-size: 13px; }
+.ts-slots { gap: 4px; }
+.ts-slot { border-top: 1px solid var(--line); padding: 6px 0; }
+.ts-slot:first-child { border-top: 0; }
+.ts-slot summary { font-weight: 600; font-size: 14px; }
+.ts-slot[open] summary { margin-bottom: 6px; }
+.ts-field { display: grid; gap: 3px; margin-bottom: 8px; }
+.ts-field .seg button { padding: 3px 8px; font-size: 12.5px; }
+.ts-swatches { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.ts-sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); padding: 0; }
+.ts-sw[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--panel) inset; }
+.ts-swatches input[type="color"] { width: 30px; height: 24px; padding: 1px; }
+.ts-field input[type="range"] { width: 100%; accent-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -224,6 +257,7 @@ details summary { cursor: pointer; }
   <a href="#slots" data-tab="slots">Slots</a>
   <a href="#floor" data-tab="floor">Floor</a>
   <a href="#design" data-tab="design">Slot design</a>
+  <a href="#tables" data-tab="tables">Tables</a>
   <a href="#settings" data-tab="settings">Settings</a>
 </nav>
 
@@ -326,6 +360,14 @@ details summary { cursor: pointer; }
   <div id="dz-app"><p class="hint">Loading…</p></div>
 </section>
 
+<!-- ============================================================ tables -->
+<section class="tab" id="tab-tables" aria-label="Tables">
+  <p class="lead">How the card tables look. Design a style, save it, and place it on any card table; every card table uses
+    the default (House) unless it's given another. Saving changes the floor straight away. Styles only change looks: the
+    cards, chips and betting spots stay exactly where they are. Roulette and Craps keep their own look for now.</p>
+  <div id="tables-app"><p class="hint">Loading…</p></div>
+</section>
+
 <!-- ============================================================ settings -->
 <section class="tab" id="tab-settings" aria-label="Settings">
   <p class="lead">How the floor runs. Changes apply straight away (cooldowns from the next visit that ends).</p>
@@ -375,7 +417,7 @@ async function api(method, url, body, raw) {
 }
 
 // ---------------------------------------------------------------- tabs
-const TABS = ["sounds", "npcs", "players", "slots", "floor", "design", "settings"];
+const TABS = ["sounds", "npcs", "players", "slots", "floor", "design", "tables", "settings"];
 const loaded = {};
 function showTab() {
   const top = location.hash.slice(1).split("/")[0];   // #design/<design>/<step> is the Slot design tab
@@ -385,7 +427,7 @@ function showTab() {
     const a = document.querySelector(`nav a[data-tab="${t}"]`);
     if (t === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
-  if (!loaded[tab]) { loaded[tab] = true; ({sounds: Sounds.load, npcs: Npcs.load, players: Players.load, slots: Slots.load, floor: Floor.load, design: Design.load, settings: Settings.load})[tab](); }
+  if (!loaded[tab]) { loaded[tab] = true; ({sounds: Sounds.load, npcs: Npcs.load, players: Players.load, slots: Slots.load, floor: Floor.load, design: Design.load, tables: Tables.load, settings: Settings.load})[tab](); }
   Npcs.polling(tab === "npcs");
   Design.polling(tab === "design");
 }
@@ -1412,6 +1454,13 @@ const Design = (() => {
     polling: on => { if (on || mod) get().then(m => m.polling(on)); },
   };
 })();
+
+// ================================================================ tables
+// The table styles' designer lives in table_styles_web/ (served at /table-styles-ui/) and loads the first time the tab opens.
+const Tables = {
+  load: () => import("/table-styles-ui/designer.js").then(m => { m.init({$, el, api, status}); return m.load(); })
+    .catch(e => status("Couldn't load the table designer: " + e.message, "warn")),
+};
 
 showTab();
 </script>

@@ -2,6 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
+uid="uid://c0c7obvgoodxm"
+path="res://.godot/imported/CormorantSC-Bold.ttf-813db74cf350d1862fae764c4f8c221c.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/CormorantSC-Bold.ttf"
+dest_files=["res://.godot/imported/CormorantSC-Bold.ttf-813db74cf350d1862fae764c4f8c221c.fontdata"]
 
 [params]
 

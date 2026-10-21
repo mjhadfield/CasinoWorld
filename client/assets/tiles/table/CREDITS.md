@@ -1,0 +1,6 @@
+# Table style tiles
+
+The wood, leather and felt tiles here are made by `tools/build_table_tiles.py` from Poly Haven scans (CC0 1.0, no
+attribution required): Dark Wood, Lacquered Cherry Wood, Wood Table 001, Rosewood Veneer 1, Flamed Black Veneer,
+Leather White, Terlenka and Velour Velvet. The authors, sources and what was done to each are in
+`docs/table_styles/LICENSES.md`.

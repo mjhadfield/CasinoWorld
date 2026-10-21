@@ -18,7 +18,8 @@ extends Node2D
 ##   take_in()        call as used cards go in
 ##   shuffle(seconds) the machine shuffles: it hums, the light blinks amber, the display shows progress
 ##   show_number(n)   its random number (Pai Gow: which position gets the first hand)
-## Drawn in code, centred on its origin, so it stays sharp at any zoom.
+## Drawn in code, centred on its origin, so it stays sharp at any zoom, in its table's style (TableStyle
+## `shuffler`): brushed metal (the original), gloss with an LED strip in the style's LED colour, or wood and brass.
 
 const FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 const BODY := Vector2(24, 18)
@@ -88,6 +89,14 @@ func _flash(colour: Color, seconds: float) -> void:
 	queue_redraw()
 
 
+## Its table's design (House in the editor, or anywhere without a table).
+func _look() -> Dictionary:
+	var n := get_parent()
+	while n != null and not n is CasinoTable:
+		n = n.get_parent()
+	return (n as CasinoTable).style() if n else TableStyle.fill({})
+
+
 func _now() -> float:
 	return Time.get_ticks_msec() / 1000.0
 
@@ -107,14 +116,33 @@ func _draw() -> void:
 	# A faint hum while it shuffles: the lid and deck shiver, the housing doesn't.
 	var hum := Vector2(sin(now * 90.0) * 0.18, cos(now * 70.0) * 0.12) if shuffling else Vector2.ZERO
 	var body := Rect2(-BODY / 2, BODY)
+	var look := _look()
+	var kind: String = look.shuffler
+	var tint := TableStyle.colour(look, "shufflerTint")
+	var led := TableStyle.colour(look, "led")
 
 	# Sunk into the table: a shadowed recess, then the housing.
 	draw_colored_polygon(_rounded(body.grow(1.4), 3.2), Color(0, 0, 0, 0.55))
-	draw_colored_polygon(_rounded(body, 2.6), HOUSING_DARK)
-	draw_colored_polygon(_rounded(body.grow(-0.7), 2.1), HOUSING)
-	for i in 7:  # brushed metal
-		var y := body.position.y + 1.5 + i * 2.4
-		draw_line(Vector2(body.position.x + 1.2, y), Vector2(body.end.x - 1.2, y), Color(1, 1, 1, 0.035 + 0.02 * (i % 2)), 0.5)
+	match kind:
+		"brass":   # a wooden case in a brass frame
+			draw_colored_polygon(_rounded(body, 2.6), Color("24130a"))
+			var case := _rounded(body.grow(-0.7), 2.1)
+			var uv := PackedVector2Array()
+			for p in case:
+				uv.append(p / 30.0 + Vector2(0.5, 0.5))
+			draw_colored_polygon(case, Color(1, 1, 1, 0.9), uv, TableStyle.WOODS[TableStyle.wood_of(look, str(look.shufflerWood))])
+			_outline(_rounded(body.grow(-0.5), 2.2), Color("c9a24a"), 0.6)
+		"black":   # gloss, lit from the top left
+			draw_colored_polygon(_rounded(body, 2.6), tint.darkened(0.6))
+			draw_colored_polygon(_rounded(body.grow(-0.7), 2.1), tint)
+			draw_colored_polygon(PackedVector2Array([body.position + Vector2(1, 1), Vector2(body.position.x + 13, body.position.y + 1),
+				Vector2(body.position.x + 1, body.position.y + 10)]), Color(1, 1, 1, 0.1))
+		_:
+			draw_colored_polygon(_rounded(body, 2.6), tint.darkened(0.45))
+			draw_colored_polygon(_rounded(body.grow(-0.7), 2.1), tint)
+			for i in 7:  # brushed metal
+				var y := body.position.y + 1.5 + i * 2.4
+				draw_line(Vector2(body.position.x + 1.2, y), Vector2(body.end.x - 1.2, y), Color(1, 1, 1, 0.035 + 0.02 * (i % 2)), 0.5)
 	draw_line(body.position + Vector2(2.2, 0.8), Vector2(body.end.x - 2.2, body.position.y + 0.8), Color(1, 1, 1, 0.22), 0.4)
 
 	# The intake slot along the back, where used cards go in.
@@ -126,7 +154,7 @@ func _draw() -> void:
 	var lid := Rect2(-9.5, body.position.y + 4.2, 19, 7.6)
 	draw_colored_polygon(_rounded(lid, 1.2), GLASS)
 	var deck := Rect2(-5.5, lid.position.y + 1.4, 11, 4.8)
-	draw_rect(Rect2(deck.position + hum, deck.size), Card2D.BACK.darkened(0.35))
+	draw_rect(Rect2(deck.position + hum, deck.size), Card2D.BACKS.get(str(look.back), Card2D.BACK).darkened(0.35))
 	for k in 5:  # card edges seen through the glass
 		var x := deck.position.x + 1.0 + k * 2.2
 		draw_line(Vector2(x, deck.position.y + 0.4) + hum, Vector2(x, deck.end.y - 0.4) + hum, Color(1, 1, 1, 0.08), 0.3)
@@ -137,21 +165,30 @@ func _draw() -> void:
 
 	# The display and the status light, along the front.
 	var lcd := Rect2(body.position.x + 2.2, lid.end.y + 1.0, 12.5, 3.2)
-	draw_rect(lcd, LCD)
+	var lcd_text := LCD_TEXT
+	match kind:
+		"black":
+			lcd_text = Color("e9f6ff")
+			draw_rect(lcd, Color("06080a"))
+		"brass":
+			lcd_text = Color("ffcf6e")
+			draw_rect(lcd, Color("1b1206"))
+		_:
+			draw_rect(lcd, LCD)
 	draw_rect(lcd, Color(0, 0, 0, 0.6), false, 0.3)
 	var text := "READY"
 	if shuffling:
 		text = "SHUFFLE"  # what fits on its little display
 		var done := clampf(1.0 - (_shuffle_until - now) / _shuffle_total, 0.0, 1.0)
-		draw_rect(Rect2(lcd.position + Vector2(0.6, lcd.size.y - 0.8), Vector2((lcd.size.x - 1.2) * done, 0.35)), LCD_TEXT)
+		draw_rect(Rect2(lcd.position + Vector2(0.6, lcd.size.y - 0.8), Vector2((lcd.size.x - 1.2) * done, 0.35)), lcd_text)
 	elif now < _number_until:
 		text = "No. %d" % _number
 	elif _state == "dealing":
 		text = "DEALING"
-	draw_string(FONT, Vector2(lcd.position.x, lcd.position.y + 2.0), text, HORIZONTAL_ALIGNMENT_CENTER, lcd.size.x, 2, LCD_TEXT)
+	draw_string(FONT, Vector2(lcd.position.x, lcd.position.y + 2.0), text, HORIZONTAL_ALIGNMENT_CENTER, lcd.size.x, 2, lcd_text)
 
 	var light_pos := Vector2(body.end.x - 4.0, lcd.position.y + lcd.size.y / 2)
-	var light := READY_LIGHT
+	var light := led if kind == "black" else READY_LIGHT
 	if now < _flash_until:
 		light = _flash_colour
 	elif shuffling:
@@ -159,11 +196,16 @@ func _draw() -> void:
 	draw_circle(light_pos, 2.0, Color(light, 0.25))
 	draw_circle(light_pos, 1.1, light)
 	draw_circle(light_pos + Vector2(-0.35, -0.35), 0.35, Color(1, 1, 1, 0.7))
+	if kind == "brass":
+		draw_arc(light_pos, 1.5, 0, TAU, 16, Color("c9a24a"), 0.4, true)
 
 	# The delivery slot across the front edge, with its steel lip.
 	var slot := Rect2(-8.0, body.end.y - 1.9, 16, 1.2)
 	draw_rect(slot, Color("050607"))
-	draw_line(Vector2(slot.position.x - 0.5, body.end.y - 0.3), Vector2(slot.end.x + 0.5, body.end.y - 0.3), Color("9aa1aa"), 0.6)
+	draw_line(Vector2(slot.position.x - 0.5, body.end.y - 0.3), Vector2(slot.end.x + 0.5, body.end.y - 0.3), Color("c9a24a") if kind == "brass" else Color("9aa1aa"), 0.6)
+	if kind == "black":   # the LED strip along its front
+		draw_line(Vector2(-8, body.end.y - 0.7), Vector2(8, body.end.y - 0.7), Color(led, 0.15), 2.2)
+		draw_line(Vector2(-8, body.end.y - 0.7), Vector2(8, body.end.y - 0.7), Color(led, 0.9), 0.9)
 
 
 func _outline(pts: PackedVector2Array, colour: Color, width: float) -> void:

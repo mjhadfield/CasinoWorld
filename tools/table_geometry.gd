@@ -1,9 +1,9 @@
 extends SceneTree
-# Writes the card tables' real geometry to docs/table_styles/mockup/geometry.json for the table styles
-# mockup: the felt outline and the rail offsets, the chip tray and bay, and for every table its seats'
+# Writes the card tables' real geometry for the admin page's table designer (server/casino_server/table_styles_web/)
+# and the table styles mockup (docs/table_styles/mockup/): the felt outline and the rail offsets, the chip tray and bay, and for every table its seats'
 # spots, cards, dealer cards, equipment and title. The mockup draws only from this, so it can't drift
 # from the game. Table-local units, as layout_audit.gd uses.
-#   cd client && godot --headless --path . -s ../tools/table_geometry.gd
+#   cd client && CASINO_SERVER_URL=ws://127.0.0.1:1/ws godot --headless --path . -s ../tools/table_geometry.gd
 const TABLES := {
 	"tcp": "res://scenes/table/tcp_table.tscn", "bj": "res://scenes/table/bj_table.tscn",
 	"pgf": "res://scenes/table/pg_table.tscn", "pgu": "res://scenes/table/pg_table.tscn",
@@ -12,7 +12,7 @@ const TABLES := {
 	"bac": "res://scenes/table/bac_table.tscn",
 }
 const GROWN := [-8.0, -6.5, -6.0, -5.0, -4.0, -3.5, -2.0, -1.2, -0.9, -0.3, 1.2, 1.5, 3.5, 4.0, 5.9, 6.5, 7.0, 7.5, 11.0]
-const OUT := "../docs/table_styles/mockup/geometry.json"
+const OUT := ["../server/casino_server/table_styles_web/geometry.json", "../docs/table_styles/mockup/geometry.json"]
 
 
 func v(p: Vector2) -> Array:
@@ -109,10 +109,11 @@ func _initialize() -> void:
 		data.tables[key] = tab
 		t.queue_free()
 		await process_frame
-	var f := FileAccess.open(OUT, FileAccess.WRITE)
-	f.store_string(JSON.stringify(data, " ", false))
-	f.close()
-	print("wrote ", OUT, " (", data.tables.size(), " tables)")
+	for out in OUT:
+		var f := FileAccess.open(out, FileAccess.WRITE)
+		f.store_string(JSON.stringify(data, " ", false))
+		f.close()
+		print("wrote ", out, " (", data.tables.size(), " tables)")
 	quit(0)
 
 

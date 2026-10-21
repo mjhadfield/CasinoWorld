@@ -707,6 +707,11 @@ func payout_pos(seat: int, spot: String, _bonus := false) -> Vector2:
 	return spot_pos(seat, spot) + Vector2(4.5, -3.5)
 
 
+## Craps keeps its own look for now (no table style).
+func styled() -> bool:
+	return false
+
+
 func _make_stack(seat: int) -> ChipStack2D:
 	var stack := ChipStack2D.new()
 	stack.tint = SEAT_COLOURS[seat % SEAT_COLOURS.size()]

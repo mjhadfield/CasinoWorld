@@ -4,13 +4,43 @@ How the tables are drawn and laid out in the client. The rules of each game are 
 
 ## The look
 
-The tables are drawn in code (`scenes/table/table_felt.gd` and each game's `*_felt.gd`), as is the room
-(`scenes/world/room.gd`), so they stay sharp at any zoom. The table is the "Mahogany & Brass" look: a wood
-rail with a brass bead (on craps only, leather-padded on the dealers' side, with a faint fine grain from
-`assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`; the other tables are bare wood all round), crimson felt, and cream printing in Cinzel (`client/assets/fonts/Cinzel-SemiBold.ttf`,
-SIL Open Font License, see `Cinzel-OFL.txt`). It is a static instance of the variable font with overlapping
-outlines merged (`fonttools varLib.instancer Cinzel[wght].ttf wght=600 --remove-overlaps`), because MSDF text
-draws overlaps as specks.
+The tables are drawn in code, as is the room (`scenes/world/room.gd`), so they stay sharp at any zoom.
+
+**The card tables are drawn in their table style.** A style is a design made on the admin page's Tables tab:
+- the felt (colour, velvet or woven grain, how much darker it gets towards the rail) and a border line
+- the rail (one of five woods, a leather armrest or leather all round, a brass/gold/chrome bead where it meets the felt)
+- the chip tray (a well cut into a dealer's ledge, or sunk in where it's always been, in three finishes)
+- the printing's font and colours, and the betting spots' artwork
+- the Jackpot disc, the shuffler, shoe and discard rack, card backs and chips
+
+Every card table uses the default style, House (Mike's pick on the mockup, `docs/table_styles/`), unless the
+Tables tab places another on it.
+
+How it's put together:
+- **The styles** live on the server (`table_styles.py`) and come in the welcome; `scripts/table_style.gd`
+  (`TableStyle`) holds them.
+- **The table** is painted by `scenes/table/styled_felt.gd` (`StyledFelt`), which each card game's felt extends.
+- **The admin designer's renderer** (`server/casino_server/table_styles_web/render.js`) draws the same way, with
+  the same tiles and fonts, so what's designed is what the floor shows.
+- **A style changes looks only.** Every spot, card and machine stays where the game puts it. `tools/layout_audit.gd`
+  doesn't change with a style, and the designer's "Fixed layout" draws those places over any design.
+- **The dealer's ledge** replaces the felt behind the dealer's cards with the rail, swept across the bay with
+  fillets into the dealer's edge (`StyledFelt.tongue()`). The well is cut into it inside `tray_rect()`, so chips
+  still fly to and from `tray_pos()`. The collision and outline are unchanged.
+- **Tiles and fonts:**
+  - The wood, leather and felt tiles in `client/assets/tiles/table/` come from Poly Haven (CC0), made by
+    `tools/build_table_tiles.py`. The leather and felt ones are "shades": white where the scan is lighter, black
+    where darker, laid over the colour. Their import settings make mipmaps, so they don't shimmer at a distance.
+  - The fonts are Cinzel, Cormorant SC, Josefin Sans and Montserrat, all OFL. Each is a static instance with its
+    overlapping outlines merged (`fonttools varLib.instancer ... --remove-overlaps`), because MSDF text draws
+    overlaps as specks.
+  - Every outside asset is recorded in `docs/table_styles/LICENSES.md`.
+
+**Roulette and Craps keep Mahogany & Brass** (`scenes/table/table_felt.gd`, `TableFelt`, which StyledFelt extends
+for its helpers). `CasinoTable.styled()` is false for them, so they take no style and their chips stay the game's
+own. That look is a wood rail with a brass bead, on craps leather-padded on the dealers' side (with a faint fine
+grain from `assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`), crimson felt, and cream printing in
+Cinzel.
 
 In the game, a felt isn't drawn straight. `FeltCache` paints it into a texture at the screen's resolution and
 shows that (docs/performance.md), so a felt's `paint()` (not `_draw()`) is its drawing. The felt's `_table()` is
@@ -26,8 +56,12 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   queue, and the hooks a game fills in (its spots, HUD actions and events). Its `seats` export and the
   Seat0..n markers (editable in the editor) set the seat count and spacing. A seat's column of spots and its
   cards line up above its marker.
-- **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table; a game's felt only prints
-  its layout. The dealer's chip tray (`_chip_tray()`) is built into the table, not sat on it: its wood frame is
+- **`scenes/table/styled_felt.gd` (`StyledFelt`)** draws a card table in its style; a game's felt only lays
+  out its spots, with `spot()` (a shape, its ring colour, its words), `circle()`, `big()`, `card_box()` and
+  `jackpot_disc()`. **`chip_face.gd` (`ChipFace`)** draws chips in a style (`ChipStack2D.style`); the card tables
+  give every stack, card (`Card2D.back`) and machine their style, and `CasinoTable.restyle()` redraws them all
+  when the styles change.
+- **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table for Roulette and Craps. The dealer's chip tray (`_chip_tray()`) is built into the table, not sat on it: its wood frame is
   flush with the rail and casts no shadow, the felt's brass bead runs round its edge where it meets the felt, and
   the channels are a well sunk into it (shadowed under its back wall, lit along its front). Craps has no
   tray piece: its rail is a deeper ledge across the floor of the boxman's bay (`CrapsTable.LEDGE`, part of
@@ -37,13 +71,13 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).
-- **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card. Its stack shrinks as cards
+- **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
-- **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler. Hands come out of
+- **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of
   its front slot (`slot_point()` to `delivery_point()`) and used cards go into its intake
   (`intake_point()`). Call `deliver()` as each hand comes out and `shuffle(seconds)` after feeding it. Put it
   in a layer drawn above the cards.
-- **`scenes/table/discard_rack.gd` (`DiscardRack`)** is a clear acrylic discard holder. `slot(n)` says where
+- **`scenes/table/discard_rack.gd` (`DiscardRack`)** is a discard holder (clear, tinted or wood-backed). `slot(n)` says where
   the nth discard lands, face down and sideways. It draws its own stack from `count` (so a whole shoe's worth
   costs nothing), and `take_all()` empties it for the shuffler. Put it in a layer drawn below the cards.
 
