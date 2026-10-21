@@ -6,7 +6,7 @@
    "id": "royals",
    "title": "Royals",
    "required": 5,
-   "kind": "object",
+   "kind": "royal",
    "role": "low"
   },
   {
@@ -27,7 +27,7 @@
    "id": "specials",
    "title": "Specials \u00b7 wild & scatters",
    "required": 3,
-   "kind": "object",
+   "kind": "special",
    "role": "specials"
   },
   {
@@ -215,17 +215,26 @@
     "links/screenshot_20261020_003926.png"
    ],
    "hue": "red",
-   "choice": "bust/picard_6",
+   "choice": "bust/picard_8",
    "keep": false,
    "reiterate": false,
-   "note": "It looks remarkably unlike captain picard, please see attached reference image",
-   "base": "links/screenshot_20261020_003926.png",
+   "note": "A more natural white skintone",
+   "base": null,
    "history": [
     {
      "from": "links/screenshot_20261020_003926.png",
      "note": "It looks remarkably unlike captain picard, please see attached reference image"
+    },
+    {
+     "from": "links/screenshot_20261020_003926.png",
+     "note": ""
+    },
+    {
+     "from": "raw/bust_picard_7.png",
+     "note": "A more natural white skintone"
     }
-   ]
+   ],
+   "takes": 1
   },
   {
    "id": "data",
@@ -623,18 +632,26 @@
    "kind": "object",
    "key": "magenta",
    "refs": [
-    "ref/scatter.png"
+    "ref/scatter.png",
+    "links/screenshot_20261020_081242.png"
    ],
    "hue": "gold",
    "keep_text": "word SCATTER",
    "favourite": "cut/scatter_1.png",
-   "choice": "cut/scatter_1.png",
+   "choice": "cut/scatter_4.png",
    "keep": true,
    "reiterate": false,
-   "note": "",
+   "note": "Scatter reel based onthe reference image",
    "binned": [
     "cut/scatter_2.png",
     "cut/scatter_3.png"
+   ],
+   "base": "links/screenshot_20261020_081242.png",
+   "history": [
+    {
+     "from": "links/screenshot_20261020_081242.png",
+     "note": "Scatter reel based onthe reference image"
+    }
    ]
   },
   {
@@ -643,8 +660,10 @@
    "category": "specials",
    "kind": "object",
    "key": "magenta",
-   "prompt": "Bonus icon based on Starfleet Delta",
-   "refs": [],
+   "prompt": "Bonus reel based on the reference image, keep the word \"BONUS\" from the original image.",
+   "refs": [
+    "links/screenshot_20261020_081233.png"
+   ],
    "added": true,
    "pending_new": false,
    "hue": "gold",
@@ -652,7 +671,44 @@
     "cut/bonus_1.png",
     "cut/bonus_2.png",
     "cut/bonus_3.png"
-   ]
+   ],
+   "reiterate": false,
+   "base": "links/screenshot_20261020_081233.png",
+   "history": [
+    {
+     "from": "links/screenshot_20261020_081233.png",
+     "note": ""
+    },
+    {
+     "from": "links/screenshot_20261020_081233.png",
+     "note": "Bonus reel based on the reference image, keep the word \"BONUS\" from the original image."
+    }
+   ],
+   "choice": "cut/bonus_7.png",
+   "keep": true
+  },
+  {
+   "id": "latinum",
+   "name": "Latinum",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "A bar of gold pressed latinum",
+   "refs": [
+    "links/latinum.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "base": "links/latinum.png",
+   "history": [
+    {
+     "from": "links/latinum.png",
+     "note": "A bar of gold pressed latinum."
+    }
+   ],
+   "keep": true
   }
  ],
  "jobs": [
@@ -745,6 +801,146 @@
    "text": "Bonus icon based on Starfleet Delta",
    "out": "object",
    "action": "new"
+  },
+  {
+   "id": 6,
+   "symbol": "scatter",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "scatter_4",
+    "scatter_5",
+    "scatter_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_081242.png",
+   "text": "Scatter reel based onthe reference image",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 7,
+   "symbol": "bonus",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_4",
+    "bonus_5",
+    "bonus_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_081233.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 8,
+   "symbol": "bonus",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_7",
+    "bonus_8",
+    "bonus_9"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_081233.png",
+   "text": "Bonus reel based on the reference image, keep the word \"BONUS\" from the original image.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 9,
+   "symbol": null,
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bg_1",
+    "bg_2",
+    "bg_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Starscape",
+   "out": "background",
+   "action": "background"
+  },
+  {
+   "id": 11,
+   "symbol": "latinum",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "latinum_1",
+    "latinum_2",
+    "latinum_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/latinum.png",
+   "text": "A bar of gold pressed latinum",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 12,
+   "symbol": "latinum",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "latinum_4",
+    "latinum_5",
+    "latinum_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/latinum.png",
+   "text": "A bar of gold pressed latinum.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 13,
+   "symbol": "picard",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bust_picard_7"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_003926.png",
+   "text": "",
+   "out": "character",
+   "action": "reiterate"
+  },
+  {
+   "id": 14,
+   "symbol": "picard",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bust_picard_8"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/bust_picard_7.png",
+   "text": "A more natural white skintone",
+   "out": "character",
+   "action": "reiterate"
   }
  ],
  "concept": {
@@ -760,16 +956,16 @@
  },
  "steps": {
   "concept": "todo",
-  "art": "doing",
-  "ladder": "doing",
-  "scene": "doing",
-  "features": "todo",
-  "bonuses": "todo",
-  "sprites": "todo",
-  "sounds": "todo",
-  "maths": "todo",
-  "mockup": "todo",
-  "build": "todo"
+  "art": "done",
+  "ladder": "done",
+  "scene": "done",
+  "features": "done",
+  "bonuses": "done",
+  "sprites": "done",
+  "sounds": "done",
+  "maths": "done",
+  "mockup": "done",
+  "build": "done"
  },
  "ladder": {
   "slots": {
@@ -785,7 +981,8 @@
    "M3": "tricorder",
    "M4": "phaser",
    "W": "wild",
-   "FS": "scatter"
+   "FS": "scatter",
+   "BS": "bonus"
   },
   "upgrades": {
    "L1": "M3",
@@ -801,19 +998,1295 @@
   }
  },
  "scene": {
-  "frame": {
-   "style": "glass",
-   "colour": "#4ab0c9"
-  }
+  "logo": {
+   "top": "#fff1b0",
+   "bottom": "#d39a26",
+   "outline": "#c5afa6",
+   "font": "DejaVuSans-Bold.ttf",
+   "emblem": null,
+   "lines": [
+    "STAR TREK"
+   ],
+   "file": "scene/logo_1.png"
+  },
+  "background": "scene/bg_2.png",
+  "skins": {
+   "classic": {
+    "name": "Classic",
+    "by": "house",
+    "base": "classic",
+    "note": "",
+    "colours": {
+     "gold": "#4f4430",
+     "goldHi": "#cbd2d3",
+     "goldLo": "#1d2c2f",
+     "edge": "#d47e1c",
+     "cream": "#fbf9ee",
+     "muted": "#fffdfa",
+     "ink": "#2a260e",
+     "shade": "#1e1d0a",
+     "win": "#ffe27a",
+     "spin": "#bf9b9b",
+     "alert": "#7d130c"
+    },
+    "palette": {
+     "hl": "#d2b037",
+     "a": "#c19433",
+     "b": "#8b682d",
+     "c": "#c3a928",
+     "d": "#91670d",
+     "warn": "#f5a623",
+     "glass": "#9e6529",
+     "grand": "#f23a3a",
+     "major": "#b98fd6",
+     "minor": "#7fc4c9",
+     "mini": "#6f9fd8"
+    },
+    "frame": {
+     "style": "neon",
+     "colour": "#4ab0c9"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.51,
+     "sheen": 0.23,
+     "edge": 3.5,
+     "blur": 40
+    },
+    "parts": {},
+    "decor": [],
+    "fonts": {
+     "display": "BarlowCondensed-Bold.ttf",
+     "ui": "BarlowCondensed-Bold.ttf"
+    },
+    "texts": {}
+   }
+  },
+  "skin": "classic"
  },
  "sprites": {
   "cabinet": {
    "trim": "#478eff",
    "title": "#3bbde8",
    "body": "#353231"
-  },
-  "fonts": {
-   "ui": "BarlowCondensed-Bold.ttf"
   }
+ },
+ "art_slots": {
+  "barrel": "sym:latinum",
+  "armadillo": "sym:wild",
+  "t_snake": "sym:borg_cube",
+  "t_coin": "sym:latinum",
+  "b_hero": "sym:enterprise_d",
+  "b_enemy": "sym:bird_of_prey",
+  "b_boss": "sym:borg_cube"
+ },
+ "features": {
+  "enabled": [
+   "wilds",
+   "wildReels",
+   "colossal",
+   "multiplier",
+   "upgrade",
+   "repeat",
+   "instant"
+  ],
+  "rates": {
+   "wilds": 0.1108,
+   "wildReels": 0.0222,
+   "colossal": 0.0316,
+   "multiplier": 0.0554,
+   "upgrade": 0.095,
+   "repeat": 0.0634,
+   "instant": 0.0127
+  },
+  "free_rates": {
+   "wilds": 0.6,
+   "wildReels": 0.32,
+   "colossal": 0.3,
+   "multiplier": 0.5,
+   "upgrade": 0.45,
+   "repeat": 0.35,
+   "instant": 0.25
+  },
+  "tables": {
+   "wild_counts": [
+    [
+     1,
+     40
+    ],
+    [
+     2,
+     30
+    ],
+    [
+     3,
+     20
+    ],
+    [
+     4,
+     10
+    ]
+   ],
+   "wild_reel_counts": [
+    [
+     1,
+     70
+    ],
+    [
+     2,
+     25
+    ],
+    [
+     3,
+     5
+    ]
+   ],
+   "colossal_sizes": [
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     30
+    ],
+    [
+     4,
+     10
+    ]
+   ],
+   "multipliers": [
+    [
+     2,
+     50
+    ],
+    [
+     3,
+     25
+    ],
+    [
+     4,
+     15
+    ],
+    [
+     5,
+     10
+    ]
+   ],
+   "repeats": [
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     25
+    ],
+    [
+     4,
+     10
+    ],
+    [
+     5,
+     5
+    ]
+   ],
+   "instants": [
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     25
+    ],
+    [
+     3,
+     15
+    ],
+    [
+     5,
+     12
+    ],
+    [
+     10,
+     9
+    ],
+    [
+     20,
+     5
+    ],
+    [
+     50,
+     2.5
+    ],
+    [
+     100,
+     1
+    ],
+    [
+     200,
+     0.5
+    ]
+   ]
+  }
+ },
+ "bonuses": {
+  "trail": {
+   "enabled": false
+  },
+  "free": {
+   "games": 5,
+   "name": "COMBO FREE GAMES"
+  },
+  "battle": {
+   "enabled": true,
+   "name": "RED ALERT",
+   "hint": "tap a ship to fire",
+   "enemy": "ENEMY SHIP",
+   "boss_name": "FLAGSHIP",
+   "waves": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "shields": 3,
+   "return_fire": [
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.34
+   ],
+   "clear": [
+    2,
+    4,
+    6,
+    12,
+    25
+   ],
+   "prizes": [
+    [
+     0.2,
+     30
+    ],
+    [
+     0.4,
+     26
+    ],
+    [
+     0.6,
+     18
+    ],
+    [
+     1,
+     12
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     10,
+     1.5
+    ],
+    [
+     25,
+     0.5
+    ]
+   ],
+   "spins": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     30
+    ],
+    [
+     3,
+     10
+    ]
+   ],
+   "boss": [
+    [
+     100,
+     50
+    ],
+    [
+     200,
+     30
+    ],
+    [
+     300,
+     12
+    ],
+    [
+     500,
+     6
+    ],
+    [
+     1000,
+     2
+    ]
+   ],
+   "spins_chance": 0.015,
+   "boss_hits": 6,
+   "boss_fire": 0.3
+  }
+ },
+ "specs": [
+  {
+   "id": 1,
+   "kind": "bonus",
+   "name": "Red Alert",
+   "description": "You are Enterprise-D (model in art) being attacked by a fleet of Klingon ships in waves. They can cloak/uncloak, and destroying them reveals either a monetary reward, or free spins (with bonuses). You take damage when they fire back, at the end of each wave your health is restored and a new wave begins. Up to 5 waves total, with increasing rewards for each wave completed. Completing all 5 waves triggers something special.",
+   "timing": "from scatters",
+   "art": "",
+   "status": "spec"
+  }
+ ],
+ "maths": {
+  "pays": {
+   "W": [
+    20,
+    40,
+    120
+   ],
+   "H1": [
+    20,
+    40,
+    120
+   ],
+   "H2": [
+    20,
+    40,
+    100
+   ],
+   "M1": [
+    16,
+    24,
+    60
+   ],
+   "M2": [
+    16,
+    24,
+    60
+   ],
+   "M3": [
+    12,
+    20,
+    48
+   ],
+   "M4": [
+    12,
+    20,
+    48
+   ],
+   "L1": [
+    4,
+    8,
+    20
+   ],
+   "L2": [
+    4,
+    8,
+    20
+   ],
+   "L3": [
+    4,
+    8,
+    20
+   ],
+   "L4": [
+    4,
+    8,
+    20
+   ],
+   "L5": [
+    4,
+    8,
+    20
+   ]
+  },
+  "counts": [
+   {
+    "W": 0,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 7,
+    "L3": 6,
+    "L4": 6,
+    "L5": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "L5": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "L5": 6,
+    "BS": 2
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "L5": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "L5": 6,
+    "BS": 1
+   }
+  ],
+  "big_counts": {
+   "W": 1,
+   "H1": 2,
+   "H2": 2,
+   "M1": 3,
+   "M2": 3,
+   "M3": 3,
+   "M4": 3,
+   "L1": 4,
+   "L2": 4,
+   "L3": 4,
+   "L4": 4,
+   "L5": 4
+  },
+  "strips": [
+   [
+    "M1",
+    "M3",
+    "M3",
+    "L5",
+    "H1",
+    "L5",
+    "M4",
+    "L5",
+    "L2",
+    "M3",
+    "L1",
+    "M2",
+    "L3",
+    "L3",
+    "L4",
+    "M3",
+    "L2",
+    "M2",
+    "L4",
+    "L5",
+    "H2",
+    "BS",
+    "L1",
+    "M1",
+    "H1",
+    "M3",
+    "L3",
+    "L2",
+    "L1",
+    "L2",
+    "M4",
+    "L1",
+    "M4",
+    "L5",
+    "L4",
+    "H2",
+    "M1",
+    "L1",
+    "M2",
+    "L3",
+    "L1",
+    "L3",
+    "M2",
+    "M1",
+    "H1",
+    "M4",
+    "L5",
+    "L3",
+    "M1",
+    "L1",
+    "L2",
+    "L2",
+    "H2",
+    "M2",
+    "M4",
+    "FS",
+    "L4",
+    "L2",
+    "L4",
+    "L4"
+   ],
+   [
+    "L4",
+    "H2",
+    "L2",
+    "L2",
+    "L1",
+    "L3",
+    "M4",
+    "L3",
+    "L4",
+    "W",
+    "H1",
+    "M1",
+    "L4",
+    "L4",
+    "L3",
+    "L5",
+    "L4",
+    "M4",
+    "M3",
+    "L5",
+    "W",
+    "M1",
+    "H1",
+    "L5",
+    "L2",
+    "H2",
+    "M1",
+    "W",
+    "L3",
+    "M1",
+    "L1",
+    "FS",
+    "L5",
+    "M2",
+    "L1",
+    "M4",
+    "M2",
+    "W",
+    "L5",
+    "M4",
+    "M1",
+    "M3",
+    "M3",
+    "L2",
+    "L1",
+    "M3",
+    "M4",
+    "L4",
+    "L2",
+    "M3",
+    "L1",
+    "L3",
+    "BS",
+    "M2",
+    "L1",
+    "L3",
+    "L1",
+    "L5",
+    "L2",
+    "M2",
+    "H1",
+    "M2",
+    "H2"
+   ],
+   [
+    "L4",
+    "M2",
+    "BS",
+    "W",
+    "M3",
+    "L2",
+    "M4",
+    "L5",
+    "H1",
+    "L5",
+    "L4",
+    "L4",
+    "M3",
+    "L4",
+    "H1",
+    "L1",
+    "L4",
+    "BS",
+    "L2",
+    "L5",
+    "L1",
+    "L3",
+    "M1",
+    "L5",
+    "M1",
+    "M4",
+    "L2",
+    "H2",
+    "L2",
+    "M1",
+    "M2",
+    "L1",
+    "M1",
+    "M4",
+    "L3",
+    "L2",
+    "L1",
+    "H1",
+    "L3",
+    "M2",
+    "L5",
+    "L5",
+    "L1",
+    "L4",
+    "W",
+    "L3",
+    "W",
+    "H2",
+    "M2",
+    "M1",
+    "L2",
+    "W",
+    "M3",
+    "L3",
+    "FS",
+    "L3",
+    "H2",
+    "M2",
+    "L1",
+    "M4",
+    "M3",
+    "M3",
+    "L1",
+    "M4"
+   ],
+   [
+    "W",
+    "L4",
+    "M4",
+    "L2",
+    "BS",
+    "L2",
+    "L5",
+    "L3",
+    "M3",
+    "M4",
+    "M4",
+    "M2",
+    "FS",
+    "W",
+    "M4",
+    "L1",
+    "L2",
+    "L3",
+    "M1",
+    "H1",
+    "H2",
+    "L1",
+    "L1",
+    "M1",
+    "W",
+    "H2",
+    "L2",
+    "M1",
+    "M3",
+    "H2",
+    "L1",
+    "L5",
+    "W",
+    "L1",
+    "L2",
+    "L5",
+    "M2",
+    "H1",
+    "L2",
+    "M4",
+    "M3",
+    "L1",
+    "L5",
+    "M1",
+    "L3",
+    "M2",
+    "L4",
+    "L3",
+    "L3",
+    "L4",
+    "M2",
+    "L3",
+    "M2",
+    "H1",
+    "L4",
+    "L4",
+    "M3",
+    "L4",
+    "L1",
+    "L5",
+    "L5",
+    "M1",
+    "M3"
+   ],
+   [
+    "L3",
+    "L4",
+    "L3",
+    "L5",
+    "L5",
+    "M4",
+    "L3",
+    "L1",
+    "W",
+    "M3",
+    "L5",
+    "M4",
+    "M2",
+    "FS",
+    "L4",
+    "M1",
+    "L2",
+    "H2",
+    "L5",
+    "L4",
+    "M1",
+    "L3",
+    "L2",
+    "L1",
+    "H1",
+    "M4",
+    "H1",
+    "H1",
+    "W",
+    "L4",
+    "L4",
+    "L2",
+    "M4",
+    "BS",
+    "L4",
+    "M3",
+    "L1",
+    "M3",
+    "L5",
+    "L3",
+    "M3",
+    "L2",
+    "M1",
+    "H2",
+    "M2",
+    "M3",
+    "H2",
+    "W",
+    "L1",
+    "M2",
+    "L5",
+    "L3",
+    "M1",
+    "L2",
+    "M2",
+    "L1",
+    "L1",
+    "W",
+    "L1",
+    "L2",
+    "M4",
+    "M2",
+    "M1"
+   ]
+  ],
+  "free_strips": [
+   [
+    "L2",
+    "L2",
+    "H1",
+    "L3",
+    "M3",
+    "L3",
+    "L4",
+    "M1",
+    "H2",
+    "L4",
+    "M1",
+    "L3",
+    "M2",
+    "L3",
+    "M3",
+    "M1",
+    "M3",
+    "M2",
+    "L5",
+    "M2",
+    "L5",
+    "L2",
+    "L1",
+    "L3",
+    "M4",
+    "L2",
+    "L1",
+    "H2",
+    "H1",
+    "L3",
+    "L4",
+    "L4",
+    "L1",
+    "L1",
+    "L4",
+    "L4",
+    "L2",
+    "L2",
+    "L5",
+    "H1",
+    "M2",
+    "M1",
+    "M3",
+    "M3",
+    "L1",
+    "L1",
+    "M4",
+    "L5",
+    "M1",
+    "M4",
+    "M4",
+    "L2",
+    "M4",
+    "L5",
+    "H2",
+    "L1",
+    "M2",
+    "L5"
+   ],
+   [
+    "L5",
+    "H1",
+    "M1",
+    "M3",
+    "L2",
+    "L5",
+    "M3",
+    "L4",
+    "L1",
+    "L4",
+    "L4",
+    "L2",
+    "L1",
+    "L4",
+    "L5",
+    "H2",
+    "L5",
+    "M3",
+    "W",
+    "L3",
+    "H1",
+    "L3",
+    "L5",
+    "L3",
+    "L3",
+    "L2",
+    "M2",
+    "M4",
+    "W",
+    "L1",
+    "L3",
+    "L2",
+    "L1",
+    "L2",
+    "L4",
+    "M1",
+    "L4",
+    "L5",
+    "M1",
+    "L1",
+    "M2",
+    "M4",
+    "L3",
+    "M1",
+    "M4",
+    "M3",
+    "M2",
+    "L2",
+    "L1",
+    "M2",
+    "W",
+    "M1",
+    "W",
+    "M3",
+    "H2",
+    "M2",
+    "H1",
+    "L1",
+    "M4",
+    "M4",
+    "H2"
+   ],
+   [
+    "L2",
+    "M1",
+    "M3",
+    "M4",
+    "L2",
+    "M3",
+    "M1",
+    "L2",
+    "L2",
+    "M2",
+    "M2",
+    "M1",
+    "W",
+    "L4",
+    "L1",
+    "L4",
+    "L1",
+    "L1",
+    "H2",
+    "L1",
+    "L3",
+    "M3",
+    "H2",
+    "M4",
+    "M3",
+    "H1",
+    "L5",
+    "M4",
+    "L1",
+    "M3",
+    "W",
+    "L2",
+    "L5",
+    "M1",
+    "W",
+    "H1",
+    "L3",
+    "M2",
+    "M1",
+    "H2",
+    "L1",
+    "M4",
+    "L3",
+    "L3",
+    "L1",
+    "L5",
+    "L5",
+    "L3",
+    "L5",
+    "M4",
+    "L4",
+    "H1",
+    "L4",
+    "L2",
+    "W",
+    "L3",
+    "L4",
+    "M2",
+    "L4",
+    "L5",
+    "M2"
+   ],
+   [
+    "L4",
+    "L2",
+    "L1",
+    "L1",
+    "L3",
+    "M3",
+    "L1",
+    "L3",
+    "L2",
+    "H2",
+    "L4",
+    "L5",
+    "M1",
+    "L5",
+    "L1",
+    "M2",
+    "L5",
+    "M1",
+    "L2",
+    "L3",
+    "M2",
+    "L1",
+    "M1",
+    "M1",
+    "M4",
+    "H1",
+    "L3",
+    "L1",
+    "L3",
+    "L5",
+    "M2",
+    "H1",
+    "M3",
+    "L4",
+    "M2",
+    "M3",
+    "M3",
+    "L2",
+    "M4",
+    "H2",
+    "L4",
+    "M4",
+    "L4",
+    "H1",
+    "L2",
+    "L3",
+    "M1",
+    "L4",
+    "W",
+    "W",
+    "H2",
+    "L1",
+    "M2",
+    "M4",
+    "L2",
+    "L5",
+    "W",
+    "M4",
+    "W",
+    "L5",
+    "M3"
+   ],
+   [
+    "L5",
+    "L2",
+    "M2",
+    "L5",
+    "H1",
+    "W",
+    "L4",
+    "L1",
+    "H2",
+    "L5",
+    "L5",
+    "M2",
+    "W",
+    "M3",
+    "L1",
+    "M1",
+    "M4",
+    "L1",
+    "L4",
+    "M2",
+    "L4",
+    "H1",
+    "L5",
+    "M3",
+    "L5",
+    "M4",
+    "M2",
+    "L3",
+    "H1",
+    "M4",
+    "H2",
+    "M4",
+    "L4",
+    "M1",
+    "L3",
+    "L4",
+    "L2",
+    "L1",
+    "M3",
+    "L2",
+    "L3",
+    "L1",
+    "M1",
+    "M2",
+    "M4",
+    "M3",
+    "W",
+    "L1",
+    "L3",
+    "L1",
+    "M1",
+    "M1",
+    "L2",
+    "H2",
+    "L2",
+    "W",
+    "L3",
+    "L2",
+    "L4",
+    "L3",
+    "M3"
+   ]
+  ],
+  "big_strip": [
+   "M4",
+   "L2",
+   "M3",
+   "L5",
+   "L3",
+   "L5",
+   "M1",
+   "L3",
+   "L1",
+   "L1",
+   "L4",
+   "L5",
+   "L4",
+   "L1",
+   "W",
+   "L2",
+   "L2",
+   "M4",
+   "L4",
+   "L3",
+   "H2",
+   "M2",
+   "H1",
+   "L1",
+   "H1",
+   "H2",
+   "M2",
+   "M2",
+   "M3",
+   "L5",
+   "M4",
+   "L4",
+   "L2",
+   "M1",
+   "M1",
+   "M3",
+   "L3"
+  ],
+  "report": {
+   "spins": 500000,
+   "staked": 50000000,
+   "plain": 6777408,
+   "featured": 16288528,
+   "repeatExtra": 2269936,
+   "instant": 4708000,
+   "trail": 0,
+   "free": 8600700,
+   "battle": 7758068,
+   "hits": 196458,
+   "trails": 0,
+   "frees": 1238,
+   "battles": 1824,
+   "featureSpins": 150377,
+   "prizepots": 0,
+   "max": 1098.6,
+   "featureCounts": {
+    "wilds": 55147,
+    "multiplier": 27782,
+    "upgrade": 47745,
+    "instant": 6143,
+    "wildReels": 11022,
+    "repeat": 11909,
+    "colossal": 13934
+   },
+   "rtp": {
+    "plain": 13.554816,
+    "featured": 32.577056,
+    "repeat": 4.539872,
+    "instant": 9.416,
+    "trail": 0,
+    "free": 17.2014,
+    "battle": 15.391518054399999,
+    "jackpot": 3.7500000000000004,
+    "trailSampled": 0,
+    "battleSampled": 15.516136,
+    "game": 92.68066205439999,
+    "total": 96.43066205439999
+   },
+   "buy": {
+    "n": 60000,
+    "rtp": 95.23616888888888,
+    "mean": 42.856276,
+    "max": 1346.76,
+    "prizepots": 0,
+    "rolls": 0
+   },
+   "bosses": 1127,
+   "battleRun": 30000,
+   "sd": 7.7936176782872515,
+   "exact": 20.25850390126625
+  },
+  "settings": "46fe0380718c",
+  "check": {
+   "sample": 200,
+   "exact": 20.2585,
+   "python_30k": {
+    "plain": 13.7,
+    "featured": 32.53,
+    "repeat_extra": 4.59,
+    "instant": 8.65,
+    "trail": 0.0,
+    "free": 14.8,
+    "battle": 20.41,
+    "game": 94.69,
+    "jackpot": 3.75,
+    "total": 98.44
+   }
+  },
+  "frozen_at": "2026-10-20T13:12:29"
+ },
+ "art_adjust": {
+  "b_hero": {
+   "scale": 0.58,
+   "dx": -5.5,
+   "bright": 1.03,
+   "sat": 0.5
+  },
+  "b_enemy": {
+   "scale": 0.78,
+   "mirror": true,
+   "bright": 0.74,
+   "sat": 0.6
+  }
+ },
+ "rules": [
+  "Wild stands in for everything except Bonus and Scatter. Pays left to right on 25 lines; the longest match on each line pays.",
+  "Random features can hit any spin, some before the reels stop and some after.",
+  "3+ Bonus: RED ALERT. 3+ Scatter: 5 combo free games. Buy Bonus (45x the bet): RED ALERT.",
+  "Upgrades: A, K, Q \u2192 Tricorder \u00b7 J, 10 \u2192 Phaser \u00b7 Deep Space Nine, Earth \u2192 Troi \u00b7 Tricorder \u2192 Deep Space Nine \u00b7 Phaser \u2192 Earth \u00b7 Troi \u2192 Worf"
+ ],
+ "signed_off": {
+  "at": "2026-10-20T13:40:36",
+  "settings": "46fe0380718c"
  }
 }
