@@ -95,10 +95,16 @@ A Godot 4.7 project exported to the web.
   the Slot design wizard are `variants/<id>.json` with frozen strips. The browser's `slots_math.js` takes the same
   tables, so the wizard's mockup spins exactly as the cabinet will (`tests/test_slot_variants_data.py` checks a
   five-royal variant with a shared bonus scatter spin for spin).
-- **Built slots** (`slot_builds.py`) join at startup, before the casino is made: their variants, their cabinets
-  on `floor.TABLES` (a named spot, in a bank shape: a row of 1, 2 or 4 facing the camera, or the Armadillo bank's pattern of 10), their sound sets (`sounds.refresh_sets`
-  rebuilds the sets in place), and their art and fonts in the art manifest. The welcome message lists their
-  cabinets so the client can add them; `install()` undoes its last run first, so tests can run it again.
+- **Built slots** (`slot_builds.py`) join at startup, before the casino is made: their variants, their sound sets
+  (`sounds.refresh_sets` rebuilds the sets in place), and their art and fonts in the art manifest.
+- **Slot banks** (`slot_banks.py`, `<data>/slot_banks.json`) put the cabinets on the floor: a bank is any mix of
+  slots, each cabinet facing any way, made and dragged into place on the admin page's Floor tab. At startup, after
+  the built slots, each cabinet whose slot is loaded becomes a one-seat table in `floor.TABLES` (its id is its table
+  id, kept through moves and re-slotting). Saving checks the banks against `floor_map.json` (the room, the tables'
+  footprints and the floor points, measured from the client scene by `tools/floor_map.gd`) and each cabinet's
+  shape; the floor changes when the server restarts (the tab's Apply). The welcome message lists every cabinet, and
+  the client adds, remakes or removes its own to match. Both `install()`s undo their last run first, so tests can
+  run them again.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
   every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
   The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the

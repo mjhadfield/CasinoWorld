@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
-from casino_server import slot_builds, slot_design_art
+from casino_server import slot_banks, slot_builds, slot_design_art
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -60,12 +60,14 @@ def _build_roster_looks(store: Store, looks: LookCache):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     data_dir = Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR))
-    # Slots built with the Slot design wizard join the floor first (CASINO_SLOT_BUILDS_DIR moves them, for tests
-    # and the dev instance), so the casino, the sound board and the art board all see them.
+    # Slots built with the Slot design wizard load first (CASINO_SLOT_BUILDS_DIR moves them, for tests and the dev
+    # instance), then the slot banks put cabinets of them on the floor, so the casino, the sound board and the art
+    # board all see them.
     builds_dir = Path(os.environ.get("CASINO_SLOT_BUILDS_DIR") or slot_builds.DEFAULT_DIR)
     built = slot_builds.install(builds_dir)
     if built:
         print("built slots: " + ", ".join(built))
+    slot_banks.install(data_dir)
     store = Store(data_dir / "casino.sqlite")
     for p in store.players():
         if p["stored_as"] != "integer":
@@ -81,6 +83,7 @@ async def lifespan(app: FastAPI):
     app.state.casino = casino
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
+    app.state.slot_banks = slot_banks.SlotBankBoard(data_dir, builds_dir)
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
     app.state.slot_design.sounds = app.state.sounds
@@ -362,6 +365,42 @@ def slot_art_file(variant: str, source: str, request: Request):
     cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
     kind = {".ttf": "font/ttf", ".otf": "font/otf"}.get(path.suffix.lower(), "image/png")
     return FileResponse(path, media_type=kind, headers={"Cache-Control": cache})
+
+
+# ------------------------------------------------------------------ slot banks (the admin page's Floor tab)
+def _bank_call(fn, *args):
+    try:
+        return fn(*args)
+    except slot_banks.BankError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/slot-banks")
+def slot_banks_view(request: Request):
+    return JSONResponse(request.app.state.slot_banks.view(), headers=NO_STORE)
+
+
+@app.put("/api/slot-banks")
+async def slot_banks_save(request: Request):
+    body = await _json_body(request, "{banks: [...]}")
+    return _bank_call(request.app.state.slot_banks.save, body)
+
+
+@app.post("/api/slot-banks/apply")
+def slot_banks_apply(request: Request):
+    return {"message": _bank_call(request.app.state.slot_banks.apply)}
+
+
+# The Floor tab's script (slot_banks_web/), never cached, so an edit shows on reload.
+SLOT_BANKS_WEB = Path(__file__).resolve().parent / "slot_banks_web"
+
+
+@app.get("/slot-banks-ui/{rel:path}")
+def slot_banks_ui(rel: str):
+    path = (SLOT_BANKS_WEB / rel).resolve()
+    if not path.is_relative_to(SLOT_BANKS_WEB) or not path.is_file():
+        raise HTTPException(404, "No such file")
+    return FileResponse(path, headers=NO_STORE)
 
 
 # ------------------------------------------------------------------ slot design (the admin page)
@@ -692,8 +731,7 @@ def slot_design_reopen(design: str, request: Request):
 
 @app.post("/api/slot-design/{design}/build")
 async def slot_design_build(design: str, request: Request):
-    body = await _json_body(request, "{spot, count}")
-    return await run_in_threadpool(_design_call, request.app.state.slot_design.build, design, body.get("spot"), body.get("bank"))
+    return await run_in_threadpool(_design_call, request.app.state.slot_design.build, design)
 
 
 @app.post("/api/slot-design/{design}/install")

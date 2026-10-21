@@ -1,30 +1,20 @@
-// Step 11, Build: the signed-off slot becomes cabinets on the casino floor. Pick a spot and a bank shape, Build
-// writes its build folder (server/slot_builds/<id>/), and Install restarts the casino to load it: the cabinets
-// appear, and their art, fonts and sounds reach every game. New feature or bonus ideas are listed for building.
+// Step 11, Build: the signed-off slot becomes a game the casino plays. Build writes its build folder
+// (server/slot_builds/<id>/), and Install restarts the casino to load it: its art, fonts and sounds reach every game.
+// Its cabinets go on the floor from the Floor tab, in any bank, mixed with other slots. New feature or bonus ideas
+// are listed for building.
 let C;
-const picked = {};   // design -> the bank shape picked but not built yet (the step redraws as the wizard refreshes)
 
 export function render(ctx, body) { C = ctx; draw(body); }
 export function update(ctx) { C = ctx; const body = document.querySelector(".wz-body"); if (body && !body.querySelector("select:focus, input:focus")) draw(body); }
 
 function draw(body) {
   const {el} = C, b = C.data.build, d = C.data;
-  const spot = el("select", {ariaLabel: "Where on the floor"}, ...b.spots.map(s => el("option", {value: s.id, disabled: !!s.taken_by,
-    textContent: s.label + (s.taken_by ? ` (${s.taken_by} stands here)` : "")})));
-  const free = b.spots.find(s => !s.taken_by);
-  spot.value = (b.built && b.built.spot) || (free && free.id) || "";
-  let bank = picked[C.did] || (b.built && b.built.bank) || "full";
-  const shapes = el("span", {className: "seg", role: "group", ariaLabel: "Bank"}, ...b.banks.map(k =>
-    el("button", {type: "button", textContent: `${k.label} (${k.count})`, ariaPressed: String(bank === k.id), onclick: e => {
-      bank = picked[C.did] = k.id;
-      for (const x of shapes.children) x.setAttribute("aria-pressed", String(x === e.currentTarget));
-    }})));
   const go = el("button", {type: "button", className: "primary", textContent: b.built ? "Build it again" : "Build it", disabled: !b.signed_off, onclick: async () => {
     go.disabled = true;
     try {
-      await C.api("POST", `/api/slot-design/${C.did}/build`, {spot: spot.value, bank});
+      await C.api("POST", `/api/slot-design/${C.did}/build`);
       await C.refresh();
-      C.status(b.live ? "Built. Install restarts the casino to bring it in." : "Built into this instance's folder.", "ok");
+      C.status(b.live ? "Built. Install restarts the casino to bring it in; then put it on the floor from the Floor tab." : "Built into this instance's folder.", "ok");
     } catch (e) { C.status(e.message, "warn"); go.disabled = false; }
   }});
   const install = el("button", {type: "button", className: "primary", textContent: "Install: restart the casino", disabled: !b.built || !b.live, onclick: async () => {
@@ -33,16 +23,18 @@ function draw(body) {
     catch (e) { C.status(e.message, "warn"); }
   }});
   body.replaceChildren(
-    el("p", {className: "lead", textContent: "The signed-off slot becomes a bank of cabinets on the casino floor. Single, Double and Quad are one row facing the camera; a Full bank is Armadillo's pattern: four facing each way and one at each end."}),
+    el("p", {className: "lead"}, "The signed-off slot becomes a game the casino plays. Its cabinets go on the floor from the ",
+      el("a", {href: "#floor", textContent: "Floor tab"}), ": any number, in any bank, beside other slots."),
     b.signed_off ? null : el("div", {className: "card"}, el("span", {className: "tag warn", textContent: "Not signed off"}),
       el("p", {className: "hint"}, "Sign it off on ", el("a", {href: `#design/${C.did}/mockup`, textContent: "Mockup & sign-off"}), " first.")),
     el("div", {className: "wz-cards"},
-      el("div", {className: "card"}, el("h3", {textContent: "The bank"}),
-        el("label", {className: "field"}, el("span", {textContent: "Where"}), spot),
-        el("div", {className: "field"}, el("span", {textContent: "Bank"}), shapes),
-        el("div", {className: "controls"}, go)),
+      el("div", {className: "card"}, el("h3", {textContent: "Build"}),
+        el("p", {className: "hint", textContent: "Writes the slot's maths, pictures, fonts and sounds into its build folder."}),
+        el("div", {className: "controls"}, go),
+        el("p", {className: "hint"}, b.on_floor ? `On the floor: ${b.on_floor} cabinet${b.on_floor === 1 ? "" : "s"}. ` : "No cabinets on the floor yet. ",
+          el("a", {href: "#floor", textContent: "Place them on the Floor tab"}), ".")),
       el("div", {className: "card"}, el("h3", {textContent: "Install"}),
-        b.built ? el("p", {className: "hint", textContent: `Built ${String(b.built.at || "").replace("T", " ")}: ${(b.banks.find(k => k.id === b.built.bank) || {label: "?"}).label}, ${b.built.count} cabinet${b.built.count === 1 ? "" : "s"}. ${b.built.loaded ? "The casino has loaded it." : "Not loaded yet."}`})
+        b.built ? el("p", {className: "hint", textContent: `Built ${String(b.built.at || "").replace("T", " ")}. ${b.built.loaded ? "The casino has loaded it." : "Not loaded yet."}`})
           : el("p", {className: "hint", textContent: "Build it first."}),
         b.live ? install : el("p", {className: "hint", textContent: "This is a dev or test instance: restart it (tools/dev.sh server) to load the build."}),
         el("p", {className: "hint", textContent: "Each build after the first needs only this restart: the game picks up new slots, their art, fonts and sounds by itself."})),

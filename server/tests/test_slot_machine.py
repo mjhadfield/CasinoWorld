@@ -446,7 +446,8 @@ def test_npcs_leave_two_cabinets_free_and_never_pass_the_bank(tmp_path):
         casino = Casino(Store(tmp_path / f"c{seed}.sqlite"), npc_population=20, rng=random.Random(seed),
                         clock=lambda: t[0], wall=lambda: t[0])
         casino.dealers.start(0.0)
-        cabinets = [r for tid, r in casino.tables.items() if tid in floor.SLOTS]
+        cabinets = [r for r in casino.tables.values() if r.machine.game == "slots"]
+        assert len(cabinets) == 10
         for _ in range(int(1200 / 0.25)):
             t[0] += 0.25
             casino.npcs.tick(t[0])

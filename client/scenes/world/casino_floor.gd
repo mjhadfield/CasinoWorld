@@ -59,8 +59,6 @@ func _ready() -> void:
 				if t == active_table:
 					Sfx.play("turn")
 					hud.sorter.open_claim(cards, bonus))
-	for c in get_tree().get_nodes_in_group("slot_cabinets"):
-		tables[c.table_id] = c
 	slot_screen = SlotScreen.new()
 	hud.add_slot_screen(slot_screen)
 	slot_screen.stand_requested.connect(func(): Net.send("stand"))
@@ -228,34 +226,50 @@ func _check_heading() -> void:
 		_heading_for = {}
 
 
-## Cabinets of slots built with the admin page's Slot design wizard: the welcome lists them (where they stand,
-## which way they face, their look). Each is added once, beside Armadillo's in the scene so it draws in the same
-## order, then the walkable floor is baked again round them.
+## The slot cabinets: every welcome lists them (the slot banks made on the admin page's Floor tab: where each
+## stands, which way it faces, which slot it is and its look). New ones are added beside the SlotCabinets anchor,
+## moved or re-slotted ones are made again, and ones no longer listed go; then the walkable floor is baked again.
 const SLOT_CABINET := preload("res://scenes/slots/slot_cabinet.tscn")
 
-func _add_built_cabinets(list: Array) -> void:
-	var anchor := get_tree().get_first_node_in_group("slot_cabinets")
-	var added := false
+func _sync_cabinets(list: Array) -> void:
+	var anchor := $SlotCabinets
+	var changed := false
+	var listed := {}
 	for cab in list:
 		var id := str(cab.get("id", ""))
-		if id.is_empty() or tables.has(id):
+		if id.is_empty():
 			continue
+		listed[id] = true
+		var where := Vector2(float(cab.get("x", 0)), float(cab.get("y", 0)))
+		var old: SlotCabinet = tables.get(id) as SlotCabinet
+		if old and old.position == where and old.facing == str(cab.get("facing", "down")) \
+				and old.variant == str(cab.get("variant", "armadillo")) and old.look == cab.get("cabinet", {}):
+			continue
+		if old:
+			_drop_cabinet(old)
 		var c: SlotCabinet = SLOT_CABINET.instantiate()
 		c.table_id = id
 		c.variant = str(cab.get("variant", "armadillo"))
 		c.look = cab.get("cabinet", {})
-		c.position = Vector2(float(cab.get("x", 0)), float(cab.get("y", 0)))
+		c.position = where
 		c.add_to_group("navigation_obstacles")
-		if anchor:
-			anchor.add_sibling(c)
-		else:
-			add_child(c)
+		anchor.add_sibling(c)
 		c.facing = str(cab.get("facing", "down"))
 		c.offer_seats = state == "walking"
 		tables[id] = c
-		added = true
-	if added:
+		changed = true
+	for id in tables.keys():
+		if tables[id] is SlotCabinet and not listed.has(id) and tables[id] != active_slot:
+			_drop_cabinet(tables[id])
+			changed = true
+	if changed:
 		_bake_navigation()
+
+
+func _drop_cabinet(c: SlotCabinet) -> void:
+	tables.erase(c.table_id)
+	remove_child(c)   # out of the tree now, so the bake leaves it out
+	c.queue_free()
 
 
 func _offer_seats(on: bool) -> void:
@@ -467,7 +481,7 @@ func _camera_to_player() -> void:
 func _on_message(msg: Dictionary) -> void:
 	match msg.get("type"):
 		"welcome":
-			_add_built_cabinets(msg.get("cabinets", []))
+			_sync_cabinets(msg.get("cabinets", []))
 			player.avatar.look = Session.look
 			player.avatar.display_name = Session.player.get("name", "")
 			if Session.needs_name:

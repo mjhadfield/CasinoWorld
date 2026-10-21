@@ -1,7 +1,8 @@
-# Slots: Armadillo Goes West (`slot_1`..`slot_10`), and built slots
+# Slots: Armadillo Goes West, and built slots
 
-Ten one-seat Armadillo cabinets in the south-east corner. Slots built with the admin page's Slot design wizard
-stand in banks of up to ten on named spots nearby (`<id>_1`..), and play by the same rules below with their own
+One-seat cabinets in slot banks, made and placed on the admin page's Floor tab: a bank is any mix of slots, each
+cabinet facing any way, anywhere clear on the floor (cabinet ids are the bank's id and a number, `b1_3`). Slots
+built with the admin page's Slot design wizard play by the same rules below as Armadillo, with their own
 tiers, pays, features, bonus settings, look and words. A built slot can also switch a bonus off, start it from
 either scatter, and say whether Buy Bonus gives it; a scatter or Buy Bonus with more than one bonus plays one of them
 at random, and a scatter that starts nothing isn't on its reels. The design record, the maths source and how to add another

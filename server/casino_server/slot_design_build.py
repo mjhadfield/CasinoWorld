@@ -3,42 +3,25 @@ The Slot design wizard's last step, Build: a signed-off design becomes a slot th
 
 build() writes the design into its build folder (slot_builds.py explains the layout): the variant (its frozen
 maths, from slot_design_steps.variant_from_design) with its theme (the chosen scene's skin, colours and fonts, win animations, words,
-rules screen, floor cabinet), every picture the game draws, the two fonts, its floor spot and its sounds, and an
-IDEAS.md of any new feature or bonus it described (those need building in code). install() then restarts the live
-server, which loads it: its cabinets appear on the floor and its art, fonts and sounds reach every game. A dev
-instance is restarted by hand instead.
+rules screen, floor cabinet), every picture the game draws, the two fonts and its sounds, and an IDEAS.md of any
+new feature or bonus it described (those need building in code). install() then restarts the live server, which
+loads it; a dev instance is restarted by hand instead. Its cabinets go on the floor from the admin page's Floor
+tab (slot_banks.py), in any bank, mixed with other slots.
 """
 import dataclasses
 import datetime
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
-from casino_server import slot_builds
+from casino_server import slot_banks, slot_builds
 from casino_server.slot_design_art import web_font
 from casino_server.slot_design_scene import bake_glass, look
 from casino_server.slot_design_steps import (FONTS_DIR, EXPEDITION_WORDS, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view, features_view,
                                              ladder_view, signoff_view, sprites_view, variant_from_design)
 
-REPO = Path(__file__).resolve().parents[2]
 ARMADILLO_ART = Path(__file__).resolve().parents[1] / "slot_art" / "armadillo" / "flux2"
-
-
-def _is_live() -> bool:
-    return not os.environ.get("CASINO_DATA_DIR") and not os.environ.get("CASINO_SLOT_BUILDS_DIR")
-
-
-def _spot_owner(root: Path, spot: str, did: str) -> str | None:
-    for p in root.glob("*/variant.json") if root.is_dir() else []:
-        try:
-            v = json.loads(p.read_text())
-        except (ValueError, OSError):
-            continue
-        if v.get("id") != did and v.get("extras", {}).get("floor", {}).get("spot") == spot:
-            return v.get("name", v.get("id"))
-    return None
 
 
 class BuildMixin:
@@ -50,28 +33,18 @@ class BuildMixin:
         if p.is_file():
             try:
                 v = json.loads(p.read_text())
-                where = v.get("extras", {}).get("floor", {})
-                built = {"at": v.get("extras", {}).get("built_at"), **where, "bank": slot_builds.bank_of(where),
-                         "loaded": d.id in slot_builds.BUILT}
+                built = {"at": v.get("extras", {}).get("built_at"), "loaded": d.id in slot_builds.BUILT}
             except (ValueError, OSError):
                 built = {"at": None, "loaded": False}
-        return {"spots": [{"id": k, "label": s["label"], "taken_by": _spot_owner(self.builds_dir, k, d.id)} for k, s in slot_builds.SPOTS.items()],
-                "banks": [{"id": k, "label": b["label"], "count": len(b["cabinets"])} for k, b in slot_builds.BANKS.items()],
-                "built": built, "live": _is_live(),
+        on_floor = sum(c["variant"] == d.id for b in slot_banks.LOADED["banks"] for c in b.get("cabinets", []))
+        return {"built": built, "on_floor": on_floor, "live": slot_builds.is_live(),
                 "ideas": d.data.get("specs", []), "signed_off": bool(d.data.get("signed_off"))}
 
-    def build(self, did: str, spot: str, bank: str) -> dict:
+    def build(self, did: str) -> dict:
         with self.lock:
             d = self.design(did)
             if not d.data.get("signed_off"):
                 raise DesignError("Sign the slot off first (Mockup & sign-off).")
-            if spot not in slot_builds.SPOTS:
-                raise DesignError("Pick one of the floor spots.")
-            if bank not in slot_builds.BANKS:
-                raise DesignError("Pick a bank: " + ", ".join(b["label"] for b in slot_builds.BANKS.values()) + ".")
-            owner = _spot_owner(self.builds_dir, spot, did)
-            if owner:
-                raise DesignError(f"{owner} already stands there.")
             if did == "armadillo":
                 raise DesignError("That id is Armadillo Goes West's.")
             v = variant_from_design(d)
@@ -112,8 +85,7 @@ class BuildMixin:
                           "feature_names": features_view(d)["names"]},
                 "rules": signoff_view(d)["rules"], "cabinet": sp["cabinet"], "background": "bg" in pictures}
             data = json.loads(json.dumps(dataclasses.asdict(v)))
-            data.update(theme=theme, extras={"assets": labels, "floor": {"spot": spot, "bank": bank, "count": len(slot_builds.BANKS[bank]["cabinets"])},
-                                             "sounds": d.data.get("sounds", {}), "design": d.id,
+            data.update(theme=theme, extras={"assets": labels, "sounds": d.data.get("sounds", {}), "design": d.id,
                                              "built_at": datetime.datetime.now().isoformat(timespec="seconds")})
             out = self.builds_dir / d.id
             tmp = self.builds_dir / f".{d.id}.building"
@@ -145,11 +117,10 @@ class BuildMixin:
             d = self.design(did)
             if not (self.builds_dir / d.id / "variant.json").is_file():
                 raise DesignError("Build it first.")
-        if not _is_live():
+        if not slot_builds.is_live():
             raise DesignError("This is a test or dev instance: restart it (tools/dev.sh server) to load the build.")
         try:
-            subprocess.run(["systemd-run", "--user", "--collect", "--quiet", f"--unit=casino-install-{did}-{int(datetime.datetime.now().timestamp())}",
-                            str(REPO / "tools" / "dev.sh"), "restart"], check=True, timeout=20, capture_output=True)
+            slot_builds.restart_live(f"install-{did}")
         except (OSError, subprocess.SubprocessError) as e:
             raise DesignError(f"Couldn't start the restart: {e}")
         with self.lock:

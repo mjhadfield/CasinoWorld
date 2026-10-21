@@ -24,12 +24,14 @@ the tier shape, pays, upgrade chain, features, bonus settings, look, words and s
 
 How a built slot reaches the game:
 - **Build** writes `server/slot_builds/<id>/`: `variant.json` (the frozen maths from the Maths step, which the
-  server has already checked against its own engine spin for spin, plus the theme, floor spot and sounds), `art/`
+  server has already checked against its own engine spin for spin, plus the theme and sounds), `art/`
   (every picture, the logo and the background), `fonts/`, and `IDEAS.md` for anything that needs code.
 - **At startup** `casino_server/slot_builds.py` registers each one: its variant (`slots/variants` VARIANTS), its
-  cabinets on its floor spot in its bank shape (`slot_builds.BANKS`) (`floor.TABLES`), its sound set (`slots.<id>`), and its
-  art and fonts in the art manifest (`slot_art.py`). **Install** on the Build step restarts the live server.
-- **The client** adds the built cabinets from the `welcome` message, downloads their art and fonts (`SlotArt`),
+  sound set (`slots.<id>`), and its art and fonts in the art manifest (`slot_art.py`). **Install** on the Build
+  step restarts the live server.
+- **On the floor:** its cabinets go in slot banks on the admin page's Floor tab (`slot_banks.py`), alone or mixed
+  with other slots; Apply there restarts the casino to put them out.
+- **The client** adds every cabinet from the `welcome` message, downloads their art and fonts (`SlotArt`),
   and the slot screen and cabinet draw from the variant's `theme` (`slot_screen.gd` `_apply_theme`,
   `slot_cabinet.gd` `look`). No client export is needed for a new slot.
 

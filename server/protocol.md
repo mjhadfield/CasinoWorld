@@ -45,7 +45,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Server → client
 | type | fields | when |
 |---|---|---|
-| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets` | The reply to `join` and `set_name`. `cabinets` lists the cabinets of slots built with the Slot design wizard, which aren't in the floor scene: [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`)}]; the client adds any it doesn't have. |
+| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets` | The reply to `join` and `set_name`. `cabinets` lists every slot cabinet on the floor (the slot banks, slot_banks.py; none are in the floor scene): [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`; empty for Armadillo)}]; the client adds the ones it doesn't have, remakes any that moved or changed, and removes the rest. |
 | `wallet` | `balance` | Sent on join and after each money-moving table event, straight after that event. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. |
@@ -213,7 +213,7 @@ The craps `table_state` adds `point`, `shooter`, `want_dice`, `history` (last 12
 (where the dice lie until they're fetched); seats add `locked` and `working`.
 
 ### Slot cabinets (`event.kind`)
-Cabinets `slot_1`..`slot_10` (floor.py `SLOTS`) each have one seat and no dealer (`on_duty` is
+Cabinets (the slot banks' `b1_1`.., slot_banks.py) each have one seat and no dealer (`on_duty` is
 null). Grid cells are numbered `reel * 4 + row` (row 0 at the top); a reel shows `strip[stop]` on its top row.
 
 A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `variant`, `name`, `symbols` (tier -> name),

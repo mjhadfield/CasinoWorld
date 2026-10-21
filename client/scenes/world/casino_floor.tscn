@@ -13,7 +13,6 @@
 [ext_resource type="PackedScene" path="res://scenes/table/bac_table.tscn" id="14_bac"]
 [ext_resource type="PackedScene" path="res://scenes/table/rou_table.tscn" id="15_rou"]
 [ext_resource type="PackedScene" path="res://scenes/table/crp_table.tscn" id="16_crp"]
-[ext_resource type="PackedScene" path="res://scenes/slots/slot_cabinet.tscn" id="17_slot"]
 [ext_resource type="PackedScene" path="res://scenes/world/local_player.tscn" id="6_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_hud"]
 
@@ -109,55 +108,7 @@ position = Vector2(1500, 290)
 [node name="Table11" parent="." groups=["navigation_obstacles"] instance=ExtResource("16_crp")]
 position = Vector2(1560, 630)
 
-[node name="Slot1" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1599, 947)
-table_id = "slot_1"
-facing = "up"
-
-[node name="Slot2" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1633, 947)
-table_id = "slot_2"
-facing = "up"
-
-[node name="Slot3" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1667, 947)
-table_id = "slot_3"
-facing = "up"
-
-[node name="Slot4" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1701, 947)
-table_id = "slot_4"
-facing = "up"
-
-[node name="Slot5" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1599, 973)
-table_id = "slot_5"
-facing = "down"
-
-[node name="Slot6" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1633, 973)
-table_id = "slot_6"
-facing = "down"
-
-[node name="Slot7" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1667, 973)
-table_id = "slot_7"
-facing = "down"
-
-[node name="Slot8" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1701, 973)
-table_id = "slot_8"
-facing = "down"
-
-[node name="Slot9" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1558, 962)
-table_id = "slot_9"
-facing = "left"
-
-[node name="Slot10" parent="." groups=["navigation_obstacles"] instance=ExtResource("17_slot")]
-position = Vector2(1742, 962)
-table_id = "slot_10"
-facing = "right"
+[node name="SlotCabinets" type="Node2D" parent="."]
 
 [node name="Entities" type="Node2D" parent="." unique_id=1906296930]
 y_sort_enabled = true

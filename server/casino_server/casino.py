@@ -11,7 +11,7 @@ import asyncio
 import sys
 import time
 
-from casino_server import PROTOCOL_VERSION, floor, slot_builds
+from casino_server import PROTOCOL_VERSION, floor, slot_banks
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
@@ -177,7 +177,7 @@ class Casino:
             needs_name = player.name.startswith("Guest ")
         session.push({"type": "welcome", "player": {"id": player.id, "name": player.name},
                       "token": player.token, "entity_id": session.entity_id, "look": PLAYER_LOOK,
-                      "needs_name": needs_name, "cabinets": slot_builds.cabinets()})
+                      "needs_name": needs_name, "cabinets": slot_banks.cabinets()})
 
     def _resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while

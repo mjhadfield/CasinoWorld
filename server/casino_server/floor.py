@@ -19,11 +19,8 @@ TABLES = {
     "rou_1": {"game": "roulette", "name": "Roulette", "seats": 6},
     "crp_1": {"game": "craps", "name": "Craps", "seats": 8},
 }
-# The slot bank: ten Armadillo Goes West cabinets in the south-east corner (one seat each).
-SLOTS = {f"slot_{i}": {"game": "slots", "variant": "armadillo", "name": "Armadillo Goes West", "seats": 1}
-         for i in range(1, 11)}
-TABLES.update(SLOTS)
-SLOTS_FOR_HUMANS = 2   # NPCs leave at least this many cabinets of a bank free
+# Slot cabinets (one seat each) join TABLES from the slot banks the admin page's Floor tab makes (slot_banks.py).
+SLOTS_FOR_HUMANS = 2   # NPCs leave at least this many slot cabinets free
 
 ENTRANCE = "entrance"
 

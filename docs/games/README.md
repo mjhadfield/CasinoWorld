@@ -14,15 +14,19 @@ How the floor works and what every table has in common. Each game's rules are in
 | Baccarat | `bac_1` | [baccarat.md](baccarat.md) |
 | Roulette | `rou_1` | [roulette.md](roulette.md) |
 | Craps | `crp_1` | [craps.md](craps.md) |
-| Slots (Armadillo Goes West) | `slot_1`..`slot_10` | [slots.md](slots.md), and the design record in `docs/slots/` |
+| Slots (Armadillo Goes West and built slots) | `b1_1`.. (the slot banks) | [slots.md](slots.md), and the design record in `docs/slots/` |
 
 ## The floor
 
 The floor is 1900×1160 (`client/scenes/world/room.gd`). The nine card tables are in a 3×3 grid, and a fourth
-column to the east holds the wheel, the dice and the slots:
+column to the east holds the wheel and the dice:
 - **Top row:** Three Card Poker, Blackjack, Mississippi Stud, then Roulette.
 - **Middle row:** Fortune Pai Gow, Face Up Pai Gow, Ultimate Texas Hold'em, then Craps.
-- **Bottom row:** Let It Ride, High Card Flush, Baccarat, then the bank of ten slot cabinets.
+- **Bottom row:** Let It Ride, High Card Flush, Baccarat.
+
+The slot banks stand wherever the admin page's Floor tab puts them (the south-east corner, below Craps, is the
+open floor for them). When a table moves or changes shape, run `tools/floor_map.gd` so the Floor tab and its
+checks see it (README, Admin page).
 
 The entrance is below the bottom row (at x 700).
 

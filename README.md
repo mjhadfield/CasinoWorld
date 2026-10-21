@@ -1,7 +1,7 @@
 # Casino World
 
 A living 2D casino you play together in the browser. You walk your character around the floor past other
-players and NPCs, sit down at any of eleven tables or ten slot machines, and play alongside dealers who deal,
+players and NPCs, sit down at any of eleven tables or the slot machines, and play alongside dealers who deal,
 call and pay out. It's the successor to `~/Projects/Casino` (v2), whose rules it ports.
 
 - **client/** is a Godot 4.7 project written in GDScript, exported to the web, so players just open a link.
@@ -83,6 +83,14 @@ and Tailscale. It has six tabs:
   - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
 - **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
 - **Slots:** the jackpot meters, players' return on slots, and the symbol art set.
+- **Floor:** the slot banks. A bank is any mix of slots (Armadillo and every built slot), each cabinet facing any
+  way. The floor map shows the room, the tables and every bank: drag a bank to move it. The bank close up is a grid
+  of half a cabinet: click it to put down a cabinet of the picked slot, drag, turn (R), remove (Delete), or re-slot
+  the selected cabinets. Cabinets that would block a table, a walkway point, each other or a player's stool show
+  red and can't be saved (the server checks the same). **Save** keeps them in `<data>/slot_banks.json`; **Apply**
+  restarts the casino to put them on the floor. The map and the checks come from
+  `server/casino_server/floor_map.json`: after moving or reshaping a table, run
+  `cd client && godot --headless --path . -s ../tools/floor_map.gd`.
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
@@ -179,10 +187,10 @@ and Tailscale. It has six tabs:
     or jackpot; the checklist (✗ what Build needs: a full Value ladder, art for every tier, frozen maths; • what's
     still a stand-in); the rules screen's words (written from the design, editable; INFO shows them); and **Sign it
     off**, which locks the Value ladder, Features, Bonus games and Maths until **Reopen**. Looks stay editable.
-  - **Build:** pick a floor spot and a bank: Single, Double or Quad (one row facing the camera) or Full (ten, in the Armadillo bank's pattern); Build writes
-    `server/slot_builds/<id>/` (the variant, its art, fonts and an IDEAS.md for anything needing code) and
-    **Install** restarts the live server, which loads it: the cabinets appear and the game downloads their art,
-    fonts and sounds. No client export is needed (`docs/slots/README.md` explains the path).
+  - **Build:** writes `server/slot_builds/<id>/` (the variant, its art, fonts and an IDEAS.md for anything
+    needing code) and **Install** restarts the live server, which loads it: the game downloads its art, fonts and
+    sounds. Its cabinets go on the floor from the Floor tab. No client export is needed (`docs/slots/README.md`
+    explains the path).
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. A symbol's kind decides how its takes are made, and for every kind
     but a plain object the code draws the part that has to match across the set. Characters are drawn as a bust
@@ -264,6 +272,8 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
     designs in `server/slot_designs/`), its
     UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
+  - `slot_banks.py`: the slot banks on the floor (the Floor tab, its UI in `slot_banks_web/`), checked against
+    `floor_map.json` (written by `tools/floor_map.gd`).
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars and the room.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the

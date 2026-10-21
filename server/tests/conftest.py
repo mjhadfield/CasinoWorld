@@ -1,8 +1,19 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
+from casino_server import slot_banks
 from casino_server.app import app
 from casino_server.engines.cards import Card, Deck
+
+# The floor the tests play on has the casino's first slot bank: ten Armadillo Goes West cabinets, slot_1..slot_10,
+# four facing up, four down and one at each end.
+ARMADILLO_BANK = {"id": "slot", "name": "Armadillo", "x": 1650, "y": 960, "next": 11, "cabinets": [
+    {"id": f"slot_{i + 1}", "dx": dx, "dy": dy, "facing": f, "variant": "armadillo"}
+    for i, (dx, dy, f) in enumerate([(-51, -13, "up"), (-17, -13, "up"), (17, -13, "up"), (51, -13, "up"),
+                                     (-51, 13, "down"), (-17, 13, "down"), (17, 13, "down"), (51, 13, "down"),
+                                     (-92, 2, "left"), (92, 2, "right")])]}
 
 
 def pytest_addoption(parser):
@@ -11,6 +22,16 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: a long simulation (minutes); skipped unless --all")
+
+
+@pytest.fixture(autouse=True)
+def armadillo_bank(tmp_path):
+    """Every test's scratch data dir holds the Armadillo bank, and the floor has it (the app's lifespan loads it
+    again from CASINO_DATA_DIR)."""
+    slot_banks.path(tmp_path).write_text(json.dumps({"serial": 0, "banks": [ARMADILLO_BANK]}))
+    slot_banks.install(tmp_path)
+    yield
+    slot_banks.install(tmp_path / "no-banks")
 
 
 def pytest_collection_modifyitems(config, items):
