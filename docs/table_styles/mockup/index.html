@@ -274,7 +274,7 @@ const SLOTS = [
   { id: "back", label: "Card back", keys: ["back"], ctl: [
     { key: "back", type: "seg", options: Object.entries(BACKS) }] },
   { id: "chips", label: "Chips", keys: ["chips"], hint: "Roulette and Craps keep today's", ctl: [
-    { key: "chips", type: "seg", options: [["classic", "Today's"], ["clay", "Clay inlay"], ["ceramic", "Ceramic"]] }] },
+    { key: "chips", type: "seg", options: [["classic", "Today's"], ["clay", "Clay inlay"], ["ceramic", "Ceramic"], ["stripes", "Striped edge"], ["metal", "Metal ring"], ["house", "House colours"], ["vintage", "Vintage suits"]] }] },
 ];
 
 const GAMES = [["tcp", "Three Card"], ["bj", "Blackjack"], ["pgf", "Pai Gow Fortune"], ["pgu", "Pai Gow Face Up"], ["ms", "Mississippi"],
@@ -499,8 +499,9 @@ const DENOMS = [[50000, "#d6389f", "#8f1f68"], [10000, "#1c1c1c", "#000000"], [2
 const COL = Object.fromEntries(DENOMS.map(d => [d[0], [d[1], d[2]]]));
 function breakdown(p) { const out = []; for (const [d] of DENOMS) while (p >= d && out.length < 8) { out.push(d); p -= d; } return out; }
 function chipLabel(p) { const l = p / 100; return l >= 1000 ? (l / 1000) + "k" : String(l); }
-function chipFace(ctx, kind, x, y, r, denom, label) {
-  const [c0, c1] = COL[denom];
+function chipFace(ctx, D, x, y, r, denom, label) {
+  const kind = D.chips, [c0, c1] = COL[denom];
+  ctx.lineCap = "butt";   // (the rail leaves it round, which turns edge spots into blobs)
   const edge = denom === 10000 ? "#d8c9a0" : "#ffffff";
   if (kind === "classic") {
     ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c1; ctx.fill();
@@ -513,6 +514,36 @@ function chipFace(ctx, kind, x, y, r, denom, label) {
       ctx.beginPath(); ctx.arc(x, y, r * 0.84, a + 0.12, a + 0.38); ctx.strokeStyle = c1; ctx.lineWidth = r * 0.1; ctx.stroke(); }
     ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 7); ctx.fillStyle = "#efe7d4"; ctx.fill();
     ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 7); ctx.strokeStyle = c1; ctx.lineWidth = r * 0.07; ctx.stroke();
+    chipText(ctx, label, x, y, r, c1 === "#000000" ? "#1c1c1c" : c1);
+  } else if (kind === "stripes") {   // eight edge spots, each three thin stripes, on a darker centre
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 3; j++) { const a = i * Math.PI / 4 + j * 0.09 - 0.09;
+      ctx.beginPath(); ctx.arc(x, y, r * 0.85, a - 0.03, a + 0.03); ctx.strokeStyle = j === 1 ? c1 : edge; ctx.lineWidth = r * 0.26; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r * 0.66, 0, 7); ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = r * 0.04; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 7); ctx.fillStyle = c1 === "#000000" ? "#2a2a2a" : c1; ctx.fill();
+    chipText(ctx, label, x, y, r, "#ffffff");
+  } else if (kind === "metal") {   // a metal ring set into the face, in the rail's bead metal
+    const m = BEADS[D.rail.bead] || BEADS.brass;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.25; ctx.beginPath(); ctx.arc(x, y, r * 0.86, a, a + 0.3); ctx.strokeStyle = edge; ctx.lineWidth = r * 0.22; ctx.stroke(); }
+    const g = ctx.createLinearGradient(x, y - r, x, y + r); g.addColorStop(0, m[1]); g.addColorStop(0.5, m[0]); g.addColorStop(1, darken(m[0], 0.45));
+    ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, 7); ctx.strokeStyle = g; ctx.lineWidth = r * 0.14; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.54, 0, 7); ctx.fillStyle = darken(c0, 0.15); ctx.fill();
+    chipText(ctx, label, x, y, r, "#ffffff");
+  } else if (kind === "house") {   // the house's own chip: the felt in the centre, the accent on the edge
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.25; ctx.beginPath(); ctx.arc(x, y, r * 0.85, a, a + 0.38); ctx.strokeStyle = D.print.accent; ctx.lineWidth = r * 0.24; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, 7); ctx.fillStyle = D.felt.colour; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, 7); ctx.strokeStyle = D.print.accent; ctx.lineWidth = r * 0.06; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, 7); ctx.strokeStyle = rgba(D.print.ink, 0.45); ctx.lineWidth = r * 0.02; ctx.stroke();
+    chipText(ctx, label, x, y, r, D.print.ink);
+  } else if (kind === "vintage") {   // cream suit inserts round the edge, a cream centre
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    ["s", "h", "c", "d"].forEach((suit, i) => { const a = i * Math.PI / 2 - Math.PI / 2;
+      suitShape(ctx, suit, x + Math.cos(a) * r * 0.8, y + Math.sin(a) * r * 0.8, r * 0.3, "#f1e4c4");
+      const b = a + Math.PI / 4; ctx.beginPath(); ctx.arc(x, y, r * 0.82, b - 0.12, b + 0.12); ctx.strokeStyle = "#f1e4c4"; ctx.lineWidth = r * 0.1; ctx.stroke(); });
+    ctx.beginPath(); ctx.arc(x, y, r * 0.56, 0, 7); ctx.fillStyle = "#efe4c8"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, 7); ctx.strokeStyle = rgba(c1 === "#000000" ? "#1c1c1c" : c1, 0.6); ctx.lineWidth = r * 0.03; ctx.stroke();
     chipText(ctx, label, x, y, r, c1 === "#000000" ? "#1c1c1c" : c1);
   } else {   // ceramic: printed fine rings and ticks, a glossy face
     ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
@@ -539,7 +570,7 @@ function stack(ctx, D, amount, x, y) {
     ctx.beginPath(); ctx.arc(x, y - i * L, R, 0.2, Math.PI - 0.2); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.35; ctx.stroke();
     for (let k = 0; k < 4; k++) { const a = 0.35 + k * 0.7; ctx.beginPath(); ctx.arc(x, y - i * L, R - 0.2, a, a + 0.22); ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 0.6; ctx.stroke(); }
   }
-  chipFace(ctx, D.chips, x, y - (chips.length - 1) * L, R, chips[chips.length - 1], chipLabel(amount));
+  chipFace(ctx, D, x, y - (chips.length - 1) * L, R, chips[chips.length - 1], chipLabel(amount));
 }
 function edgeChip(ctx, D, x, y, w, h, denom, k) {   // one chip on its edge in a tray channel, seen from above
   const [c0, c1] = COL[denom];
