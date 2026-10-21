@@ -7,8 +7,8 @@ has a run of chips in the rail's groove beside them (on the stickman's side of t
 the edge-on chips of the dealer's rack, in the denominations they bet in (the biggest bet, odds aside, they've
 had down since they came; the table minimum, or your picked chip, before that). It isn't their balance. The groove
 runs the length of the players' rail, round both corners and up the ends, as on a real table. The boxman's chip rack
-is part of the table: the rail runs deeper across the floor of his bay, as a ledge in front of him, with the
-rack cut into it. Signed
+is part of the table: the rail runs deeper across the floor of his bay, as a leather-padded ledge in front of him,
+with the rack cut into it and rimmed in brass. Signed
 off on Mike's Craps mockup (v1). The bet catalogue and
 payouts are in the docstring of `server/casino_server/engines/craps.py`; the table's flow is in `tables/craps.py`.
 
