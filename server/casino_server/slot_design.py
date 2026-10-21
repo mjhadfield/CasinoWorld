@@ -1049,6 +1049,8 @@ class DesignBoard(StepsMixin, SceneMixin, BuildMixin):
 
     def _set(self, d: Design, job: dict, **kw):
         with self.lock:
+            if all(job.get(k) == v for k, v in kw.items()):
+                return   # (a job waiting for FLUX is told so every 15 s: no need to write the design each time)
             job.update(kw)
             d.save()
 

@@ -11,6 +11,7 @@ Message shape both ways: a JSON object with a "type" field. See protocol.md.
 """
 
 import asyncio
+import contextlib
 import mimetypes
 import os
 from contextlib import asynccontextmanager
@@ -104,8 +105,15 @@ app = FastAPI(title="Casino World", lifespan=lifespan)
 
 
 async def _sender(ws: WebSocket, session: Session):
-    while True:
-        await ws.send_json(await session.queue.get())
+    """Sends the session's messages until it's cut off (None: see Session.push) or the socket fails, then closes the
+    socket, so the receive loop ends too and the client reconnects."""
+    try:
+        while (msg := await session.queue.get()) is not None:
+            await ws.send_json(msg)
+    except Exception:  # noqa: BLE001 -- whatever stopped it, the socket is no use now
+        pass
+    with contextlib.suppress(Exception):
+        await ws.close(code=1013)
 
 
 @app.websocket("/ws")

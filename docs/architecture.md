@@ -31,8 +31,10 @@ game result and every penny is decided on the server; the client only renders an
   threadpool and the worker), so it holds a lock; jobs are saved in each design's `design.json`, so a restart
   carries on where it stopped.
 - **Sessions (`session.py`)** each have an outgoing queue, so any handler can message any session without
-  awaiting. A hidden browser tab sends `away` and the server stops sending; on `resync` it sends a fresh
-  snapshot instead of minutes of stale events.
+  awaiting (from an admin request's worker thread too: the push is handed to the event loop). A hidden browser
+  tab sends `away` and the server stops sending; on `resync` it sends a fresh snapshot instead of minutes of
+  stale events. A client that stops reading without saying so is cut off once 2,000 messages are waiting, and
+  reconnects to a fresh snapshot.
 - **The world (`world.py`)** is every avatar on the floor: `{id, kind, name, look, x, y, dir, anim, seat,
   walk}`. Players move themselves and report it (`move`, about 10 times a second), and the server relays it.
   NPCs are sent walks instead (`entity_walk {id, target, duration}` to a named point or a seat). Each client
@@ -77,7 +79,7 @@ game result and every penny is decided on the server; the client only renders an
 
 ### Storage and money
 
-`store.py` is SQLite: players (one per device token), balances in integer pence, a ledger row for every
+`store.py` is SQLite (WAL, so a commit on the event loop costs microseconds; copy it with `.backup`): players (one per device token), balances in integer pence, a ledger row for every
 change in the same transaction (so balances always reconcile), the roster, and a `meta` table. The table
 games share one progressive jackpot (`jackpot.py`), worked out from elapsed time when read, with no
 background task. The slots have their own Mini/Minor/Major/Grand meters (`slots/jackpots.py`).
