@@ -23,6 +23,7 @@ const FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 ## MSDF text renders overlapping outlines with specks and stray marks.
 const CINZEL := preload("res://assets/fonts/Cinzel-SemiBold.ttf")
 const GRAIN := preload("res://assets/tiles/felt_grain.png")
+const LEATHER := preload("res://assets/tiles/leather_grain.png")   # tools/build_art.py
 const FELT := Color("93141f")
 const FELT_DEEP := Color("5c0a12")    # towards the rail
 const WOOD := Color("6e3a1e")
@@ -101,8 +102,7 @@ func paint() -> void:
 		_loop(CasinoTable.grown(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
 	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
 		Vector2(400, t.tray_rect().position.y + 3), Vector2(-400, t.tray_rect().position.y + 3)])
-	for part in Geometry2D.intersect_polygons(rail, dealer_side):
-		draw_colored_polygon(part, WOOD_PAD)
+	_padding(Geometry2D.intersect_polygons(rail, dealer_side))
 	_loop(_shifted(CasinoTable.grown(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
 
 	# The felt: crimson, darker towards the rail, with a woven grain.
@@ -125,6 +125,17 @@ func paint() -> void:
 
 	_draw_layout(t)
 	draw_set_transform(-position)
+
+
+## The leather padding on the dealer's side of the rail (`parts` of it), with a slight
+## pebbled grain.
+func _padding(parts: Array) -> void:
+	for part in parts:
+		draw_colored_polygon(part, WOOD_PAD)
+		var uv := PackedVector2Array()
+		for p in part:
+			uv.append(p / 10.0)
+		draw_colored_polygon(part, Color(1, 1, 1, 0.5), uv, LEATHER)
 
 
 ## A game's printed layout: its title, rules and every seat's spots.

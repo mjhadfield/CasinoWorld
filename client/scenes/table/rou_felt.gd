@@ -32,8 +32,7 @@ func paint() -> void:
 		_loop(RouTable.shape(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
 	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
 		Vector2(400, RouTable.FELT_TOP + 1.5), Vector2(-400, RouTable.FELT_TOP + 1.5)])
-	for part in Geometry2D.intersect_polygons(rail, dealer_side):
-		draw_colored_polygon(part, WOOD_PAD)
+	_padding(Geometry2D.intersect_polygons(rail, dealer_side))
 	_loop(_shifted(RouTable.shape(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
 	# The felt: crimson, darker towards the rail, with a woven grain; the brass bead.
 	var felt := RouTable.shape(0.0, true, 12)

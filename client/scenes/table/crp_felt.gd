@@ -38,8 +38,7 @@ func paint() -> void:
 	var bay := CrapsTable.BAY_HALF + CrapsTable.BAY_CORNER
 	dealer_side = Geometry2D.merge_polygons(dealer_side, PackedVector2Array([Vector2(-bay, -400), Vector2(bay, -400),
 		Vector2(bay, CrapsTable.BAY_FLOOR + 1.5), Vector2(-bay, CrapsTable.BAY_FLOOR + 1.5)]))[0]
-	for part in Geometry2D.intersect_polygons(rail, dealer_side):
-		draw_colored_polygon(part, WOOD_PAD)
+	_padding(Geometry2D.intersect_polygons(rail, dealer_side))
 	_loop(_shifted(CrapsTable.shape(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
 	# The felt: crimson, darker towards the rail, with a woven grain; the brass bead.
 	var felt := CrapsTable.shape(0.0, true, 12)

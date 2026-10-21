@@ -256,8 +256,8 @@ skin (and `--bonus` inside a bonus), and `put` saves a finished skin to the live
 
 ## Art
 `python3 tools/build_art.py` rebuilds the built-in character sheets (the player, the dealer and 8 NPC looks,
-in `LOOKS`), `client/assets/sprites/CREDITS.md`, the carpet and the felt grain (`build_art.py tiles` does just
-the tiles). The layers come from the Universal LPC Spritesheet Character Generator, pinned to one commit,
+in `LOOKS`), `client/assets/sprites/CREDITS.md`, the carpet, the felt grain and the leather grain
+(`build_art.py tiles` does just the tiles). The layers come from the Universal LPC Spritesheet Character Generator, pinned to one commit,
 under CC-BY-SA/GPL. Looks designed on the admin page are built by the server instead.
 
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art

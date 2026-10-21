@@ -6,7 +6,8 @@ How the tables are drawn and laid out in the client. The rules of each game are 
 
 The tables are drawn in code (`scenes/table/table_felt.gd` and each game's `*_felt.gd`), as is the room
 (`scenes/world/room.gd`), so they stay sharp at any zoom. The table is the "Mahogany & Brass" look: a wood
-rail with a brass bead, crimson felt, and cream printing in Cinzel (`client/assets/fonts/Cinzel-SemiBold.ttf`,
+rail with a brass bead (leather-padded on the dealer's side, with a slight pebbled grain from
+`assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`), crimson felt, and cream printing in Cinzel (`client/assets/fonts/Cinzel-SemiBold.ttf`,
 SIL Open Font License, see `Cinzel-OFL.txt`). It is a static instance of the variable font with overlapping
 outlines merged (`fonttools varLib.instancer Cinzel[wght].ttf wght=600 --remove-overlaps`), because MSDF text
 draws overlaps as specks.

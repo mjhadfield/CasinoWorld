@@ -7,6 +7,7 @@ Builds Casino World's generated art:
   client/assets/sprites/CREDITS.md              attribution for every LPC file used
   client/assets/tiles/carpet.png                the casino carpet tile (`build_art.py tiles` rebuilds just the tiles)
   client/assets/tiles/felt_grain.png            the grain drawn over the table felt
+  client/assets/tiles/leather_grain.png         the pebbled grain on the leather padding of the dealers' rail
 
 Characters are composited by the server's art module (server/casino_server/art.py)
 from the Universal LPC Spritesheet Character Generator's layers, pinned to one
@@ -128,6 +129,30 @@ def build_felt_grain():
     img.save(OUT_TILES / "felt_grain.png")
 
 
+def build_leather_grain():
+    """A 64x64 seamless pebbled grain for the leather padding on the dealers' rail: small
+    rounded pebbles (Voronoi cells over a tiled scatter of points), dark in the creases between
+    them and faintly lit on their tops towards the light, with soft alpha, drawn over the
+    leather colour."""
+    rng = random.Random(23)
+    size = 64
+    points = [(rng.uniform(0, size), rng.uniform(0, size)) for _ in range(110)]
+    tiled = [(x + dx * size, y + dy * size) for x, y in points for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+    img = Image.new("RGBA", (size, size))
+    px = img.load()
+    for y in range(size):
+        for x in range(size):
+            near = sorted(((x + 0.5 - qx) ** 2 + (y + 0.5 - qy) ** 2, qx, qy) for qx, qy in tiled)[:2]
+            crease = near[1][0] ** 0.5 - near[0][0] ** 0.5   # 0 on the line between two pebbles
+            if crease < 1.2:
+                px[x, y] = (0, 0, 0, round(150 * (1 - crease / 1.2)))
+            else:  # the pebble's top: lit on the side facing the light (up the screen)
+                lit = (near[0][2] - (y + 0.5)) / max(1.0, near[0][0] ** 0.5)
+                px[x, y] = (255, 230, 200, max(0, round(45 * lit + rng.gauss(0, 6))))
+    OUT_TILES.mkdir(parents=True, exist_ok=True)
+    img.save(OUT_TILES / "leather_grain.png")
+
+
 def main():
     OUT_CHARS.mkdir(parents=True, exist_ok=True)
     for name, spec in LOOKS.items():
@@ -140,13 +165,15 @@ def main():
     write_credits()
     build_carpet()
     build_felt_grain()
-    print(f"wrote {len(LOOKS)} looks, CREDITS.md, carpet.png and felt_grain.png")
+    build_leather_grain()
+    print(f"wrote {len(LOOKS)} looks, CREDITS.md, carpet.png, felt_grain.png and leather_grain.png")
 
 
 if __name__ == "__main__":
     if sys.argv[1:] in (["carpet"], ["tiles"]):  # just the tiles, no sprite downloads
         build_carpet()
         build_felt_grain()
-        print("wrote carpet.png and felt_grain.png")
+        build_leather_grain()
+        print("wrote carpet.png, felt_grain.png and leather_grain.png")
     else:
         main()
