@@ -1024,4 +1024,5 @@ def catalogue(builds_dir: Path | None = None) -> dict:
             "cabinet": CATALOGUE["cabinet"], "pieces": PIECES, "assets": ASSETS,
             "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM, "styles": WALL_STYLES},
             "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
+            "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
             "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS}

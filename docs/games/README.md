@@ -18,31 +18,24 @@ How the floor works and what every table has in common. Each game's rules are in
 
 ## The floor
 
-The main floor is 1900×1160 (`client/scenes/world/room.gd`). The nine card tables are in a 3×3 grid, and a
-fourth column to the east holds the wheel and the dice:
-- **Top row:** Three Card Poker, Blackjack, Mississippi Stud, then Roulette.
-- **Middle row:** Fortune Pai Gow, Face Up Pai Gow, Ultimate Texas Hold'em, then Craps.
-- **Bottom row:** Let It Ride, High Card Flush, Baccarat.
+The floor is built on the admin page's Floor plan tab (README, Admin page; `server/casino_server/plan.py`): rooms
+side by side on one plan, joined by doors and archways, with the tables and slot cabinets placed in them. A table's
+id is given when it's placed (`bj_6`, `slot_12`) and never used again. Players appear at the plan's spawn point
+(the lobby's, to start); NPCs come in at arrival points and wander between wander points.
 
-**The Blackjack pit room** is east of the main floor (1000×1160), through a doorway low in the shared wall. Its
-four blackjack tables stand close together in two rows facing apart across a narrow pit, with the dealers back to
-back and the pit boss at a podium between them. An invisible fence (`PitFence`, which only the navigation map sees)
-closes the gaps between the tables and the pit's ends, so NPCs never walk into the pit. Players can. The far row (`bj_2`, `bj_3`) is turned upside down, so its players sit on
-the north side.
-When you sit there, the view turns round so the table is the right way up, and it turns back when you stand. The
-near row (`bj_4`, `bj_5`) is the usual way round. The pit boss is decoration for now.
-
-The slot banks stand wherever the admin page's Floor tab puts them (the south-east corner, below Craps, is the
-open floor for them). When a table moves or changes shape, run `tools/floor_map.gd` so the Floor tab and its
-checks see it (README, Admin page).
-
-The entrance is below the bottom row (at x 700).
+The library keeps the old hand-built floor as two blueprints: **Classic floor** (1900×1160: the nine card tables in
+a 3×3 grid, Roulette and Craps in a fourth column, the first slot bank in the south-east corner, the entrance
+below the bottom row at x 700) and **Classic pit** (1000×1160, through an archway low in their shared wall: four
+blackjack tables in two rows facing apart, the far row turned, with the pit boss at a podium between them and an
+NPC-only zone closing the gaps). Players sitting at a turned table see the view turn round so it's the right way
+up, and turn back when they stand.
 
 ## Walking and sitting
 
-- **Walking:** WASD or arrow keys, or click/tap where you want to go. Click and hold to keep walking towards
-  the pointer: the view follows you, so you can cross the whole floor that way, sliding along anything in the
-  way. Your name tag comes from the welcome prompt on your first visit.
+- **Walking:** WASD or arrow keys, or click/tap where you want to go (a tap walks round things and through
+  doorways). Click and hold to keep walking towards the pointer: the view follows you, so you can cross the whole
+  floor that way, sliding along anything in the way. You see the room you're in, any joined to it by archways, and
+  the room through a door once you're in its doorway. Your name tag comes from the welcome prompt on your first visit.
 - **Taking a seat:** while you're walking, every free chair glows. Click one and you walk to its side; the
   chair swivels round to you, you sit side-on, and it turns you to the table. Or stand on a free chair and press **E**. Once you're sat, the camera glides onto the
   table, turning the view round first at a table that faces the other way. Other players and NPCs sit down the
@@ -81,7 +74,8 @@ NPCs, Settings).
 
 ## NPCs
 
-NPCs wander the floor, sit for a while, and leave. Each game's file says how they play it. They never take a
+NPCs come in at the floor plan's arrival points, wander between its wander points (by their weights, lingering
+as long as each says), sit for a while, and leave the way they came. Nobody comes in while there's no free seat. Each game's file says how they play it. They never take a
 table's last two free seats (or the last two free slot cabinets in a bank), so a real player can always sit
 down. Their budgets, styles and traits are on the admin page (README › Admin page).
 

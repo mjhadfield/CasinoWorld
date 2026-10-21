@@ -169,46 +169,42 @@ details summary { cursor: pointer; }
 .meters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .meter b { font: 600 20px var(--mono); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-/* Floor: the slot banks (slot_banks_web/banks.js) -- the floor map, the picked bank close up */
-.fl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
-.fl-grow { flex: 1 1 0; }
-#tab-floor .hint { color: var(--muted); font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
-.fl-cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .fl-cols { grid-template-columns: 1fr; } }
-.fl-mapcard { padding: 8px; }
-.fl-map, .fl-ed { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
-.fl-ed { max-height: 60vh; border-radius: 8px; cursor: crosshair; }
-.fl-room { fill: #6d1620; }
-.fl-walk { fill: none; stroke: rgba(255, 230, 190, .25); stroke-dasharray: 8 6; stroke-width: 2; }
-.fl-table { fill: #1f5a3c; stroke: #c9a24a; stroke-width: 2; opacity: .85; }
-.fl-ed .fl-table { stroke-width: .8; opacity: .6; }
-.fl-tname { fill: #f3e6c4; font: 600 20px var(--font); text-anchor: middle; pointer-events: none; }
-.fl-point circle { fill: none; stroke: #f3e6c4; stroke-width: 2; opacity: .6; }
-.fl-point text { fill: #f3e6c4; font: 15px var(--font); text-anchor: middle; opacity: .7; }
-.fl-bank { cursor: grab; }
-.fl-bankbox { fill: rgba(255, 255, 255, .04); stroke: rgba(243, 230, 196, .35); stroke-width: 2; stroke-dasharray: 6 4; }
-.fl-bank.on .fl-bankbox { stroke: #ffd36b; stroke-dasharray: none; fill: rgba(255, 211, 107, .12); }
-.fl-bname { fill: #f3e6c4; font: 600 16px var(--font); text-anchor: middle; }
-.fl-bank.on .fl-bname { fill: #ffd36b; }
-.fl-stool { fill: #7d130c; stroke: #c9a24a; stroke-width: .6; }
-.fl-art { fill: rgba(0, 0, 0, .18); stroke: rgba(243, 230, 196, .25); stroke-width: .5; stroke-dasharray: 2 2; }
-.fl-stand { fill: #f3e6c4; opacity: .7; }
-.fl-label { font: 700 6px var(--font); text-anchor: middle; pointer-events: none; }
-.fl-cab { cursor: move; }
-.fl-cab.picked > rect:not(.fl-art) { stroke: #fff; stroke-width: 1.6; }
-.fl-cab.picked .fl-art { stroke: #ffd36b; stroke-dasharray: none; stroke-width: .8; }
-.fl-cab.bad > rect:not(.fl-art) { stroke: #ff5a48; stroke-width: 2.5; }
-.fl-cab.bad .fl-art { stroke: #ff5a48; }
-.fl-grid line { stroke: rgba(243, 230, 196, .16); stroke-width: .4; }
-.fl-grid line.half { stroke: rgba(243, 230, 196, .07); }
-.fl-grid line.axis { stroke: rgba(255, 211, 107, .45); }
-.fl-palette { display: flex; flex-wrap: wrap; gap: 6px; }
-.fl-palette button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; }
-.fl-palette img { height: 22px; width: 64px; object-fit: contain; }
-.fl-swatch { width: 22px; height: 16px; border: 2px solid; border-radius: 3px; }
-.fl-problems { margin-top: 14px; border-color: var(--warn); }
-.fl-problems h3 { margin: 0; font-size: 15px; color: var(--warn); }
-.fl-problems ul { margin: 0; padding-left: 20px; font-size: 13px; }
+/* Floor plan (plan_web/plan.js): the bar, the side (rooms or palette), the canvas, the inspector, the problems */
+.pl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.pl-views { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.pl-views button { border: 0; border-radius: 0; background: transparent; }
+.pl-views button.on { background: var(--felt); color: #fff; }
+.pl-state { font: 13px var(--mono); color: var(--muted); } .pl-state.ok { color: var(--ok); } .pl-state.warn { color: var(--warn); }
+.pl-grow { flex: 1 1 0; }
+.pl-main { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; gap: 12px; align-items: start; }
+@media (max-width: 1150px) { .pl-main { grid-template-columns: 200px minmax(0, 1fr); } .pl-insp { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .pl-main { grid-template-columns: minmax(0, 1fr); } }
+.pl-side, .pl-insp { padding: 10px; display: grid; gap: 8px; align-content: start; max-height: 78vh; overflow: auto; }
+.pl-side h3, .pl-insp h3 { margin: 4px 0 0; font-size: 14px; }
+.pl-stage { padding: 8px; min-width: 0; }
+.pl-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.pl-tools button.on, .pl-cats button.on, .pl-palette button.on { background: var(--felt); color: #fff; border-color: var(--felt); }
+.pl-canvas { display: block; border-radius: 8px; touch-action: none; user-select: none; outline: none; }
+.pl-check { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
+.pl-rooms { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pl-rooms li { display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border-radius: 6px; }
+.pl-rooms li.on { background: var(--target); }
+.pl-roomname { border: 0; background: none; padding: 2px; font-weight: 600; text-align: left; flex: 1; }
+.pl-rooms li:not(.placed) .pl-roomname { font-weight: 400; color: var(--muted); }
+.pl-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.pl-cats button { padding: 2px 8px; font-size: 12px; }
+.pl-palette { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.pl-palette button { display: flex; align-items: center; gap: 8px; text-align: left; padding: 3px 6px; font-size: 13px; }
+.pl-palette img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.pl-swatch { width: 18px; height: 18px; border-radius: 4px; flex: none; }
+.pl-field { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 6px; align-items: center; font-size: 13px; }
+.pl-field input, .pl-field select { width: 100%; min-width: 0; }
+.pl-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+button.danger { color: var(--warn); }
+button.link { border: 0; background: none; padding: 0; color: inherit; text-align: left; text-decoration: underline dotted; cursor: pointer; }
+.pl-problems { margin-top: 12px; padding: 10px 14px; border-color: var(--warn); }
+.pl-problems h3 { margin: 0 0 4px; font-size: 14px; color: var(--warn); }
+.pl-problems ul { margin: 0; padding-left: 20px; font-size: 13px; }
 /* Tables: the table styles' designer (table_styles_web/designer.js) -- styles and placement, the table, the design */
 .ts { display: grid; grid-template-columns: 250px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 @media (max-width: 1250px) { .ts { grid-template-columns: 250px minmax(0, 1fr); } .ts-ctl { grid-column: 1 / -1; } }
@@ -259,7 +255,7 @@ details summary { cursor: pointer; }
   <a href="#npcs" data-tab="npcs">NPCs</a>
   <a href="#players" data-tab="players">Players</a>
   <a href="#slots" data-tab="slots">Slots</a>
-  <a href="#floor" data-tab="floor">Floor</a>
+  <a href="#plan" data-tab="plan">Floor plan</a>
   <a href="#design" data-tab="design">Slot design</a>
   <a href="#tables" data-tab="tables">Tables</a>
   <a href="#settings" data-tab="settings">Settings</a>
@@ -350,11 +346,12 @@ details summary { cursor: pointer; }
   </div>
 </section>
 
-<!-- ============================================================ floor -->
-<section class="tab" id="tab-floor" aria-label="Floor">
-  <p class="lead">The slot banks on the casino floor. A bank is any mix of slots, each cabinet facing any way: make one,
-    drag it where you want it on the floor, and save. Apply restarts the casino to put the saved banks on the floor.</p>
-  <div id="floor-app"></div>
+<!-- ============================================================ floor plan -->
+<section class="tab" id="tab-plan" aria-label="Floor plan">
+  <p class="lead">The casino's rooms, side by side on one plan, and what's in each: tables, slots, furniture, people,
+    doors and archways, and where NPCs walk. Changes go into a draft as you make them; Preview walks round it in the
+    game, and Publish puts it on the floor.</p>
+  <div id="plan-app"></div>
 </section>
 
 <!-- ============================================================ slot design -->
@@ -423,7 +420,7 @@ async function api(method, url, body, raw) {
 }
 
 // ---------------------------------------------------------------- tabs
-const TABS = ["sounds", "npcs", "players", "slots", "floor", "design", "tables", "settings"];
+const TABS = ["sounds", "npcs", "players", "slots", "plan", "design", "tables", "settings"];
 const loaded = {};
 function showTab() {
   const top = location.hash.slice(1).split("/")[0];   // #design/<design>/<step> is the Slot design tab
@@ -433,7 +430,7 @@ function showTab() {
     const a = document.querySelector(`nav a[data-tab="${t}"]`);
     if (t === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
-  if (!loaded[tab]) { loaded[tab] = true; ({sounds: Sounds.load, npcs: Npcs.load, players: Players.load, slots: Slots.load, floor: Floor.load, design: Design.load, tables: Tables.load, settings: Settings.load})[tab](); }
+  if (!loaded[tab]) { loaded[tab] = true; ({sounds: Sounds.load, npcs: Npcs.load, players: Players.load, slots: Slots.load, plan: Plan.load, design: Design.load, tables: Tables.load, settings: Settings.load})[tab](); }
   Npcs.polling(tab === "npcs");
   Design.polling(tab === "design");
 }
@@ -1443,11 +1440,11 @@ const Slots = (() => {
   return {load};
 })();
 
-// ================================================================ floor
-// The slot banks' editor lives in slot_banks_web/ (served at /slot-banks-ui/) and loads the first time the tab opens.
-const Floor = {
-  load: () => import("/slot-banks-ui/banks.js").then(m => { m.init({$, el, api, status}); return m.load(); })
-    .catch(e => status("Couldn't load the floor editor: " + e.message, "warn")),
+// ================================================================ floor plan
+// The Floor plan tab lives in plan_web/ (served at /plan-ui/) and loads the first time the tab opens.
+const Plan = {
+  load: () => import("/plan-ui/plan.js").then(m => { m.init({$, el, api, status}); return m.load(); })
+    .catch(e => status("Couldn't load the floor plan: " + e.message, "warn")),
 };
 
 // ================================================================ slot design

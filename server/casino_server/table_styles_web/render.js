@@ -230,7 +230,9 @@ function text(ctx, s, x, y, size, colour, D, opts = {}) {
 }
 
 // ---------------------------------------------------------------- the table
+let bare = false;   // (opts.bare: no carpet behind the table -- the Floor plan tab draws tables on its own floors)
 function drawCarpet(ctx, r) {
+  if (bare) return;
   ctx.fillStyle = "#1f3a3e"; ctx.fillRect(r[0], r[1], r[2], r[3]);
   ctx.fillStyle = pat(ctx, "carpet", 128); ctx.fillRect(r[0], r[1], r[2], r[3]);
 }
@@ -1081,6 +1083,7 @@ export function render(canvas, D, game, rect, opts = {}) {
   if (!canvas.clientWidth) canvas.style.width = cssW + "px";
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
+  bare = !!opts.bare;
   if (game === "rou" || game === "crp") { (game === "rou" ? drawRoulette : drawCraps)(ctx, D, rect, opts); return; }
   const S = CARD_SHAPE, ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
   drawCarpet(ctx, rect);

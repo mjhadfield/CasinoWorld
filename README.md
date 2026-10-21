@@ -59,7 +59,7 @@ Environment knobs:
 ## Admin page
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
 no password: it's open to anyone who can reach the server, the same as the game, which is fine on the LAN
-and Tailscale. It has six tabs:
+and Tailscale. It has eight tabs:
 - **Sounds:** the sound sets down the left: **Whole casino**, each table game, **Every slot machine** and each
   machine. A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
   own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
@@ -87,14 +87,26 @@ and Tailscale. It has six tabs:
   - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
 - **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
 - **Slots:** the jackpot meters, players' return on slots, and the symbol art set.
-- **Floor:** the slot banks. A bank is any mix of slots (Armadillo and every built slot), each cabinet facing any
-  way. The floor map shows the room, the tables and every bank: drag a bank to move it. The bank close up is a grid
-  of half a cabinet: click it to put down a cabinet of the picked slot, drag, turn (R), remove (Delete), or re-slot
-  the selected cabinets. Cabinets that would block a table, a walkway point, each other or a player's stool show
-  red and can't be saved (the server checks the same). **Save** keeps them in `<data>/slot_banks.json`; **Apply**
-  restarts the casino to put them on the floor. The map and the checks come from
-  `server/casino_server/floor_map.json`: after moving or reshaping a table, run
-  `cd client && godot --headless --path . -s ../tools/floor_map.gd`.
+- **Floor plan** (`#plan`): the casino's rooms and everything in them (`plan.py`; its UI in `plan_web/`). Changes
+  go into a draft as you make them (undo and redo, Ctrl+Z / Ctrl+Y); **Preview** opens the game on the draft in a
+  new tab (`/?preview=<room>`: walk round alone, nothing to play), and **Publish** puts it on the floor: at once if
+  only places changed, or by restarting the casino when tables or cabinets come or go. **History** puts an earlier
+  publish back in the draft; **Discard draft** goes back to the live floor.
+  - **Plan:** every room on the floor to scale. Drag rooms into place (32px steps, Shift for free); a door in one
+    room's wall joins the room whose wall runs along it (shown green). The rooms list holds the library too: new,
+    duplicate, place on the floor or take off it, delete. Pick where players appear (a spawn point).
+  - **Room:** one blueprint on a grid. The palette has the tables, every slot, the pit podium, standing figures
+    (any NPC on the roster, or a dealer) and the furniture library: click one and click the floor (or drag it in),
+    R turns it, Esc stops. Drag to move (8px steps, Shift for free), drag a box to pick several, arrows nudge,
+    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room. Tools: Door
+    (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
+    in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or
+    everyone does) and Floor patch. "Where NPCs can walk" shades everywhere they can reach from their arrival
+    points. The inspector edits whatever's picked, or the room (name, size, floor and tint, wall style, sign).
+  - Things in each other's way or off the floor show red at once; the server's problems list (seats or points
+    nobody can reach, doors that don't line up) blocks Publish until it's clear.
+  - The first run puts just the lobby on the floor (the spawn, with a door top centre) and keeps the old
+    hand-built floor and pit in the library as "Classic floor" and "Classic pit" (also git tag `classic-floor`).
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
