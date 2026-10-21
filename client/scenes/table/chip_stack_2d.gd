@@ -22,6 +22,16 @@ const MAX_LAYERS := 8
 	set(v):
 		caption = v
 		queue_redraw()
+@export var label := "":  # the top chip's words, in place of the amount ("-": none; craps: "5+10" on come odds)
+	set(v):
+		if v != label:
+			label = v
+			queue_redraw()
+@export var lift := 0.0:  # drawn this far up, sitting on another stack (craps: come odds on the come bet)
+	set(v):
+		if v != lift:
+			lift = v
+			queue_redraw()
 
 const TINT_RADIUS := 5.4
 const TINT_LAYER := 1.1
@@ -72,24 +82,35 @@ func _draw() -> void:
 
 
 func _draw_colour_chips() -> void:
-	var n := mini(6, breakdown(amount).size())
+	var n := tint_layers(amount)
 	var r := TINT_RADIUS
-	draw_set_transform(Vector2(0.5, 0.8), 0, Vector2(1, 0.62))
-	draw_circle(Vector2.ZERO, r + 0.3, Color(0, 0, 0, 0.35))
-	draw_set_transform(Vector2.ZERO)
+	if lift == 0.0:
+		draw_set_transform(Vector2(0.5, 0.8), 0, Vector2(1, 0.62))
+		draw_circle(Vector2.ZERO, r + 0.3, Color(0, 0, 0, 0.35))
+		draw_set_transform(Vector2.ZERO)
 	for i in n:
-		var y := -i * TINT_LAYER
+		var y := -i * TINT_LAYER - lift
 		draw_circle(Vector2(0, y), r, tint)
 		draw_arc(Vector2(0, y), r, 0, TAU, 24, Color(0, 0, 0, 0.35), 0.35, true)
-	var top := Vector2(0, -(n - 1) * TINT_LAYER)
+	var top := Vector2(0, -(n - 1) * TINT_LAYER - lift)
 	for k in 6:  # the edge inserts
 		var a := k * TAU / 6.0
 		draw_arc(top, r - 0.6, a, a + 0.32, 4, Color(1, 1, 1, 0.85), 1.1)
 	draw_circle(top, r - 2.0, Color(1, 1, 1, 0.28))
-	var label := _label(amount)
-	var size := 3 if label.length() > 3 else 4
-	var w := FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	draw_string(FONT, top + Vector2(-w / 2, size * 0.36), label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("1a0b05"))
+	if label == "-":
+		return
+	var text := label if label != "" else _label(amount)
+	var size := 3 if text.length() > 3 else 4
+	var w := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	if w > 2 * r - 1:   # (a long one, "25+125", shrinks to fit the chip)
+		size = maxi(2, int(size * (2 * r - 1) / w))
+		w = FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_string(FONT, top + Vector2(-w / 2, size * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color("1a0b05"))
+
+
+## How many chips a colour stack worth `pence` shows (engines/craps.tint_layers).
+static func tint_layers(pence: int) -> int:
+	return mini(6, breakdown(pence).size())
 
 
 static func _label(pence: int) -> String:

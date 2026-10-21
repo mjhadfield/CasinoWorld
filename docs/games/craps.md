@@ -19,8 +19,14 @@ debit per seat per roll), and taking a paid-for bet down refunds it at once.
   where you can take odds on them.
 - **Place** 4/10 9 to 5, 5/9 7 to 5, 6/8 7 to 6. **Buy** pays true odds and **Lay** true odds against, for a
   5% vig. Each number box is split as in a casino, and a click on a strip is that bet: Lay along the top (where
-  don't come bets go too), Place on the number (with come bets), Buy along the bottom.
-- **Odds on a come bet:** click your own come (or don't come) chip on its number.
+  don't come bets go too), Place on the number, Buy along the bottom.
+- **On a number box** the chips are drawn smaller (0.5 scale, 0.6 elsewhere; a come bet shrinks as it travels
+  there), each player's across the box by where they stand: come bets in a row above the number, place bets in a
+  row below it, so the number stays readable. The ON puck sits in the point's box's top corner nearer the middle,
+  clear of both rows.
+- **Odds on a come bet:** click your own come (or don't come) chip on its number. The odds sit on top of it,
+  half a chip in towards the box's middle, and the pair shares one tag in your colour saying both ("5+10")
+  instead of the chips' own numbers.
 - **Field** (3, 4, 9, 10, 11 even money; 2 double, 12 triple), **Big 6** and **Big 8**.
 - **Hardways** (4/10 7 to 1, 6/8 9 to 1) and the one-roll props: Any 7, Any Craps, 2, 3, 11, 12, Horn, C&E.
 - £5 minimum on the main bets, £1 on hardways and props.
@@ -37,8 +43,9 @@ debit per seat per roll), and taking a paid-for bet down refunds it at once.
   comes back if the bet's taken down). When a lay wins, the next decision's vig is taken off the win the same way,
   to keep it up. Either way it's one vig per decision: buy 4/10 1.67%, 5/9 2%, 6/8 2.27% of the bet; lay 4/10
   2.5%, 5/9 3.33%, 6/8 4.17% of the bet (2.44%, 3.23%, 4% of the bet and vig together).
-- Place and buy bets, hardways and come odds are off on the come-out unless you mark them **working**; lay
-  bets, Big 6/8 and the props always work. Winning bets stay up and only the winnings come back, except come
+- Place and buy bets, hardways and come odds are off on the come-out unless you mark them **working** (the
+  dealer's OFF button sits on each, over the chips); come and don't come bets themselves, don't come odds, lay
+  bets, Big 6/8 and the props always work, as in Vegas (a come-out 7 takes a come bet and returns its odds). Winning bets stay up and only the winnings come back, except come
   bets and their odds, which come back with them.
 
 ## A roll

@@ -74,6 +74,10 @@ const MIN_MAIN := 500            # engines/craps.MIN_MAIN (hardways, props and o
 const SEAT_COLOURS := [Color("5ab0e8"), Color("f2c14e"), Color("ef7aa0"), Color("5fd3a0"),
 	Color("a98ef2"), Color("e8935a"), Color("e85a5a"), Color("9ad94f")]
 const CHIP_SCALE := 0.6
+const BOX_CHIP_SCALE := 0.5      # smaller on the number boxes, so the rows clear each other and the number
+const ODDS_DX := 2.7             # come odds sit on the come bet, half a chip in towards the box's middle
+const PUCK_R := 3.4
+const OFF_AT := Vector2(2.6, -3.4)   # the dealer's OFF button on a bet, from it (for a CHIP_SCALE chip)
 # The settle's pace (the server's Timings).
 const T_CALL := 1.4
 const T_SWEEP := 1.0
@@ -98,6 +102,9 @@ var result_text := ""
 var _locked := {}                # the local player's bets that are already paid for
 var _puck := {1: Vector2(49, -106), -1: Vector2(-49, -106)}
 var _bet_size := {}              # seat -> the biggest bet (not odds) they've had down since sitting
+var _marks: Node2D               # over the chips: the OFF buttons and the come-and-odds tags
+var _off_drawn := []             # the OFF buttons shown: [[at, radius], ...]
+var _tags_drawn := []            # the tags shown: [[at, text, seat], ...]
 var _rail_drawn := {}            # what the chip rail shows: seat -> bet size
 var _rail: Node2D                # the chips in the rail (redrawn only when they change)
 
@@ -115,6 +122,11 @@ func _ready() -> void:
 	_rail.position = -_felt.position
 	_rail.draw.connect(_draw_rail)
 	_felt.add_child(_rail)
+	_marks = Node2D.new()   # (over the chips, which are drawn over the table's own drawing)
+	_marks.position = -_felt.position
+	_marks.z_index = 1
+	_marks.draw.connect(_draw_marks)
+	_felt.add_child(_marks)
 	dice.knock.connect(func(kind: String, strength: float):
 		sfx_at("dice_land" if kind == "land" else "dice_bounce", to_global(Vector2(0, -60)), lerpf(-12.0, 0.0, strength)))
 	dealer.set_action("idle", "up")
@@ -488,9 +500,13 @@ static func region_at(p: Vector2) -> Dictionary:
 func region_here(p: Vector2) -> Dictionary:
 	if my_seat >= 0:
 		for spot in _chips_for(my_seat):
-			if (spot.begins_with("come_") or spot.begins_with("dcome_")) and not "odds" in spot \
-					and p.distance_to(spot_pos(my_seat, spot)) <= ChipStack2D.TINT_RADIUS * CHIP_SCALE + 0.5:
-				return {"id": spot.replace("come_", "come_odds_"), "h": half(my_seat)}
+			if not (spot.begins_with("come_") or spot.begins_with("dcome_")):
+				continue
+			var odds: String = spot.replace("come_", "come_odds_") if not "odds" in spot else spot
+			var stack: ChipStack2D = _chips_for(my_seat)[spot]
+			var top := stack.position - Vector2(0, stack.lift * stack.scale.y)   # (the odds, sitting on it)
+			if p.distance_to(top) <= ChipStack2D.TINT_RADIUS * stack.scale.x + 0.5:
+				return {"id": odds, "h": half(my_seat)}
 	return region_at(p)
 
 
@@ -543,16 +559,131 @@ func spot_pos(seat: int, spot: String) -> Vector2:
 	if spot.begins_with("lay_"):
 		return Vector2(box_cx(n, h) + fan, -113.5)
 	if spot.begins_with("dcome_odds_"):
-		return Vector2(box_cx(n, h) + fan + 1.4, -113)
+		return Vector2(box_cx(n, h) + fan - signf(fan) * ODDS_DX, -111.5)
 	if spot.begins_with("dcome_"):
 		return Vector2(box_cx(n, h) + fan, -111.5)
 	if spot.begins_with("come_odds_"):
-		return Vector2(box_cx(n, h) + fan + 1.4, -107)
+		return Vector2(box_cx(n, h) + fan - signf(fan) * ODDS_DX, -106)
 	if spot.begins_with("come_"):
-		return Vector2(box_cx(n, h) + fan, -105.5)
+		return Vector2(box_cx(n, h) + fan, -106)
 	if spot.begins_with("buy_"):
 		return Vector2(box_cx(n, h) + fan, -91)
-	return Vector2(box_cx(n, h) + fan, -99)   # place
+	return Vector2(box_cx(n, h) + fan, -98)   # place
+
+
+## How big a stack is drawn at `p`: smaller on the number boxes (it shrinks as a come bet travels there).
+func chip_scale_at(p: Vector2) -> float:
+	for n in NUMS:
+		for h in [1, -1]:
+			if number_box(n, h).has_point(p):
+				return BOX_CHIP_SCALE
+	return CHIP_SCALE
+
+
+## Odds on a come (or don't come) bet sit on top of it, with one tag for both ("5+10").
+func _dress_chips(delta: float) -> void:
+	for child in _dyn.get_children():
+		if child is ChipStack2D:
+			var want := chip_scale_at(child.position)
+			var k := move_toward(child.scale.x, want, delta * 0.6) if child.has_meta("dressed") else want
+			child.set_meta("dressed", true)
+			if k != child.scale.x:
+				child.scale = Vector2(k, k)
+	for seat in _seat_chips:
+		var chips: Dictionary = _seat_chips[seat]
+		for spot in chips:
+			if not "odds_" in spot or not (spot.begins_with("come_") or spot.begins_with("dcome_")):
+				continue
+			var odds: ChipStack2D = chips[spot]
+			var base: ChipStack2D = chips.get(spot.replace("odds_", ""))
+			if not is_instance_valid(odds):
+				continue
+			if base and is_instance_valid(base):
+				base.label = "-"   # (the pair's tag says both: _odds_tags)
+				odds.label = "-"
+				odds.lift = ChipStack2D.tint_layers(base.amount) * ChipStack2D.TINT_LAYER
+				if odds.get_index() < base.get_index():
+					_dyn.move_child(odds, base.get_index())
+			elif odds.label == "-":
+				odds.label = ""
+				odds.lift = 0.0
+		for spot in chips:   # (a come bet whose odds have gone shows its own label again)
+			var stack: ChipStack2D = chips[spot]
+			if is_instance_valid(stack) and stack.label == "-" and not chips.has(spot.replace("come_", "come_odds_")):
+				stack.label = ""
+
+
+func _set_stack(seat: int, spot: String, amount: int, at := Vector2.INF) -> void:
+	super._set_stack(seat, spot, amount, at)
+	var stack: ChipStack2D = _chips_for(seat).get(spot)
+	if stack and not stack.has_meta("dressed"):   # (put down at its size, not grown and shrunk)
+		var k := chip_scale_at(stack.position)
+		stack.scale = Vector2(k, k)
+		stack.set_meta("dressed", true)
+
+
+## The dealer's OFF buttons on bets that aren't working this come-out: [[at, radius], ...].
+func _off_buttons() -> Array:
+	var out := []
+	if point > 0:
+		return out
+	for seat in _seat_chips:
+		if working.get(seat, false):
+			continue
+		for spot in _seat_chips[seat]:
+			var stack: ChipStack2D = _seat_chips[seat][spot]
+			if off_on_come_out(spot) and is_instance_valid(stack):
+				out.append(_off_button(stack))
+	return out
+
+
+## A tag over each come (or don't come) bet with odds on it, saying both: [[at, "5+10", seat], ...].
+func _odds_tags() -> Array:
+	var out := []
+	for seat in _seat_chips:
+		var chips: Dictionary = _seat_chips[seat]
+		for spot in chips:
+			var odds: ChipStack2D = chips[spot]
+			var base: ChipStack2D = chips.get(spot.replace("odds_", ""))
+			if not "odds_" in spot or base == odds or not base or not is_instance_valid(base) or not is_instance_valid(odds):
+				continue
+			var top := func(stack: ChipStack2D) -> Vector2:
+				return stack.position - Vector2(0, (stack.lift + (ChipStack2D.tint_layers(stack.amount) - 1) * ChipStack2D.TINT_LAYER) * stack.scale.y)
+			out.append([(top.call(base) + top.call(odds)) / 2,
+				"%s+%s" % [ChipStack2D._label(base.amount), ChipStack2D._label(odds.amount)], seat])
+	return out
+
+
+func _draw_marks() -> void:
+	for tag in _tags_drawn:
+		var size := 2.4   # (a bit bigger than a chip's own number at full size, whatever the chips' scale)
+		var px := ceili(size * 4)
+		var k := size / px
+		var w := Card2D.FONT.get_string_size(tag[1], HORIZONTAL_ALIGNMENT_LEFT, -1, px).x * k
+		var box := TableFelt._rounded(Rect2(tag[0] - Vector2(w / 2 + 0.8, 1.75), Vector2(w + 1.6, 3.5)), 1.6)
+		_marks.draw_colored_polygon(box, Color(0.07, 0.05, 0.04, 0.88))
+		box.append(box[0])
+		_marks.draw_polyline(box, SEAT_COLOURS[int(tag[2]) % SEAT_COLOURS.size()], 0.35, true)
+		_marks.draw_set_transform(tag[0], 0, Vector2(k, k))
+		_marks.draw_string(Card2D.FONT, Vector2(-w / k / 2, px * 0.36), tag[1], HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color("f6f2e8"))
+		_marks.draw_set_transform(Vector2.ZERO)
+	for button in _off_drawn:
+		var at: Vector2 = button[0]
+		var r: float = button[1]
+		_marks.draw_circle(at, r, Color("111111"))
+		_marks.draw_arc(at, r, 0, TAU, 16, BRASS_RING, 0.3, true)
+		var px := maxi(1, ceili(2.4 * r / 1.9))
+		var k := 1.2 * r / 1.9 / px
+		var w := Card2D.FONT.get_string_size("OFF", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+		_marks.draw_set_transform(at + Vector2(0, 0.1), 0, Vector2(k, k))
+		_marks.draw_string(Card2D.FONT, Vector2(-w / 2, px * 0.36), "OFF", HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color.WHITE)
+		_marks.draw_set_transform(Vector2.ZERO)
+
+
+## Where a stack's OFF button goes, and how big it is, by the stack's size.
+func _off_button(stack: ChipStack2D) -> Array:
+	var k := stack.scale.x / CHIP_SCALE
+	return [stack.position + OFF_AT * k - Vector2(0, stack.lift * stack.scale.y), 1.9 * k]
 
 
 func payout_pos(seat: int, spot: String, _bonus := false) -> Vector2:
@@ -916,6 +1047,13 @@ func _process(delta: float) -> void:
 	if h != hover:
 		hover = h
 		_felt.queue_redraw()
+	_dress_chips(delta)
+	var buttons := _off_buttons()
+	var tags := _odds_tags()
+	if buttons != _off_drawn or tags != _tags_drawn:
+		_off_drawn = buttons
+		_tags_drawn = tags
+		_marks.queue_redraw()
 	var rail := _rail_contents()
 	if rail != _rail_drawn:
 		_rail_drawn = rail
@@ -996,7 +1134,10 @@ func _draw_rail() -> void:
 
 # ------------------------------------------------------------------ overlays
 func _puck_target(h: int) -> Vector2:
-	return Vector2(box_cx(point, h), -102) if point > 0 else Vector2(mx(49, h), -106)   # (ON: on the number)
+	if point < 0:
+		return Vector2(mx(49, h), -106)   # OFF, in the Don't Come box
+	var inner := box_x(point, h) if h == 1 else box_x(point, h) + BOXW   # ON: the number box's top corner nearer the middle
+	return Vector2(inner + mx(PUCK_R + 0.6, h), -112.5)
 
 
 func _puck_moving() -> bool:
@@ -1019,19 +1160,10 @@ func _draw_game(now: float, _pulse: float) -> void:
 		_puck[h] = _puck[h].lerp(_puck_target(h), 0.12)
 		var p: Vector2 = _puck[h]
 		var on := point > 0
-		_disc(p + Vector2(0.5, 0.9), 4.4, Color(0, 0, 0, 0.4))
-		_disc(p, 4.4, Color("f6f2e8") if on else Color("121010"))
-		draw_arc(p, 3.6, 0, TAU, 32, Color("121010") if on else Color("f6f2e8"), 0.5, true)
-		_label(p + Vector2(0, 0.2), "ON" if on else "OFF", 2.8 if on else 2.3, Color("121010") if on else Color("f6f2e8"))
-	# The dealer's OFF button on bets that aren't working this come-out (a buy or lay bet
-	# needs no button: it's in its own strip of the number box).
-	for seat in _seat_chips:
-		for spot in _seat_chips[seat]:
-			if point < 0 and off_on_come_out(spot) and not working.get(seat, false):
-				var at: Vector2 = _seat_chips[seat][spot].position + Vector2(2.6, -3.4)
-				_disc(at, 1.9, Color("111111"))
-				draw_arc(at, 1.9, 0, TAU, 16, BRASS_RING, 0.3, true)
-				_label(at + Vector2(0, 0.1), "OFF", 1.2, Color.WHITE)
+		_disc(p + Vector2(0.4, 0.7), PUCK_R, Color(0, 0, 0, 0.4))
+		_disc(p, PUCK_R, Color("f6f2e8") if on else Color("121010"))
+		draw_arc(p, PUCK_R - 0.7, 0, TAU, 32, Color("121010") if on else Color("f6f2e8"), 0.4, true)
+		_label(p + Vector2(0, 0.15), "ON" if on else "OFF", 2.2 if on else 1.8, Color("121010") if on else Color("f6f2e8"))
 	# The stickman's stick, out towards the dice.
 	var hand := dealer.position + Vector2(7, -1)
 	var tip := Vector2(9.5, -14) if phase != "throwing" else Vector2(7, -5)
@@ -1048,9 +1180,10 @@ func _draw_game(now: float, _pulse: float) -> void:
 	# A ghost of your chip where it would go.
 	if not hover.is_empty() and my_seat >= 0:
 		var at := spot_pos(my_seat, spot_for(hover.id)) - Vector2(0, 1.2)
+		var r := ChipStack2D.TINT_RADIUS * chip_scale_at(at)
 		var c: Color = SEAT_COLOURS[my_seat % SEAT_COLOURS.size()]
-		_disc(at, ChipStack2D.TINT_RADIUS * CHIP_SCALE, Color(c, 0.55))
-		draw_arc(at, ChipStack2D.TINT_RADIUS * CHIP_SCALE - 0.4, 0, TAU, 24, Color(1, 1, 1, 0.5), 0.6, true)
+		_disc(at, r, Color(c, 0.55))
+		draw_arc(at, r - 0.4, 0, TAU, 24, Color(1, 1, 1, 0.5), 0.6, true)
 		var aim := spot_for(hover.id)   # (what the click adds, in the bet's proper unit)
 		var old := int(_chips_for(my_seat)[aim].amount) if _chips_for(my_seat).has(aim) else 0
 		_label(at + Vector2(0, 0.1), ChipStack2D._label(maxi(step_bet(aim, old, chip_value, true) - old, 0)), 2.4,

@@ -310,6 +310,19 @@ PROP_AT = {"any7": (0, -102.75), "hard6": (-19, -93), "hard10": (19, -93), "hard
            "two": (-19, -66), "twelve": (19, -66), "three": (-19, -53.5), "eleven": (19, -53.5),
            "any_craps": (0, -42.5), "horn": (-19, -32), "ce": (19, -32)}   # the prop box's rows' centres
 PAYOUT_AT = (4.5, -3.5)            # where the dealer puts winnings, from the bet
+CHIP_SCALE, BOX_CHIP_SCALE = 0.6, 0.5   # a stack's size; smaller on the number boxes
+ODDS_DX = 2.7                      # come odds sit on the come bet, half a chip in towards the box's middle
+TINT_LAYER = 1.1                   # each chip up a stack (ChipStack2D, before scaling)
+DENOMS = (50000, 10000, 2500, 500, 100)   # the chips (ChipButton.COLOURS)
+
+
+def tint_layers(amount: int) -> int:
+    """How many chips a seat's stack worth `amount` shows (ChipStack2D.tint_layers)."""
+    n, left = 0, amount
+    for d in DENOMS:
+        while left >= d and n < 8:
+            n, left = n + 1, left - d
+    return min(6, max(n, 1 if amount > 0 else 0))
 
 
 def chip_pos(seat: int, spot: str) -> tuple[float, float]:
@@ -332,11 +345,12 @@ def chip_pos(seat: int, spot: str) -> tuple[float, float]:
         return px + (7 - seat - 3.5) * 3.6, py + 1
     n = number_of(spot)
     cx = (60 if h == 1 else -184) + NUMBERS.index(n) * BOX_W + BOX_W / 2 + fan
-    for prefix, dx, y in (("lay_", 0, -113.5), ("dcome_odds_", 1.4, -113), ("dcome_", 0, -111.5),
-                          ("come_odds_", 1.4, -107), ("come_", 0, -105.5), ("buy_", 0, -91)):
+    odds_dx = -math.copysign(ODDS_DX, fan)
+    for prefix, dx, y in (("lay_", 0, -113.5), ("dcome_odds_", odds_dx, -111.5), ("dcome_", 0, -111.5),
+                          ("come_odds_", odds_dx, -106), ("come_", 0, -106), ("buy_", 0, -91)):
         if spot.startswith(prefix):
             return cx + dx, y
-    return cx, -99   # place
+    return cx, -98   # place
 
 
 def chips_on_table(seat_bets: dict) -> list[tuple[float, float]]:
@@ -348,9 +362,20 @@ OFF_BUTTON_AT = (2.6, -3.4)        # the dealer's OFF button on a bet that's off
 
 
 def off_buttons(seat_bets: dict, working: dict) -> list[tuple[float, float]]:
-    """The OFF buttons on the layout coming out: {seat: bets}, {seat: working} -> [(x, y), ...]."""
-    return [(x + OFF_BUTTON_AT[0], y + OFF_BUTTON_AT[1]) for seat, bets in seat_bets.items() if not working.get(seat)
-            for spot, a in bets.items() if a and off_on_come_out(spot) for x, y in [chip_pos(seat, spot)]]
+    """The OFF buttons on the layout coming out: {seat: bets}, {seat: working} -> [(x, y), ...].
+    They go by the stack's size (crp_table.gd's _off_button), and come odds sit on their bet."""
+    out = []
+    for seat, bets in seat_bets.items():
+        if working.get(seat):
+            continue
+        for spot, a in bets.items():
+            if a and off_on_come_out(spot):
+                x, y = chip_pos(seat, spot)
+                k = BOX_CHIP_SCALE / CHIP_SCALE if number_of(spot) and not spot.startswith("hard") else 1.0
+                lift = tint_layers(bets.get(spot.replace("odds_", ""), 0)) * TINT_LAYER * BOX_CHIP_SCALE \
+                    if spot.startswith("come_odds_") else 0.0
+                out.append((x + OFF_BUTTON_AT[0] * k, y + OFF_BUTTON_AT[1] * k - lift))
+    return out
 
 
 def pucks_at(point: int | None) -> list[tuple[float, float]]:
@@ -358,7 +383,8 @@ def pucks_at(point: int | None) -> list[tuple[float, float]]:
     in the Don't Come box, at each end."""
     if point is None:
         return [(49.0 * h, -106.0) for h in (1, -1)]
-    return [((60 if h == 1 else -184) + NUMBERS.index(point) * BOX_W + BOX_W / 2, -102.0) for h in (1, -1)]
+    inner = lambda h: (60 if h == 1 else -184) + NUMBERS.index(point) * BOX_W + (0 if h == 1 else BOX_W)
+    return [(inner(h) + h * (PUCK_R + 0.6), -112.5) for h in (1, -1)]   # ON: the box's top corner nearer the middle
 
 
 def puck_slide(was: int | None, now: int | None) -> list[tuple[float, float]]:
@@ -388,7 +414,8 @@ WALL_X = 183.5                    # the inside face of the pyramids at each end
 FELT_Y = (-111.0, -15.0)          # where the dice may come to rest
 HAND_Y = -13.0                    # the shooter's hand, reaching in clear of the heads at the rail (CrapsDice.HAND_Y)
 HIT = 6.6                         # a die's middle comes no closer than this to a stack's (chip 3.3 + die 3.3)
-PUCK_HIT = 7.7                    # ...or to a puck's (puck 4.4 + die 3.3)
+PUCK_R = 3.4
+PUCK_HIT = PUCK_R + 3.3           # ...or to a puck's
 BUTTON_HIT = 5.2                  # ...or to an OFF button's (button 1.9 + die 3.3)
 
 

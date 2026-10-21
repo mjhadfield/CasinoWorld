@@ -236,10 +236,12 @@ def test_the_dice_bounce_off_the_pucks_and_never_stop_where_one_is_or_will_be(se
 def test_the_pucks_sit_where_the_client_draws_them():
     assert cr.pucks_at(None) == [(49, -106), (-49, -106)]
     flat = lambda ps: [v for p in ps for v in p]
-    assert flat(cr.pucks_at(4)) == pytest.approx([60 + cr.BOX_W / 2, -102, -184 + cr.BOX_W / 2, -102])
-    assert flat(cr.pucks_at(10)) == pytest.approx([184 - cr.BOX_W / 2, -102, -60 - cr.BOX_W / 2, -102])
+    # ON: the top corner of the point's box nearer the table's middle, clear of the come bets' row.
+    assert flat(cr.pucks_at(4)) == pytest.approx([64, -112.5, -184 + cr.BOX_W - 4, -112.5])
+    assert flat(cr.pucks_at(10)) == pytest.approx([184 - cr.BOX_W + 4, -112.5, -60 - 4, -112.5])
+    assert all(abs(y - cr.chip_pos(0, "come_6")[1]) >= cr.PUCK_R + 5.4 * cr.BOX_CHIP_SCALE for _, y in cr.pucks_at(6))
     way = cr.puck_slide(None, 6)
-    assert way[0] == (49, -106) and way[-1] == pytest.approx((-184 + 2.5 * cr.BOX_W, -102))
+    assert way[0] == (49, -106) and way[-1] == pytest.approx((-184 + 3 * cr.BOX_W - 4, -112.5))
     assert all(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 <= 3 for a, b in zip(way, way[1:]) if a[0] * b[0] > 0)
 
 
@@ -402,7 +404,7 @@ def test_chip_positions_match_the_layout():
     assert cr.chip_pos(0, "pass") == (164, -20) and cr.chip_pos(7, "pass_odds") == (-164, -7.5)
     assert cr.chip_pos(3, "field") == (56, -48) and cr.chip_pos(4, "come") == (-56, -72)
     assert cr.chip_pos(0, "field") == (142, -48)          # kept inside the Field
-    assert cr.chip_pos(1, "place_6") == (60 + 2 * cr.BOX_W + cr.BOX_W / 2 + 2.2, -99)
+    assert cr.chip_pos(1, "place_6") == (60 + 2 * cr.BOX_W + cr.BOX_W / 2 + 2.2, -98)
     assert cr.chip_pos(0, "hard8") == (-19 + 3.5 * 3.6, -79)
 
 
@@ -410,13 +412,27 @@ def test_chip_positions_match_the_layout():
 def test_the_number_box_chips_and_off_buttons_sit_where_the_client_draws_them():
     # The dice bounce off what crp_table.gd draws, so read its numbers rather than copy them.
     gd = (Path(__file__).parents[2] / "client/scenes/table/crp_table.gd").read_text()
-    drawn = dict(re.findall(r'begins_with\("(\w+_)"\):\n\t\treturn Vector2\(box_cx\(n, h\) \+ fan(?: \+ [\d.]+)?, (-[\d.]+)\)', gd))
+    drawn = dict(re.findall(r'begins_with\("(\w+_)"\):\n\t\treturn Vector2\(box_cx\(n, h\) \+ fan(?: - signf\(fan\) \* ODDS_DX)?, (-[\d.]+)\)', gd))
     drawn["place_"] = re.search(r'return Vector2\(box_cx\(n, h\) \+ fan, (-[\d.]+)\)   # place', gd).group(1)
     assert set(drawn) == {"lay_", "dcome_odds_", "dcome_", "come_odds_", "come_", "buy_", "place_"}
     for prefix, y in drawn.items():
         assert cr.chip_pos(0, f"{prefix}6")[1] == float(y), prefix
-    dx, dy = re.search(r"_seat_chips\[seat\]\[spot\]\.position \+ Vector2\(([\d.-]+), ([\d.-]+)\)", gd).groups()
+    const = lambda name, src=gd: float(re.search(rf"const {name} := ([\d.]+)", src).group(1))
+    dx, dy = re.search(r"const OFF_AT := Vector2\(([\d.-]+), ([\d.-]+)\)", gd).groups()
     assert cr.OFF_BUTTON_AT == (float(dx), float(dy))
+    assert (cr.CHIP_SCALE, cr.BOX_CHIP_SCALE, cr.ODDS_DX, cr.PUCK_R) == tuple(
+        const(c) for c in ("CHIP_SCALE", "BOX_CHIP_SCALE", "ODDS_DX", "PUCK_R"))
+    # Come odds go half a chip in towards the box's middle, from either end's outside seats.
+    for seat in (0, 3, 4, 7):
+        (bx, _), (ox, _) = cr.chip_pos(seat, "come_6"), cr.chip_pos(seat, "come_odds_6")
+        middle = cr.chip_pos(seat, "come_6")[0] - ((3 - seat % 4) - 1.5) * 4.4
+        assert abs(ox - middle) == pytest.approx(abs(bx - middle) - cr.ODDS_DX)
+    # How tall a stack is (the odds sit on top of the come bet): ChipStack2D's chips and layers.
+    stack = (Path(__file__).parents[2] / "client/scenes/table/chip_stack_2d.gd").read_text()
+    assert const("TINT_LAYER", stack) == cr.TINT_LAYER
+    chips = (Path(__file__).parents[2] / "client/scenes/ui/chip_button.gd").read_text()
+    assert sorted(int(v) for v in re.findall(r"^\t(\d+): \[Color", chips, re.M)) == sorted(cr.DENOMS)
+    assert [cr.tint_layers(a) for a in (0, 100, 500, 600, 1500, 2600, 99900)] == [0, 1, 1, 2, 3, 2, 6]
 
 
 @pytest.mark.parametrize("seed", range(24))
