@@ -34,6 +34,9 @@ func paint() -> void:
 		_loop(CrapsTable.shape(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
 	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
 		Vector2(400, CrapsTable.FELT_TOP + 1.5), Vector2(-400, CrapsTable.FELT_TOP + 1.5)])
+	var ledge := CrapsTable.BAY_HALF - r   # the ledge across the bay's floor is polished wood, like the rack cut into it
+	dealer_side = Geometry2D.clip_polygons(dealer_side, PackedVector2Array([Vector2(-ledge, CrapsTable.FELT_TOP - r),
+		Vector2(ledge, CrapsTable.FELT_TOP - r), Vector2(ledge, 0), Vector2(-ledge, 0)]))[0]
 	for part in Geometry2D.intersect_polygons(rail, dealer_side):
 		draw_colored_polygon(part, WOOD_PAD)
 	_loop(_shifted(CrapsTable.shape(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
@@ -76,7 +79,7 @@ func paint() -> void:
 			draw_colored_polygon(part, RECESS)
 		draw_polyline(CrapsTable.groove_path(h, CrapsTable.GROOVE_OUT - hw + 0.5), Color(0, 0, 0, 0.6), 0.6, true)
 		draw_polyline(CrapsTable.groove_path(h, CrapsTable.GROOVE_OUT + hw + 0.3), Color(WOOD_SHINE, 0.25), 0.4, true)
-	_chip_tray(t, felt)
+	_tray_well(t.tray_rect())   # the rack, cut into the ledge: no frame of its own
 	_layout(t)
 	draw_set_transform(-position)
 

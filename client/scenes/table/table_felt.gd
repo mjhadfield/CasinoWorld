@@ -157,11 +157,8 @@ func _circle_spot(pos: Vector2, ring: Color, lines: Array) -> void:
 
 
 ## The chip tray, built into the table at the back of the bay: a mahogany frame
-## flush with the rail (so it casts no shadow), around a well sunk into it. The
-## felt's brass bead carries on round its edge where it meets the felt. Ten felt-lined channels run down the well, the
-## chips lying in them on their edges; some are full, some part-full, some
-## empty. The light comes from the dealer's side, as on the rail: the well's
-## back wall throws a shadow across the top of it and its front wall catches the light.
+## flush with the rail (so it casts no shadow), around a well sunk into it
+## (_tray_well). The felt's brass bead carries on round its edge where it meets the felt.
 ## `felt` is the felt's outline, for a table that isn't the card table's shape.
 func _chip_tray(t: CasinoTable, felt := CasinoTable.outline()) -> void:
 	var tray := t.tray_rect()
@@ -170,7 +167,13 @@ func _chip_tray(t: CasinoTable, felt := CasinoTable.outline()) -> void:
 	frame.append(frame[0])
 	for edge in Geometry2D.intersect_polyline_with_polygon(frame, felt):
 		draw_polyline(edge, BRASS, 0.6, true)
-	var well := tray.grow(-1.6)
+	_tray_well(tray.grow(-1.6))
+
+
+## The chip tray's well: ten felt-lined channels with the chips lying in them on their edges;
+## some are full, some part-full, some empty. The light comes from the dealer's side, as on
+## the rail: the back wall throws a shadow across the top and the front wall catches the light.
+func _tray_well(well: Rect2) -> void:
 	draw_colored_polygon(_rounded(well, 1.6), WOOD_DARK)   # the ridges between the channels
 	var w := well.size.x / TRAY_DENOMS.size()
 	for i in TRAY_DENOMS.size():

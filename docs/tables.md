@@ -28,8 +28,9 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table; a game's felt only prints
   its layout. The dealer's chip tray (`_chip_tray()`) is built into the table, not sat on it: its wood frame is
   flush with the rail and casts no shadow, the felt's brass bead runs round its edge where it meets the felt, and
-  the channels are a well sunk into it (shadowed under its back wall, lit along its front). Craps sets it
-  entirely into the rail across the floor of the boxman's bay. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the dealer's chip tray, the
+  the channels are a well sunk into it (shadowed under its back wall, lit along its front). Craps has no
+  tray piece: its rail is a deeper ledge across the floor of the boxman's bay (`CrapsTable.LEDGE`, part of
+  `CrapsTable.shape()`), and the rack's well (`_tray_well()`) is cut straight into it. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the dealer's chip tray, the
   craps chip rail). **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame

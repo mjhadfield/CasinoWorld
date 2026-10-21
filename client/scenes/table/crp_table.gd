@@ -47,7 +47,8 @@ const RAIL_MAX := 15             # chips in one player's run (the gap to the nex
 const BAY_HALF := 35.0           # the boxman's bay: half its width at the felt,
 const BAY_FLOOR := -107.0        # how far into the table it reaches,
 const BAY_CORNER := 5.0          # and its corners
-const RACK_AT := Vector2(0, -111.6)   # the boxman's chip rack, set into the rail across the bay's floor
+const LEDGE := 8.0               # how much deeper the rail is across the bay's floor (the rack is cut into it)
+const RACK_AT := Vector2(0, -115.0)   # the boxman's chip rack, cut into the ledge across the bay's floor
 const TITLE_AT := Vector2(0, -12.5)
 # The layout. Each end is the same, mirrored; these are the right-hand end's x.
 const NUMS := [4, 5, 6, 8, 9, 10]
@@ -713,8 +714,9 @@ func _make_stack(seat: int) -> ChipStack2D:
 	return stack
 
 
+## The rack's well (it has no frame: it's cut straight into the ledge).
 func tray_rect() -> Rect2:
-	return Rect2(RACK_AT - Vector2(25, 4.2), Vector2(50, 8.4))
+	return Rect2(RACK_AT - Vector2(23, 6.5), Vector2(46, 13))
 
 
 func tray_pos() -> Vector2:
@@ -751,7 +753,9 @@ func _countdown_text(left: float) -> String:
 
 # ------------------------------------------------------------------ the table's shape
 ## The outline, grown outwards from the felt by `grow` (RAIL_W: the rail's outer edge).
-## `bay` false fills the boxman's bay in (for collision).
+## `bay` false fills the boxman's bay in (for collision). Across the bay's floor the rail is
+## a ledge LEDGE deeper, reaching back towards the boxman, so the outlines of its edge
+## and its grain spread out over it.
 static func shape(grow := 0.0, bay := true, steps := 8) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	var left := -FELT_HALF - grow
@@ -763,8 +767,8 @@ static func shape(grow := 0.0, bay := true, steps := 8) -> PackedVector2Array:
 	if bay:
 		var bl := -(BAY_HALF - grow)
 		var brx := BAY_HALF - grow
-		var floor_y := BAY_FLOOR - grow
-		var c := BAY_CORNER
+		var floor_y := BAY_FLOOR - grow - LEDGE * clampf(grow / (RAIL_W - 2.0), 0.0, 1.0)
+		var c := minf(BAY_CORNER, (floor_y - top) / 2.0)   # the bay is shallower behind the ledge
 		var q := Vector2(c, c)
 		var bs := maxi(2, steps / 2)
 		_arc(pts, Vector2(bl - c, top + c), q, -0.5 * PI, 0, bs)
