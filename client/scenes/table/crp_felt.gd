@@ -73,7 +73,7 @@ func paint() -> void:
 		draw_colored_polygon(_rounded(groove, 2.0), RECESS)
 		draw_line(groove.position + Vector2(2, 0.5), Vector2(groove.end.x - 2, groove.position.y + 0.5), Color(0, 0, 0, 0.6), 0.6)
 		draw_line(Vector2(groove.position.x + 2, groove.end.y + 0.3), groove.end + Vector2(-2, 0.3), Color(WOOD_SHINE, 0.25), 0.4)
-	_chip_tray(t)
+	_chip_tray(t, felt)
 	_layout(t)
 	draw_set_transform(-position)
 

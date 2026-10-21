@@ -264,9 +264,10 @@ func seat_x(seat: int) -> float:
 
 
 ## The chip tray, set into the rail at the back of the bay: as wide as the bay
-## and its rail, its back edge sunk into the rail, its front on the felt.
+## and its rail, its back edge sunk into the rail, its front on the felt, well
+## clear of the dealer's cards.
 func tray_rect() -> Rect2:
-	return Rect2(-(BAY_W + RAIL), bay_floor() - 3.6, (BAY_W + RAIL) * 2, 14)
+	return Rect2(-(BAY_W + RAIL), bay_floor() - 5.0, (BAY_W + RAIL) * 2, 12)
 
 
 func tray_pos() -> Vector2:

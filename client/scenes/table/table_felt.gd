@@ -156,27 +156,33 @@ func _circle_spot(pos: Vector2, ring: Color, lines: Array) -> void:
 		_text(lines[1], pos + Vector2(0, 1.3), 2, ring, cinzel)
 
 
-## The chip tray, set into the rail at the back of the bay: a mahogany frame
-## with a brass rim around ten felt-lined channels, the chips lying in them on
-## their edges. Some channels are full, some part-full, some empty.
-func _chip_tray(t: CasinoTable) -> void:
+## The chip tray, built into the table at the back of the bay: a mahogany frame
+## flush with the rail (so it casts no shadow), around a well sunk into it. The
+## felt's brass bead carries on round its edge where it meets the felt. Ten felt-lined channels run down the well, the
+## chips lying in them on their edges; some are full, some part-full, some
+## empty. The light comes from the dealer's side, as on the rail: the well's
+## back wall throws a shadow across the top of it and its front wall catches the light.
+## `felt` is the felt's outline, for a table that isn't the card table's shape.
+func _chip_tray(t: CasinoTable, felt := CasinoTable.outline()) -> void:
 	var tray := t.tray_rect()
-	draw_colored_polygon(_shifted(_rounded(tray.grow(0.8), 2.8), Vector2(0, 1.2)), Color(0, 0, 0, 0.4))
-	draw_colored_polygon(_rounded(tray, 2.5), WOOD_DARK)
-	draw_colored_polygon(_rounded(tray.grow(-0.8), 2.0), WOOD)
-	_loop(_rounded(tray, 2.5), BRASS, 0.5)
-	var inner := tray.grow(-2.0)
-	var w := inner.size.x / TRAY_DENOMS.size()
+	var frame := _rounded(tray, 2.5)
+	draw_colored_polygon(frame, WOOD)
+	frame.append(frame[0])
+	for edge in Geometry2D.intersect_polyline_with_polygon(frame, felt):
+		draw_polyline(edge, BRASS, 0.6, true)
+	var well := tray.grow(-1.6)
+	draw_colored_polygon(_rounded(well, 1.6), WOOD_DARK)   # the ridges between the channels
+	var w := well.size.x / TRAY_DENOMS.size()
 	for i in TRAY_DENOMS.size():
-		var channel := Rect2(inner.position.x + i * w + 0.3, inner.position.y, w - 0.6, inner.size.y)
+		var channel := Rect2(well.position.x + i * w + 0.3, well.position.y, w - 0.6, well.size.y)
 		draw_colored_polygon(_rounded(channel, 1.2), RECESS)
-		draw_line(channel.position + Vector2(0.6, 0.4), Vector2(channel.end.x - 0.6, channel.position.y + 0.4), Color(0, 0, 0, 0.6), 0.6)
 		var count := int(round(TRAY_FILL[i] * floorf((channel.size.y - 0.6) / CHIP_EDGE)))
 		for k in count:  # stacked from the front of the channel back towards the dealer
 			var chip := Rect2(channel.position.x + 0.35, channel.end.y - 0.3 - (k + 1) * CHIP_EDGE, channel.size.x - 0.7, CHIP_EDGE - 0.12)
 			edge_chip(self, chip, TRAY_DENOMS[i], k)
-		if count > 0:  # light catching the front chip's rim
-			draw_line(Vector2(channel.position.x + 0.5, channel.end.y - 0.5), Vector2(channel.end.x - 0.5, channel.end.y - 0.5), Color(1, 1, 1, 0.25), 0.3)
+	for band in [3.0, 2.0, 1.0]:   # the back wall's shadow, darkest against it
+		draw_colored_polygon(_rounded(Rect2(well.position, Vector2(well.size.x, band)), 1.0), Color(0, 0, 0, 0.18))
+	draw_line(Vector2(well.position.x + 1.6, well.end.y - 0.25), Vector2(well.end.x - 1.6, well.end.y - 0.25), WOOD_SHINE, 0.5)   # the front wall, lit
 
 
 ## One chip standing on its edge in a channel, seen from above, filling `chip`: the k-th in

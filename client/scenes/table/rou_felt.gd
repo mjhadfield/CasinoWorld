@@ -48,7 +48,7 @@ func paint() -> void:
 	_loop(RouTable.shape(-0.9), Color(0, 0, 0, 0.3), 1.4)
 	_loop(RouTable.shape(-0.3), BRASS, 0.6)
 
-	_chip_tray(t)
+	_chip_tray(t, felt)
 	_hole(RouTable.HOLE_AT, RouTable.HOLE_R)
 	_textf("ROULETTE", RouTable.TITLE_AT, 8.0, CREAM, CINZEL)
 	_textf("SINGLE ZERO · LA PARTAGE · £1 – £100 STRAIGHT UP", RouTable.TITLE_AT + Vector2(0, 7.5), 3.1, Color(CREAM, 0.8), CINZEL)
