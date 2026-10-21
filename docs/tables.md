@@ -6,8 +6,8 @@ How the tables are drawn and laid out in the client. The rules of each game are 
 
 The tables are drawn in code (`scenes/table/table_felt.gd` and each game's `*_felt.gd`), as is the room
 (`scenes/world/room.gd`), so they stay sharp at any zoom. The table is the "Mahogany & Brass" look: a wood
-rail with a brass bead (leather-padded on the dealer's side, with a faint fine grain from
-`assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`), crimson felt, and cream printing in Cinzel (`client/assets/fonts/Cinzel-SemiBold.ttf`,
+rail with a brass bead (on craps only, leather-padded on the dealers' side, with a faint fine grain from
+`assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`; the other tables are bare wood all round), crimson felt, and cream printing in Cinzel (`client/assets/fonts/Cinzel-SemiBold.ttf`,
 SIL Open Font License, see `Cinzel-OFL.txt`). It is a static instance of the variable font with overlapping
 outlines merged (`fonttools varLib.instancer Cinzel[wght].ttf wght=600 --remove-overlaps`), because MSDF text
 draws overlaps as specks.
@@ -31,7 +31,7 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   flush with the rail and casts no shadow, the felt's brass bead runs round its edge where it meets the felt, and
   the channels are a well sunk into it (shadowed under its back wall, lit along its front). Craps has no
   tray piece: its rail is a deeper ledge across the floor of the boxman's bay (`CrapsTable.LEDGE`, part of
-  `CrapsTable.shape()`), padded in leather like the rest of the dealers'
+  `CrapsTable.shape()`), padded in leather like the rest of its dealers'
   side, and the rack's well (`_tray_well()`) is cut straight into it with a brass rim. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the dealer's chip tray, the
   craps chip rail). **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a

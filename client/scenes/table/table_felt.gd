@@ -94,15 +94,12 @@ func paint() -> void:
 	draw_colored_polygon(_shifted(CasinoTable.grown(r + 4.0), Vector2(0, 3)), Color(0, 0, 0, 0.16))
 	draw_colored_polygon(_shifted(CasinoTable.grown(r + 1.5), Vector2(0, 2)), Color(0, 0, 0, 0.3))
 	# The wood rail: a dark edge, polished wood whose grain follows the curve,
-	# dark leather padding on the dealer's side, and a highlight along its top.
+	# and a highlight along its top.
 	var rail := CasinoTable.grown(r + 0.5)
 	draw_colored_polygon(rail, WOOD_DARK)
 	draw_colored_polygon(CasinoTable.grown(r - 1.1), WOOD)
 	for grain in [[1.6, 0.45], [2.9, 0.3], [4.3, 0.4], [5.4, 0.25]]:
 		_loop(CasinoTable.grown(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
-	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
-		Vector2(400, t.tray_rect().position.y + 3), Vector2(-400, t.tray_rect().position.y + 3)])
-	_padding(Geometry2D.intersect_polygons(rail, dealer_side))
 	_loop(_shifted(CasinoTable.grown(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
 
 	# The felt: crimson, darker towards the rail, with a woven grain.
@@ -128,7 +125,7 @@ func paint() -> void:
 
 
 ## The leather padding on the dealer's side of the rail (`parts` of it): smooth, with a
-## faint fine grain.
+## faint fine grain. Only craps has it; the other tables are bare wood all round.
 func _padding(parts: Array) -> void:
 	for part in parts:
 		draw_colored_polygon(part, WOOD_PAD)

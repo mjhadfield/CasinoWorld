@@ -1,7 +1,7 @@
 @tool
 extends TableFelt
-## The roulette table in the house Mahogany & Brass: the same wood rail (leather
-## padding on the dealer's side) and crimson felt as the card tables, cut to the
+## The roulette table in the house Mahogany & Brass: the same wood rail and
+## crimson felt as the card tables, cut to the
 ## roulette table's shape (RouTable.shape) -- a brass bead where they meet, no
 ## pinstripe. On it: the float (chip tray) left of the dealer's bay, the chip
 ## hole right of it, the title, and the layout: the zero box pointing at the
@@ -22,7 +22,7 @@ func paint() -> void:
 		return
 	draw_set_transform(-position)
 	var r := RouTable.RAIL_W
-	# Its shadow on the carpet, the rail, the leather on the dealer's side, the highlight.
+	# Its shadow on the carpet, the rail, the highlight.
 	draw_colored_polygon(_shifted(RouTable.shape(r + 4.0), Vector2(0, 3)), Color(0, 0, 0, 0.16))
 	draw_colored_polygon(_shifted(RouTable.shape(r + 1.5), Vector2(0, 2)), Color(0, 0, 0, 0.3))
 	var rail := RouTable.shape(r + 0.5)
@@ -30,9 +30,6 @@ func paint() -> void:
 	draw_colored_polygon(RouTable.shape(r - 1.1), WOOD)
 	for grain in [[1.6, 0.45], [2.9, 0.3], [4.3, 0.4], [5.4, 0.25]]:
 		_loop(RouTable.shape(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
-	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
-		Vector2(400, RouTable.FELT_TOP + 1.5), Vector2(-400, RouTable.FELT_TOP + 1.5)])
-	_padding(Geometry2D.intersect_polygons(rail, dealer_side))
 	_loop(_shifted(RouTable.shape(r * 0.68), Vector2(0, -1.2)), WOOD_SHINE, 1.1)
 	# The felt: crimson, darker towards the rail, with a woven grain; the brass bead.
 	var felt := RouTable.shape(0.0, true, 12)
