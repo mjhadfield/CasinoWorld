@@ -196,6 +196,8 @@ const FELTS = [["Crimson", "#93141f"], ["Burgundy", "#6a1424"], ["Emerald", "#0f
 const LEATHERS = [["Black", "#1b1a1a"], ["Oxblood", "#4a1418"], ["Tan", "#7a4a26"], ["Navy", "#1a2234"], ["Bone", "#cfc3a8"]];
 const INKS = [["Cream", "#f1e4c4"], ["Champagne", "#e8d3a0"], ["Gold", "#d9b56a"], ["White", "#f4f4f2"], ["Silver", "#c9d0d6"]];
 const LEDS = [["Ice", "#8fd3ff"], ["Warm white", "#ffd28a"], ["Magenta", "#ff4fd8"], ["Red", "#ff3b3b"], ["Green", "#4dff9a"], ["Violet", "#9a7bff"]];
+const TINTS = [["Red smoke", "#6b0f19"], ["Black", "#141416"], ["Smoke grey", "#1e2328"], ["Amber", "#7a4a0c"], ["Sapphire", "#12305e"], ["Bottle green", "#0f4a2c"]];
+const HOUSINGS = [["Gunmetal", "#3a3e44"], ["Black", "#1c1e22"], ["Bronze", "#4a3a2a"], ["Navy", "#1f2a3d"], ["Burgundy", "#4a1a22"], ["Pearl", "#cfccc4"]];
 const ACCENTS = [["Brass", "#c9a24a"], ["Gold", "#e0b84e"], ["Copper", "#c8794a"], ["Chrome", "#b9c3cb"], ["Ice", "#8fd3ff"], ["Jade", "#7fc8a9"]];
 const WOODS = {
   mahogany: { label: "Mahogany", tex: "mahogany", tile: 58, warm: "rgba(150,60,25,.10)" },
@@ -204,6 +206,8 @@ const WOODS = {
   rosewood: { label: "Rosewood", tex: "rosewood", tile: 64, warm: "rgba(150,70,30,.10)" },
   ebony: { label: "Ebony lacquer", tex: "ebony", tile: 48, warm: "rgba(40,40,48,.25)", gloss: true },
 };
+const WOOD_PICKS = [["match", "Match the rail"], ...Object.entries(WOODS).map(([k, v]) => [k, v.label])];
+function woodTex(D, pick) { return WOODS[pick === "match" || !WOODS[pick] ? D.rail.wood : pick].tex; }
 const BEADS = { brass: ["#c9a24a", "#f3d78e"], gold: ["#d9b453", "#fff0b8"], chrome: ["#aeb7bf", "#ffffff"], none: null };
 const FONTS = { cinzel: ["Cinzel", 600, "Cinzel"], cormorant: ["Cormorant SC", 700, "Cormorant SC"], josefin: ["Josefin Sans", 600, "Josefin Sans (Deco)"], montserrat: ["Montserrat", 600, "Montserrat"] };
 const BACKS = { charcoal: "Charcoal & brass (today)", lattice: "Red lattice", sunburst: "Garnet sunburst", monogram: "Burgundy monogram", stripe: "Black & red stripe", emerald: "Emerald lattice" };
@@ -213,22 +217,22 @@ const PRESETS = {
   grand: { name: "Grand Mahogany", blurb: "Today's red and mahogany, done properly: real grain, a gilt line, the tray part of the rail.",
     d: { felt: { colour: "#93141f", texture: "weave", vignette: 0.55 }, border: "gilt", led: "#ffd28a",
       rail: { wood: "mahogany", armrest: "none", leather: "#1b1a1a", bead: "brass" }, tray: { mode: "ledge", finish: "wood" },
-      shuffler: "brass", shoe: "smoked", rack: "clear", spots: "printed",
+      shuffler: "brass", shufflerTint: "#3a3e44", shufflerWood: "match", shoe: "acrylic", shoeTint: "#6b0f19", shoeWood: "match", rack: "clear", rackTint: "#1e2328", rackWood: "match", spots: "printed",
       print: { font: "cinzel", ink: "#f1e4c4", accent: "#c9a24a" }, back: "charcoal", jackpot: "gold", jackpotRim: "standard", chips: "clay" } },
   monte: { name: "Monte Carlo", blurb: "Emerald velvet, a black leather armrest on a walnut table, gold-foil printing.",
     d: { felt: { colour: "#0f5b3f", texture: "velvet", vignette: 0.6 }, border: "double", led: "#ffd28a",
       rail: { wood: "walnut", armrest: "player", leather: "#1b1a1a", bead: "gold" }, tray: { mode: "ledge", finish: "lid" },
-      shuffler: "gunmetal", shoe: "black", rack: "smoked", spots: "foil",
+      shuffler: "gunmetal", shufflerTint: "#3a3e44", shufflerWood: "match", shoe: "acrylic", shoeTint: "#141416", shoeWood: "match", rack: "smoked", rackTint: "#1e2328", rackWood: "match", spots: "foil",
       print: { font: "cormorant", ink: "#e8d3a0", accent: "#e0b84e" }, back: "monogram", jackpot: "gold", jackpotRim: "standard", chips: "ceramic" } },
   deco: { name: "Midnight Deco", blurb: "Navy felt, bookmatched rosewood, Deco framing on every spot and along the border.",
     d: { felt: { colour: "#14284a", texture: "weave", vignette: 0.5 }, border: "deco", led: "#ffd28a",
       rail: { wood: "rosewood", armrest: "none", leather: "#1a2234", bead: "gold" }, tray: { mode: "ledge", finish: "wood" },
-      shuffler: "brass", shoe: "wood", rack: "wood", spots: "deco",
+      shuffler: "brass", shufflerTint: "#3a3e44", shufflerWood: "match", shoe: "wood", shoeTint: "#6b0f19", shoeWood: "match", rack: "wood", rackTint: "#1e2328", rackWood: "match", spots: "deco",
       print: { font: "josefin", ink: "#e8d3a0", accent: "#e0b84e" }, back: "sunburst", jackpot: "gold", jackpotRim: "standard", chips: "clay" } },
   vegas: { name: "Modern Vegas", blurb: "Royal-blue felt, black leather all round with chrome, a glowing edge, clean sans printing.",
     d: { felt: { colour: "#1a3f93", texture: "weave", vignette: 0.35 }, border: "led", led: "#8fd3ff",
       rail: { wood: "ebony", armrest: "all", leather: "#1b1a1a", bead: "chrome" }, tray: { mode: "ledge", finish: "steel" },
-      shuffler: "black", shoe: "black", rack: "smoked", spots: "double",
+      shuffler: "black", shufflerTint: "#1c1e22", shufflerWood: "match", shoe: "acrylic", shoeTint: "#141416", shoeWood: "match", rack: "smoked", rackTint: "#1e2328", rackWood: "match", spots: "double",
       print: { font: "montserrat", ink: "#f4f4f2", accent: "#8fd3ff" }, back: "stripe", jackpot: "led", jackpotRim: "standard", chips: "ceramic" } },
 };
 
@@ -257,10 +261,16 @@ const SLOTS = [
   { id: "jackpot", label: "Jackpot disc", keys: ["jackpot", "jackpotRim"], hint: "same size and place", ctl: [
     { key: "jackpot", type: "seg", options: [["clear", "Clear (today)"], ["gold", "Gold bezel"], ["led", "LED ring"]] },
     { key: "jackpotRim", type: "seg", options: [["thin", "Thin"], ["standard", "Standard"], ["heavy", "Heavy"]], label: "Rim thickness (grows inward)" }] },
-  { id: "equip", label: "Shuffler, shoe, rack", keys: ["shuffler", "shoe", "rack"], ctl: [
-    { key: "shuffler", type: "seg", options: [["gunmetal", "Gunmetal (today)"], ["black", "Gloss black LED"], ["brass", "Walnut & brass"]], label: "Shuffler" },
-    { key: "shoe", type: "seg", options: [["smoked", "Red smoked (today)"], ["black", "Black acrylic"], ["wood", "Wood"]], label: "Shoe (Blackjack)" },
-    { key: "rack", type: "seg", options: [["clear", "Clear (today)"], ["smoked", "Smoked"], ["wood", "Wood-backed"]], label: "Discard rack" }] },
+  { id: "equip", label: "Shuffler, shoe, rack", keys: ["shuffler", "shufflerTint", "shufflerWood", "shoe", "shoeTint", "shoeWood", "rack", "rackTint", "rackWood"], ctl: [
+    { key: "shuffler", type: "seg", options: [["gunmetal", "Brushed metal (today)"], ["black", "Gloss with LED"], ["brass", "Wood & brass"]], label: "Shuffler" },
+    { key: "shufflerTint", type: "swatch", options: HOUSINGS, custom: true, label: "Shuffler housing colour (metal and gloss)" },
+    { key: "shufflerWood", type: "seg", options: WOOD_PICKS, label: "Shuffler wood (wood & brass)" },
+    { key: "shoe", type: "seg", options: [["acrylic", "Tinted acrylic (today: red)"], ["wood", "Wood"]], label: "Shoe (Blackjack)" },
+    { key: "shoeTint", type: "swatch", options: TINTS, custom: true, label: "Shoe acrylic colour" },
+    { key: "shoeWood", type: "seg", options: WOOD_PICKS, label: "Shoe wood" },
+    { key: "rack", type: "seg", options: [["clear", "Clear (today)"], ["smoked", "Tinted"], ["wood", "Wood-backed"]], label: "Discard rack" },
+    { key: "rackTint", type: "swatch", options: TINTS, custom: true, label: "Rack tint (tinted)" },
+    { key: "rackWood", type: "seg", options: WOOD_PICKS, label: "Rack wood (wood-backed)" }] },
   { id: "back", label: "Card back", keys: ["back"], ctl: [
     { key: "back", type: "seg", options: Object.entries(BACKS) }] },
   { id: "chips", label: "Chips", keys: ["chips"], hint: "Roulette and Craps keep today's", ctl: [
@@ -289,7 +299,15 @@ const TEX = {};
 const state = { preset: "grand", game: "tcp", view: "seated", play: true, lit: true, fixed: false, d: clone(PRESETS.grand.d) };
 try { const s = JSON.parse(localStorage.getItem("tableStyles.v1") || "null"); if (s && s.d && s.preset in PRESETS) Object.assign(state, s); } catch (e) {}
 if (!state.d.led) state.d.led = PRESETS[state.preset].d.led;
-if (!state.d.jackpotRim) state.d.jackpotRim = "standard";   // (designs from before the LED colour)
+if (!state.d.jackpotRim) state.d.jackpotRim = "standard";
+upgrade(state.d);
+// Designs from before the equipment colours: the shoe's two acrylics became one with a colour; fill in the rest.
+function upgrade(d) {
+  if (d.shoe === "smoked" || d.shoe === "black") { d.shoeTint = d.shoeTint || (d.shoe === "black" ? "#141416" : "#6b0f19"); d.shoe = "acrylic"; }
+  const base = { shufflerTint: d.shuffler === "black" ? "#1c1e22" : "#3a3e44", shufflerWood: "match", shoeTint: "#6b0f19", shoeWood: "match", rackTint: "#1e2328", rackWood: "match", led: "#8fd3ff", jackpotRim: "standard" };
+  for (const k in base) if (!d[k]) d[k] = base[k];
+  return d;
+}   // (designs from before the LED colour)
 function remember() { try { localStorage.setItem("tableStyles.v1", JSON.stringify(state)); } catch (e) {} }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function getKey(o, k) { return k.split(".").reduce((a, p) => a && a[p], o); }
@@ -801,10 +819,11 @@ function shuffler(ctx, D, at) {
   const [x, y] = at, kind = D.shuffler, bw = 24, bh = 18;
   ctx.save(); ctx.translate(x, y);
   ctx.beginPath(); rrect(ctx, -bw / 2 - 1.4, -bh / 2 - 1.4, bw + 2.8, bh + 2.8, 3.2); ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fill();
-  const body = kind === "black" ? ["#0b0c0e", "#1c1e22"] : kind === "brass" ? ["#24130a", "#3d2414"] : ["#1f2226", "#3a3e44"];
+  const tint = D.shufflerTint || (kind === "black" ? "#1c1e22" : "#3a3e44");
+  const body = kind === "black" ? [darken(tint, 0.6), tint] : kind === "brass" ? ["#24130a", "#3d2414"] : [darken(tint, 0.45), tint];
   ctx.beginPath(); rrect(ctx, -bw / 2, -bh / 2, bw, bh, 2.6); ctx.fillStyle = body[0]; ctx.fill();
   ctx.beginPath(); rrect(ctx, -bw / 2 + 0.7, -bh / 2 + 0.7, bw - 1.4, bh - 1.4, 2.1); ctx.fillStyle = body[1]; ctx.fill();
-  if (kind === "brass") { ctx.save(); ctx.clip(); ctx.fillStyle = pat(ctx, "walnut", 30); ctx.globalAlpha = 0.9; ctx.fillRect(-bw / 2, -bh / 2, bw, bh); ctx.restore();
+  if (kind === "brass") { ctx.save(); ctx.clip(); ctx.fillStyle = pat(ctx, woodTex(D, D.shufflerWood), 30); ctx.globalAlpha = 0.9; ctx.fillRect(-bw / 2, -bh / 2, bw, bh); ctx.restore();
     ctx.beginPath(); rrect(ctx, -bw / 2 + 0.5, -bh / 2 + 0.5, bw - 1, bh - 1, 2.2); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke(); }
   else if (kind === "gunmetal") for (let i = 0; i < 7; i++) { ctx.fillStyle = `rgba(255,255,255,${0.035 + 0.02 * (i % 2)})`; ctx.fillRect(-bw / 2 + 1.2, -bh / 2 + 1.5 + i * 2.4, bw - 2.4, 0.5); }
   else { const g = ctx.createLinearGradient(-bw / 2, -bh / 2, bw / 2, bh / 2); g.addColorStop(0, "rgba(255,255,255,.16)"); g.addColorStop(0.35, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); rrect(ctx, -bw / 2, -bh / 2, bw, bh, 2.6); ctx.fill(); }
@@ -833,29 +852,31 @@ function shoe(ctx, D, at) {
   const [x, y] = at, kind = D.shoe, bw = 28, bh = 16;
   ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 1.2, bw, bh);
-  const edge = kind === "black" ? "#050505" : kind === "wood" ? "#1e0e06" : "#2a0508";
+  const tint = D.shoeTint || "#6b0f19", dark = lum(tint) < 0.01;
+  const edge = kind === "wood" ? "#1e0e06" : darken(tint, 0.6);
   ctx.fillStyle = edge; ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
-  if (kind === "wood") { ctx.fillStyle = pat(ctx, "walnut", 34); ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
-  else { ctx.fillStyle = kind === "black" ? "rgba(20,20,22,.94)" : "rgba(107,15,25,.92)"; ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
+  if (kind === "wood") { ctx.fillStyle = pat(ctx, woodTex(D, D.shoeWood), 34); ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
+  else { ctx.fillStyle = rgba(tint, 0.92); ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
   const ix = -bw / 2 + 3.5, iy = -bh / 2 + 2.2, iw = bw - 5.5, ih = bh - 4.4, fill = 0.72;
   ctx.fillStyle = "#ece8de"; ctx.fillRect(ix, iy, iw * fill, ih);
   for (let i = 0; i < iw * fill / 0.7; i++) { ctx.fillStyle = "rgba(0,0,0,.1)"; ctx.fillRect(ix + i * 0.7, iy, 0.2, ih); }
   ctx.fillStyle = BACK_MAIN[D.back]; ctx.fillRect(ix + iw * fill - 1.4, iy, 1.4, ih);
   ctx.fillStyle = "#ffd23c"; ctx.fillRect(ix + iw * 0.3 - 0.4, iy - 1.2, 0.8, ih + 2.4);   // the cut card
-  ctx.fillStyle = kind === "wood" ? "rgba(30,15,5,.25)" : kind === "black" ? "rgba(0,0,0,.3)" : "rgba(89,5,15,.28)"; ctx.fillRect(ix, iy, iw, ih);
-  ctx.fillStyle = kind === "wood" ? "#c9a24a" : "#1a0204"; ctx.beginPath(); ctx.moveTo(-bw / 2, -bh / 2 + 2); ctx.lineTo(-bw / 2 + 3.5, -bh / 2 + 2.2); ctx.lineTo(-bw / 2 + 3.5, bh / 2 - 2.2); ctx.lineTo(-bw / 2, bh / 2 - 2); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = kind === "black" ? "rgba(200,210,220,.5)" : "rgba(255,255,255,.12)"; ctx.lineWidth = 0.4; ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+  ctx.fillStyle = kind === "wood" ? "rgba(30,15,5,.25)" : rgba(darken(tint, 0.15), 0.3); ctx.fillRect(ix, iy, iw, ih);
+  ctx.fillStyle = kind === "wood" ? "#c9a24a" : darken(tint, 0.75); ctx.beginPath(); ctx.moveTo(-bw / 2, -bh / 2 + 2); ctx.lineTo(-bw / 2 + 3.5, -bh / 2 + 2.2); ctx.lineTo(-bw / 2 + 3.5, bh / 2 - 2.2); ctx.lineTo(-bw / 2, bh / 2 - 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = kind !== "wood" && dark ? "rgba(200,210,220,.5)" : "rgba(255,255,255,.12)"; ctx.lineWidth = 0.4; ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
   ctx.restore();
 }
 function rack(ctx, D, at, n = 3) {
   const [x, y] = at, kind = D.rack, w = 24, h = 18;
   ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fillRect(-w / 2 + 0.6, -h / 2 + 1, w, h);
-  if (kind === "wood") { ctx.fillStyle = pat(ctx, "walnut", 30); ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = darken(D.felt.colour, 0.35); ctx.fillRect(-w / 2 + 1.4, -h / 2 + 1.4, w - 2.8, h - 1.4); }
-  else { ctx.fillStyle = kind === "smoked" ? "rgba(20,24,28,.45)" : "rgba(204,230,242,.16)"; ctx.fillRect(-w / 2, -h / 2, w, h); }
+  const tint = D.rackTint || "#1e2328";
+  if (kind === "wood") { ctx.fillStyle = pat(ctx, woodTex(D, D.rackWood), 30); ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = darken(D.felt.colour, 0.35); ctx.fillRect(-w / 2 + 1.4, -h / 2 + 1.4, w - 2.8, h - 1.4); }
+  else { ctx.fillStyle = kind === "smoked" ? rgba(tint, 0.45) : "rgba(204,230,242,.16)"; ctx.fillRect(-w / 2, -h / 2, w, h); }
   ctx.fillStyle = "#e8e4da"; ctx.fillRect(-10, -7 + 0.6 - 1.2, 20, 15.2);
   for (let k = 0; k < n; k++) { ctx.save(); ctx.translate(Math.sin(k * 1.7) * 0.8, 0.6 - 1.2 + Math.cos(k * 2.3) * 0.6); ctx.rotate(Math.sin(k * 3.1) * 0.07); cardBack(ctx, D, 0, 0, 20, 14); ctx.restore(); }
-  const wall = kind === "wood" ? "#2a160b" : kind === "smoked" ? "rgba(40,46,52,.85)" : "rgba(230,245,255,.55)";
+  const wall = kind === "wood" ? "#2a160b" : kind === "smoked" ? rgba(lighten(tint, 0.12), 0.85) : "rgba(230,245,255,.55)";
   ctx.strokeStyle = wall; ctx.lineWidth = kind === "wood" ? 1.6 : 1.2;
   ctx.beginPath(); ctx.moveTo(-w / 2, h / 2); ctx.lineTo(-w / 2, -h / 2); ctx.lineTo(w / 2, -h / 2); ctx.lineTo(w / 2, h / 2); ctx.stroke();
   if (kind === "wood") { ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.3; ctx.beginPath(); ctx.moveTo(-w / 2 + 0.8, h / 2); ctx.lineTo(-w / 2 + 0.8, -h / 2 + 0.8); ctx.lineTo(w / 2 - 0.8, -h / 2 + 0.8); ctx.lineTo(w / 2 - 0.8, h / 2); ctx.stroke(); }
@@ -1069,7 +1090,7 @@ async function wireSaving() {
     snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt))).forEach(doc => {
       const li = document.createElement("li"); const n = document.createElement("span"); n.textContent = doc.name || doc.id;
       const b = document.createElement("button"); b.className = "btn ghost"; b.type = "button"; b.textContent = "Load";
-      b.addEventListener("click", () => { if (doc.design) { state.d = { ...clone(PRESETS[doc.preset in PRESETS ? doc.preset : "grand"].d), ...doc.design }; state.preset = doc.preset in PRESETS ? doc.preset : state.preset; syncUI(); draw(); status(`Loaded "${doc.name}".`); } });
+      b.addEventListener("click", () => { if (doc.design) { state.d = upgrade({ ...clone(PRESETS[doc.preset in PRESETS ? doc.preset : "grand"].d), ...clone(doc.design) }); state.preset = doc.preset in PRESETS ? doc.preset : state.preset; syncUI(); draw(); status(`Loaded "${doc.name}".`); } });
       li.append(n, b); list.appendChild(li);
     });
   }, () => status("Couldn't load saved designs just now."));
