@@ -8,7 +8,7 @@ The tables are drawn in code, as is the room (`scenes/world/room.gd`), so they s
 
 **Every table is drawn in its table style.** A style is a design made on the admin page's Tables tab, which has
 a tab for each kind of table, because they have different parts:
-- **Card Games:** the felt (colour, a woven, baize or velvet cloth, how much darker it gets towards the rail) and a border
+- **Card Games:** the felt (colour, a woven or velvet cloth, how much darker it gets towards the rail) and a border
   line; the rail (one of five woods, a leather armrest or leather all round, a brass/gold/chrome bead where it
   meets the felt); the chip tray (a well cut into a dealer's ledge, or sunk in where it's always been, in three
   finishes); the printing's font and colours, and the betting spots' artwork; the Jackpot disc, the shuffler,

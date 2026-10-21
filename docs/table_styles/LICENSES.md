@@ -14,10 +14,9 @@ The assets live in three places:
 
 The game and designer tiles are the same scans, processed by `tools/build_table_tiles.py`:
 - **Woods** (`wood_<name>.jpg`, 512 px): the adjustments below, plus a faint warm tint laid over with "screen".
-- **Leather and cloth** (`leather_shade.png`, `weave_shade.png`, `baize_shade.png`): the high-pass detail (taken
-  with the scan wrapped round, so it tiles without a seam) turned into white where lighter and black where darker,
-  with the difference as alpha. Leather is from Leather White, the woven cloth from Terlenka and the baize from
-  [Caban](https://polyhaven.com/a/caban) (colormass, photography; Rico Cilliers, processing; fetched 2026-10-21), 384 px.
+- **Leather and cloth** (`leather_shade.png`, `weave_shade.png`): the high-pass detail (taken with the scan wrapped
+  round, so it tiles without a seam) turned into white where lighter and black where darker, with the difference as
+  alpha. Leather is from Leather White, the woven cloth from Terlenka.
 - **Velvet** (`velvet_shade.png`): made by the script from noise (soft sheen brushed along the nap over a faint
   pile), not from a scan, so it has no outside source.
 

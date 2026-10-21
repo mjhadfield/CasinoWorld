@@ -41,7 +41,6 @@ WOODS = {
 SHADES = {
     "leather": ("leather_white", 512, 16, 0.8),
     "weave": ("terlenka", 256, 8, 1.0),
-    "baize": ("caban", 384, 5, 0.7),
 }
 
 
