@@ -43,6 +43,12 @@ var name_below := false:
 			_refresh_anim()
 
 var action := "idle"  # idle | walk | sit
+## How far they've sunk as they sit down (px; Seating eases it back to 0 as they land).
+var dip := 0.0:
+	set(v):
+		dip = v
+		if is_node_ready():
+			_sprite.position.y = -28.0 + v
 const DIRS := ["up", "right", "down", "left"]   # clockwise, as Godot turns on screen
 var _turn := 0        # quarter turns their parent's frame is at on screen
 @onready var _sprite: AnimatedSprite2D = $Sprite

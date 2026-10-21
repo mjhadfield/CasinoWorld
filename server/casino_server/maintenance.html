@@ -340,6 +340,24 @@ details summary { cursor: pointer; }
     </div>
     <div class="controls"><button type="submit" class="primary">Save settings</button></div>
   </form>
+  <h2 style="margin-top: 22px">Seating</h2>
+  <p class="lead">The chairs at every table and slot cabinet, how people sit down in them, and the craps standing spots.
+    Every table uses the Default style; saving updates the floor straight away.</p>
+  <form class="card" id="seating-form" style="max-width: 620px">
+    <div class="grid2">
+      <label class="field"><span>Chair</span><select id="st-chair"><option value="stool">Low-back stool</option><option value="lounge">Lounge chair</option></select></label>
+      <label class="field"><span>Upholstery</span><input type="color" id="st-upholstery"></label>
+      <label class="field"><span>Frame</span><select id="st-frame"><option value="brass">Brass</option><option value="chrome">Chrome</option><option value="gunmetal">Gunmetal</option></select></label>
+      <label class="field"><span>Back height (×)</span><input type="number" id="st-back" min="0.6" max="1.4" step="0.05"></label>
+      <label class="field"><span>Size (×)</span><input type="number" id="st-size" min="0.85" max="1.15" step="0.05"></label>
+      <label class="field"><span>Sitting down</span><select id="st-sit"><option value="swivel">Swivel</option><option value="pull">Pull out</option><option value="glide">Glide (no chair animation)</option></select></label>
+      <label class="field"><span>Sit speed (×)</span><input type="number" id="st-sit_speed" min="0.5" max="1.5" step="0.1"></label>
+      <label class="field"><span>Slot screen opens</span><select id="st-slot_screen"><option value="after_sit">After the sit</option><option value="at_once">At once</option></select></label>
+      <label class="field"><span>Free seat cue</span><select id="st-cue"><option value="label">Glow + label</option><option value="hover">Glow, label on hover</option></select></label>
+      <label class="field"><span>Craps standing spot</span><select id="st-craps_spot"><option value="footprints">Footprints</option><option value="spotlight">Spotlight</option><option value="medallion">Medallion</option><option value="ring">Ring</option></select></label>
+    </div>
+    <div class="controls"><button type="submit" class="primary">Save seating</button></div>
+  </form>
 </section>
 
 <script>
@@ -1270,6 +1288,28 @@ const Settings = (() => {
         cooldown_min: [+$("#s-cool-lo").value, +$("#s-cool-hi").value], bust_cooldown_min: [+$("#s-bust-lo").value, +$("#s-bust-hi").value],
         dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value});
       status("Settings saved.", "ok");
+    } catch (err) { status(err.message, "warn"); }
+  });
+  return {load: () => { load(); Seating.load(); }};
+})();
+
+// ================================================================ seating (the Default style; more styles per table can come later)
+const Seating = (() => {
+  const KEYS = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "cue", "craps_spot"];
+  const NUMBERS = ["back", "size", "sit_speed"];
+  async function load() {
+    try {
+      const s = (await api("GET", "/api/seating")).styles.default;
+      for (const k of KEYS) $("#st-" + k).value = s[k];
+    } catch (e) { status("Couldn't load seating: " + e.message, "warn"); }
+  }
+  $("#seating-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = {};
+    for (const k of KEYS) body[k] = NUMBERS.includes(k) ? +$("#st-" + k).value : $("#st-" + k).value;
+    try {
+      await api("PUT", "/api/seating/styles/default", body);
+      status("Seating saved.", "ok");
     } catch (err) { status(err.message, "warn"); }
   });
   return {load};

@@ -52,6 +52,7 @@ func _place_children() -> void:
 	if not is_inside_tree() or not has_node("Stool"):
 		return
 	$Stool.position = STOOL_AT[facing]
+	place_chair_backs()
 	var body := get_node_or_null("Body/Shape") as CollisionShape2D
 	if body:
 		var rect := RectangleShape2D.new()
@@ -69,7 +70,7 @@ func _process(_delta: float) -> void:
 		_pending_grid = []
 	_art.modulate.a = 0.62 if facing == "up" and occupants.has(0) else 1.0
 	_art.queue_redraw()
-	if offer_seats:
+	if offer_seats and Engine.get_process_frames() % 4 == 0:   # (a glowing chair breathes)
 		_stool.queue_redraw()
 
 
@@ -165,21 +166,9 @@ func draw_cabinet(ci: CanvasItem) -> void:
 			_side(ci, now, -1.0 if facing == "left" else 1.0)
 
 
+## The chair, under its sitter (the Stool node sits 4px behind the chair's origin; its back is a ChairBack).
 func draw_stool_node(ci: CanvasItem) -> void:
-	var now := Time.get_ticks_msec() / 1000.0
-	var glow := offer_seats and not occupants.has(0) and not Engine.is_editor_hint()
-	var pulse := 0.55 + 0.45 * sin(now * 5.0)
-	if glow:
-		ci.draw_set_transform(Vector2.ZERO, 0, Vector2(1, 0.6))
-		ci.draw_arc(Vector2.ZERO, 9.0, 0, TAU, 32, Color(1, 0.85, 0.44, 0.55 + 0.45 * pulse), 1.6, true)
-		ci.draw_set_transform(Vector2.ZERO)
-	ci.draw_rect(Rect2(-0.8, -5, 1.6, 5), Color("3a1d0e"))
-	ci.draw_set_transform(Vector2(0, -5), 0, Vector2(1, 0.6))
-	ci.draw_circle(Vector2.ZERO, 6.0, Color("7d130c"))
-	ci.draw_arc(Vector2.ZERO, 6.0, 0, TAU, 24, Color("c9a24a"), 0.6, true)
-	ci.draw_set_transform(Vector2.ZERO)
-	if glow:
-		ci.draw_string(Card2D.FONT, Vector2(-20, 7.5), "SIT", HORIZONTAL_ALIGNMENT_CENTER, 40, 5, Color("ffe27a"))
+	draw_chair(ci, 0, "seat", Vector2(0, 4))
 
 
 ## A panel shaded top to bottom (two quads with per-corner colours: top -> mid -> low).

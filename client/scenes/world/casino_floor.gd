@@ -34,6 +34,8 @@ var state := "walking"  # walking | seated (at a table) | slot (at a slot cabine
 var _heading_for := {}  # {table, seat} while walking over to a stool you clicked
 var active_table: CasinoTable = null
 var active_slot: SlotCabinet = null   # the cabinet you're sitting at (state "slot")
+var _slot_waiting := false   # sat at a cabinet, its game not open yet (the sit-down, then the camera, come first)
+var _slot_snapshot := {}     # the cabinet's table_state that came while waiting, for the game once it opens
 var slot_screen: SlotScreen
 var my_seat := -1
 var my_bets := {}
@@ -162,7 +164,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if state == "seated":
 			_request_stand()
 		elif state == "slot":
-			slot_screen.cancel_pressed()
+			if _slot_waiting:
+				Net.send("stand")
+			else:
+				slot_screen.cancel_pressed()
 		get_viewport().set_input_as_handled()
 	elif state == "seated" and event.is_action_pressed("ready_up"):
 		if _can_bet():
@@ -176,9 +181,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 
 
-## A click on a glowing stool, caught before the click-to-walk sees it.
+## A click on a glowing chair, caught before the click-to-walk sees it (and, as the pointer
+## moves, which chair it's over, for a style that labels free chairs on hover).
 func _input(event: InputEvent) -> void:
 	if state != "walking" or hud.is_typing():
+		return
+	if event is InputEventMouseMotion:
+		var over := get_global_mouse_position()
+		for t in tables.values():
+			t.hover_seat = t.stool_at(t.to_local(over))
 		return
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
@@ -192,8 +203,8 @@ func _input(event: InputEvent) -> void:
 
 
 # ------------------------------------------------------------------ taking a seat
-const SIT_REACH := 70.0     # this close to a stool you clicked, you just sit down
-const UNDERFOOT := 16.0     # standing this close to a stool, E sits you on it
+const SIT_REACH := 70.0     # stopped this close to a chair you clicked (something in the way), you sit down from there
+const UNDERFOOT := 16.0     # standing this close to a chair, E sits you on it
 
 
 ## E: the free stool you're standing on, if any.
@@ -214,23 +225,24 @@ func _sit_on_stool_underfoot() -> void:
 		_take_seat(best_table, best_seat)
 
 
-## Sit at a free stool: straight away if it's close, else walk over first.
+## Sit at a free chair: walk over to its side (Seating.approach), then take it -- the sit-down
+## plays from there once the server says it's yours.
 func _take_seat(t: FloorGame, seat: int) -> void:
 	if not Net.is_open():
 		hud.show_toast("Not connected to the casino")
 		return
-	var stool: Vector2 = t.to_global(t.stool_pos(seat))
-	if player.global_position.distance_to(stool) <= SIT_REACH:
+	var goal := _on_floor(t, Seating.approach(t, seat, t.to_local(player.global_position)))
+	var underfoot := player.global_position.distance_to(t.to_global(t.stool_pos(seat))) <= UNDERFOOT
+	if underfoot or player.position.distance_to(goal) <= 4.0:
 		_heading_for = {}
 		Net.send("sit", {"table": t.table_id, "seat": seat})
 	else:
-		var goal := _on_floor(t, t.chair_pos(seat) + Vector2(0, 14))  # just in front of the stool
 		_heading_for = {"table": t, "seat": seat, "goal": goal}
 		player.walk_to(goal)
 
 
-## Walking over to a stool you clicked: sit on arriving; give up if you stop
-## short (walked into something), steer elsewhere, or someone takes it first.
+## Walking over to a chair you clicked: sit on arriving (or on stopping close, if
+## something's in the way); give up if you stop short, steer elsewhere, or someone takes it first.
 func _check_heading() -> void:
 	if _heading_for.is_empty() or state != "walking":
 		return
@@ -240,12 +252,12 @@ func _check_heading() -> void:
 	if not seat in t.free_seats() or (now_heading != null and now_heading.distance_to(_heading_for.goal) > 1.0):
 		_heading_for = {}  # taken, or you've steered somewhere else
 		return
-	if player.global_position.distance_to(t.to_global(t.stool_pos(seat))) <= SIT_REACH:
-		_heading_for = {}
-		player.stop()
+	if player.is_walking_to_target():
+		return
+	var goal: Vector2 = _heading_for.goal
+	_heading_for = {}
+	if player.position.distance_to(goal) <= 6.0 or player.global_position.distance_to(t.to_global(t.stool_pos(seat))) <= SIT_REACH:
 		Net.send("sit", {"table": t.table_id, "seat": seat})
-	elif not player.is_walking_to_target():
-		_heading_for = {}
 
 
 ## The slot cabinets: every welcome lists them (the slot banks made on the admin page's Floor tab: where each
@@ -294,6 +306,11 @@ func _drop_cabinet(c: SlotCabinet) -> void:
 	c.queue_free()
 
 
+func _redraw_chairs() -> void:
+	for t in tables.values():
+		t.redraw_chairs()
+
+
 func _offer_seats(on: bool) -> void:
 	for t in tables.values():
 		t.offer_seats = on
@@ -302,7 +319,8 @@ func _offer_seats(on: bool) -> void:
 func _sat_down(msg: Dictionary) -> void:
 	var g: FloorGame = tables.get(msg.table)
 	if g is SlotCabinet:
-		return _sat_down_slot(g, msg)
+		_sat_down_slot(g, msg)
+		return
 	var t := g as CasinoTable
 	if t == null:
 		return
@@ -312,7 +330,6 @@ func _sat_down(msg: Dictionary) -> void:
 	state = "seated"
 	_heading_for = {}
 	_offer_seats(false)
-	_camera_to(world.to_local(t.focus_point()), TABLE_ZOOM, wrapf(-t.rotation, -PI, PI))  # a turned table, the right way up
 	t.my_seat = my_seat
 	t.mode = "seated"
 	my_bets = t.zero_bets()
@@ -325,13 +342,19 @@ func _sat_down(msg: Dictionary) -> void:
 		t.chip_value = hud.selected_chip
 	_placed.clear()
 	hud.set_mode("seated")
-	player.sit_at(_on_floor(t, t.chair_pos(my_seat)), t.world_dir(t.sit_facing(my_seat)), t.seat_pose())
 	var ask: Dictionary = t.on_seated_prompt()
 	if not ask.is_empty():
 		hud.ask(ask.text, ask.yes, ask.no, func(): Net.send(ask.message[0], ask.message[1]))
+	var sat: Tween = player.sit_at(t, my_seat)
+	if Seating.style(t.table_id).slot_screen == "after_sit":   # (the style's timing: the camera waits for the sit too)
+		await sat.finished
+		if state != "seated" or active_table != t:
+			return
+	_camera_to(world.to_local(t.focus_point()), TABLE_ZOOM, wrapf(-t.rotation, -PI, PI))  # a turned table, the right way up
 
 
-## Sitting at a slot cabinet: the full-screen game grows out of its screen.
+## Sitting at a slot cabinet: you sit down, the camera comes in, then the full-screen game grows
+## out of its screen (or all at once, if the seating style says so).
 func _sat_down_slot(c: SlotCabinet, msg: Dictionary) -> void:
 	active_slot = c
 	Sfx.focus = c.table_id
@@ -342,9 +365,23 @@ func _sat_down_slot(c: SlotCabinet, msg: Dictionary) -> void:
 	c.my_seat = my_seat
 	c.mode = "seated"
 	hud.set_mode("slot")
-	player.sit_at(_on_floor(c, c.chair_pos(my_seat)), c.world_dir(c.sit_facing(my_seat)), c.seat_pose(), c.sit_z(my_seat))
-	_camera_to(world.to_local(c.focus_point()), TABLE_ZOOM)
+	var sat: Tween = player.sit_at(c, my_seat)
+	if Seating.style(c.table_id).slot_screen == "after_sit":
+		_slot_waiting = true
+		_slot_snapshot = {}
+		await sat.finished
+		if state != "slot" or active_slot != c:
+			return
+		await _camera_to(world.to_local(c.focus_point()), TABLE_ZOOM).finished
+		if state != "slot" or active_slot != c:
+			return
+	else:
+		_camera_to(world.to_local(c.focus_point()), TABLE_ZOOM)
+	_slot_waiting = false
 	slot_screen.open(c, msg.get("rules", {}), _screen_rect_of(c))
+	if not _slot_snapshot.is_empty():
+		slot_screen.apply_snapshot(_slot_snapshot)
+		_slot_snapshot = {}
 
 
 ## The cabinet's little screen, in viewport pixels (where the full-screen game grows from).
@@ -458,7 +495,7 @@ func _leave_table() -> void:
 		t.mode = ""
 		t.my_seat = -1
 		stand = _on_floor(t, t.stand_pos(my_seat))
-		player.stand_at(stand)
+		player.stand_at(t, my_seat)
 	my_seat = -1
 	active_table = null
 	_actions = []
@@ -477,8 +514,12 @@ func _leave_slot() -> void:
 	c.mode = ""
 	c.my_seat = -1
 	var stand := _on_floor(c, c.stand_pos(my_seat))
-	player.stand_at(stand)
-	slot_screen.close(_screen_rect_of(c))
+	player.stand_at(c, my_seat)
+	if _slot_waiting:
+		_slot_waiting = false
+		_slot_snapshot = {}
+	else:
+		slot_screen.close(_screen_rect_of(c))
 	my_seat = -1
 	active_slot = null
 	hud.set_mode("walking")
@@ -543,7 +584,9 @@ func _set_limits(on: bool) -> void:
 func _on_message(msg: Dictionary) -> void:
 	match msg.get("type"):
 		"welcome":
+			Seating.configure(msg.get("seating", {}))
 			_sync_cabinets(msg.get("cabinets", []))
+			_redraw_chairs()
 			player.avatar.look = Session.look
 			player.avatar.display_name = Session.player.get("name", "")
 			if Session.needs_name:
@@ -592,6 +635,9 @@ func _on_message(msg: Dictionary) -> void:
 			SlotScreen.set_meters(msg.get("meters", {}), msg.get("rates"))
 		"seated":
 			_sat_down(msg)
+		"seating":   # the admin page changed the seating styles
+			Seating.configure(msg.get("seating", {}))
+			_redraw_chairs()
 		"pg_check":
 			hud.sorter.on_check(msg)
 		"pg_suggest":
@@ -608,11 +654,14 @@ func _on_slot_state(c: SlotCabinet, msg: Dictionary) -> void:
 	c.apply_snapshot(msg)
 	var seats: Array = msg.get("seats", [])
 	if not seats.is_empty() and seats[0] != null and entities.has(seats[0].entity):
-		entities[seats[0].entity].sit_at(_on_floor(c, c.chair_pos(0)), c.world_dir(c.sit_facing(0)), c.seat_pose(), c.sit_z(0))
+		entities[seats[0].entity].sit_at(c, 0, false)
 	if msg.get("meters") != null:
 		SlotScreen.set_meters(msg.meters, msg.get("rates"))
 	if c == active_slot and state == "slot":
-		slot_screen.apply_snapshot(msg)
+		if _slot_waiting:
+			_slot_snapshot = msg
+		else:
+			slot_screen.apply_snapshot(msg)
 
 
 func _on_slot_event(c: SlotCabinet, ev: Dictionary) -> void:
@@ -622,13 +671,13 @@ func _on_slot_event(c: SlotCabinet, ev: Dictionary) -> void:
 	match ev.kind:
 		"seated":
 			if ev.entity != Session.entity_id and entities.has(ev.entity):
-				entities[ev.entity].sit_at(_on_floor(c, c.chair_pos(0)), c.world_dir(c.sit_facing(0)), c.seat_pose(), c.sit_z(0))
+				entities[ev.entity].sit_at(c, 0)
 		"stood":
 			if ev.entity == Session.entity_id:
 				_leave_table()
 			elif entities.has(ev.entity):
-				entities[ev.entity].stand_at(_on_floor(c, c.stand_pos(0)))
-	if c == active_slot and state == "slot":
+				entities[ev.entity].stand_at(c, 0)
+	if c == active_slot and state == "slot" and not _slot_waiting:
 		slot_screen.on_event(ev)
 
 
@@ -641,7 +690,7 @@ func _on_table_state(msg: Dictionary) -> void:
 	for i in seats.size():
 		var s = seats[i]
 		if s != null and entities.has(s.entity):
-			entities[s.entity].sit_at(_on_floor(t, t.chair_pos(i)), t.world_dir(t.sit_facing(i)), t.seat_pose())
+			entities[s.entity].sit_at(t, i, false)
 	if t == active_table and state == "seated":
 		var mine = seats[my_seat] if my_seat < seats.size() else null
 		if mine != null:
@@ -659,12 +708,12 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 	match ev.kind:
 		"seated":
 			if ev.entity != Session.entity_id and entities.has(ev.entity):
-				entities[ev.entity].sit_at(_on_floor(t, t.chair_pos(int(ev.seat))), t.world_dir(t.sit_facing(int(ev.seat))), t.seat_pose())
+				entities[ev.entity].sit_at(t, int(ev.seat))
 		"stood":
 			if ev.entity == Session.entity_id:
 				_leave_table()
 			elif entities.has(ev.entity):
-				entities[ev.entity].stand_at(_on_floor(t, t.stand_pos(int(ev.seat))))
+				entities[ev.entity].stand_at(t, int(ev.seat))
 		"bet_changed":
 			if mine and int(ev.seat) == my_seat:
 				my_bets = ev.bets.duplicate()

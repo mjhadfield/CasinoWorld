@@ -94,26 +94,21 @@ func set_controls(enabled: bool) -> void:
 		_report()
 
 
-## Glide to a chair and sit down, facing `facing` (`pose` "idle": stand at the rail instead).
-func sit_at(pos: Vector2, facing: String, pose := "sit", z := 1) -> void:
+## Sit down on `game`'s `seat` (or stand at the craps rail): Seating plays the walk in, the
+## chair and the sit. The returned tween's `finished` is when you're sat.
+func sit_at(game: FloorGame, seat: int) -> Tween:
 	set_controls(false)
 	$Collision.disabled = true
-	avatar.z_index = z  # 1: over the table rail, whatever the Y-sort says (0 behind a slot cabinet)
+	avatar.z_index = game.sit_z(seat)  # 1: over the table rail, whatever the Y-sort says (0 behind a slot cabinet)
 	avatar.name_below = true
-	var tween := create_tween()
-	avatar.set_action("walk", Looks.dir_from(pos - position, facing))
-	tween.tween_property(self, "position", pos, 0.35)
-	tween.tween_callback(func(): avatar.set_action(pose, facing))
+	return Seating.sit_down(self, avatar, game, seat)
 
 
-## Stand up next to the chair, then walk freely again.
-func stand_at(pos: Vector2) -> void:
-	avatar.z_index = 0
+## Get up from `game`'s `seat` and step away from it, then walk freely again.
+func stand_at(game: FloorGame, seat: int) -> void:
 	avatar.name_below = false
-	var tween := create_tween()
-	avatar.set_action("walk")
-	tween.tween_property(self, "position", pos, 0.3)
-	tween.tween_callback(func():
+	Seating.stand_up(self, avatar, game, seat, func():
+		avatar.z_index = 0
 		$Collision.disabled = false
 		avatar.set_action("idle", "down")
 		set_controls(true))

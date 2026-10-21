@@ -1,6 +1,8 @@
 # Craps (`crp_1`)
 
-Vegas rules, eight seats. Signed off on Mike's Craps mockup (v1). The bet catalogue and payouts are in the
+Vegas rules, eight places at the rail, where players stand rather than sit. Each free place is marked on the floor
+in the seating style's look (`craps_spot`: footprints on a brass-rimmed plate by default) and glows with **STAND**
+while you're walking; a taken one shows its player's colour. Signed off on Mike's Craps mockup (v1). The bet catalogue and payouts are in the
 docstring of `server/casino_server/engines/craps.py`; the table's flow is in `tables/craps.py`.
 
 ## Bets

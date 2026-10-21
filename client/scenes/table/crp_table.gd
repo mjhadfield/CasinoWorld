@@ -782,18 +782,16 @@ func _puck_moving() -> bool:
 	return _puck[1].distance_to(_puck_target(1)) > 0.05 or _puck[-1].distance_to(_puck_target(-1)) > 0.05
 
 
-## A standing spot on the floor by the rail: nothing to see until it's free and you're
-## looking for one (then it glows, STAND); an occupied one wears its player's colour.
+## A standing spot on the floor by the rail, in the seating style's look (Seating.draw_spot):
+## it glows while it's free and you're walking, labelled STAND; a taken one wears its player's colour.
 func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
+	var st := Seating.style(table_id)
 	var p := chair_pos(seat) + Vector2(0, 4)
-	draw_set_transform(p, 0, Vector2(1, 0.45))
-	if glow:
-		draw_circle(Vector2.ZERO, 12.0 + pulse * 1.5, Color(1, 0.84, 0.3, 0.14 + 0.16 * pulse))
-		draw_arc(Vector2.ZERO, 11.0, 0, TAU, 40, Color(1, 0.84, 0.3, 0.55 + 0.35 * pulse), 1.4, true)
-	elif occupants.has(seat):
-		draw_arc(Vector2.ZERO, 11.0, 0, TAU, 40, SEAT_COLOURS[seat % SEAT_COLOURS.size()], 1.6, true)
-	draw_set_transform(Vector2.ZERO)
-	if glow:
+	Seating.draw_spot(self, p, str(st.craps_spot), glow, pulse,
+		SEAT_COLOURS[seat % SEAT_COLOURS.size()] if occupants.has(seat) else null)
+	if glow and st.craps_spot != "ring" and (st.cue == "label" or hover_seat == seat):
+		Seating.draw_tag(self, p, 0.0, -6.0, "STAND")
+	elif glow and st.craps_spot == "ring":
 		draw_string(Card2D.FONT, p + Vector2(-20, 1.8), "STAND", HORIZONTAL_ALIGNMENT_CENTER, 40, 5, Color(1, 0.88, 0.5))
 
 

@@ -26,6 +26,16 @@ var offer_seats := false:
 		offer_seats = v
 		queue_redraw()
 var occupants := {}   # seat -> {entity, name, human}
+## Chairs someone's sitting down in or getting out of: seat -> {theta, press, offset} (see Seating).
+var chair_state := {}
+var chair_side := {}  # seat -> which side of it its sitter got on from (1 or -1), to get off the same way
+## The free chair under the pointer while you walk (its SIT label shows on hover, if the style says so).
+var hover_seat := -1:
+	set(v):
+		if v != hover_seat:
+			hover_seat = v
+			redraw_chairs()
+var _backs := {}      # seat -> its ChairBack (the back drawn over its sitter)
 var phase := ""
 var _queue: Array[Callable] = []
 var _busy_until := 0.0
@@ -86,11 +96,15 @@ func on_screen(offset: Vector2) -> Vector2:
 	return offset.rotated(-screen_turn())
 
 
-## The free, glowing stool under `local` (local coordinates), or -1.
+## The free, glowing chair (or standing spot) under `local` (local coordinates), or -1.
 func stool_at(local: Vector2) -> int:
 	if not offer_seats:
 		return -1
 	for seat in free_seats():
+		if seat_pose() == "sit":
+			if Seating.hit_box(Seating.style(table_id)).has_point((local - chair_pos(seat)).rotated(screen_turn())):
+				return seat
+			continue
 		var d := local - stool_pos(seat)
 		if Vector2(d.x, d.y / STOOL_SQUASH).length() <= STOOL_R + 3.0:
 			return seat
@@ -128,6 +142,66 @@ func world_dir(dir: String) -> String:
 ## takes the floor's Y-sort (0: behind a slot cabinet whose screen faces away).
 func sit_z(_seat: int) -> int:
 	return 1
+
+
+# ------------------------------------------------------------------ chairs
+## Where a seat's chair back points at rest (behind its sitter), in the table's frame.
+func rest_theta(seat: int) -> float:
+	return (-Avatar.dir_vector(sit_facing(seat))).angle()
+
+
+## Move a chair while someone sits down or gets up (Seating's sit_down and stand_up).
+func set_chair(seat: int, key: String, value) -> void:
+	if not chair_state.has(seat):
+		chair_state[seat] = {}
+	chair_state[seat][key] = value
+	redraw_chairs()
+
+
+func rest_chair(seat: int) -> void:
+	chair_state.erase(seat)
+	redraw_chairs()
+
+
+func redraw_chairs() -> void:
+	queue_redraw()
+	for b in _backs.values():
+		b.queue_redraw()
+
+
+## A seat's chair in `ci`, from its origin at `at` (ci's coordinates, which are the table's
+## turned or not): "seat" is what's under the sitter, "back" what's over them, with the SIT
+## label on a free chair while you're walking.
+func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
+	var st := Seating.style(table_id)
+	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 5.0)
+	var glow := offer_seats and not occupants.has(seat) and not Engine.is_editor_hint()
+	var cs: Dictionary = chair_state.get(seat, {})
+	var turn := screen_turn()
+	at += cs.get("offset", Vector2.ZERO)
+	var theta := float(cs.get("theta", rest_theta(seat))) + turn
+	Seating.draw_chair(ci, at, -turn, theta, float(cs.get("press", 0.0)), st, layer, glow, pulse)
+	if layer == "back" and glow and (st.cue == "label" or hover_seat == seat):
+		Seating.draw_tag(ci, at, -turn, Seating.chair_top(st, theta), "SIT")
+
+
+## Each chair's back gets a node of its own, just behind its sitter in the floor's Y-sort (and
+## at their z while they're there), so a back between them and us draws over them.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_READY and not Engine.is_editor_hint() and seat_pose() == "sit":
+		for seat in seat_count():
+			var b := ChairBack.new()
+			b.game = self
+			b.seat = seat
+			add_child(b)
+			_backs[seat] = b
+		place_chair_backs()
+
+
+func place_chair_backs() -> void:
+	for seat in _backs:
+		_backs[seat].position = chair_pos(seat) + Vector2(0, 0.5).rotated(-rotation)
+		_backs[seat].queue_redraw()
 
 
 func free_seats() -> Array:
@@ -175,17 +249,7 @@ func _new_epoch() -> void:
 
 
 # ------------------------------------------------------------------ drawing
-## A seat's stool (glowing with SIT while it's free and you're walking the floor).
-func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
-	var p := stool_pos(seat)
-	draw_set_transform(p, 0, Vector2(1, STOOL_SQUASH))
-	if glow:  # a soft halo, breathing
-		draw_circle(Vector2.ZERO, STOOL_R + 2.5 + pulse * 1.5, Color(1, 0.84, 0.3, 0.18 + 0.2 * pulse))
-	draw_circle(Vector2(0, 1.2), STOOL_R + 0.5, Color(0, 0, 0, 0.3))
-	draw_circle(Vector2.ZERO, STOOL_R, Color("8a5a14") if glow else Color("3b1d0e"))  # mahogany stools, to match the rail
-	draw_circle(Vector2(0, -0.8), STOOL_R - 2.0, Color("e7b84a").lerp(Color("ffe08a"), pulse) if glow else Color("6e3a1e"))
-	draw_set_transform(Vector2.ZERO)
-	if glow:  # (upright to someone walking past a turned table)
-		draw_set_transform(p, -rotation)
-		draw_string(Card2D.FONT, Vector2(-20, 2.0), "SIT", HORIZONTAL_ALIGNMENT_CENTER, 40, 6, Color(0.25, 0.12, 0.0))
-		draw_set_transform(Vector2.ZERO)
+## A seat's chair, under its sitter (glowing while it's free and you're walking the floor;
+## its back and SIT label are drawn by its ChairBack).
+func _draw_stool(seat: int, _glow: bool, _pulse: float) -> void:
+	draw_chair(self, seat, "seat", chair_pos(seat))

@@ -796,7 +796,7 @@ def slot_design_file(design: str, rel: str, request: Request):
 # building a sprite sheet (pure image work) goes to a worker thread.
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 
-from casino_server import art, floor, roster  # noqa: E402
+from casino_server import art, floor, roster, seating  # noqa: E402
 
 
 def _npc_view(request: Request, rec: dict) -> dict:
@@ -991,6 +991,49 @@ async def npc_settings_put(request: Request):
         raise HTTPException(400, str(e) or "Those settings don't make sense.")
     store.set_json("npc_settings", {**store.get_json("npc_settings", {}), **new})
     return roster.settings(store)
+
+
+# ------------------------------------------------------------------ seating
+def _seating_changed(request: Request) -> dict:
+    """Every client redraws its chairs from the new styles."""
+    current = seating.load(request.app.state.casino.store)
+    request.app.state.casino.broadcast_all({"type": "seating", "seating": current})
+    return current
+
+
+@app.get("/api/seating")
+async def seating_get(request: Request):
+    return {**seating.load(request.app.state.casino.store), "choices": seating.CHOICES, "ranges": seating.RANGES}
+
+
+@app.put("/api/seating/styles/{style_id}")
+async def seating_style_put(style_id: str, request: Request):
+    data = await _body(request)
+    try:
+        seating.save_style(request.app.state.casino.store, style_id, data)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e) or "That style doesn't make sense.")
+    return _seating_changed(request)
+
+
+@app.delete("/api/seating/styles/{style_id}")
+async def seating_style_delete(style_id: str, request: Request):
+    try:
+        seating.delete_style(request.app.state.casino.store, style_id)
+    except KeyError:
+        raise HTTPException(404, "No such style.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _seating_changed(request)
+
+
+@app.put("/api/seating/tables")
+async def seating_tables_put(request: Request):
+    try:
+        seating.assign(request.app.state.casino.store, await _body(request))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _seating_changed(request)
 
 
 @app.get("/api/players")

@@ -428,7 +428,8 @@ func _process(_delta: float) -> void:
 		var step: Callable = _queue.pop_front()
 		var speed := 3.0 if _queue.size() > 6 else 1.0  # catch up if we fell behind
 		_busy_until = now + float(step.call(speed)) / speed
-	if mode != "" or _timer_end > now or _needs_redraw() or (offer_seats and occupants.size() < seat_count()):
+	if mode != "" or _timer_end > now or _needs_redraw() \
+			or (offer_seats and occupants.size() < seat_count() and Engine.get_process_frames() % 4 == 0):  # (glowing chairs breathe)
 		queue_redraw()
 	var turn := screen_turn()
 	if turn != _shown_turn:

@@ -10,7 +10,8 @@ slot are in `docs/slots/` (start with its README).
 
 ## Playing
 
-Sitting at a cabinet opens a full-screen game that grows out of its little screen.
+Sitting at a cabinet opens a full-screen game that grows out of its little screen. You sit down first, then the
+camera comes in, then the game opens (the seating style's `slot_screen`; `at_once` opens it straight away).
 - **The game:** 5×4 reels, 25 fixed lines paying left to right. One total-bet ladder: 25p, 50p, 75p, £1,
   £1.50, £2.50, £5, £10, £25.
 - **Spin** whenever you like; a new spin can cut the last one's presentation short after a second.

@@ -201,7 +201,10 @@ and Tailscale. It has six tabs:
     colour; the image model repaints it and the tile keeps that size and place. Switching a symbol's kind keeps
     its takes; the next ones are made the new way. Format changes are migrations applied when the server loads
     a design, because the live server saves over `design.json`.
-- **Settings:** punters on the floor, cooldowns, dealer shift length.
+- **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
+  style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
+  game opens, the free-seat label, and the craps standing spot). Saving updates the floor straight away. The API
+  (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`).
 
 ## Money
 `server/data/casino.sqlite` holds players, balances, the ledger and the jackpots; delete it to start
@@ -267,6 +270,7 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
   - `npc.py`: the NPC director; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
+  - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
   - `slot_design.py`, `slot_design_steps.py`, `slot_design_scene.py`, `slot_design_build.py`, `slot_design_art.py`: the
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
@@ -276,7 +280,8 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     `floor_map.json` (written by `tools/floor_map.gd`).
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
-  - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the
+  - `scripts/seating.gd`: draws the chairs and craps standing spots and plays the sit-down, from the seating styles.
+  - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`, the
     shoe, shuffler, discard rack, cards and chips, the roulette wheel and the craps dice.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, and the `settings_menu`, which edits the `Settings`

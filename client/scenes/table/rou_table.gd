@@ -585,10 +585,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------ overlays
 func _draw_game(now: float, _pulse: float) -> void:
-	# Each occupied stool wears its seat's chip colour.
+	# Each taken chair has its seat's chip colour on the floor round its base.
 	for seat in occupants:
-		draw_set_transform(stool_pos(seat), 0, Vector2(1, STOOL_SQUASH))
-		draw_arc(Vector2.ZERO, STOOL_R + 0.8, 0, TAU, 40, SEAT_COLOURS[seat % SEAT_COLOURS.size()], 1.6, true)
+		draw_set_transform(chair_pos(seat) + Vector2(0, 0.8), 0, Vector2(1, 0.34))
+		draw_arc(Vector2.ZERO, 13.0, 0, TAU, 40, SEAT_COLOURS[seat % SEAT_COLOURS.size()], 1.8, true)
 		draw_set_transform(Vector2.ZERO)
 	# A ghost of your chip where it would go.
 	if hover_spot != "" and mode == "seated" and my_seat >= 0:

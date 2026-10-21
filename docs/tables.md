@@ -52,10 +52,10 @@ the Blackjack pit is set to `PI`, so its dealers stand with their backs to the p
 own for this:
 - **To a walker** it's drawn as seen from that side. The felt's printing is upside down, and the players face
   you from behind it. The dealer has their back to you and stands on the floor at the felt's edge
-  (`dealer_near_pos()`), in front of the table, not in the bay behind it. The **SIT** labels are drawn upright
-  (`FloorGame._draw_stool`).
+  (`dealer_near_pos()`), in front of the table, not in the bay behind it. The chairs and their **SIT** labels
+  are drawn upright (`FloorGame.draw_chair`).
 - **Things placed about a sitter** follow the screen, not the table, because the sitter is always upright.
-  That covers the stool just behind them, the ring round whoever's thinking and their Ready tick. They use
+  That covers their chair, the ring round whoever's thinking and their Ready tick. They use
   `FloorGame.on_screen(offset)`, and `screen_turn()` says which way up the table shows right now. A table
   redraws, and moves its dealer, when that changes (`CasinoTable._turned_on_screen`).
 - **Sitting there** turns the whole floor (`World` in `casino_floor.tscn`) about the table, so the table is the

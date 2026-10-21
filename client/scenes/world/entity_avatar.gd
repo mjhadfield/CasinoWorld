@@ -16,11 +16,12 @@ var _walk_speed := 0.0
 var _walking := false
 var _path := PackedVector2Array()
 var _next := 0   # the path point being walked to
+var _pending_walk := []   # [pos, duration]: a walk that came while they were still getting up
 
 
 ## A reported position from another player.
 func apply_move(pos: Vector2, dir: String, anim: String) -> void:
-	if seated:
+	if seated or Seating.busy(self):
 		return
 	_walking = false
 	_target_pos = pos
@@ -36,6 +37,9 @@ func place(pos: Vector2) -> void:
 func walk_to(pos: Vector2, duration: float) -> void:
 	if seated:
 		return
+	if Seating.busy(self):
+		_pending_walk = [pos, duration]
+		return
 	_target_pos = null
 	_path = NavigationServer2D.map_get_path(get_world_2d().navigation_map, position, pos, true)
 	if _path.size() < 2:  # (no map yet): straight there
@@ -49,7 +53,7 @@ func walk_to(pos: Vector2, duration: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if seated:
+	if seated or Seating.busy(self):
 		return
 	if _walking:
 		if _next >= _path.size():
@@ -73,23 +77,31 @@ func _physics_process(delta: float) -> void:
 			pass  # the next report will say idle
 
 
-## Sit in a chair at `pos` facing `dir` (snaps if they weren't quite there). `pose` "idle"
-## stands them there instead (at the craps rail).
-func sit_at(pos: Vector2, dir: String, pose := "sit", z := 1) -> void:
-	seated = true
-	name_below = true
+## Sit on `game`'s `seat` (or stand at the craps rail), as Seating plays it -- or, not
+## `animate` (a snapshot: they were already sitting when we looked), straight there.
+func sit_at(game: FloorGame, seat: int, animate := true) -> void:
 	_walking = false
 	_target_pos = null
-	z_index = z
-	var tween := create_tween()
-	tween.tween_property(self, "position", pos, 0.3 if position.distance_to(pos) < 60 else 0.0)
-	tween.tween_callback(func(): set_action(pose, dir))
+	_pending_walk = []
+	z_index = game.sit_z(seat)
+	name_below = true
+	if seated and position.distance_to(get_parent().to_local(game.to_global(game.chair_pos(seat)))) < 1.0:
+		if not Seating.busy(self):   # (a fresh snapshot of someone already sat there)
+			set_action(game.seat_pose(), game.world_dir(game.sit_facing(seat)))
+		return
+	if seated:
+		Seating.stop(self, game)
+		animate = false   # (moved seats while we weren't looking)
+	seated = true
+	Seating.sit_down(self, self, game, seat, animate)
 
 
-func stand_at(pos: Vector2) -> void:
+func stand_at(game: FloorGame, seat: int) -> void:
 	seated = false
 	name_below = false
-	z_index = 0
-	set_action("idle", "down")
-	var tween := create_tween()
-	tween.tween_property(self, "position", pos, 0.3)
+	Seating.stand_up(self, self, game, seat, func():
+		z_index = 0
+		set_action("idle", "down")
+		if not _pending_walk.is_empty():
+			walk_to(_pending_walk[0], _pending_walk[1])
+			_pending_walk = [])

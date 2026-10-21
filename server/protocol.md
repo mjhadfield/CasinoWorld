@@ -45,7 +45,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Server → client
 | type | fields | when |
 |---|---|---|
-| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets` | The reply to `join` and `set_name`. `cabinets` lists every slot cabinet on the floor (the slot banks, slot_banks.py; none are in the floor scene): [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`; empty for Armadillo)}]; the client adds the ones it doesn't have, remakes any that moved or changed, and removes the rest. |
+| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets`, `seating` | The reply to `join` and `set_name`. `cabinets` lists every slot cabinet on the floor (the slot banks, slot_banks.py; none are in the floor scene): [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`; empty for Armadillo)}]; the client adds the ones it doesn't have, remakes any that moved or changed, and removes the rest. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. |
 | `wallet` | `balance` | Sent on join and after each money-moving table event, straight after that event. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. |
@@ -61,6 +61,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `pong` | `t` | The reply to `ping`. |
 | `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `wallet`, `jackpot`, `world_snapshot` and one `table_state` per table, as on join. Before joining, it's followed by `hello` instead. |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
+| `seating` | `seating` | The seating styles changed on the admin page (as in `welcome`). The client redraws every chair. |
 
 An entity is {`id`, `kind` (`player`/`npc`), `name`, `look`, `x`, `y`, `dir`, `anim`, `seat`,
 `walk`}. Floor point names live in `casino_server/floor.py`, and each must exist as a
