@@ -195,6 +195,7 @@ const FELTS = [["Crimson", "#93141f"], ["Burgundy", "#6a1424"], ["Emerald", "#0f
   ["Teal", "#0f4a4f"], ["Royal blue", "#1a3f93"], ["Plum", "#4a1d47"], ["Charcoal", "#2b2f33"]];
 const LEATHERS = [["Black", "#1b1a1a"], ["Oxblood", "#4a1418"], ["Tan", "#7a4a26"], ["Navy", "#1a2234"], ["Bone", "#cfc3a8"]];
 const INKS = [["Cream", "#f1e4c4"], ["Champagne", "#e8d3a0"], ["Gold", "#d9b56a"], ["White", "#f4f4f2"], ["Silver", "#c9d0d6"]];
+const LEDS = [["Ice", "#8fd3ff"], ["Warm white", "#ffd28a"], ["Magenta", "#ff4fd8"], ["Red", "#ff3b3b"], ["Green", "#4dff9a"], ["Violet", "#9a7bff"]];
 const ACCENTS = [["Brass", "#c9a24a"], ["Gold", "#e0b84e"], ["Copper", "#c8794a"], ["Chrome", "#b9c3cb"], ["Ice", "#8fd3ff"], ["Jade", "#7fc8a9"]];
 const WOODS = {
   mahogany: { label: "Mahogany", tex: "mahogany", tile: 58, warm: "rgba(150,60,25,.10)" },
@@ -210,22 +211,22 @@ const BACK_MAIN = { charcoal: "#34373c", lattice: "#8e1a22", sunburst: "#4d1616"
 
 const PRESETS = {
   grand: { name: "Grand Mahogany", blurb: "Today's red and mahogany, done properly: real grain, a gilt line, the tray part of the rail.",
-    d: { felt: { colour: "#93141f", texture: "weave", vignette: 0.55 }, border: "gilt",
+    d: { felt: { colour: "#93141f", texture: "weave", vignette: 0.55 }, border: "gilt", led: "#ffd28a",
       rail: { wood: "mahogany", armrest: "none", leather: "#1b1a1a", bead: "brass" }, tray: { mode: "ledge", finish: "wood" },
       shuffler: "brass", shoe: "smoked", rack: "clear", spots: "printed",
       print: { font: "cinzel", ink: "#f1e4c4", accent: "#c9a24a" }, back: "charcoal", jackpot: "gold", chips: "clay" } },
   monte: { name: "Monte Carlo", blurb: "Emerald velvet, a black leather armrest on a walnut table, gold-foil printing.",
-    d: { felt: { colour: "#0f5b3f", texture: "velvet", vignette: 0.6 }, border: "double",
+    d: { felt: { colour: "#0f5b3f", texture: "velvet", vignette: 0.6 }, border: "double", led: "#ffd28a",
       rail: { wood: "walnut", armrest: "player", leather: "#1b1a1a", bead: "gold" }, tray: { mode: "ledge", finish: "lid" },
       shuffler: "gunmetal", shoe: "black", rack: "smoked", spots: "foil",
       print: { font: "cormorant", ink: "#e8d3a0", accent: "#e0b84e" }, back: "monogram", jackpot: "gold", chips: "ceramic" } },
   deco: { name: "Midnight Deco", blurb: "Navy felt, bookmatched rosewood, Deco framing on every spot and along the border.",
-    d: { felt: { colour: "#14284a", texture: "weave", vignette: 0.5 }, border: "deco",
+    d: { felt: { colour: "#14284a", texture: "weave", vignette: 0.5 }, border: "deco", led: "#ffd28a",
       rail: { wood: "rosewood", armrest: "none", leather: "#1a2234", bead: "gold" }, tray: { mode: "ledge", finish: "wood" },
       shuffler: "brass", shoe: "wood", rack: "wood", spots: "deco",
       print: { font: "josefin", ink: "#e8d3a0", accent: "#e0b84e" }, back: "sunburst", jackpot: "gold", chips: "clay" } },
   vegas: { name: "Modern Vegas", blurb: "Royal-blue felt, black leather all round with chrome, a glowing edge, clean sans printing.",
-    d: { felt: { colour: "#1a3f93", texture: "weave", vignette: 0.35 }, border: "led",
+    d: { felt: { colour: "#1a3f93", texture: "weave", vignette: 0.35 }, border: "led", led: "#8fd3ff",
       rail: { wood: "ebony", armrest: "all", leather: "#1b1a1a", bead: "chrome" }, tray: { mode: "ledge", finish: "steel" },
       shuffler: "black", shoe: "black", rack: "smoked", spots: "double",
       print: { font: "montserrat", ink: "#f4f4f2", accent: "#8fd3ff" }, back: "stripe", jackpot: "led", chips: "ceramic" } },
@@ -236,8 +237,9 @@ const SLOTS = [
     { key: "felt.colour", type: "swatch", options: FELTS, custom: true, label: "Colour" },
     { key: "felt.texture", type: "seg", options: [["weave", "Woven"], ["velvet", "Velvet"], ["plain", "Plain"]], label: "Cloth" },
     { key: "felt.vignette", type: "range", label: "Darker towards the rail" }] },
-  { id: "border", label: "Border line", keys: ["border"], ctl: [
-    { key: "border", type: "seg", options: [["none", "None"], ["pinstripe", "Pinstripe"], ["gilt", "Gilt"], ["double", "Double"], ["deco", "Deco"], ["led", "LED glow"]] }] },
+  { id: "border", label: "Border line", keys: ["border", "led"], ctl: [
+    { key: "border", type: "seg", options: [["none", "None"], ["pinstripe", "Pinstripe"], ["gilt", "Gilt"], ["double", "Double"], ["deco", "Deco"], ["led", "LED glow"]] },
+    { key: "led", type: "swatch", options: LEDS, custom: true, label: "LED colour (glow, LED Jackpot ring, black shuffler)" }] },
   { id: "rail", label: "Rail", keys: ["rail"], ctl: [
     { key: "rail.wood", type: "seg", options: Object.entries(WOODS).map(([k, v]) => [k, v.label]), label: "Wood" },
     { key: "rail.armrest", type: "seg", options: [["none", "Bare wood"], ["player", "Leather armrest"], ["all", "Leather all round"]], label: "Padding" },
@@ -285,6 +287,7 @@ let G = null;
 const TEX = {};
 const state = { preset: "grand", game: "tcp", view: "seated", play: true, lit: true, fixed: false, d: clone(PRESETS.grand.d) };
 try { const s = JSON.parse(localStorage.getItem("tableStyles.v1") || "null"); if (s && s.d && s.preset in PRESETS) Object.assign(state, s); } catch (e) {}
+if (!state.d.led) state.d.led = PRESETS[state.preset].d.led;   // (designs from before the LED colour)
 function remember() { try { localStorage.setItem("tableStyles.v1", JSON.stringify(state)); } catch (e) {} }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function getKey(o, k) { return k.split(".").reduce((a, p) => a && a[p], o); }
@@ -462,7 +465,7 @@ function drawBorder(ctx, D, felt, ledge) {
       s += len;
     }
   }
-  if (b === "led") { for (const [w, a] of [[5, 0.06], [3, 0.1], [1.6, 0.2], [0.6, 0.7]]) strokePoly(ctx, grown("-2.0"), rgba(acc, a), w); strokePoly(ctx, grown("-2.0"), "rgba(255,255,255,.55)", 0.2); }
+  if (b === "led") { for (const [w, a] of [[5, 0.06], [3, 0.1], [1.6, 0.2], [0.6, 0.7]]) strokePoly(ctx, grown("-2.0"), rgba(ledOf(D), a), w); strokePoly(ctx, grown("-2.0"), "rgba(255,255,255,.55)", 0.2); }
   ctx.restore();
 }
 function drawBead(ctx, D, felt) {
@@ -576,6 +579,7 @@ function drawTray(ctx, D, ledge) {
 
 // ---------------------------------------------------------------- spots
 const SPOT_FILL = "rgba(0,0,0,.15)";
+function ledOf(D) { return D.led || "#8fd3ff"; }
 function colourOf(D, role) { return role === "accent" ? D.print.accent : role === "jade" ? "#7fc8a9" : D.print.ink; }
 function shapePath(ctx, s, k = 0) {
   ctx.beginPath();
@@ -643,7 +647,7 @@ function jackpotDisc(ctx, D, at, lit) {
     const g = ctx.createLinearGradient(x, y - r, x, y + r); g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, "#9aa3ab"); g.addColorStop(1, "#4b535a");
     ctx.beginPath(); ctx.arc(x, y, r - 0.5, 0, 7); ctx.strokeStyle = g; ctx.lineWidth = 1.1; ctx.stroke();
     for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; ctx.beginPath(); ctx.arc(x + Math.cos(a) * (r - 1.9), y + Math.sin(a) * (r - 1.9), 0.32, 0, 7);
-      ctx.fillStyle = lit ? "#ff5a5a" : "rgba(170,230,255,.75)"; ctx.fill(); }
+      ctx.fillStyle = lit ? "#ff5a5a" : rgba(ledOf(D), 0.8); ctx.fill(); }
   }
   ctx.beginPath(); ctx.arc(x, y, r - 2.0, Math.PI * 1.05, Math.PI * 1.55); ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 0.7; ctx.stroke();
   text(ctx, "JACKPOT", x, y, 2, lit ? "#ffffff" : "rgba(255,255,255,.85)", D);
@@ -808,8 +812,8 @@ function shuffler(ctx, D, at) {
   if (kind === "black") {
     ctx.fillStyle = "#06080a"; ctx.fillRect(-9.8, ly, 13, 3.2);
     ctx.save(); ctx.translate(-3.3, ly + 2.25); ctx.scale(0.1, 0.1); ctx.font = '600 20px "Montserrat", sans-serif'; ctx.textAlign = "center"; ctx.fillStyle = "#e9f6ff"; ctx.fillText("READY", 0, 0); ctx.restore();
-    for (const [w, a] of [[2.2, 0.15], [0.9, 0.9]]) { ctx.beginPath(); ctx.moveTo(-8, bh / 2 - 0.7); ctx.lineTo(8, bh / 2 - 0.7); ctx.strokeStyle = `rgba(110,200,255,${a})`; ctx.lineWidth = w; ctx.stroke(); }
-    ctx.beginPath(); ctx.arc(8, ly + 1.6, 1.1, 0, 7); ctx.fillStyle = "#6ec8ff"; ctx.fill();
+    for (const [w, a] of [[2.2, 0.15], [0.9, 0.9]]) { ctx.beginPath(); ctx.moveTo(-8, bh / 2 - 0.7); ctx.lineTo(8, bh / 2 - 0.7); ctx.strokeStyle = rgba(ledOf(D), a); ctx.lineWidth = w; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(8, ly + 1.6, 1.1, 0, 7); ctx.fillStyle = ledOf(D); ctx.fill();
   } else {
     ctx.fillStyle = kind === "brass" ? "#1b1206" : "#0b1a10"; ctx.fillRect(-9.8, ly, 12.5, 3.2);
     ctx.save(); ctx.translate(-3.55, ly + 2.2); ctx.scale(0.1, 0.1); ctx.font = '700 20px "Barlow Condensed", sans-serif'; ctx.textAlign = "center"; ctx.fillStyle = kind === "brass" ? "#ffcf6e" : "#7dff9a"; ctx.fillText("READY", 0, 0); ctx.restore();
