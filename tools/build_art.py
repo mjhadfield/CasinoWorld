@@ -7,7 +7,7 @@ Builds Casino World's generated art:
   client/assets/sprites/CREDITS.md              attribution for every LPC file used
   client/assets/tiles/carpet.png                the casino carpet tile (`build_art.py tiles` rebuilds just the tiles)
   client/assets/tiles/felt_grain.png            the grain drawn over the table felt
-  client/assets/tiles/leather_grain.png         the pebbled grain on the leather padding of the dealers' rail
+  client/assets/tiles/leather_grain.png         the fine grain on the leather padding of the dealers' rail
 
 Characters are composited by the server's art module (server/casino_server/art.py)
 from the Universal LPC Spritesheet Character Generator's layers, pinned to one
@@ -130,25 +130,24 @@ def build_felt_grain():
 
 
 def build_leather_grain():
-    """A 64x64 seamless pebbled grain for the leather padding on the dealers' rail: small
-    rounded pebbles (Voronoi cells over a tiled scatter of points), dark in the creases between
-    them and faintly lit on their tops towards the light, with soft alpha, drawn over the
-    leather colour."""
-    rng = random.Random(23)
+    """A 64x64 seamless fine grain for smooth leather: soft, barely-there light and dark
+    flecks (blurred noise), drawn faintly over the leather colour."""
+    from PIL import ImageFilter
+    rng = random.Random(31)
     size = 64
-    points = [(rng.uniform(0, size), rng.uniform(0, size)) for _ in range(110)]
-    tiled = [(x + dx * size, y + dy * size) for x, y in points for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+    noise = Image.new("L", (size, size))
+    noise.putdata([128 + round(rng.gauss(0, 40)) for _ in range(size * size)])
+    big = Image.new("L", (size * 3, size * 3))
+    for ty in range(3):
+        for tx in range(3):
+            big.paste(noise, (tx * size, ty * size))
+    noise = big.filter(ImageFilter.GaussianBlur(0.7)).crop((size, size, size * 2, size * 2)).load()
     img = Image.new("RGBA", (size, size))
     px = img.load()
     for y in range(size):
         for x in range(size):
-            near = sorted(((x + 0.5 - qx) ** 2 + (y + 0.5 - qy) ** 2, qx, qy) for qx, qy in tiled)[:2]
-            crease = near[1][0] ** 0.5 - near[0][0] ** 0.5   # 0 on the line between two pebbles
-            if crease < 1.2:
-                px[x, y] = (0, 0, 0, round(150 * (1 - crease / 1.2)))
-            else:  # the pebble's top: lit on the side facing the light (up the screen)
-                lit = (near[0][2] - (y + 0.5)) / max(1.0, near[0][0] ** 0.5)
-                px[x, y] = (255, 230, 200, max(0, round(45 * lit + rng.gauss(0, 6))))
+            n = (noise[x, y] - 128) / 128
+            px[x, y] = (255, 230, 200, min(255, round(n * 160))) if n > 0 else (0, 0, 0, min(255, round(-n * 200)))
     OUT_TILES.mkdir(parents=True, exist_ok=True)
     img.save(OUT_TILES / "leather_grain.png")
 

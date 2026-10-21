@@ -127,15 +127,15 @@ func paint() -> void:
 	draw_set_transform(-position)
 
 
-## The leather padding on the dealer's side of the rail (`parts` of it), with a slight
-## pebbled grain.
+## The leather padding on the dealer's side of the rail (`parts` of it): smooth, with a
+## faint fine grain.
 func _padding(parts: Array) -> void:
 	for part in parts:
 		draw_colored_polygon(part, WOOD_PAD)
 		var uv := PackedVector2Array()
 		for p in part:
-			uv.append(p / 10.0)
-		draw_colored_polygon(part, Color(1, 1, 1, 0.5), uv, LEATHER)
+			uv.append(p / 7.0)
+		draw_colored_polygon(part, Color(1, 1, 1, 0.45), uv, LEATHER)
 
 
 ## A game's printed layout: its title, rules and every seat's spots.
