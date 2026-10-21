@@ -40,7 +40,7 @@ size = Vector2(30, 10)
 size = Vector2(36, 6)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fence_end"]
-size = Vector2(6, 278)
+size = Vector2(6, 243)
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_floor"]
 parsed_geometry_type = 1
@@ -148,25 +148,25 @@ position = Vector2(1500, 290)
 position = Vector2(1560, 630)
 
 [node name="Pit1" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2222, 418)
+position = Vector2(2222, 435)
 rotation = 3.1415927
 table_id = "bj_2"
 
 [node name="Pit2" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2578, 418)
+position = Vector2(2578, 435)
 rotation = 3.1415927
 table_id = "bj_3"
 
 [node name="Pit3" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2222, 782)
+position = Vector2(2222, 764)
 table_id = "bj_4"
 
 [node name="Pit4" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2578, 782)
+position = Vector2(2578, 764)
 table_id = "bj_5"
 
 [node name="PitPodium" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-position = Vector2(2400, 618)
+position = Vector2(2400, 614)
 script = ExtResource("17_podium")
 
 [node name="Shape" type="CollisionShape2D" parent="World/PitPodium"]
@@ -174,7 +174,7 @@ position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_podium")
 
 [node name="PitBoss" parent="World" instance=ExtResource("18_avatar")]
-position = Vector2(2400, 604)
+position = Vector2(2400, 600)
 look = "dealer"
 display_name = "Pit Boss"
 
@@ -183,19 +183,19 @@ collision_layer = 2
 collision_mask = 0
 
 [node name="GapNorth" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2400, 464)
+position = Vector2(2400, 481)
 shape = SubResource("RectangleShape2D_fence_gap")
 
 [node name="GapSouth" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2400, 736)
+position = Vector2(2400, 718)
 shape = SubResource("RectangleShape2D_fence_gap")
 
 [node name="West" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2059, 600)
+position = Vector2(2059, 599.5)
 shape = SubResource("RectangleShape2D_fence_end")
 
 [node name="East" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2741, 600)
+position = Vector2(2741, 599.5)
 shape = SubResource("RectangleShape2D_fence_end")
 
 [node name="SlotCabinets" type="Node2D" parent="World"]
