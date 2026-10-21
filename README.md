@@ -275,7 +275,7 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
   - `slot_banks.py`: the slot banks on the floor (the Floor tab, its UI in `slot_banks_web/`), checked against
     `floor_map.json` (written by `tools/floor_map.gd`).
 - **client/**
-  - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
+  - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`), and the pit's podium and ropes (`pit_podium`, `pit_rope`).
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the
     shoe, shuffler, discard rack, cards and chips, the roulette wheel and the craps dice.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).

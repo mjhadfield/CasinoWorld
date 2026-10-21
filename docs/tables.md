@@ -50,9 +50,14 @@ Every card table follows the same alignment rules:
 A table on the floor can be turned (`rotation` on its instance in `casino_floor.tscn`). For example, the far row of
 the Blackjack pit is set to `PI`, so its dealers stand with their backs to the pit. The table needs nothing of its
 own for this:
-- **To a walker** it's drawn as seen from that side. The felt's printing is upside down, the dealer has their
-  back to you and stands in front of the felt, and the players face you from behind it. The **SIT** labels are
-  drawn upright (`FloorGame._draw_stool`).
+- **To a walker** it's drawn as seen from that side. The felt's printing is upside down, and the players face
+  you from behind it. The dealer has their back to you and stands on the floor at the felt's edge
+  (`dealer_near_pos()`), in front of the table, not in the bay behind it. The **SIT** labels are drawn upright
+  (`FloorGame._draw_stool`).
+- **Things placed about a sitter** follow the screen, not the table, because the sitter is always upright.
+  That covers the stool just behind them, the ring round whoever's thinking and their Ready tick. They use
+  `FloorGame.on_screen(offset)`, and `screen_turn()` says which way up the table shows right now. A table
+  redraws, and moves its dealer, when that changes (`CasinoTable._turned_on_screen`).
 - **Sitting there** turns the whole floor (`World` in `casino_floor.tscn`) about the table, so the table is the
   right way up. Standing turns it back (`casino_floor.gd`, `_camera_to`'s `turn`). World Y-sorts, and Godot sorts
   in the turned frame, so the dealer goes behind the felt again and everyone overlaps the right way.

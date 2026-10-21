@@ -62,6 +62,8 @@ var _payouts := {}        # seat -> [ChipStack2D] (winnings beside the stake)
 var _queued := {}         # seat -> {spot: ChipStack2D}: bets for the next hand, put down during this one (faded)
 const QUEUED_TINT := Color(1, 1, 1, 0.55)
 var _dealer_cards := []
+var _dealer_home := Vector2.ZERO  # where the dealer stands (the scene's spot), in the bay behind the felt
+var _shown_turn := 0.0            # the screen_turn() last drawn
 
 @onready var dealer: Avatar = $Dealer
 @onready var _felt: Node2D = $Felt
@@ -77,6 +79,7 @@ func _init() -> void:
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
+	_dealer_home = dealer.position
 	_dyn.position = -_felt.position  # Dynamic children use table coordinates
 	for path in ["Felt/Lights", "Felt/Fixtures", "Felt/Machines"]:  # (Roulette has none of these)
 		var layer := get_node_or_null(path) as Node2D
@@ -427,6 +430,23 @@ func _process(_delta: float) -> void:
 		_busy_until = now + float(step.call(speed)) / speed
 	if mode != "" or _timer_end > now or _needs_redraw() or (offer_seats and occupants.size() < seat_count()):
 		queue_redraw()
+	var turn := screen_turn()
+	if turn != _shown_turn:
+		_shown_turn = turn
+		_turned_on_screen()
+
+
+## The table shows a different way up (see screen_turn()). Upside down, the dealer is on
+## our side of it: they stand on the floor at the felt's edge, in front of it, rather than
+## in the bay behind it with the felt hiding their feet. The stools move round too.
+func _turned_on_screen() -> void:
+	dealer.position = dealer_near_pos() if absf(_shown_turn) > PI / 2 else _dealer_home
+	queue_redraw()
+
+
+## Where the dealer stands while the table shows upside down: at the dealer's edge.
+func dealer_near_pos() -> Vector2:
+	return Vector2(_dealer_home.x, TOP)
 
 
 ## A game that animates something in its overlay every frame says so here.
@@ -838,9 +858,10 @@ func _draw() -> void:
 		for spot in bet_spots():
 			draw_arc(spot_pos(my_seat, spot), spot_radius(spot), 0, TAU, 32, Color(1, 1, 1, 0.25 + 0.25 * pulse), 0.8, true)
 	for seat in ready_seats:
-		var p := chair_pos(seat) + Vector2(13, -12)
+		var p := chair_pos(seat) + on_screen(Vector2(13, -12))
 		draw_circle(p, 3.5, Color("2e9e4f"))
-		draw_polyline(PackedVector2Array([p + Vector2(-1.8, 0), p + Vector2(-0.4, 1.4), p + Vector2(1.9, -1.4)]), Color.WHITE, 0.8)
+		draw_polyline(PackedVector2Array([p + on_screen(Vector2(-1.8, 0)), p + on_screen(Vector2(-0.4, 1.4)),
+			p + on_screen(Vector2(1.9, -1.4))]), Color.WHITE, 0.8)
 	_draw_game(now, pulse)
 	var countdown := _countdown_text(timer_left())
 	if countdown != "":
@@ -880,8 +901,9 @@ func _countdown_x() -> float:
 
 ## A ring around a seat's chair: who's thinking, with their time running down.
 func _draw_thinking_ring(seat: int, pulse: float) -> void:
-	var p := chair_pos(seat) + Vector2(0, -16)
+	var p := chair_pos(seat) + on_screen(Vector2(0, -16))
 	draw_arc(p, 15.0, 0, TAU, 40, Color(1, 0.85, 0.3, 0.3 + 0.3 * pulse), 1.6, true)
 	var left := timer_left()
-	if left > 0:
-		draw_arc(p, 17.5, -PI / 2, -PI / 2 + TAU * left / _timer_total, 40, Color("ffd54a"), 1.2, true)
+	if left > 0:   # (running down from the top as the screen sees it)
+		var top := -PI / 2 - screen_turn()
+		draw_arc(p, 17.5, top, top + TAU * left / _timer_total, 40, Color("ffd54a"), 1.2, true)

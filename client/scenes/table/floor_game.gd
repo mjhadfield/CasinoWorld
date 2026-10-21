@@ -68,8 +68,22 @@ func chair_pos(seat: int) -> Vector2:
 	return marker.position if marker else Vector2.ZERO
 
 
+## A seat's stool: just behind the sitter as the screen sees it (as at a cabinet), so it
+## moves to the other side of the chair while a turned table shows upside down.
 func stool_pos(seat: int) -> Vector2:
-	return chair_pos(seat) + Vector2(0, -4)
+	return chair_pos(seat) + on_screen(Vector2(0, -4))
+
+
+## How the table shows on screen, in quarter turns as an angle: 0 upright, PI upside down
+## (a turned table to someone walking past, or an upright one while you sit at a turned one).
+func screen_turn() -> float:
+	return snappedf(wrapf(global_rotation, -PI, PI), PI / 2) if is_inside_tree() else rotation
+
+
+## An offset as the screen sees it (up is up), in the table's coordinates: for things placed
+## about a sitter, who's always upright -- their stool, the ring round them, their Ready tick.
+func on_screen(offset: Vector2) -> Vector2:
+	return offset.rotated(-screen_turn())
 
 
 ## The free, glowing stool under `local` (local coordinates), or -1.

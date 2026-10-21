@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_hud"]
 [ext_resource type="Script" path="res://scenes/world/pit_podium.gd" id="17_podium"]
 [ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="18_avatar"]
+[ext_resource type="Script" path="res://scenes/world/pit_rope.gd" id="19_rope"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_h"]
 size = Vector2(1940, 80)
@@ -142,25 +143,25 @@ position = Vector2(1500, 290)
 position = Vector2(1560, 630)
 
 [node name="Pit1" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2200, 397)
+position = Vector2(2222, 418)
 rotation = 3.1415927
 table_id = "bj_2"
 
 [node name="Pit2" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2600, 397)
+position = Vector2(2578, 418)
 rotation = 3.1415927
 table_id = "bj_3"
 
 [node name="Pit3" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2200, 803)
+position = Vector2(2222, 782)
 table_id = "bj_4"
 
 [node name="Pit4" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2600, 803)
+position = Vector2(2578, 782)
 table_id = "bj_5"
 
 [node name="PitPodium" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-position = Vector2(2400, 612)
+position = Vector2(2400, 618)
 script = ExtResource("17_podium")
 
 [node name="Shape" type="CollisionShape2D" parent="World/PitPodium"]
@@ -168,9 +169,29 @@ position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_podium")
 
 [node name="PitBoss" parent="World" instance=ExtResource("18_avatar")]
-position = Vector2(2400, 598)
+position = Vector2(2400, 604)
 look = "dealer"
 display_name = "Pit Boss"
+
+[node name="RopeGapNorth" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+position = Vector2(2400, 464)
+script = ExtResource("19_rope")
+posts = PackedVector2Array(-15, 0, 15, 0)
+
+[node name="RopeGapSouth" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+position = Vector2(2400, 736)
+script = ExtResource("19_rope")
+posts = PackedVector2Array(-15, 0, 15, 0)
+
+[node name="RopeWest" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+position = Vector2(2059, 736)
+script = ExtResource("19_rope")
+posts = PackedVector2Array(0, -272, 0, -204, 0, -136, 0, -68, 0, 0)
+
+[node name="RopeEast" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
+position = Vector2(2741, 736)
+script = ExtResource("19_rope")
+posts = PackedVector2Array(0, -272, 0, -204, 0, -136, 0, -68, 0, 0)
 
 [node name="SlotCabinets" type="Node2D" parent="World"]
 
