@@ -59,8 +59,10 @@ func build(room: Dictionary, world: Dictionary) -> void:
 	floor_layer.z_index = -10
 	floor_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	floor_layer.draw.connect(_draw_floor.bind(floor_layer))
+	PlanArt.art_changed.connect(floor_layer.queue_redraw)   # (a floor texture from the library came in)
 	add_child(floor_layer)
 	var walls := Node2D.new()
+	PlanArt.art_changed.connect(walls.queue_redraw)
 	walls.name = "Walls"
 	walls.z_index = -5
 	walls.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED

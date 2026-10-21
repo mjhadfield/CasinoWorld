@@ -80,6 +80,7 @@ func _ready() -> void:
 	_limits = [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom]
 	Sfx.audible = func(at: Vector2) -> bool: return _seen(world.to_local(at))
 	get_viewport().size_changed.connect(_fit_limits)
+	PlanArt.art_changed.connect(func(): _bake_navigation.call_deferred())   # (furniture blocks once its picture's in)
 	Sfx.start_room()
 
 	hud.rebet_pressed.connect(func():

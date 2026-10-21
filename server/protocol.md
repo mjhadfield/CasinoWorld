@@ -63,6 +63,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `pong` | `t` | The reply to `ping`. |
 | `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `wallet`, `jackpot`, `world_snapshot` and one `table_state` per table, as on join. Before joining, it's followed by `hello` instead. |
 | `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables restarts the server instead), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
+| `plan_art_changed` | `version` | The floor plan's asset library changed (an upload, an edit, a delete). The client refetches `GET /api/plan/art`. Previews get it too. |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
 | `seating` | `seating` | The seating styles changed on the admin page (as in `welcome`). The client redraws every chair. |
 | `table_styles` | `table_styles` | The table styles or their placement changed on the admin page (as in `welcome`, every kind). The client redraws every table: the card tables with their machines, chips and cards, Roulette with its wheel, Craps with its dice. |
@@ -324,6 +325,20 @@ See `casino_server/plan.py`. Errors are 400 with the reason (409 when the draft 
 | `POST /api/plan/discard` | The draft goes back to the live plan. |
 | `GET /api/plan/history` | The last 20 publishes: [{`id`, `rooms`, `tables`}], newest first. |
 | `POST /api/plan/rollback/{id}` | Puts that publish back in the draft (publish it to use it). |
+
+### The asset library (`casino_server/plan_assets.py`)
+
+| method & path | does |
+|---|---|
+| `GET /api/plan/art` | What the game draws furniture and floors with: `{version, assets: {id: {mount, body, by_facing, facings: {facing: {url, anchor, mirror}}}}, floors: {id: url}}`. URLs end in `?v=`, so they cache for good. |
+| `GET /plan-art/{file}` | A built-in picture (`fountain.png`, `floors/herringbone.png`) or an upload (`u/<file>`). |
+| `PUT /api/plan-assets/{filename}` | The raw picture as the body (`?kind=floor` for a floor texture). At most 8 MB and 512px a side; a piece is trimmed to what's drawn. Returns `{id}` (`u_<name>`). |
+| `PUT /api/plan-assets/{id}/facings/{up|left|right}` | Another way an upload faces: its picture. |
+| `PATCH /api/plan-assets/{id}` | An upload's `name`, `category`, `credit`, `mount` (floor, flat, wall), `anchor` [x, y] on the picture, `body` [x, y, w, h] about the anchor, `mirror` {facing: of}. |
+| `DELETE /api/plan-assets/{id}` | Deletes an upload, unless a room uses it (in the draft, live, or a recent publish). |
+| `GET /plan-art-credits` | The built-in pieces' pack credits, in full. |
+
+Library items on the plan are `a:<id>` (catalogue entries carry their `rect`, `body`, `mount` and `facings`).
 
 ## Sound HTTP API (the admin page's Sounds tab)
 Plain HTTP on the same server, used by the admin page and the game. See `casino_server/sounds.py`. A `set` is

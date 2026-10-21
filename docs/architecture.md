@@ -117,6 +117,12 @@ A Godot 4.7 project exported to the web.
   the placed rooms (`plan.world`), and a preview (`join` with `preview`) gets the draft's instead. Settings kept by
   table id (table styles) count every table in the plan, placed or not, and the sound sets cover every game, so
   taking a room off the floor loses neither.
+- **The asset library** (`plan_assets.py`) is the furniture, decor, rugs and floor textures rooms can use: the
+  built-ins in `server/plan_assets/` (cut from LPC packs by `tools/build_plan_assets.py`) and uploads in
+  `<data>/plan_assets/`. It fills `plan.ASSETS` and `plan.FLOORS` (each asset's footprint, how it stands, its
+  pictures per facing), which the checks and the admin page use. The game's `PlanArt` autoload fetches the
+  manifest and the pictures at runtime and refetches on `plan_art_changed`, so new art needs no export; a
+  `Furniture` node shows a piece (and blocks walking) once its picture is in, and the floor bakes again.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
   every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
   The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the
@@ -170,7 +176,9 @@ A Godot 4.7 project exported to the web.
   floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more.
 - Every room is built on every client and every table's events go to everyone; hidden rooms are only hidden. Past
   a few dozen tables the server should send each session only the tables in the rooms it can see.
-- Interactive objects on the floor plan (the asset library reserves a kind for them).
+- Interactive objects on the floor plan: library pieces are decoration (and footprints); nothing responds to a click.
+- Turned card tables other than Blackjack (each needs the layout audit upside down, then a 180 in
+  `tools/plan_catalogue.gd`'s GAMES), and tables at 90°.
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Customising your own look, chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.

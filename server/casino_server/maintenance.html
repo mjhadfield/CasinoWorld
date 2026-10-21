@@ -205,6 +205,24 @@ button.link { border: 0; background: none; padding: 0; color: inherit; text-alig
 .pl-problems { margin-top: 12px; padding: 10px 14px; border-color: var(--warn); }
 .pl-problems h3 { margin: 0 0 4px; font-size: 14px; color: var(--warn); }
 .pl-problems ul { margin: 0; padding-left: 20px; font-size: 13px; }
+#plan-app [hidden] { display: none !important; }
+.pl-asset-main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 12px; align-items: start; }
+@media (max-width: 900px) { .pl-asset-main { grid-template-columns: minmax(0, 1fr); } }
+.pl-asset-list { padding: 10px; } .pl-asset-list h3 { margin: 12px 0 6px; font-size: 14px; }
+.pl-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.pl-asset { display: grid; justify-items: center; gap: 2px; padding: 4px; font-size: 12px; text-align: center; }
+.pl-asset img { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; background: #23403e; border-radius: 6px; }
+.pl-asset small { color: var(--gold); font-size: 10px; }
+.pl-asset.on { outline: 2px solid var(--felt); }
+.pl-asset-detail { padding: 10px; display: grid; gap: 8px; position: sticky; top: 8px; }
+.pl-asset-edit { display: grid; gap: 8px; } .pl-asset-edit h3, .pl-asset-edit h4 { margin: 0; }
+.pl-stage-pic { max-width: 100%; border-radius: 8px; touch-action: none; cursor: crosshair; }
+.pl-facings { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.pl-facing { display: grid; gap: 3px; justify-items: start; font-size: 12px; }
+.pl-facing img { height: 48px; image-rendering: pixelated; background: #23403e; border-radius: 4px; }
+.pl-floor-preview { height: 160px; border-radius: 8px; background-repeat: repeat; image-rendering: pixelated; }
+label.button { display: inline-block; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-size: 13px; background: var(--panel); }
+label.button.small { padding: 1px 6px; font-size: 11px; }
 /* Tables: the table styles' designer (table_styles_web/designer.js) -- styles and placement, the table, the design */
 .ts { display: grid; grid-template-columns: 250px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 @media (max-width: 1250px) { .ts { grid-template-columns: 250px minmax(0, 1fr); } .ts-ctl { grid-column: 1 / -1; } }

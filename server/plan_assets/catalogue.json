@@ -1,0 +1,1591 @@
+{
+ "assets": {
+  "bar_stool": {
+   "name": "Bar stool",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "bar_stool.png",
+     "anchor": [
+      16,
+      39
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -39,
+    32,
+    39
+   ],
+   "body": [
+    -13.0,
+    -8,
+    26,
+    8
+   ]
+  },
+  "stool": {
+   "name": "Round stool",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "stool.png",
+     "anchor": [
+      15,
+      32
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -32,
+    31,
+    32
+   ],
+   "body": [
+    -13.5,
+    -8,
+    27,
+    8
+   ]
+  },
+  "bench": {
+   "name": "Bench",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "bench.png",
+     "anchor": [
+      40,
+      43
+     ]
+    }
+   },
+   "rect": [
+    -40,
+    -43,
+    80,
+    43
+   ],
+   "body": [
+    -34.0,
+    -14,
+    68,
+    14
+   ]
+  },
+  "low_bench": {
+   "name": "Low bench",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "low_bench.png",
+     "anchor": [
+      32,
+      28
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -28,
+    65,
+    28
+   ],
+   "body": [
+    -27.5,
+    -12,
+    55,
+    12
+   ]
+  },
+  "sofa": {
+   "name": "Sofa",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "sofa.png",
+     "anchor": [
+      26,
+      33
+     ]
+    }
+   },
+   "rect": [
+    -26,
+    -33,
+    53,
+    33
+   ],
+   "body": [
+    -22.5,
+    -16,
+    45,
+    16
+   ]
+  },
+  "long_sofa": {
+   "name": "Long sofa",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "long_sofa.png",
+     "anchor": [
+      32,
+      31
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -31,
+    64,
+    31
+   ],
+   "body": [
+    -27.0,
+    -16,
+    54,
+    16
+   ]
+  },
+  "ornate_sofa": {
+   "name": "Ornate sofa",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "ornate_sofa.png",
+     "anchor": [
+      31,
+      31
+     ]
+    }
+   },
+   "rect": [
+    -31,
+    -31,
+    63,
+    31
+   ],
+   "body": [
+    -26.5,
+    -16,
+    53,
+    16
+   ]
+  },
+  "armchair": {
+   "name": "Armchair",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "armchair.png",
+     "anchor": [
+      16,
+      32
+     ]
+    },
+    "up": {
+     "file": "armchair_up.png",
+     "anchor": [
+      16,
+      32
+     ]
+    },
+    "left": {
+     "file": "armchair_left.png",
+     "anchor": [
+      10,
+      32
+     ]
+    },
+    "right": {
+     "file": "armchair_left.png",
+     "anchor": [
+      10,
+      32
+     ],
+     "mirror": true
+    }
+   },
+   "rect": [
+    -16,
+    -32,
+    32,
+    32
+   ],
+   "body": [
+    -13.0,
+    -14,
+    26,
+    14
+   ],
+   "by_facing": {
+    "up": {
+     "rect": [
+      -16,
+      -32,
+      32,
+      32
+     ],
+     "body": [
+      -13.0,
+      -14,
+      26,
+      14
+     ]
+    },
+    "left": {
+     "rect": [
+      -10,
+      -32,
+      21,
+      32
+     ],
+     "body": [
+      -8.5,
+      -14,
+      17,
+      14
+     ]
+    },
+    "right": {
+     "rect": [
+      -10,
+      -32,
+      21,
+      32
+     ],
+     "body": [
+      -8.5,
+      -14,
+      17,
+      14
+     ]
+    }
+   }
+  },
+  "ottoman": {
+   "name": "Ottoman",
+   "category": "Seating",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "ottoman.png",
+     "anchor": [
+      17,
+      34
+     ]
+    }
+   },
+   "rect": [
+    -17,
+    -34,
+    34,
+    34
+   ],
+   "body": [
+    -14.0,
+    -12,
+    28,
+    12
+   ]
+  },
+  "round_table": {
+   "name": "Round table",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "round_table.png",
+     "anchor": [
+      31,
+      54
+     ]
+    }
+   },
+   "rect": [
+    -31,
+    -54,
+    63,
+    54
+   ],
+   "body": [
+    -26.5,
+    -26,
+    53,
+    26
+   ]
+  },
+  "long_table": {
+   "name": "Long table",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "long_table.png",
+     "anchor": [
+      48,
+      43
+     ]
+    }
+   },
+   "rect": [
+    -48,
+    -43,
+    96,
+    43
+   ],
+   "body": [
+    -40.0,
+    -20,
+    80,
+    20
+   ]
+  },
+  "coffee_table": {
+   "name": "Coffee table",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "coffee_table.png",
+     "anchor": [
+      40,
+      25
+     ]
+    }
+   },
+   "rect": [
+    -40,
+    -25,
+    80,
+    25
+   ],
+   "body": [
+    -34.0,
+    -14,
+    68,
+    14
+   ]
+  },
+  "desk": {
+   "name": "Writing desk",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "desk.png",
+     "anchor": [
+      32,
+      34
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -34,
+    64,
+    34
+   ],
+   "body": [
+    -27.0,
+    -18,
+    54,
+    18
+   ]
+  },
+  "desk_hutch": {
+   "name": "Desk with shelves",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "desk_hutch.png",
+     "anchor": [
+      32,
+      61
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -61,
+    64,
+    61
+   ],
+   "body": [
+    -27.0,
+    -18,
+    54,
+    18
+   ]
+  },
+  "reception_desk": {
+   "name": "Reception desk",
+   "category": "Tables & desks",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "reception_desk.png",
+     "anchor": [
+      32,
+      61
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -61,
+    64,
+    61
+   ],
+   "body": [
+    -27.0,
+    -18,
+    54,
+    18
+   ]
+  },
+  "bar_counter": {
+   "name": "Long bar counter",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "bar_counter.png",
+     "anchor": [
+      26,
+      118
+     ]
+    }
+   },
+   "rect": [
+    -26,
+    -118,
+    52,
+    118
+   ],
+   "body": [
+    -22.0,
+    -28,
+    44,
+    28
+   ]
+  },
+  "wine_rack_green": {
+   "name": "Wine rack (green)",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "wine_rack_green.png",
+     "anchor": [
+      40,
+      94
+     ]
+    }
+   },
+   "rect": [
+    -40,
+    -94,
+    80,
+    94
+   ],
+   "body": [
+    -34.0,
+    -20,
+    68,
+    20
+   ]
+  },
+  "wine_rack_red": {
+   "name": "Wine rack (red)",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "wine_rack_red.png",
+     "anchor": [
+      38,
+      94
+     ]
+    }
+   },
+   "rect": [
+    -38,
+    -94,
+    76,
+    94
+   ],
+   "body": [
+    -32.0,
+    -20,
+    64,
+    20
+   ]
+  },
+  "wine_rack_mixed": {
+   "name": "Wine rack (mixed)",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "wine_rack_mixed.png",
+     "anchor": [
+      38,
+      94
+     ]
+    }
+   },
+   "rect": [
+    -38,
+    -94,
+    76,
+    94
+   ],
+   "body": [
+    -32.0,
+    -20,
+    64,
+    20
+   ]
+  },
+  "barrel": {
+   "name": "Barrel",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "barrel.png",
+     "anchor": [
+      15,
+      43
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -43,
+    30,
+    43
+   ],
+   "body": [
+    -13.0,
+    -14,
+    26,
+    14
+   ]
+  },
+  "barrel_stack": {
+   "name": "Stacked barrels",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "barrel_stack.png",
+     "anchor": [
+      30,
+      59
+     ]
+    }
+   },
+   "rect": [
+    -30,
+    -59,
+    61,
+    59
+   ],
+   "body": [
+    -25.5,
+    -22,
+    51,
+    22
+   ]
+  },
+  "keg": {
+   "name": "Keg with tap",
+   "category": "Bar & counters",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "keg.png",
+     "anchor": [
+      15,
+      34
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -34,
+    30,
+    34
+   ],
+   "body": [
+    -13.0,
+    -14,
+    26,
+    14
+   ]
+  },
+  "plant_low": {
+   "name": "Potted plant",
+   "category": "Plants",
+   "mount": "floor",
+   "credit": "plant",
+   "facings": {
+    "down": {
+     "file": "plant_low.png",
+     "anchor": [
+      12,
+      34
+     ]
+    }
+   },
+   "rect": [
+    -12,
+    -34,
+    24,
+    34
+   ],
+   "body": [
+    -10.0,
+    -10,
+    20,
+    10
+   ]
+  },
+  "plant_tall": {
+   "name": "Tall potted plant",
+   "category": "Plants",
+   "mount": "floor",
+   "credit": "plant",
+   "facings": {
+    "down": {
+     "file": "plant_tall.png",
+     "anchor": [
+      13,
+      46
+     ]
+    }
+   },
+   "rect": [
+    -13,
+    -46,
+    26,
+    46
+   ],
+   "body": [
+    -11.0,
+    -10,
+    22,
+    10
+   ]
+  },
+  "plant_leaning": {
+   "name": "Leaning potted plant",
+   "category": "Plants",
+   "mount": "floor",
+   "credit": "plant",
+   "facings": {
+    "down": {
+     "file": "plant_leaning.png",
+     "anchor": [
+      13,
+      46
+     ]
+    }
+   },
+   "rect": [
+    -13,
+    -46,
+    26,
+    46
+   ],
+   "body": [
+    -11.0,
+    -10,
+    22,
+    10
+   ]
+  },
+  "table_lamp": {
+   "name": "Table lamp",
+   "category": "Lighting",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "table_lamp.png",
+     "anchor": [
+      13,
+      33
+     ]
+    }
+   },
+   "rect": [
+    -13,
+    -33,
+    26,
+    33
+   ],
+   "body": [
+    -11.0,
+    -8,
+    22,
+    8
+   ]
+  },
+  "candelabra": {
+   "name": "Candelabra",
+   "category": "Lighting",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "candelabra.png",
+     "anchor": [
+      12,
+      51
+     ]
+    }
+   },
+   "rect": [
+    -12,
+    -51,
+    25,
+    51
+   ],
+   "body": [
+    -10.5,
+    -8,
+    21,
+    8
+   ]
+  },
+  "lantern": {
+   "name": "Lantern",
+   "category": "Lighting",
+   "mount": "floor",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "lantern.png",
+     "anchor": [
+      14,
+      31
+     ]
+    }
+   },
+   "rect": [
+    -14,
+    -31,
+    29,
+    31
+   ],
+   "body": [
+    -12.5,
+    -8,
+    25,
+    8
+   ]
+  },
+  "fountain": {
+   "name": "Fountain",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "fountain",
+   "facings": {
+    "down": {
+     "file": "fountain.png",
+     "anchor": [
+      32,
+      76
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -76,
+    64,
+    76
+   ],
+   "body": [
+    -27.0,
+    -34,
+    54,
+    34
+   ]
+  },
+  "stone_fountain": {
+   "name": "Stone fountain",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "stone_fountain.png",
+     "anchor": [
+      31,
+      62
+     ]
+    }
+   },
+   "rect": [
+    -31,
+    -62,
+    62,
+    62
+   ],
+   "body": [
+    -26.0,
+    -30,
+    52,
+    30
+   ]
+  },
+  "statue_lady": {
+   "name": "Lady statue",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "statue_lady.png",
+     "anchor": [
+      12,
+      58
+     ]
+    }
+   },
+   "rect": [
+    -12,
+    -58,
+    24,
+    58
+   ],
+   "body": [
+    -10.0,
+    -12,
+    20,
+    12
+   ]
+  },
+  "statue_kneeling": {
+   "name": "Kneeling statue",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "statue_kneeling.png",
+     "anchor": [
+      12,
+      60
+     ]
+    }
+   },
+   "rect": [
+    -12,
+    -60,
+    24,
+    60
+   ],
+   "body": [
+    -10.0,
+    -12,
+    20,
+    12
+   ]
+  },
+  "statue_hooded": {
+   "name": "Hooded statue",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "statue_hooded.png",
+     "anchor": [
+      15,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -64,
+    30,
+    64
+   ],
+   "body": [
+    -13.0,
+    -14,
+    26,
+    14
+   ]
+  },
+  "statue_cherub": {
+   "name": "Cherub statue",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "statue_cherub.png",
+     "anchor": [
+      15,
+      58
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -58,
+    31,
+    58
+   ],
+   "body": [
+    -13.5,
+    -14,
+    27,
+    14
+   ]
+  },
+  "bird_bath": {
+   "name": "Bird bath",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "bird_bath.png",
+     "anchor": [
+      15,
+      54
+     ]
+    }
+   },
+   "rect": [
+    -15,
+    -54,
+    30,
+    54
+   ],
+   "body": [
+    -13.0,
+    -10,
+    26,
+    10
+   ]
+  },
+  "pedestal": {
+   "name": "Pedestal",
+   "category": "Statues & fountains",
+   "mount": "floor",
+   "credit": "medieval",
+   "facings": {
+    "down": {
+     "file": "pedestal.png",
+     "anchor": [
+      13,
+      50
+     ]
+    }
+   },
+   "rect": [
+    -13,
+    -50,
+    27,
+    50
+   ],
+   "body": [
+    -11.5,
+    -12,
+    23,
+    12
+   ]
+  },
+  "grand_piano": {
+   "name": "Grand piano",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "grand_piano.png",
+     "anchor": [
+      32,
+      74
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -74,
+    64,
+    74
+   ],
+   "body": [
+    -27.0,
+    -28,
+    54,
+    28
+   ]
+  },
+  "upright_piano": {
+   "name": "Upright piano",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "upright_piano.png",
+     "anchor": [
+      32,
+      53
+     ]
+    }
+   },
+   "rect": [
+    -32,
+    -53,
+    65,
+    53
+   ],
+   "body": [
+    -27.5,
+    -14,
+    55,
+    14
+   ]
+  },
+  "grandfather_clock": {
+   "name": "Grandfather clock",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "grandfather_clock.png",
+     "anchor": [
+      9,
+      71
+     ]
+    }
+   },
+   "rect": [
+    -9,
+    -71,
+    18,
+    71
+   ],
+   "body": [
+    -8.0,
+    -10,
+    16,
+    10
+   ]
+  },
+  "fireplace": {
+   "name": "Fireplace",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "fireplace.png",
+     "anchor": [
+      47,
+      72
+     ]
+    }
+   },
+   "rect": [
+    -47,
+    -72,
+    94,
+    72
+   ],
+   "body": [
+    -39.0,
+    -16,
+    78,
+    16
+   ]
+  },
+  "wardrobe": {
+   "name": "Wardrobe",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "wardrobe.png",
+     "anchor": [
+      31,
+      77
+     ]
+    }
+   },
+   "rect": [
+    -31,
+    -77,
+    63,
+    77
+   ],
+   "body": [
+    -26.5,
+    -14,
+    53,
+    14
+   ]
+  },
+  "bookcase": {
+   "name": "Bookcase",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "bookcase.png",
+     "anchor": [
+      16,
+      59
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -59,
+    32,
+    59
+   ],
+   "body": [
+    -13.0,
+    -10,
+    26,
+    10
+   ]
+  },
+  "bookcase_full": {
+   "name": "Bookcase (full)",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "wood",
+   "facings": {
+    "down": {
+     "file": "bookcase_full.png",
+     "anchor": [
+      16,
+      59
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -59,
+    32,
+    59
+   ],
+   "body": [
+    -13.0,
+    -10,
+    26,
+    10
+   ]
+  },
+  "folding_screen": {
+   "name": "Folding screen",
+   "category": "Decor",
+   "mount": "floor",
+   "credit": "upholstery",
+   "facings": {
+    "down": {
+     "file": "folding_screen.png",
+     "anchor": [
+      16,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -64,
+    32,
+    64
+   ],
+   "body": [
+    -13.0,
+    -8,
+    26,
+    8
+   ]
+  },
+  "rug_red": {
+   "name": "Red rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_red.png",
+     "anchor": [
+      48,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -48,
+    -48,
+    96,
+    96
+   ],
+   "body": null
+  },
+  "rug_blue": {
+   "name": "Blue rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_blue.png",
+     "anchor": [
+      48,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -48,
+    -48,
+    96,
+    96
+   ],
+   "body": null
+  },
+  "rug_green": {
+   "name": "Green rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_green.png",
+     "anchor": [
+      48,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -48,
+    -48,
+    96,
+    96
+   ],
+   "body": null
+  },
+  "rug_gold": {
+   "name": "Gold rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_gold.png",
+     "anchor": [
+      48,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -48,
+    -48,
+    96,
+    96
+   ],
+   "body": null
+  },
+  "rug_red_large": {
+   "name": "Large red rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_red_large.png",
+     "anchor": [
+      60,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -60,
+    -48,
+    120,
+    96
+   ],
+   "body": null
+  },
+  "rug_green_large": {
+   "name": "Large green rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_green_large.png",
+     "anchor": [
+      60,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -60,
+    -48,
+    120,
+    96
+   ],
+   "body": null
+  },
+  "rug_blue_large": {
+   "name": "Large blue rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_blue_large.png",
+     "anchor": [
+      60,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -60,
+    -48,
+    120,
+    96
+   ],
+   "body": null
+  },
+  "rug_gold_large": {
+   "name": "Large gold rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "floors",
+   "facings": {
+    "down": {
+     "file": "rug_gold_large.png",
+     "anchor": [
+      60,
+      48
+     ]
+    }
+   },
+   "rect": [
+    -60,
+    -48,
+    120,
+    96
+   ],
+   "body": null
+  },
+  "bear_rug": {
+   "name": "Bearskin rug",
+   "category": "Rugs",
+   "mount": "flat",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "bear_rug.png",
+     "anchor": [
+      43,
+      27
+     ]
+    }
+   },
+   "rect": [
+    -43,
+    -27,
+    86,
+    55
+   ],
+   "body": null
+  },
+  "banner_cream": {
+   "name": "Cream banner",
+   "category": "Wall decor",
+   "mount": "wall",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "banner_cream.png",
+     "anchor": [
+      16,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -64,
+    32,
+    64
+   ],
+   "body": null
+  },
+  "banner_blue": {
+   "name": "Blue banner",
+   "category": "Wall decor",
+   "mount": "wall",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "banner_blue.png",
+     "anchor": [
+      16,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -64,
+    32,
+    64
+   ],
+   "body": null
+  },
+  "banner_green": {
+   "name": "Green banner",
+   "category": "Wall decor",
+   "mount": "wall",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "banner_green.png",
+     "anchor": [
+      16,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -64,
+    32,
+    64
+   ],
+   "body": null
+  },
+  "banner_red": {
+   "name": "Red banner",
+   "category": "Wall decor",
+   "mount": "wall",
+   "credit": "tavern",
+   "facings": {
+    "down": {
+     "file": "banner_red.png",
+     "anchor": [
+      16,
+      64
+     ]
+    }
+   },
+   "rect": [
+    -16,
+    -64,
+    32,
+    64
+   ],
+   "body": null
+  }
+ },
+ "floors": {
+  "carpet_green": {
+   "name": "Green carpet",
+   "file": "floors/carpet_green.png",
+   "credit": "floors"
+  },
+  "carpet_red": {
+   "name": "Red carpet",
+   "file": "floors/carpet_red.png",
+   "credit": "floors"
+  },
+  "carpet_blue": {
+   "name": "Blue carpet",
+   "file": "floors/carpet_blue.png",
+   "credit": "floors"
+  },
+  "carpet_gold": {
+   "name": "Gold carpet",
+   "file": "floors/carpet_gold.png",
+   "credit": "floors"
+  },
+  "herringbone": {
+   "name": "Herringbone oak",
+   "file": "floors/herringbone.png",
+   "credit": "floors"
+  },
+  "planks": {
+   "name": "Oak planks",
+   "file": "floors/planks.png",
+   "credit": "floors"
+  },
+  "parquet_dark": {
+   "name": "Dark parquet",
+   "file": "floors/parquet_dark.png",
+   "credit": "floors"
+  },
+  "marble_tiles": {
+   "name": "Marble tiles",
+   "file": "floors/marble_tiles.png",
+   "credit": "floors"
+  },
+  "stone_slabs": {
+   "name": "Stone slabs",
+   "file": "floors/stone_slabs.png",
+   "credit": "floors"
+  }
+ }
+}

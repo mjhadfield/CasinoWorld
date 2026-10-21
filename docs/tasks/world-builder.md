@@ -21,15 +21,13 @@ Server: new `plan.py`, `plan_catalogue.json`, `plan_classic.json`, `plan_web/`; 
 - [x] Phase 1: server plan (draft/live/history, validation, publish, NPCs from the plan), tests
 - [x] Phase 2: client builds the world from the plan; lobby spawn; zones; preview mode
 - [x] Phase 3: admin Floor plan tab (plan view, blueprint editor, paths, problems)
-- [ ] Phase 4: LPC furniture library, uploads, PlanArt
+- [x] Phase 4: LPC furniture library, uploads, PlanArt
 - [ ] `tools/dev.sh test` passes; docs updated; merged and live
 
 ## Handoff
-- **State:** Phases 0-3 committed on the branch: server plan, client floor from the plan, and the admin Floor
-  plan tab (plan_web/: plan.js UI, geom.js shapes/doorways/reach, draw.js canvas drawing incl. render.js tables).
-  Next: Phase 4, the furniture library (server/plan_assets/ + catalogue, tools/build_plan_assets.py with the LPC
-  packs, uploads to <data>/plan_assets/, PlanArt autoload + Furniture node, the Assets view in plan_web/assets.js
-  (a stub now)). Then merge, test, export, restart.
+- **State:** Phases 0-4 committed on the branch (server plan, client floor, admin Floor plan tab, asset library with
+  57 LPC pieces + 9 floors, uploads, PlanArt/Furniture). Next: merge to main, test, export, restart live (the live
+  floor becomes the lobby; Classic floor/pit wait in the library).
 - **Changed:** `tools/plan_catalogue.gd` + `server/casino_server/plan_catalogue.json` (table/cabinet footprints).
 - **Checked:** admin tab in Playwright (scratch script): plan view, room editor (place, rotate, door, point,
   zone, resize), phone width; fresh first-run plan with Classic placed above the lobby, published, walked through

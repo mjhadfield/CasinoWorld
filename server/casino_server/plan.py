@@ -1025,4 +1025,6 @@ def catalogue(builds_dir: Path | None = None) -> dict:
             "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM, "styles": WALL_STYLES},
             "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
             "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
-            "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS}
+            "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
+            "categories": ["Seating", "Tables & desks", "Bar & counters", "Plants", "Lighting", "Statues & fountains",
+                           "Decor", "Rugs", "Wall decor", "Uploads"]}

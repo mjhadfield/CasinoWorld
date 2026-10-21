@@ -105,6 +105,13 @@ and Tailscale. It has eight tabs:
     points. The inspector edits whatever's picked, or the room (name, size, floor and tint, wall style, sign).
   - Things in each other's way or off the floor show red at once; the server's problems list (seats or points
     nobody can reach, doors that don't line up) blocks Publish until it's clear.
+  - **Assets:** the furniture library the palette offers (`plan_assets.py`): 57 built-in pieces in categories
+    (Seating, Tables & desks, Bar & counters, Plants, Lighting, Statues & fountains, Decor, Rugs, Wall decor) and
+    floor textures, cut from LPC packs. Upload PNGs (or drop them on the page) as new pieces or floor textures; an
+    upload can be named, put in a category, stood on the floor / laid flat (a rug) / hung on the back wall, given
+    its anchor (where it stands) and footprint (what blocks walking) by dragging on its picture, given pictures for
+    other facings (or a mirrored one), and deleted unless a room uses it. Built-ins are read-only. The game fetches
+    the pictures at runtime, so new art needs no export.
   - The first run puts just the lobby on the floor (the spawn, with a door top centre) and keeps the old
     hand-built floor and pit in the library as "Classic floor" and "Classic pit" (also git tag `classic-floor`).
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
@@ -288,6 +295,11 @@ under CC-BY-SA/GPL. Looks designed on the admin page are built by the server ins
 Haven CC0, cached in `.dev/polyhaven/`) for the game and the admin page's table designer; the sources are in
 `docs/table_styles/LICENSES.md`.
 
+`server/.venv/bin/python tools/build_plan_assets.py` rebuilds the floor plan's built-in furniture, rugs and floor
+textures (`server/plan_assets/`) from LPC packs on OpenGameArt (pinned by checksum, cached in
+`.dev/plan_assets_src/`), with their credits in `server/plan_assets/CREDITS.md` (served at `/plan-art-credits`).
+Each piece is a box on a pack's sheet in the script; it writes a contact sheet to check them.
+
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
 library for the admin page's Slots tab. New slot art is designed on the admin page's Slot design tab.
 
@@ -313,7 +325,8 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
   - `plan.py`: the floor plan (rooms, doors, everything placed, NPC paths; draft, publish, history, checks), the
     Floor plan tab's API; its UI in `plan_web/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
-    tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints.
+    tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints. `plan_assets.py`:
+    the furniture library (built-ins in `server/plan_assets/`, uploads in `<data>/plan_assets/`).
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars, the floor plan's rooms (`plan_room`), doors (`plan_door`),
     furniture (`furniture`) and the pit podium (`pit_podium`). `autoload/plan_art.gd`: the asset library's pictures.
@@ -330,8 +343,10 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
   - `autoload/`: `net` (the socket), `session` (who you are, your balance), `sfx` (`Sfx.play(key)` for your own
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
-    `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader` and
-    `slot_art`.
+    `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader`, `slot_art`
+    and `plan_art` (the floor plan's furniture and floor pictures, fetched at runtime).
 - **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`,
+  `plan_catalogue.gd` (the tables' and cabinet's shapes for the floor plan: rerun it if a table changes shape),
+  `build_plan_assets.py` (the floor plan's built-in furniture from LPC packs),
   `build_table_tiles.py` (the table styles' wood, leather and felt tiles from Poly Haven, for the game and the
   designer), `table_geometry.gd` (the card tables' layout for the designer: rerun it if a table's layout changes).

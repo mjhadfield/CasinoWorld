@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
-from casino_server import plan, slot_builds, slot_design_art
+from casino_server import plan, plan_assets, slot_builds, slot_design_art
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -68,6 +68,7 @@ async def lifespan(app: FastAPI):
     built = slot_builds.install(builds_dir)
     if built:
         print("built slots: " + ", ".join(built))
+    library = plan_assets.AssetLibrary(data_dir)   # (first: the plan's checks know the furniture)
     plan.install(plan.load_live(data_dir))
     plan_board = plan.PlanBoard(data_dir, builds_dir)
     store = Store(data_dir / "casino.sqlite")
@@ -86,6 +87,7 @@ async def lifespan(app: FastAPI):
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
     app.state.plan = plan_board
+    app.state.plan_assets = library
     plan_board.on_draft = lambda _draft: casino.preview_changed()
     plan_board.on_publish = lambda _live: casino.broadcast_world()
     casino.preview_world = lambda room_id: plan.preview_world(plan_board.draft(), room_id)
@@ -459,6 +461,61 @@ async def plan_history(request: Request):
 @app.post("/api/plan/rollback/{hid}")
 async def plan_rollback(request: Request, hid: str):
     return _plan_call(request.app.state.plan.rollback, hid)
+
+
+# ------------------------------------------------------------------ the floor plan's asset library (plan_assets.py)
+def _asset_call(request: Request, fn, *args):
+    try:
+        out = fn(*args)
+    except plan_assets.AssetError as e:
+        raise HTTPException(400, str(e))
+    lib = request.app.state.plan_assets
+    for s in request.app.state.casino.sessions:   # (previews too)
+        if s.player is not None:
+            s.push({"type": "plan_art_changed", "version": lib.version})
+    return out
+
+
+@app.get("/api/plan/art")
+async def plan_art_manifest(request: Request):
+    return JSONResponse(request.app.state.plan_assets.manifest(), headers=NO_STORE)
+
+
+@app.get("/plan-art/{rel:path}")
+def plan_art_file(rel: str, request: Request):
+    path = request.app.state.plan_assets.file_path(rel)
+    if path is None:
+        raise HTTPException(404, "No such picture")
+    cache = "public, max-age=31536000, immutable" if "v" in request.query_params else "no-cache"
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": cache})
+
+
+@app.get("/plan-art-credits")
+def plan_art_credits():
+    return FileResponse(plan_assets.BUILTIN_DIR / "CREDITS.md", media_type="text/plain; charset=utf-8")
+
+
+@app.put("/api/plan-assets/{aid}/facings/{facing}")
+async def plan_asset_facing(aid: str, facing: str, request: Request):
+    return _asset_call(request, request.app.state.plan_assets.upload_facing, aid, facing, await request.body())
+
+
+@app.put("/api/plan-assets/{filename}")
+async def plan_asset_upload(filename: str, request: Request, kind: str = "asset"):
+    return _asset_call(request, request.app.state.plan_assets.upload, filename, await request.body(), kind)
+
+
+@app.patch("/api/plan-assets/{aid}")
+async def plan_asset_update(aid: str, request: Request):
+    return _asset_call(request, request.app.state.plan_assets.update, aid, await _json_body(request, "{name, category, ...}"))
+
+
+@app.delete("/api/plan-assets/{aid}")
+async def plan_asset_delete(aid: str, request: Request):
+    board = request.app.state.plan
+    plans = [board.draft(), plan.load_live(board.data_dir)] + [plan._read(p) or {"rooms": []} for p in sorted((board.dir / "history").glob("*.json"))[-3:]]
+    _asset_call(request, request.app.state.plan_assets.delete, aid, plans)
+    return {"deleted": aid}
 
 
 # The Floor plan tab's scripts (plan_web/), never cached, so an edit shows on reload.
@@ -1187,7 +1244,8 @@ def credits_page():
             f"<body style='font:15px system-ui;max-width:900px;margin:2rem auto;padding:0 1rem'>"
             f"<h1>Character art credits</h1><p>Built from the Universal LPC Spritesheet Character Generator "
             f"(commit {art.COMMIT[:10]}). Licences as listed; derived sprite sheets carry the same licences.</p>"
-            f"<ul>{rows}</ul></body>")
+            f"<ul>{rows}</ul><h1>Furniture and decor credits</h1><p>The floor plan's built-in furniture, rugs and floors "
+            f"are cut from LPC packs on OpenGameArt: <a href='/plan-art-credits'>their credits in full</a>.</p></body>")
 
 
 WEB_EXPORT_DIR.mkdir(parents=True, exist_ok=True)

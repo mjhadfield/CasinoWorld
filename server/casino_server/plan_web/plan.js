@@ -126,7 +126,8 @@ function build() {
       el("aside", { className: "pl-side panel", id: "pl-side" }),
       el("div", { className: "pl-stage panel" }, el("div", { className: "pl-tools", id: "pl-tools" }), canvas),
       el("aside", { className: "pl-insp panel", id: "pl-insp" })),
-    el("div", { className: "pl-problems panel", id: "pl-problems" }));
+    el("div", { className: "pl-problems panel", id: "pl-problems" }),
+    el("div", { className: "pl-assets", id: "pl-assets", hidden: true }));
   new ResizeObserver(() => { sizeCanvas(); draw(); }).observe(canvas.parentElement);
   canvas.addEventListener("pointerdown", down);
   canvas.addEventListener("pointermove", move);
@@ -162,11 +163,19 @@ function setMode(mode, roomIndex = S.room) {
   S.sel = [];
   S.placing = null;
   S.tool = "select";
+  $(".pl-main").hidden = mode === "assets";
+  $("#pl-assets").hidden = mode !== "assets";
   if (mode === "assets") {
-    import("./assets.js").then(m => m.open({ app: $("#pl-insp"), el, api, status, done: () => setMode("plan") }));
+    import("./assets.js").then(m => m.open({ app: $("#pl-assets"), el, api, status, cat: G.CAT, changed: reloadCatalogue }));
   }
   if (mode === "room") fitRoom(); else fitPlan();
   refresh();
+}
+
+/** The library changed (an upload, an edit): what the palette offers and how things are drawn. */
+async function reloadCatalogue() {
+  G.setCatalogue(await api("GET", "/api/plan/catalogue"));
+  return G.CAT;
 }
 
 // ---------------------------------------------------------------- the bar: views, saving, preview, publish
@@ -270,7 +279,6 @@ function togglePlaced(i) {
 function refreshSide() {
   const side = $("#pl-side");
   if (!side) return;
-  if (S.mode === "assets") { side.replaceChildren(el("p", { className: "hint", textContent: "The furniture library: what the palette offers when you edit a room." })); return; }
   if (S.mode === "plan") {
     const spawns = placed().flatMap(r => r.paths.points.filter(p => p.kind === "spawn").map(p => `${r.id}/${p.name}`));
     side.replaceChildren(
@@ -441,6 +449,7 @@ function refreshInspector() {
 function refreshProblems() {
   const box = $("#pl-problems");
   if (!box) return;
+  if (S.mode === "assets") { box.hidden = true; return; }
   const list = S.probs.filter(p => p.placed || (S.mode === "room" && room() && p.room === room().id));
   box.hidden = !list.length;
   box.replaceChildren(el("h3", { textContent: list.some(p => p.placed) ? "Can't publish yet" : "Problems in this blueprint" }),
