@@ -357,7 +357,8 @@ class CrapsMachine(TableMachine):
         d1, d2 = self.dice() if self.dice else (self.rng.randint(1, 6), self.rng.randint(1, 6))
         chips = cr.chips_on_table({i: self.seats[i].bets for i in self.occupied()})
         payouts = [(x + cr.PAYOUT_AT[0], y + cr.PAYOUT_AT[1]) for x, y in chips]
-        plan = cr.plan_throw(self.shooter, (d1, d2), self.rng, chips, payouts)
+        plan = cr.plan_throw(self.shooter, (d1, d2), self.rng, chips, payouts, cr.pucks_at(self.point),
+                             cr.puck_slide(self.point, cr.advance_point(self.point, d1 + d2)[0]))
         self.roll = {"dice": [d1, d2], "plan": plan, "at": now}
         self.phase = "throwing"
         self.deadline = now + self.timings.dice_out + cr.throw_seconds(plan) + self.timings.land_pause

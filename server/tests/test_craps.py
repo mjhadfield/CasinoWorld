@@ -210,6 +210,37 @@ def test_the_dice_bounce_off_chips_and_never_stop_on_them(seed):
                     assert ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 >= cr.HIT - 0.1
 
 
+@pytest.mark.parametrize("seed", range(48))
+def test_the_dice_bounce_off_the_pucks_and_never_stop_where_one_is_or_will_be(seed):
+    rng = random.Random(seed)
+    shooter = seed % 8
+    was = (None,) + cr.NUMBERS
+    point = was[seed % len(was)]
+    faces = (rng.randint(1, 6), rng.randint(1, 6))
+    after = cr.advance_point(point, sum(faces))[0]
+    pucks, way = cr.pucks_at(point), cr.puck_slide(point, after)
+    plan = cr.plan_throw(shooter, faces, rng, pucks=pucks, puck_way=way)
+    for segs in plan:
+        for s in segs[2:]:
+            for cx, cy in pucks:
+                for k in range(11):
+                    x = s["x0"] + (s["x1"] - s["x0"]) * k / 10
+                    y = s["y0"] + (s["y1"] - s["y0"]) * k / 10
+                    assert ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 >= cr.PUCK_HIT - 0.1
+    for x, y, *_ in cr.resting(plan):
+        assert all(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 >= cr.PUCK_HIT - 0.05 for cx, cy in way)
+
+
+def test_the_pucks_sit_where_the_client_draws_them():
+    assert cr.pucks_at(None) == [(49, -106), (-49, -106)]
+    flat = lambda ps: [v for p in ps for v in p]
+    assert flat(cr.pucks_at(4)) == pytest.approx([60 + cr.BOX_W / 2, -102, -184 + cr.BOX_W / 2, -102])
+    assert flat(cr.pucks_at(10)) == pytest.approx([184 - cr.BOX_W / 2, -102, -60 - cr.BOX_W / 2, -102])
+    way = cr.puck_slide(None, 6)
+    assert way[0] == (49, -106) and way[-1] == pytest.approx((-184 + 2.5 * cr.BOX_W, -102))
+    assert all(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 <= 3 for a, b in zip(way, way[1:]) if a[0] * b[0] > 0)
+
+
 # ---------------------------------------------------------------- the table
 class Dice:
     """Rolls the given totals (or pairs) in order."""

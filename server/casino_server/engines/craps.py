@@ -344,14 +344,33 @@ def chips_on_table(seat_bets: dict) -> list[tuple[float, float]]:
     return [chip_pos(seat, spot) for seat, bets in seat_bets.items() for spot, a in bets.items() if a]
 
 
+def pucks_at(point: int | None) -> list[tuple[float, float]]:
+    """Where the two pucks sit (crp_table.gd's _puck_target): ON on the point's box, or OFF
+    in the Don't Come box, at each end."""
+    if point is None:
+        return [(49.0 * h, -106.0) for h in (1, -1)]
+    return [((60 if h == 1 else -184) + NUMBERS.index(point) * BOX_W + BOX_W / 2, -102.0) for h in (1, -1)]
+
+
+def puck_slide(was: int | None, now: int | None) -> list[tuple[float, float]]:
+    """The pucks' way from one place to the other after a roll, while the dice are still lying
+    there: points every few units along it (just the two places when it doesn't move)."""
+    out = []
+    for (x0, y0), (x1, y1) in zip(pucks_at(was), pucks_at(now)):
+        steps = max(1, math.ceil(math.hypot(x1 - x0, y1 - y0) / 3))
+        out += [(x0 + (x1 - x0) * k / steps, y0 + (y1 - y0) * k / steps) for k in range(steps + 1)]
+    return out
+
+
 # ---------------------------------------------------------------- the throw
 # The dice are choreographed, like the roulette ball: the faces are drawn first,
 # then plan_throw() lays out the path that brings each die to rest on its face --
 # an arc across the table from the shooter's hand, into the far wall's rubber
 # pyramids, back off them, a small hop and a slide. Low down (off the wall, the hop,
-# the slide) a die that runs into a stack of chips bounces off it, and it never comes
-# to rest on one (or where winnings will be put down beside one). Everyone sees the
-# same throw; the client (craps_dice.gd) just plays the plan back.
+# the slide) a die that runs into a stack of chips or a puck bounces off it, and it
+# never comes to rest on one (or where winnings will be put down beside one, or where
+# a puck is about to slide). Everyone sees the same throw; the client (craps_dice.gd)
+# just plays the plan back.
 #
 # Table coordinates, as the client draws the table: x across (0 at the middle),
 # y up the table (0 at the players' edge of the felt, the far edge at -121).
@@ -360,19 +379,20 @@ WALL_X = 183.5                    # the inside face of the pyramids at each end
 FELT_Y = (-111.0, -15.0)          # where the dice may come to rest
 HAND_Y = -13.0                    # the shooter's hand, reaching in clear of the heads at the rail (CrapsDice.HAND_Y)
 HIT = 6.6                         # a die's middle comes no closer than this to a stack's (chip 3.3 + die 3.3)
+PUCK_HIT = 7.7                    # ...or to a puck's (puck 4.4 + die 3.3)
 
 
-def _first_hit(x, y, dx, dy, chips):
-    """Where a die moving from (x, y) by (dx, dy) first touches a stack: (fraction, nx, ny)
-    with the contact's normal, or None."""
+def _first_hit(x, y, dx, dy, solids):
+    """Where a die moving from (x, y) by (dx, dy) first touches one of `solids` [(x, y, reach)]:
+    (fraction, nx, ny) with the contact's normal, or None."""
     best = None
     a = dx * dx + dy * dy
     if a < 1e-9:
         return None
-    for cx, cy in chips:
+    for cx, cy, reach in solids:
         ox, oy = x - cx, y - cy
         b = 2 * (ox * dx + oy * dy)
-        c = ox * ox + oy * oy - HIT * HIT
+        c = ox * ox + oy * oy - reach * reach
         if c < 0:      # already touching: only a move further in counts, and it's stopped at once
             if b < 0:
                 f = 0.0
@@ -393,13 +413,15 @@ def _first_hit(x, y, dx, dy, chips):
 
 
 def plan_throw(shooter: int, faces: tuple, rng: random.Random, chips: list | None = None,
-               payouts: list | None = None) -> list:
+               payouts: list | None = None, pucks: list | None = None, puck_way: list | None = None) -> list:
     """Each die's path: a list of segments {k: "air"|"slide", t0, t1, x0, y0, x1, y1, h
     (an arc's height), f (the face showing), r0, r1 (its turn), kn (how hard it knocks
     something at the end, 0-1)}. The last two segments show the drawn face. `chips` are
-    the stacks on the layout to bounce off; the dice don't stop on those or `payouts`."""
-    chips = chips or []
-    keep_clear = chips + (payouts or [])
+    the stacks on the layout and `pucks` where the pucks are, to bounce off; the dice don't
+    stop on those, `payouts` or `puck_way` (where the pucks will slide once it's called)."""
+    solids = [(x, y, HIT) for x, y in chips or []] + [(x, y, PUCK_HIT) for x, y in pucks or []]
+    keep_clear = (solids + [(x, y, HIT) for x, y in payouts or []]
+                  + [(x, y, PUCK_HIT) for x, y in puck_way or []])
     to_left = shooter < 4            # right-hand players throw to the left-hand end, and vice versa
     d = -1 if to_left else 1
     wall = d * WALL_X
@@ -430,7 +452,7 @@ def plan_throw(shooter: int, faces: tuple, rng: random.Random, chips: list | Non
                 """A move along the felt (or just off it) that bounces off any stack in its way."""
                 dx, dy = x1 - state["x"], y1 - state["y"]
                 for _ in range(4):
-                    hit = _first_hit(state["x"], state["y"], dx, dy, chips)
+                    hit = _first_hit(state["x"], state["y"], dx, dy, solids)
                     if hit is None:
                         break
                     f, nx, ny = hit
@@ -446,8 +468,8 @@ def plan_throw(shooter: int, faces: tuple, rng: random.Random, chips: list | Non
                 go(kind, ex, clamp(state["y"] + dy), dur, h, face, kn)
 
             go("air", wall - d * u(42, 72), u(-95, -31), u(0.58, 0.7), u(20, 27), kn=1.0)
-            if any(math.hypot(state["x"] - cx, state["y"] - cy) < HIT for cx, cy in chips):
-                clear = False   # (it would come down on a stack: throw again)
+            if any(math.hypot(state["x"] - cx, state["y"] - cy) < reach for cx, cy, reach in solids):
+                clear = False   # (it would come down on a stack or a puck: throw again)
             go("air", wall, clamp(state["y"] + u(-14, 14)), u(0.17, 0.23), u(5, 8), kn=1.0)
             low("air", wall - d * u(14, 24), clamp(state["y"] + u(-10, 10)), u(0.2, 0.26), u(3.5, 6), 0.6)
             low("air", state["x"] - d * u(6, 12), clamp(state["y"] + u(-6, 6)), u(0.14, 0.18), u(1.4, 2.4), 0.35,
@@ -456,7 +478,7 @@ def plan_throw(shooter: int, faces: tuple, rng: random.Random, chips: list | Non
             plans.append(segs)
         a, b = plans[0][-1], plans[1][-1]
         apart = math.hypot(a["x1"] - b["x1"], a["y1"] - b["y1"])
-        crowded = sum(math.hypot(s["x1"] - cx, s["y1"] - cy) < HIT for s in (a, b) for cx, cy in keep_clear)
+        crowded = sum(math.hypot(s["x1"] - cx, s["y1"] - cy) < reach for s in (a, b) for cx, cy, reach in keep_clear)
         score = (not clear) + crowded + (apart < 9) + sum(d * s["x1"] < 100 for s in (a, b))
         if best is None or score < best[0]:
             best = (score, plans)
