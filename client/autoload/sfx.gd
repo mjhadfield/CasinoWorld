@@ -69,6 +69,8 @@ const BUILT_IN_GAIN_DB := {"click": -6.0, "tick": -4.0, "flip": -3.0, "dice_boun
 const MIN_GAP := {"dice_bounce": 0.03, "ball_hop": 0.04, "deal": 0.1, "flip": 0.15, "bet": 0.06, "payout": 0.12, "sweep": 0.12, "result": 0.05,
 	"reel_stop": 0.05, "scatter_land": 0.05, "trail_hop": 0.05, "trail_coin": 0.06, "feature_wilds": 0.08, "click": 0.03}
 const HEARING := 340.0  # px from the camera at which a table sound has faded out
+## Whether a place on the floor (global) can be heard from where you are: the floor sets it (a room you can see).
+var audible: Callable
 const DOWNLOADS := 6    # files fetched at once
 
 ## The table you're at ("" walking the floor): `play()` uses its sound set.
@@ -122,6 +124,8 @@ func play_at(key: String, at: Vector2, trim_db := 0.0, table := "") -> void:
 	var camera := get_viewport().get_camera_2d()
 	if camera and camera.get_screen_center_position().distance_to(at) > HEARING:
 		return   # (too far off to hear: no player for it)
+	if audible.is_valid() and not audible.call(at):
+		return   # (in a room you can't see: behind a wall or a closed door)
 	var c := _choice(key, table)
 	var stream := _pick(key, c, str(at.snapped(Vector2(200, 200))))  # each table keeps its own gap
 	if stream == null:

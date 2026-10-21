@@ -37,10 +37,10 @@ game result and every penny is decided on the server; the client only renders an
   reconnects to a fresh snapshot.
 - **The world (`world.py`)** is every avatar on the floor: `{id, kind, name, look, x, y, dir, anim, seat,
   walk}`. Players move themselves and report it (`move`, about 10 times a second), and the server relays it.
-  NPCs are sent walks instead (`entity_walk {id, target, duration}` to a named point or a seat). Each client
-  paths them on its navigation map at whatever speed arrives on time, so everyone sees them arrive
-  together and the server needs no floor geometry. The point names live in `floor.py`, and each must exist as
-  a `Marker2D` in the client's floor scene.
+  NPCs are sent walks instead (`entity_walk {id, target, duration}` to a floor-plan point,
+  `point:<room>/<name>`, or a seat). The server times a walk by its distance through the doorways (`floor.py`,
+  filled from the floor plan); each client paths it on its navigation map at whatever speed arrives on time, so
+  everyone sees them arrive together.
 
 ### Tables: pure machines, driven in real time
 
@@ -133,11 +133,19 @@ A Godot 4.7 project exported to the web.
   getting-up for you, other players and NPCs. The camera, and a slot's full-screen game, wait for your sit. How each
   table looks comes the same way, from the server's table styles (`table_styles.py`: one set for the card tables,
   one for Roulette, one for Craps; in the welcome and in a `table_styles` broadcast): `scripts/table_style.gd`
-  holds them and `StyledFelt` paints every table in its style. The navigation region sits outside World,
-  so the nav map stays in World's frame through a turn; a bake waits until the floor is upright. The rooms
-  (the main floor and the Blackjack pit room, joined by a doorway), the tables and the felt are drawn in code,
-  so they stay sharp at any zoom. A static body on collision layer 2 (the Blackjack pit's `PitFence`) is in the
-  navigation bake but not in your way: NPCs path round it, players walk through.
+  holds them and `StyledFelt` paints every table in its style. The floor itself is built from the floor plan in
+  the welcome (`world`): a `PlanRoom` (`scenes/world/plan_room.gd`) per room under `World/Rooms`, drawing its floor
+  and walls in code (so they stay sharp at any zoom), cutting its doorways (`PlanDoor` swings a door open as
+  anyone nears it), and placing its tables, cabinets, pieces and standing figures. A `world` message rebuilds it,
+  after you stand up if you're sitting, and resyncs for fresh table states. Rooms joined by archways show
+  together; a room through a door shows once you're in the doorway; hidden rooms keep running (`visible` only),
+  people in them are hidden and their sounds go unheard (`Sfx.audible`), and the camera keeps to the rooms on
+  show. The navigation region sits outside World, so the nav map stays in World's frame through a turn; a bake
+  (every room's outline, less the wall bodies, which leave the doorways open, and everything in group
+  `navigation_obstacles`) waits until the floor is upright. A tap walks you along the nav map's path. A zone of
+  kind `npc_block` is a static body on collision layer 2: in the navigation bake but not in your way, so NPCs
+  path round it and players walk through. A preview (`?preview=<room>`) builds the draft's floor to walk round
+  alone.
 - **Avatars:** `avatar.gd` shows a look, a name tag (an MSDF font) and a speech bubble. `local_player.gd`
   drives you (keys, click-to-walk, click and hold), and `entity_avatar.gd` drives everyone else: other
   players' reported moves are smoothed, and NPC walks are pathed.
@@ -159,10 +167,10 @@ A Godot 4.7 project exported to the web.
 ## Not done yet
 
 - Staff other than dealers (waiters, pit bosses, cashiers, bar staff) can be designed but don't work the
-  floor. The pit room's pit boss is a figure at a podium, nothing more.
-- Slot banks can only go on the main floor (`floor_map.json`'s `walkable` is that room).
+  floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more.
+- Every room is built on every client and every table's events go to everyone; hidden rooms are only hidden. Past
+  a few dozen tables the server should send each session only the tables in the rooms it can see.
+- Interactive objects on the floor plan (the asset library reserves a kind for them).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Customising your own look, chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.
-- A floor redesign with decor (a bar, a cashier's cage, plants): the rooms are still just the tables, so NPCs
-  wander between aisle points.

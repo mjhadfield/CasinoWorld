@@ -184,6 +184,10 @@ def main() -> None:
 
         def on_floor() -> None:
             welcome = wait_for("welcome")["msg"]
+            if welcome.get("preview"):   # (a floor-plan preview has no body to wait for)
+                page.wait_for_timeout(1500)
+                print(f"previewing {welcome['preview']} at {url}")
+                return
             if welcome.get("needs_name"):
                 mark = seq()
                 page.wait_for_timeout(500)  # the prompt takes keys once it's drawn

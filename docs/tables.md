@@ -4,7 +4,7 @@ How the tables are drawn and laid out in the client. The rules of each game are 
 
 ## The look
 
-The tables are drawn in code, as is the room (`scenes/world/room.gd`), so they stay sharp at any zoom.
+The tables are drawn in code, as are the rooms (`scenes/world/plan_room.gd`, built from the floor plan), so they stay sharp at any zoom.
 
 **Every table is drawn in its table style.** A style is a design made on the admin page's Tables tab, which has
 a tab for each kind of table, because they have different parts:
@@ -109,8 +109,9 @@ Every card table follows the same alignment rules:
 
 ## Turned tables
 
-A table on the floor can be turned (`rotation` on its instance in `casino_floor.tscn`). For example, the far row of
-the Blackjack pit is set to `PI`, so its dealers stand with their backs to the pit. The table needs nothing of its
+A table on the floor can be turned (its `rot` on the floor plan; `plan_catalogue.json` says which turns each game
+takes, and only Blackjack takes 180 so far). For example, the far row of the classic Blackjack pit is turned, so its
+dealers stand with their backs to the pit. The table needs nothing of its
 own for this:
 - **To a walker** it's drawn as seen from that side. The felt's printing is upside down, and the players face
   you from behind it. The dealer has their back to you and stands on the floor at the felt's edge
@@ -128,8 +129,8 @@ own for this:
 - **Positions** the floor and server use are in World's frame. Use `to_global()` for points on a table, never
   `global_position + offset`, as `focus_point()` does.
 
-`tools/floor_map.gd` measures turned tables too. Their dealer's head is over the felt, so it adds nothing above
-them.
+`tools/plan_catalogue.gd` measures each game at every turn it takes. A turned table's dealer's head is over the
+felt, so it adds nothing above them.
 
 ## The layout audit
 

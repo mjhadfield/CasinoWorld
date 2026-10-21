@@ -23,6 +23,7 @@ Settings="*res://autoload/settings.gd"
 Sfx="*res://autoload/sfx.gd"
 LookLoader="*res://autoload/look_loader.gd"
 SlotArt="*res://autoload/slot_art.gd"
+PlanArt="*res://autoload/plan_art.gd"
 
 [display]
 

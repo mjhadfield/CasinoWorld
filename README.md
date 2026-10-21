@@ -34,7 +34,8 @@ run from this folder with `server/data/`. `tools/dev.sh` does the everyday jobs:
 tools/dev.sh restart        # after server changes
 tools/dev.sh export         # after client changes, then reload the page (no restart needed); also packs
                             # brotli/gzip copies of the engine (a minute when Godot's wasm has changed)
-tools/dev.sh server         # a scratch instance on its own port (8670 up) with .dev/data
+tools/dev.sh server         # a scratch instance on its own port (8670 up) with .dev/data; --classic puts the
+                            # classic floor and pit live there (the first run otherwise has just the lobby)
 ```
 
 - **Browser or phone:** open `https://192.168.0.66:8661`. Each device shows a "connection not private"
@@ -302,7 +303,8 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     Floor plan tab's API; its UI in `plan_web/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
     tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints.
 - **client/**
-  - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
+  - `scenes/world/`: the floor (`casino_floor`), avatars, the floor plan's rooms (`plan_room`), doors (`plan_door`),
+    furniture (`furniture`) and the pit podium (`pit_podium`). `autoload/plan_art.gd`: the asset library's pictures.
   - `scripts/seating.gd`: draws the chairs and craps standing spots and plays the sit-down, from the seating styles.
   - `scripts/table_style.gd`: the table styles from the server (`TableStyle.design(table_id, kind)`), and their tiles and fonts.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`,

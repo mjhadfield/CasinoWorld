@@ -10,7 +10,10 @@
 # For a worktree that needs its own instance:
 #   tools/dev.sh setup                 link the main checkout's .venv and lpc_cache in here
 #   tools/dev.sh port                  print this checkout's HTTP port (HTTPS is port + 1)
-#   tools/dev.sh server [--live-data]  run it (foreground; log in .dev/server.log); CASINO_WEB_DIR=dir serves that export
+#   tools/dev.sh server [--live-data] [--classic]
+#                                      run it (foreground; log in .dev/server.log); CASINO_WEB_DIR=dir serves that
+#                                      export; --classic puts the classic floor and pit live (else the plan in .dev/data:
+#                                      first time, just the lobby)
 #   tools/dev.sh list                  every checkout's port, and whether it is running
 #
 # The live server is Citadel's unit hub-proj-casino-world on 8660/8661, run from the main
@@ -85,7 +88,14 @@ copy_live_data() {
 
 server() {
     setup
-    [[ "${1:-}" == "--live-data" ]] && copy_live_data
+    local arg classic=""
+    for arg in "$@"; do
+        case "$arg" in
+            --live-data) copy_live_data ;;
+            --classic) classic=1 ;;
+            *) die "server: unknown option $arg" ;;
+        esac
+    done
     local p web
     p=$(port)
     [[ "$p" == "$LIVE_PORT" ]] && die "refusing to use the live port"
@@ -96,6 +106,11 @@ server() {
         echo "dev.sh: no build/web here, so serving the main checkout's client; run 'tools/dev.sh export' to test client changes"
     fi
     mkdir -p "$DEV/data"
+    if [[ -n "$classic" ]]; then   # the classic floor and pit, placed and live (the tests' floor), over any plan here
+        mkdir -p "$DEV/data/plan"
+        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$DEV/data/plan/live.json"
+        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$DEV/data/plan/draft.json"
+    fi
     # The Slot design board writes into its design folders, so the dev instance works on its own copy.
     [[ -d "$DEV/slot_designs" ]] || cp -a --reflink=auto "$ROOT/server/slot_designs" "$DEV/slot_designs"
     [[ -d "$DEV/slot_builds" ]] || { mkdir -p "$DEV/slot_builds"; [[ -d "$ROOT/server/slot_builds" ]] && cp -a --reflink=auto "$ROOT/server/slot_builds/." "$DEV/slot_builds/"; }

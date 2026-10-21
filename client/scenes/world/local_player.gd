@@ -1,7 +1,8 @@
 extends CharacterBody2D
 ## You. Keyboard (WASD/arrows), click/tap-to-walk, or click and hold to keep
 ## walking towards the pointer (as the view follows you, the pointer stays ahead,
-## so you can cross the whole floor that way). Movement is client-side
+## so you can cross the whole floor that way). A tap walks the navigation map's path
+## there, round tables and through doorways into the next room. Movement is client-side
 ## and reported to the server (move) ~10 times a second, so everyone else
 ## sees you walk around; the server still owns every game result.
 ##
@@ -16,6 +17,7 @@ const SEND_INTERVAL := 0.1
 @onready var avatar: Avatar = $Avatar
 var controls_enabled := true
 var _tap_target: Variant = null  # Vector2 while walking to a tap
+var _path := PackedVector2Array()  # the way there, round things (empty: straight at it)
 var _holding := false            # the button's held down: the target follows the pointer
 var _send_timer := 0.0
 var _last_sent := {}
@@ -30,12 +32,18 @@ func _physics_process(delta: float) -> void:
 			_tap_target = frame.get_local_mouse_position()
 		else:
 			_holding = false  # let go: finish the walk to the last point, like a tap
+			_plan_path(_tap_target)
 	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down").rotated(-frame.global_rotation)
 	if dir != Vector2.ZERO:
 		_tap_target = null
 		_holding = false
 	elif _tap_target != null:
-		var to_target: Vector2 = _tap_target - position
+		while not _holding and _path.size() > 1 and position.distance_to(_path[0]) < 4.0:
+			_path.remove_at(0)
+		var aim: Vector2 = _path[0] if not _holding and _path.size() > 1 else _tap_target
+		var to_target: Vector2 = aim - position
+		if aim != _tap_target and to_target.length() < 3.0:
+			to_target = _tap_target - position
 		if to_target.length() < 3.0:
 			if not _holding:  # held over yourself: just wait for the pointer to move on
 				_tap_target = null
@@ -68,6 +76,17 @@ func walk_to(pos: Vector2) -> void:
 	if controls_enabled:
 		_tap_target = pos
 		_holding = false
+		_plan_path(pos)
+
+
+## The navigation map's way to `goal` (only while the floor's upright: the map is in its frame).
+func _plan_path(goal: Variant) -> void:
+	_path = PackedVector2Array()
+	if goal == null or not is_zero_approx((get_parent() as Node2D).global_rotation):
+		return
+	var map := get_world_2d().navigation_map
+	if NavigationServer2D.map_get_iteration_id(map) > 0:
+		_path = NavigationServer2D.map_get_path(map, position, goal, true)
 
 
 func is_walking_to_target() -> bool:

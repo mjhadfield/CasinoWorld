@@ -1,46 +1,8 @@
 [gd_scene format=3 uid="uid://c745vs3ykbfp8"]
 
 [ext_resource type="Script" uid="uid://h4x1tkv2s1pj" path="res://scenes/world/casino_floor.gd" id="1_floor"]
-[ext_resource type="Texture2D" uid="uid://4thsbi1fqtum" path="res://assets/tiles/carpet.png" id="2_carpet"]
-[ext_resource type="Script" uid="uid://b21amec6obo5c" path="res://scenes/world/room.gd" id="3_room"]
-[ext_resource type="PackedScene" path="res://scenes/table/tcp_table.tscn" id="5_table"]
-[ext_resource type="PackedScene" path="res://scenes/table/bj_table.tscn" id="8_blackjack"]
-[ext_resource type="PackedScene" path="res://scenes/table/pg_table.tscn" id="9_paigow"]
-[ext_resource type="PackedScene" path="res://scenes/table/ms_table.tscn" id="10_mstud"]
-[ext_resource type="PackedScene" path="res://scenes/table/uth_table.tscn" id="11_uth"]
-[ext_resource type="PackedScene" path="res://scenes/table/lir_table.tscn" id="12_lir"]
-[ext_resource type="PackedScene" path="res://scenes/table/hcf_table.tscn" id="13_hcf"]
-[ext_resource type="PackedScene" path="res://scenes/table/bac_table.tscn" id="14_bac"]
-[ext_resource type="PackedScene" path="res://scenes/table/rou_table.tscn" id="15_rou"]
-[ext_resource type="PackedScene" path="res://scenes/table/crp_table.tscn" id="16_crp"]
 [ext_resource type="PackedScene" path="res://scenes/world/local_player.tscn" id="6_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="7_hud"]
-[ext_resource type="Script" path="res://scenes/world/pit_podium.gd" id="17_podium"]
-[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="18_avatar"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_h"]
-size = Vector2(1940, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_v"]
-size = Vector2(40, 1240)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_h"]
-size = Vector2(1040, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_door_n"]
-size = Vector2(24, 820)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_door_s"]
-size = Vector2(24, 320)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_podium"]
-size = Vector2(30, 10)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_fence_gap"]
-size = Vector2(36, 6)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_fence_end"]
-size = Vector2(6, 243)
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_floor"]
 parsed_geometry_type = 1
@@ -55,192 +17,19 @@ script = ExtResource("1_floor")
 [node name="World" type="Node2D" parent="."]
 y_sort_enabled = true
 
-[node name="Carpet" type="Sprite2D" parent="World" unique_id=1746824380]
-z_index = -10
-texture_repeat = 2
-texture = ExtResource("2_carpet")
-centered = false
-region_enabled = true
-region_rect = Rect2(0, 0, 2900, 1160)
-
-[node name="Room" type="Node2D" parent="World" unique_id=1433163646]
-z_index = -5
-script = ExtResource("3_room")
-
-[node name="Walls" type="StaticBody2D" parent="World" unique_id=923982497 groups=["navigation_obstacles"]]
-
-[node name="Top" type="CollisionShape2D" parent="World/Walls" unique_id=608458583]
-position = Vector2(950, 30)
-shape = SubResource("RectangleShape2D_h")
-
-[node name="Bottom" type="CollisionShape2D" parent="World/Walls" unique_id=855763326]
-position = Vector2(950, 1195)
-shape = SubResource("RectangleShape2D_h")
-
-[node name="Left" type="CollisionShape2D" parent="World/Walls" unique_id=8132492]
-position = Vector2(-16, 580)
-shape = SubResource("RectangleShape2D_v")
-
-[node name="Right" type="CollisionShape2D" parent="World/Walls" unique_id=37136726]
-position = Vector2(2916, 580)
-shape = SubResource("RectangleShape2D_v")
-
-[node name="PitTop" type="CollisionShape2D" parent="World/Walls"]
-position = Vector2(2400, 30)
-shape = SubResource("RectangleShape2D_pit_h")
-
-[node name="PitBottom" type="CollisionShape2D" parent="World/Walls"]
-position = Vector2(2400, 1195)
-shape = SubResource("RectangleShape2D_pit_h")
-
-[node name="DoorNorth" type="CollisionShape2D" parent="World/Walls"]
-position = Vector2(1904, 370)
-shape = SubResource("RectangleShape2D_door_n")
-
-[node name="DoorSouth" type="CollisionShape2D" parent="World/Walls"]
-position = Vector2(1904, 1040)
-shape = SubResource("RectangleShape2D_door_s")
-
-[node name="Table1" parent="World" unique_id=1197026962 groups=["navigation_obstacles"] instance=ExtResource("5_table")]
-position = Vector2(300, 290)
-
-[node name="Table2" parent="World" unique_id=1929424514 groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(700, 290)
-
-[node name="Table3" parent="World" groups=["navigation_obstacles"] instance=ExtResource("9_paigow")]
-position = Vector2(300, 630)
-
-[node name="Table4" parent="World" groups=["navigation_obstacles"] instance=ExtResource("9_paigow")]
-position = Vector2(700, 630)
-table_id = "pgu_1"
-game_label = "Face Up Pai Gow"
-face_up = true
-
-[node name="Table5" parent="World" groups=["navigation_obstacles"] instance=ExtResource("10_mstud")]
-position = Vector2(1100, 290)
-table_id = "ms_1"
-game_label = "Mississippi Stud"
-
-[node name="Table6" parent="World" groups=["navigation_obstacles"] instance=ExtResource("11_uth")]
-position = Vector2(1100, 630)
-table_id = "uth_1"
-game_label = "Ultimate Texas Hold'em"
-
-[node name="Table7" parent="World" groups=["navigation_obstacles"] instance=ExtResource("12_lir")]
-position = Vector2(300, 970)
-table_id = "lir_1"
-game_label = "Let It Ride"
-
-[node name="Table8" parent="World" groups=["navigation_obstacles"] instance=ExtResource("13_hcf")]
-position = Vector2(700, 970)
-table_id = "hcf_1"
-game_label = "High Card Flush"
-
-[node name="Table9" parent="World" groups=["navigation_obstacles"] instance=ExtResource("14_bac")]
-position = Vector2(1100, 970)
-table_id = "bac_1"
-game_label = "Baccarat"
-
-[node name="Table10" parent="World" groups=["navigation_obstacles"] instance=ExtResource("15_rou")]
-position = Vector2(1500, 290)
-
-[node name="Table11" parent="World" groups=["navigation_obstacles"] instance=ExtResource("16_crp")]
-position = Vector2(1560, 630)
-
-[node name="Pit1" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2222, 435)
-rotation = 3.1415927
-table_id = "bj_2"
-
-[node name="Pit2" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2578, 435)
-rotation = 3.1415927
-table_id = "bj_3"
-
-[node name="Pit3" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2222, 764)
-table_id = "bj_4"
-
-[node name="Pit4" parent="World" groups=["navigation_obstacles"] instance=ExtResource("8_blackjack")]
-position = Vector2(2578, 764)
-table_id = "bj_5"
-
-[node name="PitPodium" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-position = Vector2(2400, 614)
-script = ExtResource("17_podium")
-
-[node name="Shape" type="CollisionShape2D" parent="World/PitPodium"]
-position = Vector2(0, -4)
-shape = SubResource("RectangleShape2D_podium")
-
-[node name="PitBoss" parent="World" instance=ExtResource("18_avatar")]
-position = Vector2(2400, 600)
-look = "dealer"
-display_name = "Pit Boss"
-
-[node name="PitFence" type="StaticBody2D" parent="World" groups=["navigation_obstacles"]]
-collision_layer = 2
-collision_mask = 0
-
-[node name="GapNorth" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2400, 481)
-shape = SubResource("RectangleShape2D_fence_gap")
-
-[node name="GapSouth" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2400, 718)
-shape = SubResource("RectangleShape2D_fence_gap")
-
-[node name="West" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2059, 599.5)
-shape = SubResource("RectangleShape2D_fence_end")
-
-[node name="East" type="CollisionShape2D" parent="World/PitFence"]
-position = Vector2(2741, 599.5)
-shape = SubResource("RectangleShape2D_fence_end")
-
-[node name="SlotCabinets" type="Node2D" parent="World"]
+[node name="Rooms" type="Node2D" parent="World"]
+y_sort_enabled = true
 
 [node name="Entities" type="Node2D" parent="World" unique_id=1906296930]
 y_sort_enabled = true
 
 [node name="LocalPlayer" parent="World" unique_id=2006857068 instance=ExtResource("6_player")]
-position = Vector2(700, 1110)
-
-[node name="Points" type="Node2D" parent="World" unique_id=1375247315]
-
-[node name="entrance" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(700, 1110)
-
-[node name="aisle_w" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(70, 400)
-
-[node name="aisle_mid" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(500, 400)
-
-[node name="aisle_e" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(1830, 430)
-
-[node name="corner_w" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(70, 1110)
-
-[node name="corner_e" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(1830, 1110)
-
-[node name="pit_n" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(2400, 200)
-
-[node name="pit_s" type="Marker2D" parent="World/Points" groups=["floor_points"]]
-position = Vector2(2400, 1030)
 
 [node name="Nav" type="NavigationRegion2D" parent="." unique_id=1723492686]
 navigation_polygon = SubResource("NavigationPolygon_floor")
 
 [node name="Camera" type="Camera2D" parent="." unique_id=1421194986]
 zoom = Vector2(2, 2)
-limit_left = 0
-limit_top = -40
-limit_right = 2900
-limit_bottom = 1170
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
 

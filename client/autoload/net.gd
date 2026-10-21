@@ -9,7 +9,7 @@ signal message_received(msg: Dictionary)
 ## A `resync` reply arrived: everything before it was dropped, and fresh state follows.
 signal resynced(msg: Dictionary)
 
-const PROTOCOL_VERSION := 3
+const PROTOCOL_VERSION := 4
 ## Used when running from the editor / a desktop build. Override with CASINO_SERVER_URL.
 const DESKTOP_URL := "ws://127.0.0.1:8660/ws"
 const RECONNECT_DELAYS := [1.0, 2.0, 5.0, 10.0]

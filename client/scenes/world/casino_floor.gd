@@ -8,12 +8,21 @@ extends Node2D
 ## The server owns the table and the world; this scene routes its messages to
 ## the right avatar or table and turns your clicks into requests.
 ##
+## The floor is built from the server's floor plan (the welcome's `world`; plan.py): each room a PlanRoom under
+## World/Rooms with its walls, doorways, tables, cabinets and decor, rebuilt when the plan changes (a `world`
+## message: once you've stood up, if you're sitting). Rooms joined by archways show together; a room through a door
+## shows once you're in its doorway, and the rest are hidden (people in them too, and their sounds). The camera
+## keeps to the rooms on show.
+##
 ## Everything on the floor is under World, and every position the floor and the
-## server deal in is in World's frame. A table can be turned (`rotation`: the far
-## row of the Blackjack pit is upside down, its dealers' backs to the pit), and
+## server deal in is in World's frame. A table can be turned (`rotation`: a turned
+## blackjack table has its dealer's back to the room's far side), and
 ## sitting at one turns World about the table so it shows the right way up; World's
 ## Y-sort turns with it, so who's in front of whom stays right. Standing turns it
 ## back. The camera stays unturned, and avatars stand upright whatever the turn.
+##
+## A preview (Session.preview: the admin page's Preview button) builds the draft's floor instead, to walk round
+## alone: nobody else is there, and the tables can't be sat at.
 
 const WALK_ZOOM := Vector2(2, 2)
 const TABLE_ZOOM := Vector2(2.8, 2.8)
@@ -26,9 +35,17 @@ const MAIN_BET_NAMES := {"ante": "an Ante", "bet": "a Blackjack bet", "player": 
 @onready var hud: CanvasLayer = $HUD
 @onready var entities_root: Node2D = $World/Entities
 @onready var nav: NavigationRegion2D = $Nav   # (outside World, never turned: the nav map is in World's frame)
+@onready var rooms_root: Node2D = $World/Rooms
 
 var tables := {}    # table id -> FloorGame (a CasinoTable, or a SlotCabinet)
-var points := {}    # floor point name -> position
+var points := {}    # "room/name" -> position (the floor plan's points)
+var rooms := {}     # room id -> PlanRoom
+var spawn := ""     # the point players appear at
+var _world_rev := -1
+var _pending_world = null   # a new floor plan that came while you sat: built once you're up and walking
+var _zone_of := {}  # room id -> its zone (rooms joined by archways show together)
+var _shown := {}    # the room ids on show
+var _here := ""     # the room you're in
 var entities := {}  # entity id -> EntityAvatar (everyone but you)
 var state := "walking"  # walking | seated (at a table) | slot (at a slot cabinet, full screen)
 var _heading_for := {}  # {table, seat} while walking over to a stool you clicked
@@ -52,37 +69,17 @@ var _placed: Array = []   # this round's chips, newest last ([spot, amount added
 
 
 func _ready() -> void:
-	for t in get_tree().get_nodes_in_group("tables"):
-		tables[t.table_id] = t
-		t.spot_clicked.connect(_on_spot_clicked)
-		t.spot_removed.connect(_on_spot_removed)
-		t.my_hand_changed.connect(func(text: String):
-			if t == active_table:
-				my_hand = text)
-		if t.has_signal("sort_requested"):  # Pai Gow: your cards open in the sorter, and close once set
-			t.sort_requested.connect(func(cards: Array):
-				if t == active_table:
-					Sfx.play("turn")
-					hud.sorter.open(cards, t.face_up))
-			t.sort_finished.connect(func():
-				if t == active_table:
-					hud.sorter.close())
-			t.claim_requested.connect(func(cards: Array, bonus):
-				if t == active_table:
-					Sfx.play("turn")
-					hud.sorter.open_claim(cards, bonus))
 	slot_screen = SlotScreen.new()
 	hud.add_slot_screen(slot_screen)
 	slot_screen.stand_requested.connect(func(): Net.send("stand"))
 	slot_screen.settings_requested.connect(hud.settings_menu.toggle)
-	for m in get_tree().get_nodes_in_group("floor_points"):
-		points[str(m.name)] = m.position
-	player.position = points.get("entrance", Vector2(700, 1110))
+	player.add_to_group("door_openers")
 	camera.global_position = player.global_position
 	camera.zoom = WALK_ZOOM
+	camera.limit_smoothed = true
 	_limits = [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom]
-	_bake_navigation()
-	_offer_seats(true)
+	Sfx.audible = func(at: Vector2) -> bool: return _seen(world.to_local(at))
+	get_viewport().size_changed.connect(_fit_limits)
 	Sfx.start_room()
 
 	hud.rebet_pressed.connect(func():
@@ -109,9 +106,9 @@ func _ready() -> void:
 	Net.disconnected.connect(_on_disconnected)
 
 
-## The walkable floor: each room inside its walls, and the doorway between them
-## (the baker merges the outlines). It reads the obstacles where they are now, so it
-## waits while the floor is turned.
+## The walkable floor: every room (the outlines overlap a pixel, so the baker joins them), less its wall bodies --
+## which leave the doorways open -- and everything else in group navigation_obstacles. It reads the obstacles where
+## they are now, so it waits while the floor is turned.
 func _bake_navigation() -> void:
 	if not is_zero_approx(world.rotation):
 		_bake_pending = true
@@ -119,13 +116,176 @@ func _bake_navigation() -> void:
 	_bake_pending = false
 	var poly: NavigationPolygon = nav.navigation_polygon
 	poly.clear_outlines()
-	var room := $World/Room
-	var door: Vector2 = room.DOORWAY
-	for r in [Rect2(Vector2.ZERO, room.SIZE), room.PIT, Rect2(room.SIZE.x - 20, door.x + 10, 40, door.y - door.x - 20)]:
-		var inner: Rect2 = r if r.size.x < 100 else Rect2(r.position + Vector2(14, 74), r.size - Vector2(28, 88))
-		poly.add_outline(PackedVector2Array([inner.position, Vector2(inner.end.x, inner.position.y), inner.end,
-			Vector2(inner.position.x, inner.end.y)]))
+	if rooms.is_empty():
+		return
+	for r in rooms.values():
+		var b: Rect2 = r.rect.grow(1)
+		poly.add_outline(PackedVector2Array([b.position, Vector2(b.end.x, b.position.y), b.end, Vector2(b.position.x, b.end.y)]))
 	nav.bake_navigation_polygon(false)
+
+
+# ------------------------------------------------------------------ the floor plan
+## Build the floor from the plan (see the top). Every table and cabinet is made afresh; after a change (not the
+## first build) a resync brings their states and everyone's places again.
+func _build_world(w: Dictionary) -> void:
+	if state != "walking":
+		_pending_world = w
+		return
+	_pending_world = null
+	var first := _world_rev < 0
+	for r in rooms.values():
+		rooms_root.remove_child(r)   # (out of the tree now, so the bake leaves it out)
+		r.queue_free()
+	rooms.clear()
+	tables.clear()
+	points.clear()
+	_heading_for = {}
+	for data in w.get("rooms", []):
+		var r := PlanRoom.new()
+		r.build(data, w)
+		rooms_root.add_child(r)
+		rooms[r.id] = r
+		for g in r.games:
+			_register(g)
+		for k in r.points:
+			points[k] = r.points[k].at
+	_world_rev = int(w.get("rev", 0))
+	spawn = str(w.get("spawn", ""))
+	_zone_rooms(w)
+	if first or w.has("start") or _room_at(player.position) == "":
+		var start: Dictionary = w.get("start", {})
+		player.position = Vector2(float(start.x), float(start.y)) if not start.is_empty() else _fallback_point()
+		player.stop()
+		camera.global_position = player.global_position
+		camera.reset_smoothing()
+	_here = ""
+	_update_rooms(true)
+	_restyle_tables()
+	_redraw_chairs()
+	_bake_navigation()
+	_offer_seats(state == "walking")
+	if not first and Session.preview == "":
+		Net.resync()
+
+
+## A table or cabinet the floor just made: wire up what the floor listens to.
+func _register(t: FloorGame) -> void:
+	tables[t.table_id] = t
+	if not t is CasinoTable:
+		return
+	t.spot_clicked.connect(_on_spot_clicked)
+	t.spot_removed.connect(_on_spot_removed)
+	t.my_hand_changed.connect(func(text: String):
+		if t == active_table:
+			my_hand = text)
+	if t.has_signal("sort_requested"):  # Pai Gow: your cards open in the sorter, and close once set
+		t.sort_requested.connect(func(cards: Array):
+			if t == active_table:
+				Sfx.play("turn")
+				hud.sorter.open(cards, t.face_up))
+		t.sort_finished.connect(func():
+			if t == active_table:
+				hud.sorter.close())
+		t.claim_requested.connect(func(cards: Array, bonus):
+			if t == active_table:
+				Sfx.play("turn")
+				hud.sorter.open_claim(cards, bonus))
+
+
+## Where players appear (the plan's spawn point), else the middle of the first room.
+func _fallback_point() -> Vector2:
+	if points.has(spawn):
+		return points[spawn]
+	for r in rooms.values():
+		return r.rect.get_center()
+	return Vector2.ZERO
+
+
+## Rooms joined by archways are one zone: they show together.
+func _zone_rooms(w: Dictionary) -> void:
+	_zone_of.clear()
+	var zone := 0
+	for id in rooms:
+		if _zone_of.has(id):
+			continue
+		var todo := [id]
+		while not todo.is_empty():
+			var r: String = todo.pop_back()
+			if _zone_of.has(r):
+				continue
+			_zone_of[r] = zone
+			for o in rooms[r].openings:
+				if o.kind == "archway" and o.get("to") != null and rooms.has(str(o.to)) and not _zone_of.has(str(o.to)):
+					todo.append(str(o.to))
+		zone += 1
+
+
+func _room_at(p: Vector2) -> String:
+	for id in rooms:
+		if rooms[id].contains(p):
+			return id
+	return ""
+
+
+## Which rooms show: your room's zone, and the zone through a door you're in (or right by). The camera keeps to them.
+func _update_rooms(force := false) -> void:
+	var here := _room_at(player.position)
+	if here == "":
+		here = _here
+	var shown := {}
+	if here != "" and rooms.has(here):
+		for id in rooms:
+			if _zone_of[id] == _zone_of[here]:
+				shown[id] = true
+		for id in shown.keys():
+			for o in rooms[id].openings:
+				if o.kind != "door" or o.get("to") == null or not rooms.has(str(o.to)):
+					continue
+				var g: Rect2 = rooms[id]._gap(o)
+				if Rect2(g.position + rooms[id].position, g.size).grow(40).has_point(player.position):
+					for id2 in rooms:
+						if _zone_of[id2] == _zone_of[str(o.to)]:
+							shown[id2] = true
+	else:
+		for id in rooms:
+			shown[id] = true
+	if not force and here == _here and shown == _shown:
+		return
+	_here = here
+	_shown = shown
+	for id in rooms:
+		rooms[id].visible = shown.has(id)
+	_fit_limits()
+
+
+## The camera's limits: round the rooms on show (with a strip above the back wall), centred on a room smaller than
+## the view.
+func _fit_limits() -> void:
+	var box := Rect2()
+	var any := false
+	for id in _shown:
+		box = rooms[id].rect if not any else box.merge(rooms[id].rect)
+		any = true
+	if not any:
+		return
+	box = box.grow_individual(0, 40, 0, 10)
+	var view := get_viewport_rect().size / WALK_ZOOM
+	var dx := maxf(0.0, view.x - box.size.x) / 2.0
+	var dy := maxf(0.0, view.y - box.size.y) / 2.0
+	box = box.grow_individual(dx, dy, dx, dy)
+	_limits = [int(floor(box.position.x)), int(floor(box.position.y)), int(ceil(box.end.x)), int(ceil(box.end.y))]
+	if is_zero_approx(world.rotation):
+		_set_limits(true)
+
+
+## Whether a place on the floor (World's frame) is in a room on show: people elsewhere are hidden, and not heard.
+func _seen(p: Vector2) -> bool:
+	if _shown.is_empty():
+		return true
+	for id in _shown:
+		if rooms.has(id) and rooms[id].rect.grow(8).has_point(p):
+			return true
+	return false
 
 
 func _process(_delta: float) -> void:
@@ -135,6 +295,12 @@ func _process(_delta: float) -> void:
 		world.visible = not covered
 	if state == "walking" and (_camera_tween == null or not _camera_tween.is_running()):
 		camera.global_position = player.global_position
+	if state == "walking":
+		_update_rooms()
+		if _pending_world != null and player.controls_enabled:
+			_build_world(_pending_world)
+	for e in entities.values():
+		e.visible = _seen(e.position)
 	_check_heading()
 	if state == "seated" and active_table:
 		var view := _seated_view()
@@ -261,52 +427,6 @@ func _check_heading() -> void:
 		Net.send("sit", {"table": t.table_id, "seat": seat})
 
 
-## The slot cabinets: every welcome lists them (the slot banks made on the admin page's Floor tab: where each
-## stands, which way it faces, which slot it is and its look). New ones are added beside the SlotCabinets anchor,
-## moved or re-slotted ones are made again, and ones no longer listed go; then the walkable floor is baked again.
-const SLOT_CABINET := preload("res://scenes/slots/slot_cabinet.tscn")
-
-func _sync_cabinets(list: Array) -> void:
-	var anchor := $World/SlotCabinets
-	var changed := false
-	var listed := {}
-	for cab in list:
-		var id := str(cab.get("id", ""))
-		if id.is_empty():
-			continue
-		listed[id] = true
-		var where := Vector2(float(cab.get("x", 0)), float(cab.get("y", 0)))
-		var old: SlotCabinet = tables.get(id) as SlotCabinet
-		if old and old.position == where and old.facing == str(cab.get("facing", "down")) \
-				and old.variant == str(cab.get("variant", "armadillo")) and old.look == cab.get("cabinet", {}):
-			continue
-		if old:
-			_drop_cabinet(old)
-		var c: SlotCabinet = SLOT_CABINET.instantiate()
-		c.table_id = id
-		c.variant = str(cab.get("variant", "armadillo"))
-		c.look = cab.get("cabinet", {})
-		c.position = where
-		c.add_to_group("navigation_obstacles")
-		anchor.add_sibling(c)
-		c.facing = str(cab.get("facing", "down"))
-		c.offer_seats = state == "walking"
-		tables[id] = c
-		changed = true
-	for id in tables.keys():
-		if tables[id] is SlotCabinet and not listed.has(id) and tables[id] != active_slot:
-			_drop_cabinet(tables[id])
-			changed = true
-	if changed:
-		_bake_navigation()
-
-
-func _drop_cabinet(c: SlotCabinet) -> void:
-	tables.erase(c.table_id)
-	c.get_parent().remove_child(c)   # out of the tree now, so the bake leaves it out
-	c.queue_free()
-
-
 ## Every table in its table style again.
 func _restyle_tables() -> void:
 	for t in tables.values():
@@ -320,6 +440,7 @@ func _redraw_chairs() -> void:
 
 
 func _offer_seats(on: bool) -> void:
+	on = on and Session.preview == ""   # (a preview only looks)
 	for t in tables.values():
 		t.offer_seats = on
 
@@ -599,13 +720,20 @@ func _on_message(msg: Dictionary) -> void:
 		"welcome":
 			Seating.configure(msg.get("seating", {}))
 			TableStyle.configure(msg.get("table_styles", {}))
-			_restyle_tables()
-			_sync_cabinets(msg.get("cabinets", []))
-			_redraw_chairs()
+			var w: Dictionary = msg.get("world", {})
+			if int(w.get("rev", -1)) != _world_rev or rooms.is_empty():
+				_build_world(w)
+			else:
+				_restyle_tables()
+				_redraw_chairs()
 			player.avatar.look = Session.look
-			player.avatar.display_name = Session.player.get("name", "")
-			if Session.needs_name:
+			player.avatar.display_name = Session.player.get("name", "") if Session.preview == "" else "Preview"
+			if Session.preview != "":
+				hud.show_toast("Previewing the floor plan's draft: saving it on the admin page shows the changes here.", 6.0)
+			elif Session.needs_name:
 				hud.show_name_prompt(Session.player.get("name", ""))
+		"world":   # the floor plan changed (published, or the draft saved, in a preview)
+			_build_world(msg.get("world", {}))
 		"world_snapshot":
 			for id in entities.keys():
 				entities[id].queue_free()
@@ -819,6 +947,7 @@ func _spawn(e: Dictionary, at: String) -> void:
 		return
 	var node = ENTITY_SCENE.instantiate()
 	entities_root.add_child(node)
+	node.add_to_group("door_openers")
 	node.entity_id = e.id
 	node.kind = e.get("kind", "player")
 	node.look = e.get("look", "player_default")
@@ -826,7 +955,7 @@ func _spawn(e: Dictionary, at: String) -> void:
 	if e.get("x") != null:
 		node.place(Vector2(e.x, e.y))
 	else:
-		node.place(points.get(at if at != "" else "entrance", Vector2(800, 1450)))
+		node.place(_resolve_target(at) if at != "" else _fallback_point())
 	node.set_action(e.get("anim", "idle") if e.get("anim") in ["idle", "walk"] else "idle", e.get("dir", "down"))
 	entities[e.id] = node
 	if e.get("walk") != null:
@@ -835,12 +964,12 @@ func _spawn(e: Dictionary, at: String) -> void:
 
 func _resolve_target(target: String) -> Vector2:
 	var parts := target.split(":")
-	if parts[0] == "point" and points.has(parts[1]):
+	if parts[0] == "point" and parts.size() == 2 and points.has(parts[1]):
 		return points[parts[1]]
 	if parts[0] == "seat" and parts.size() == 3 and tables.has(parts[1]):
 		var t: FloorGame = tables[parts[1]]
 		return _on_floor(t, t.stand_pos(int(parts[2])))
-	return points.get("entrance", Vector2(800, 1450))
+	return _fallback_point()
 
 
 # ------------------------------------------------------------------ helpers
