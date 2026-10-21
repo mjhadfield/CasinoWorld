@@ -588,9 +588,9 @@ function turn(it) {
   if (G.kindOf(it.asset) === "table") {
     const rots = G.CAT.games[it.asset.slice(6)].rotations;
     it.rot = rots[(rots.indexOf(it.rot || 0) + 1) % rots.length];
-  } else {
-    const order = ["down", "left", "up", "right"];
-    it.facing = order[(order.indexOf(it.facing || "down") + 1) % 4];
+  } else {   // (a library piece turns only to the facings it has pictures for)
+    const p = G.piece(it.asset), order = ["down", "left", "up", "right"].filter(f => !p || !p.facings || p.facings[f]);
+    it.facing = order[(order.indexOf(it.facing || "down") + 1) % order.length];
   }
 }
 
