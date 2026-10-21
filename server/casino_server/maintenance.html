@@ -353,7 +353,6 @@ details summary { cursor: pointer; }
       <label class="field"><span>Sitting down</span><select id="st-sit"><option value="swivel">Swivel</option><option value="pull">Pull out</option><option value="glide">Glide (no chair animation)</option></select></label>
       <label class="field"><span>Sit speed (×)</span><input type="number" id="st-sit_speed" min="0.5" max="1.5" step="0.1"></label>
       <label class="field"><span>Slot screen opens</span><select id="st-slot_screen"><option value="after_sit">After the sit</option><option value="at_once">At once</option></select></label>
-      <label class="field"><span>Free seat cue</span><select id="st-cue"><option value="label">Glow + label</option><option value="hover">Glow, label on hover</option></select></label>
       <label class="field"><span>Craps standing spot</span><select id="st-craps_spot"><option value="footprints">Footprints</option><option value="spotlight">Spotlight</option><option value="medallion">Medallion</option><option value="ring">Ring</option></select></label>
     </div>
     <div class="controls"><button type="submit" class="primary">Save seating</button></div>
@@ -1295,7 +1294,7 @@ const Settings = (() => {
 
 // ================================================================ seating (the Default style; more styles per table can come later)
 const Seating = (() => {
-  const KEYS = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "cue", "craps_spot"];
+  const KEYS = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
   const NUMBERS = ["back", "size", "sit_speed"];
   async function load() {
     try {

@@ -1,7 +1,7 @@
 class_name ChairBack
 extends Node2D
 ## The back of one of a FloorGame's chairs, drawn over whoever sits in it when it's between
-## them and us (see FloorGame._notification), along with the chair's SIT label. While someone
+## them and us (see FloorGame._notification). While someone
 ## sits there it's at their z (1); empty, it's on the floor's (0), so passers-by in front of it
 ## draw over it.
 

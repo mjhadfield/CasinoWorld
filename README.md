@@ -203,7 +203,7 @@ and Tailscale. It has six tabs:
     a design, because the live server saves over `design.json`.
 - **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
-  game opens, the free-seat label, and the craps standing spot). Saving updates the floor straight away. The API
+  game opens, and the craps standing spot). Saving updates the floor straight away. The API
   (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`).
 
 ## Money

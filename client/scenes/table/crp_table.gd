@@ -783,16 +783,10 @@ func _puck_moving() -> bool:
 
 
 ## A standing spot on the floor by the rail, in the seating style's look (Seating.draw_spot):
-## it glows while it's free and you're walking, labelled STAND; a taken one wears its player's colour.
+## it glows while it's free and you're walking; a taken one wears its player's colour.
 func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
-	var st := Seating.style(table_id)
-	var p := chair_pos(seat) + Vector2(0, 4)
-	Seating.draw_spot(self, p, str(st.craps_spot), glow, pulse,
+	Seating.draw_spot(self, chair_pos(seat) + Vector2(0, 4), str(Seating.style(table_id).craps_spot), glow, pulse,
 		SEAT_COLOURS[seat % SEAT_COLOURS.size()] if occupants.has(seat) else null)
-	if glow and st.craps_spot != "ring" and (st.cue == "label" or hover_seat == seat):
-		Seating.draw_tag(self, p, 0.0, -6.0, "STAND")
-	elif glow and st.craps_spot == "ring":
-		draw_string(Card2D.FONT, p + Vector2(-20, 1.8), "STAND", HORIZONTAL_ALIGNMENT_CENTER, 40, 5, Color(1, 0.88, 0.5))
 
 
 func _draw_game(now: float, _pulse: float) -> void:

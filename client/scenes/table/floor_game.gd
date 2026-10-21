@@ -29,12 +29,6 @@ var occupants := {}   # seat -> {entity, name, human}
 ## Chairs someone's sitting down in or getting out of: seat -> {theta, press, offset} (see Seating).
 var chair_state := {}
 var chair_side := {}  # seat -> which side of it its sitter got on from (1 or -1), to get off the same way
-## The free chair under the pointer while you walk (its SIT label shows on hover, if the style says so).
-var hover_seat := -1:
-	set(v):
-		if v != hover_seat:
-			hover_seat = v
-			redraw_chairs()
 var _backs := {}      # seat -> its ChairBack (the back drawn over its sitter)
 var phase := ""
 var _queue: Array[Callable] = []
@@ -170,8 +164,8 @@ func redraw_chairs() -> void:
 
 
 ## A seat's chair in `ci`, from its origin at `at` (ci's coordinates, which are the table's
-## turned or not): "seat" is what's under the sitter, "back" what's over them, with the SIT
-## label on a free chair while you're walking.
+## turned or not): "seat" is what's under the sitter, "back" what's over them. A free chair
+## glows while you're walking.
 func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	var st := Seating.style(table_id)
 	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 5.0)
@@ -181,8 +175,6 @@ func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	at += cs.get("offset", Vector2.ZERO)
 	var theta := float(cs.get("theta", rest_theta(seat))) + turn
 	Seating.draw_chair(ci, at, -turn, theta, float(cs.get("press", 0.0)), st, layer, glow, pulse)
-	if layer == "back" and glow and (st.cue == "label" or hover_seat == seat):
-		Seating.draw_tag(ci, at, -turn, Seating.chair_top(st, theta), "SIT")
 
 
 ## Each chair's back gets a node of its own, just behind its sitter in the floor's Y-sort (and
@@ -250,6 +242,6 @@ func _new_epoch() -> void:
 
 # ------------------------------------------------------------------ drawing
 ## A seat's chair, under its sitter (glowing while it's free and you're walking the floor;
-## its back and SIT label are drawn by its ChairBack).
+## its back is drawn by its ChairBack).
 func _draw_stool(seat: int, _glow: bool, _pulse: float) -> void:
 	draw_chair(self, seat, "seat", chair_pos(seat))

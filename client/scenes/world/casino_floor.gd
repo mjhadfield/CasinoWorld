@@ -181,15 +181,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 
 
-## A click on a glowing chair, caught before the click-to-walk sees it (and, as the pointer
-## moves, which chair it's over, for a style that labels free chairs on hover).
+## A click on a glowing chair, caught before the click-to-walk sees it.
 func _input(event: InputEvent) -> void:
 	if state != "walking" or hud.is_typing():
-		return
-	if event is InputEventMouseMotion:
-		var over := get_global_mouse_position()
-		for t in tables.values():
-			t.hover_seat = t.stool_at(t.to_local(over))
 		return
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return

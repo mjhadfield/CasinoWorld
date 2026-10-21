@@ -19,7 +19,6 @@ A style:
                  out, stepped into, pushed in) or "glide" (no chair animation)
     sit_speed    0.5-1.5, how fast the sit-down plays
     slot_screen  "after_sit" (the slot game opens once you're sat and the camera's there) or "at_once"
-    cue          "label" (free chairs glow with SIT on them while you walk) or "hover" (the label on hover)
     craps_spot   "footprints", "spotlight", "medallion" or "ring" (the craps rail's standing spots)
 """
 import re
@@ -27,14 +26,13 @@ import re
 DEFAULT_ID = "default"
 DEFAULT_STYLE = {
     "name": "Default", "chair": "stool", "upholstery": "#2a2320", "frame": "brass", "back": 1.4, "size": 1.0,
-    "sit": "swivel", "sit_speed": 1.4, "slot_screen": "after_sit", "cue": "label", "craps_spot": "footprints",
+    "sit": "swivel", "sit_speed": 1.4, "slot_screen": "after_sit", "craps_spot": "footprints",
 }
 CHOICES = {
     "chair": ("stool", "lounge"),
     "frame": ("brass", "chrome", "gunmetal"),
     "sit": ("swivel", "pull", "glide"),
     "slot_screen": ("after_sit", "at_once"),
-    "cue": ("label", "hover"),
     "craps_spot": ("footprints", "spotlight", "medallion", "ring"),
 }
 RANGES = {"back": (0.6, 1.4), "size": (0.85, 1.15), "sit_speed": (0.5, 1.5)}
@@ -47,7 +45,8 @@ def load(store) -> dict:
     if saved is None:
         saved = {"styles": {DEFAULT_ID: dict(DEFAULT_STYLE)}, "tables": {}}
         store.set_json(KEY, saved)
-    styles = {sid: {**DEFAULT_STYLE, **s} for sid, s in (saved.get("styles") or {}).items()}
+    styles = {sid: {**DEFAULT_STYLE, **{k: v for k, v in s.items() if k in DEFAULT_STYLE}}
+              for sid, s in (saved.get("styles") or {}).items()}   # (dropping fields no longer used)
     styles.setdefault(DEFAULT_ID, dict(DEFAULT_STYLE))
     tables = {t: sid for t, sid in (saved.get("tables") or {}).items() if sid in styles}
     return {"styles": styles, "tables": tables}

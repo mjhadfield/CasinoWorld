@@ -15,7 +15,7 @@ extends RefCounted
 ## chair's side, the chair turning (or pulling out), the sit, and turning to the game.
 
 const DEFAULT := {"chair": "stool", "upholstery": "#2a2320", "frame": "brass", "back": 1.4, "size": 1.0,
-	"sit": "swivel", "sit_speed": 1.4, "slot_screen": "after_sit", "cue": "label", "craps_spot": "footprints"}
+	"sit": "swivel", "sit_speed": 1.4, "slot_screen": "after_sit", "craps_spot": "footprints"}
 ## hi, mid, lo, piping
 const METALS := {
 	"brass": [Color("fbe7a1"), Color("c99a3c"), Color("6e4f1c"), Color("e2bb5c")],
@@ -27,7 +27,6 @@ const WALK_SPEED := 105.0
 
 static var styles := {}   # style id -> the style, filled out (its geometry in _g, its colours in _p)
 static var tables := {}   # table id -> style id, where it isn't the default
-static var _pill: StyleBoxFlat
 
 
 ## The seating from the server: {styles, tables}.
@@ -62,12 +61,6 @@ static func _fill(given: Dictionary) -> Dictionary:
 	return st
 
 
-## How high the chair reaches above its origin, as the screen sees it (for the SIT label).
-static func chair_top(st: Dictionary, theta: float) -> float:
-	var g: Dictionary = st._g
-	return g.seat_y - g.h + (g.ry if sin(theta) > 0.3 else -g.ry) - 2.0
-
-
 ## The chair's footprint for clicks, as the screen sees it from its origin.
 static func hit_box(st: Dictionary) -> Rect2:
 	var g: Dictionary = st._g
@@ -93,21 +86,6 @@ static func draw_chair(ci: CanvasItem, at: Vector2, turn: float, theta: float, p
 			_back(ci, g, p, theta, glow, pulse, st.chair == "lounge")
 	elif over:
 		_back(ci, g, p, theta, glow, pulse, st.chair == "lounge")
-	ci.draw_set_transform(Vector2.ZERO)
-
-
-## A label over a free chair (SIT) or standing spot (STAND), upright.
-static func draw_tag(ci: CanvasItem, at: Vector2, turn: float, y: float, text: String) -> void:
-	if _pill == null:
-		_pill = StyleBoxFlat.new()
-		_pill.bg_color = Color("f3cf6b")
-		_pill.set_corner_radius_all(3)
-		_pill.anti_aliasing = true
-	var w := Card2D.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x + 6.0
-	ci.draw_set_transform(at, turn)
-	ci.draw_rect(Rect2(-w / 2 + 0.4, y - 7.4, w, 8), Color(0, 0, 0, 0.3))
-	ci.draw_style_box(_pill, Rect2(-w / 2, y - 8, w, 8))
-	ci.draw_string(Card2D.FONT, Vector2(-w / 2, y - 2), text, HORIZONTAL_ALIGNMENT_CENTER, w, 6, Color("2a1606"))
 	ci.draw_set_transform(Vector2.ZERO)
 
 

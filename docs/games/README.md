@@ -43,9 +43,8 @@ The entrance is below the bottom row (at x 700).
 - **Walking:** WASD or arrow keys, or click/tap where you want to go. Click and hold to keep walking towards
   the pointer: the view follows you, so you can cross the whole floor that way, sliding along anything in the
   way. Your name tag comes from the welcome prompt on your first visit.
-- **Taking a seat:** while you're walking, every free chair glows with **SIT** (or only on hover, if the seating
-  style says so). Click one and you walk to its side; the chair swivels round to you, you sit side-on, and it
-  turns you to the table. Or stand on a free chair and press **E**. Once you're sat, the camera glides onto the
+- **Taking a seat:** while you're walking, every free chair glows. Click one and you walk to its side; the
+  chair swivels round to you, you sit side-on, and it turns you to the table. Or stand on a free chair and press **E**. Once you're sat, the camera glides onto the
   table, turning the view round first at a table that faces the other way. Other players and NPCs sit down the
   same way.
 - **Chairs:** every table and slot cabinet has the same chair, from the **default seating style** on the admin
