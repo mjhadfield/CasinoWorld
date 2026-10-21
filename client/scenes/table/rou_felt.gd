@@ -16,7 +16,7 @@ const LINE := Color(0.945, 0.894, 0.769, 0.9)
 const HILITE := Color(0.94, 0.83, 0.55, 0.72)
 
 
-func _draw() -> void:
+func paint() -> void:
 	var t := _table() as RouTable
 	if t == null:
 		return

@@ -103,6 +103,9 @@ func _ready() -> void:
 	hud.name_entered.connect(Session.choose_name)
 	Net.message_received.connect(_on_message)
 	Net.resynced.connect(_on_resynced)
+	Settings.changed.connect(func(key: String, _v):
+		if key == "seat_glow":
+			_redraw_chairs())
 	Net.disconnected.connect(_on_disconnected)
 
 
@@ -126,6 +129,10 @@ func _bake_navigation() -> void:
 
 
 func _process(_delta: float) -> void:
+	# Under a slot's full-screen game the floor isn't drawn (it plays on: the tables keep up).
+	var covered := slot_screen.covers_floor()
+	if world.visible == covered:
+		world.visible = not covered
 	if state == "walking" and (_camera_tween == null or not _camera_tween.is_running()):
 		camera.global_position = player.global_position
 	_check_heading()

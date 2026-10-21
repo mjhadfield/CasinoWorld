@@ -11,6 +11,11 @@ SIL Open Font License, see `Cinzel-OFL.txt`). It is a static instance of the var
 outlines merged (`fonttools varLib.instancer Cinzel[wght].ttf wght=600 --remove-overlaps`), because MSDF text
 draws overlaps as specks.
 
+In the game, a felt isn't drawn straight. `FeltCache` paints it into a texture at the screen's resolution and
+shows that (docs/performance.md), so a felt's `paint()` (not `_draw()`) is its drawing. The felt's `_table()` is
+the table, because the cache paints with a copy of the felt that lives in a SubViewport. Its `queue_redraw()`
+repaints the texture.
+
 ## Shared pieces
 
 Every game's table is built from shared, reusable pieces, so a new game mostly adds its own layout and round:
@@ -21,7 +26,10 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   Seat0..n markers (editable in the editor) set the seat count and spacing. A seat's column of spots and its
   cards line up above its marker.
 - **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table; a game's felt only prints
-  its layout.
+  its layout. **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
+- **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
+  `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
+  (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler. Hands come out of

@@ -17,7 +17,7 @@ const DIE_FACE := Color(0.945, 0.894, 0.769, 0.92)
 const PIPS := CrapsDice.PIPS
 
 
-func _draw() -> void:
+func paint() -> void:
 	var t := _table() as CrapsTable
 	if t == null:
 		return

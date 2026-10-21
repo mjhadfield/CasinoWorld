@@ -123,6 +123,8 @@ func _apply_look() -> void:
 
 ## Set what they're doing ("idle", "walk", "sit") and optionally which way they face.
 func set_action(new_action: String, new_facing := "") -> void:
+	if new_action == action and (new_facing == "" or new_facing == facing):
+		return   # (you're told what you're doing every physics frame)
 	action = new_action
 	if new_facing != "":
 		facing = new_facing

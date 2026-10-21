@@ -9,6 +9,8 @@ extends PanelContainer
 var _sliders := {}   # setting key -> HSlider
 var _readouts := {}  # setting key -> Label showing the percentage
 var _mute: CheckBox
+var _choices := {}   # setting key -> [OptionButton, [values in its order]]
+var _checks := {}    # setting key -> [CheckBox, value when ticked]
 
 
 func _ready() -> void:
@@ -44,6 +46,15 @@ func _ready() -> void:
 	_mute.add_theme_font_size_override("font_size", 16)
 	_mute.toggled.connect(func(on): Settings.set_value("muted", on))
 	box.add_child(_mute)
+
+	_heading(box, "Graphics")
+	_choice_row(box, "Quality", "graphics", [["High", "high"], ["Balanced", "balanced"], ["Low", "low"], ["Custom", "custom"]])
+	_choice_row(box, "Frame rate", "fps_cap", [["30 a second", 30], ["60 a second", 60], ["As fast as it can", 0]])
+	_choice_row(box, "Resolution", "resolution", [["Sharp", "sharp"], ["Fast (720p, scaled up)", "fast"]])
+	_check_row(box, "Free seats glow and breathe", "seat_glow", true)
+	_check_row(box, "Fewer coins and no shaking at the slots", "slot_effects", "reduced", "full")
+	_check_row(box, "Show the frame rate  [F3]", "show_fps", true)
+	Settings.changed.connect(func(_k, _v): _refresh())
 
 	var close := Button.new()
 	close.text = "Close  [Esc]"
@@ -93,11 +104,68 @@ func _slider_row(parent: Control, text: String, key: String) -> void:
 	_readouts[key] = readout
 
 
-func open_menu() -> void:
+## A drop-down for a graphics setting: `options` is [[label, value]]. Quality picks a preset;
+## the others are set by hand (Settings.set_graphics).
+func _choice_row(parent: Control, text: String, key: String, options: Array) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size = Vector2(200, 0)
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", Color("f1e4c4"))
+	row.add_child(label)
+	var pick := OptionButton.new()
+	pick.focus_mode = Control.FOCUS_NONE
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pick.add_theme_font_size_override("font_size", 15)
+	var values := []
+	for o in options:
+		pick.add_item(o[0])
+		values.append(o[1])
+	if key == "graphics":
+		pick.set_item_disabled(values.find("custom"), true)   # (shown, not chosen: it's what changing a row makes)
+	pick.item_selected.connect(func(i: int):
+		if key == "graphics":
+			Settings.use_preset(values[i])
+			Settings.set_value("graphics_auto", false)
+		else:
+			Settings.set_graphics(key, values[i]))
+	row.add_child(pick)
+	_choices[key] = [pick, values]
+
+
+## A tick box for a graphics setting (or the frame-rate corner): `on` when ticked, else `off`.
+func _check_row(parent: Control, text: String, key: String, on, off = false) -> void:
+	var check := CheckBox.new()
+	check.text = text
+	check.focus_mode = Control.FOCUS_NONE
+	check.add_theme_font_size_override("font_size", 16)
+	check.toggled.connect(func(ticked: bool):
+		if key == "show_fps":
+			Settings.set_value(key, ticked)
+		else:
+			Settings.set_graphics(key, on if ticked else off))
+	parent.add_child(check)
+	_checks[key] = [check, on]
+
+
+func _refresh() -> void:
 	for key in _sliders:
 		_sliders[key].set_value_no_signal(float(Settings.value(key)))
 		_readouts[key].text = "%d%%" % roundi(float(Settings.value(key)) * 100)
 	_mute.set_pressed_no_signal(bool(Settings.value("muted")))
+	for key in _choices:
+		var i: int = _choices[key][1].find(Settings.value(key))
+		if i >= 0:
+			_choices[key][0].select(i)
+	for key in _checks:
+		_checks[key][0].set_pressed_no_signal(Settings.value(key) == _checks[key][1])
+
+
+func open_menu() -> void:
+	_refresh()
 	show()
 	_place.call_deferred()
 

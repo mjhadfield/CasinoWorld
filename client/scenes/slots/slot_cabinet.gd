@@ -15,7 +15,7 @@ extends FloorGame
 	set(v):
 		facing = v
 		_place_children()
-		queue_redraw()
+		redraw_chairs()
 @export var variant := "armadillo"
 
 const TRIM := Color("ffb347")
@@ -35,6 +35,7 @@ var _flash_until := 0.0         # a big win: the topper and trim flash
 var _bonus := false             # a feature's on: the screen glows
 var _jackpot_until := 0.0       # the candle spins
 var _last_bet := 100
+var _lively := false            # the art moved last frame (it's redrawn every frame only while it does)
 
 @onready var _art: Node2D = $Art
 @onready var _stool: Node2D = $Stool
@@ -45,7 +46,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	grid = _random_grid()
-	SlotArt.art_changed.connect(_art.queue_redraw)
+	SlotArt.art_changed.connect(redraw_chairs)
 
 
 func _place_children() -> void:
@@ -68,13 +69,29 @@ func _process(_delta: float) -> void:
 	if not _pending_grid.is_empty() and now >= _spin_until:
 		grid = _pending_grid
 		_pending_grid = []
-	_art.modulate.a = 0.62 if facing == "up" and occupants.has(0) else 1.0
-	_art.queue_redraw()
-	if offer_seats and Engine.get_process_frames() % 4 == 0:   # (a glowing chair breathes)
+		_art.queue_redraw()
+	var fade := 0.62 if facing == "up" and occupants.has(0) else 1.0
+	if _art.modulate.a != fade:
+		_art.modulate.a = fade
+	# Only a spin, a flash, the jackpot candle or a bonus's glow moves (and only on screen),
+	# with one more frame as it stops.
+	var lively := on_screen_now and (_bonus or now < maxf(_spin_until, maxf(_flash_until, _jackpot_until)))
+	if lively or _lively:
+		_art.queue_redraw()
+	_lively = lively
+	if breathes_now() and not occupants.has(0):   # (a glowing chair breathes)
 		_stool.queue_redraw()
 
 
 # ------------------------------------------------------------------ FloorGame
+## The chair, and the cabinet with it (whatever's changed; on coming into view).
+func redraw_chairs() -> void:
+	super()
+	if is_node_ready():
+		_art.queue_redraw()
+		_stool.queue_redraw()
+
+
 func chair_pos(_seat: int) -> Vector2:
 	return STOOL_AT[facing] + Vector2(0, 4)
 
@@ -113,7 +130,7 @@ func apply_snapshot(state: Dictionary) -> void:
 		grid = state.last.grid
 	_bonus = phase in ["trail", "free_games", "jackpot_pick", "battle"]
 	_last_bet = int(state.get("bet", 100))
-	_stool.queue_redraw()
+	redraw_chairs()
 
 
 func handle_event(ev: Dictionary) -> void:
@@ -121,11 +138,11 @@ func handle_event(ev: Dictionary) -> void:
 	match ev.kind:
 		"seated":
 			occupants[0] = {"entity": ev.entity, "name": ev.name, "human": ev.human}
-			_stool.queue_redraw()
+			redraw_chairs()
 		"stood":
 			occupants.erase(0)
 			_bonus = false
-			_stool.queue_redraw()
+			redraw_chairs()
 		"spin", "free_game":
 			var o: Dictionary = ev.outcome
 			_last_bet = int(o.bet)

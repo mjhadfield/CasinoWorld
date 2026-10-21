@@ -52,6 +52,7 @@ func _ready() -> void:
 	settings_button.offset_bottom = 52
 	settings_button.pressed.connect(settings_menu.toggle)
 	add_child(settings_button)
+	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
 	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %SeatedBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand, %TopUpButton]:
 		n.hide()

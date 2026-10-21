@@ -48,6 +48,8 @@ Environment knobs:
 - `CASINO_SPEED` scales every table timer and NPC pace; `0.5` is twice as fast.
 - `CASINO_DATA_DIR` sets where the SQLite database lives (default `server/data/`).
 - `CASINO_PORT` and `CASINO_WEB_DIR` set the HTTP port (HTTPS is one above) and the web export served.
+  `CASINO_WEB_DIR=dir tools/dev.sh server` serves a scratch export, to check a client change before the live
+  build gets it.
 - `CASINO_DESIGNS_DIR` moves the Slot design board's folders (default `server/slot_designs/`), and
   `CASINO_SLOT_BUILDS_DIR` the built slots (default `server/slot_builds/`); dev instances use copies in `.dev/`,
   and the tests scratch directories.
@@ -244,7 +246,8 @@ timing each step by the server's messages rather than by guesswork:
 tools/shot.py sit:crp_1 until:roll_open send:'{"type":"bet","spot":"pass","add":500}' \
     until:throw wait:1500 shot:craps@240,60,800,600
 ```
-Shots land in `.dev/shots/`. `tools/shot.py --help` lists the steps.
+Shots land in `.dev/shots/`. `tools/shot.py --help` lists the steps. `frames:NAME:MS` times frames instead,
+with `--gpu` and `--cpu-slowdown N` for other machines ([docs/performance.md](docs/performance.md)).
 
 `tools/scene.py` is for designing a slot's scene in a session ([docs/slots/scenes.md](docs/slots/scenes.md)):
 `brief` prints what Mike asked for, `fresh` copies a design to the dev instance, `shot` shoots the dev mockup with a
@@ -281,12 +284,14 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
   - `scripts/seating.gd`: draws the chairs and craps standing spots and plays the sit-down, from the seating styles.
-  - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`, the
-    shoe, shuffler, discard rack, cards and chips, the roulette wheel and the craps dice.
+  - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`,
+    `felt_cache` (a felt shown as one picture), the shoe, shuffler, discard rack, cards and chips, the roulette
+    wheel and the craps dice.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
-  - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, and the `settings_menu`, which edits the `Settings`
-    autoload (saved to `user://settings.cfg`) and sets the Master, Effects and Ambience bus volumes. The buses
-    are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
+  - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
+    graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
+    `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes and the graphics presets.
+    The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
   - `autoload/`: `net` (the socket), `session` (who you are, your balance), `sfx` (`Sfx.play(key)` for your own
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
     `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader` and

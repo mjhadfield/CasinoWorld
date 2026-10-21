@@ -58,6 +58,7 @@ static func _fill(given: Dictionary) -> Dictionary:
 	var u := Color(str(st.upholstery))
 	st._p = {"main": u, "top": u.lightened(0.16), "edge": u.darkened(0.28), "side": u.darkened(0.5),
 		"rear": u.darkened(0.32), "cap": u.lightened(0.26), "m": METALS.get(st.frame, METALS.brass)}
+	st._ink = {}   # a drawn chair, by how it's drawn (see draw_chair)
 	return st
 
 
@@ -71,12 +72,34 @@ static func hit_box(st: Dictionary) -> Rect2:
 # ------------------------------------------------------------------ drawing a chair
 ## A chair in `ci` at `at`, turned `turn` to show upright, its back towards `theta` as the
 ## screen sees it; `press` (0-1) squashes the cushion as someone lands on it.
+##
+## Building a chair is the dear part (a hundred-odd points of trig), and a glowing one is
+## redrawn a few times a second, so each way of drawing it is built once into Ink and kept
+## in the style: drawing it again is a few calls.
 static func draw_chair(ci: CanvasItem, at: Vector2, turn: float, theta: float, press: float, st: Dictionary,
 		layer: String, glow: bool, pulse: float) -> void:
+	var over := sin(theta) > 0.3
+	if layer != "seat" and not over:
+		return
+	pulse = snappedf(pulse, 0.05) if glow else 0.0
+	var key := [layer, glow, snappedf(theta, 0.001), snappedf(press, 0.01), pulse]
+	var cache: Dictionary = st._ink
+	var ink: Array = cache.get(key, [])
+	if ink.is_empty():
+		var rec := Ink.new()
+		_build_chair(rec, theta, press, st, layer, over, glow, pulse)
+		ink = rec.done()
+		if cache.size() > 2000:   # (a chair turning as someone sits fills it with angles it won't need again)
+			cache.clear()
+		cache[key] = ink
+	ci.draw_set_transform(at, turn)
+	Ink.play(ci, ink)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+static func _build_chair(ci, theta: float, press: float, st: Dictionary, layer: String, over: bool, glow: bool, pulse: float) -> void:
 	var g: Dictionary = st._g
 	var p: Dictionary = st._p
-	var over := sin(theta) > 0.3
-	ci.draw_set_transform(at, turn)
 	if layer == "seat":
 		if glow:
 			_halo(ci, g.rx + 9.0, pulse)
@@ -86,7 +109,63 @@ static func draw_chair(ci: CanvasItem, at: Vector2, turn: float, theta: float, p
 			_back(ci, g, p, theta, glow, pulse, st.chair == "lounge")
 	elif over:
 		_back(ci, g, p, theta, glow, pulse, st.chair == "lounge")
-	ci.draw_set_transform(Vector2.ZERO)
+
+
+## Drawing calls written down as they're made, the CanvasItem draw_* calls a chair uses:
+## the shapes, which are all convex, as one triangle list until a line breaks it, and the
+## lines as they are. play() draws them back in the same order.
+class Ink:
+	var _batches := []   # [points, colours, indices] (triangles), or [points, colour, width] (a line)
+	var _pts := PackedVector2Array()
+	var _cols := PackedColorArray()
+	var _idx := PackedInt32Array()
+
+	func draw_polygon(pts: PackedVector2Array, cols: PackedColorArray) -> void:
+		var at := _pts.size()
+		_pts.append_array(pts)
+		_cols.append_array(cols)
+		for i in range(1, pts.size() - 1):
+			_idx.append(at)
+			_idx.append(at + i)
+			_idx.append(at + i + 1)
+
+	func draw_colored_polygon(pts: PackedVector2Array, c: Color) -> void:
+		var cols := PackedColorArray()
+		cols.resize(pts.size())
+		cols.fill(c)
+		draw_polygon(pts, cols)
+
+	func draw_primitive(pts: PackedVector2Array, cols: PackedColorArray, _uvs: PackedVector2Array) -> void:
+		draw_polygon(pts, cols)
+
+	func draw_rect(r: Rect2, c: Color) -> void:
+		draw_colored_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), c)
+
+	func draw_polyline(pts: PackedVector2Array, c: Color, width: float, _antialiased: bool) -> void:
+		_flush()
+		_batches.append([pts, c, width])
+
+	func draw_line(a: Vector2, b: Vector2, c: Color, width: float, antialiased: bool) -> void:
+		draw_polyline(PackedVector2Array([a, b]), c, width, antialiased)
+
+	func done() -> Array:
+		_flush()
+		return _batches
+
+	func _flush() -> void:
+		if not _idx.is_empty():
+			_batches.append([_pts, _cols, _idx])
+			_pts = PackedVector2Array()
+			_cols = PackedColorArray()
+			_idx = PackedInt32Array()
+
+	static func play(ci: CanvasItem, batches: Array) -> void:
+		var item := ci.get_canvas_item()
+		for b in batches:
+			if b[1] is Color:
+				ci.draw_polyline(b[0], b[1], b[2], true)
+			else:
+				RenderingServer.canvas_item_add_triangle_array(item, b[2], b[0], b[1])
 
 
 static func _ell(c: Vector2, rx: float, ry: float, n := 22) -> PackedVector2Array:
@@ -106,7 +185,7 @@ static func _arc(c: Vector2, rx: float, ry: float, a0: float, a1: float, n := 16
 
 
 ## A soft gold pool on the floor (a free seat, while you're walking).
-static func _halo(ci: CanvasItem, r: float, pulse: float) -> void:
+static func _halo(ci, r: float, pulse: float) -> void:
 	var a := 0.1 * (0.6 + 0.4 * pulse)
 	for i in 4:
 		var k := 1.0 - i / 4.0
@@ -118,7 +197,7 @@ static func _metal(m: Array, f: float) -> Color:
 	return (m[1] as Color).lerp(m[0], f / 0.35) if f < 0.35 else (m[0] as Color).lerp(m[2], (f - 0.35) / 0.65)
 
 
-static func _base(ci: CanvasItem, g: Dictionary, p: Dictionary) -> void:
+static func _base(ci, g: Dictionary, p: Dictionary) -> void:
 	var m: Array = p.m
 	ci.draw_colored_polygon(_ell(Vector2(0, 1.2), g.rx + 1.5, 3.8), Color(0, 0, 0, 0.38))
 	ci.draw_colored_polygon(_ell(Vector2(0, 0.7), g.base_rx, g.base_rx * 0.36), m[2])
@@ -146,7 +225,7 @@ static func _base(ci: CanvasItem, g: Dictionary, p: Dictionary) -> void:
 		ci.draw_colored_polygon(_ell(Vector2(0, top + 0.6), g.rx * 0.42, g.ry * 0.42), m[2])
 
 
-static func _seat(ci: CanvasItem, g: Dictionary, p: Dictionary, press: float, glow: bool, pulse: float, lounge: bool) -> void:
+static func _seat(ci, g: Dictionary, p: Dictionary, press: float, glow: bool, pulse: float, lounge: bool) -> void:
 	var y: float = g.seat_y + press * 0.9
 	var th: float = g.thick * (1.0 - 0.35 * press)
 	var rx: float = g.rx
@@ -169,7 +248,7 @@ static func _seat(ci: CanvasItem, g: Dictionary, p: Dictionary, press: float, gl
 ## The back: a curved band standing on the seat's edge round `th`, its faces shaded by
 ## which way they turn, then its ends, its top catching the light, and the piping (or a
 ## stool's metal rail) along the top.
-static func _back(ci: CanvasItem, g: Dictionary, p: Dictionary, th: float, glow: bool, pulse: float, lounge: bool) -> void:
+static func _back(ci, g: Dictionary, p: Dictionary, th: float, glow: bool, pulse: float, lounge: bool) -> void:
 	var n := 14
 	var hs: float = g.hs
 	var pt := func(a: float, inner: bool, up: bool) -> Vector2:
@@ -209,7 +288,7 @@ static func _back(ci: CanvasItem, g: Dictionary, p: Dictionary, th: float, glow:
 		ci.draw_polyline(top, p.m[3] if lounge else p.m[0], 0.6 if lounge else 0.55, true)
 
 
-static func _quad(ci: CanvasItem, q: Array, c: Color) -> void:
+static func _quad(ci, q: Array, c: Color) -> void:
 	ci.draw_primitive(PackedVector2Array(q), PackedColorArray([c, c, c, c]), PackedVector2Array())
 
 

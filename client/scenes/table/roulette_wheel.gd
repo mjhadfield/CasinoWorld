@@ -16,6 +16,11 @@ extends Node2D
 ## (engines/roulette.py: track_travel, plan_landing, landing_seconds): keep the
 ## two in step. Everything's timed in "spin seconds"; a server running at
 ## another speed scales them (track / BALL_TRACK).
+##
+## It's drawn once, in layers: the bowl (this node), the rotor and the turret's
+## arms (turned through their `rotation`), the cone between them, and the ball
+## (moved through its `position`, redrawn only while it's off the floor of the
+## wheel). So turning the wheel each frame redraws nothing.
 
 signal settled(number: int)
 ## A sound the ball makes as it lands: "skid" (value: how long the skid lasts) or
@@ -52,11 +57,50 @@ var _rot := 0.0
 var _ball_angle := 0.0
 var _ball_radius := R_POCKET
 var _ball_height := 0.0
+var _rotor: Layer
+var _turret: Layer
+var _ball: Layer
+var _ball_drawn := -1.0    # the height the ball was last drawn at
+
+
+## A layer of the wheel, drawn by `paint` (which takes the layer to draw in).
+class Layer extends Node2D:
+	var paint: Callable
+
+	func _draw() -> void:
+		paint.call(self)
+
+
+func _ready() -> void:
+	_update(0.0 if Engine.is_editor_hint() else _now())
+	_rotor = _layer(_draw_rotor)
+	_layer(_draw_cone)
+	_turret = _layer(_draw_turret)
+	_ball = _layer(_draw_ball)
+	_show()
+
+
+func _layer(paint: Callable) -> Layer:
+	var l := Layer.new()
+	l.paint = paint
+	add_child(l)
+	return l
 
 
 func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	_update(_now())
-	queue_redraw()
+	_show()
+
+
+func _show() -> void:
+	_rotor.rotation = _rot
+	_turret.rotation = _rot
+	_ball.position = Vector2(cos(_ball_angle), sin(_ball_angle)) * _ball_radius
+	if _ball_height != _ball_drawn:
+		_ball_drawn = _ball_height
+		_ball.queue_redraw()
 
 
 func _now() -> float:
@@ -249,7 +293,7 @@ func _colour(n: int) -> Color:
 	return GREEN_POCKET if n == 0 else RED_POCKET if n in RED else BLACK_POCKET
 
 
-func _ring(r0: float, r1: float, a0: float, a1: float, colour: Color) -> void:
+func _ring(ci: CanvasItem, r0: float, r1: float, a0: float, a1: float, colour: Color) -> void:
 	var pts := PackedVector2Array()
 	var steps := 4
 	for i in steps + 1:
@@ -258,13 +302,11 @@ func _ring(r0: float, r1: float, a0: float, a1: float, colour: Color) -> void:
 	for i in steps + 1:
 		var a := lerpf(a1, a0, float(i) / steps)
 		pts.append(Vector2(cos(a), sin(a)) * r0)
-	draw_colored_polygon(pts, colour)
+	ci.draw_colored_polygon(pts, colour)
 
 
+## The bowl and the ball track, which don't move.
 func _draw() -> void:
-	if Engine.is_editor_hint():
-		_update(0.0)
-	# the bowl and the ball track
 	draw_circle(Vector2(0.8, 1.6), R_BOWL + 0.8, Color(0, 0, 0, 0.3))
 	draw_circle(Vector2.ZERO, R_BOWL, Color("4e2814"))
 	draw_circle(Vector2(-6, -7), R_BOWL - 8, Color(0.6, 0.32, 0.17, 0.25))
@@ -278,37 +320,50 @@ func _draw() -> void:
 		var along := Vector2(cos(a + (PI / 2 if i % 2 else 0.0)), sin(a + (PI / 2 if i % 2 else 0.0)))
 		var across := along.orthogonal()
 		draw_colored_polygon(PackedVector2Array([c - along * 2.2, c - across * 0.9, c + along * 2.2, c + across * 0.9]), BRASS_HI)
-	# the rotor: numbers, pockets, frets
+
+
+## The rotor: numbers, pockets, frets, at rest (its layer turns).
+func _draw_rotor(ci: CanvasItem) -> void:
 	for k in WHEEL.size():
 		var n: int = WHEEL[k]
-		var a := _pocket_angle(k, _rot)
-		_ring(27.0, 33.0, a - STEP / 2, a + STEP / 2, _colour(n))
-		_ring(22.0, 27.0, a - STEP / 2, a + STEP / 2, Color(0, 0, 0, 0.45))
+		var a := _pocket_offset(k)
+		_ring(ci, 27.0, 33.0, a - STEP / 2, a + STEP / 2, _colour(n))
+		_ring(ci, 22.0, 27.0, a - STEP / 2, a + STEP / 2, Color(0, 0, 0, 0.45))
 		var a0 := a - STEP / 2
-		draw_line(Vector2(cos(a0), sin(a0)) * 22.0, Vector2(cos(a0), sin(a0)) * 33.0, BRASS, 0.35, true)
+		ci.draw_line(Vector2(cos(a0), sin(a0)) * 22.0, Vector2(cos(a0), sin(a0)) * 33.0, BRASS, 0.35, true)
 		var label := str(n)
-		draw_set_transform(Vector2(cos(a), sin(a)) * 30.0, a + PI / 2, Vector2(1.1, 1.1))
+		ci.draw_set_transform(Vector2(cos(a), sin(a)) * 30.0, a + PI / 2, Vector2(1.1, 1.1))
 		var w := FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 3).x
-		draw_string(FONT, Vector2(-w / 2, 1.05), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 3, CREAM)
-		draw_set_transform(Vector2.ZERO)
-	draw_arc(Vector2.ZERO, 27.0, 0, TAU, 72, BRASS, 0.5, true)
-	# the cone and turret
-	draw_circle(Vector2.ZERO, 22.0, Color("6a3519"))
-	draw_circle(Vector2(-4, -5), 14.0, Color(0.75, 0.45, 0.22, 0.35))
-	draw_arc(Vector2.ZERO, 22.0, 0, TAU, 64, BRASS, 0.6, true)
+		ci.draw_string(FONT, Vector2(-w / 2, 1.05), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 3, CREAM)
+		ci.draw_set_transform(Vector2.ZERO)
+	ci.draw_arc(Vector2.ZERO, 27.0, 0, TAU, 72, BRASS, 0.5, true)
+
+
+## The cone, lit from the top left whichever way the rotor's turned.
+func _draw_cone(ci: CanvasItem) -> void:
+	ci.draw_circle(Vector2.ZERO, 22.0, Color("6a3519"))
+	ci.draw_circle(Vector2(-4, -5), 14.0, Color(0.75, 0.45, 0.22, 0.35))
+	ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 64, BRASS, 0.6, true)
+
+
+## The turret's four arms (its layer turns with the rotor).
+func _draw_turret(ci: CanvasItem) -> void:
 	for i in 4:
-		var a := _rot + i * PI / 2
+		var a := i * PI / 2
 		var tip := Vector2(cos(a), sin(a)) * 11.0
-		draw_line(Vector2.ZERO, tip, BRASS_HI, 1.4, true)
-		draw_circle(tip, 1.5, BRASS_HI)
-	draw_circle(Vector2.ZERO, 3.2, BRASS_HI)
-	# the ball: in the air it rises off its shadow (towards the viewer) and looks a touch bigger
-	var ground := Vector2(cos(_ball_angle), sin(_ball_angle)) * _ball_radius
+		ci.draw_line(Vector2.ZERO, tip, BRASS_HI, 1.4, true)
+		ci.draw_circle(tip, 1.5, BRASS_HI)
+	ci.draw_circle(Vector2.ZERO, 3.2, BRASS_HI)
+
+
+## The ball, at its layer's origin (where it is on the wheel's floor): in the air it rises off
+## its shadow (towards the viewer) and looks a touch bigger.
+func _draw_ball(ci: CanvasItem) -> void:
 	var br := 1.9 * (1.0 + _ball_height * 0.06)
-	draw_set_transform(ground + Vector2(0.5, 0.6), 0, Vector2(1.0 + _ball_height * 0.06, 0.85 + _ball_height * 0.04))
-	draw_circle(Vector2.ZERO, 1.9, Color(0, 0, 0, 0.38 - _ball_height * 0.05))
-	draw_set_transform(Vector2.ZERO)
-	var ball := ground - Vector2(0, _ball_height * 0.85)
-	draw_circle(ball, br, Color("d9d3c7"))
-	draw_circle(ball - Vector2(0.35, 0.35) * br, br * 0.62, Color("f4f1ea"))
-	draw_circle(ball - Vector2(0.55, 0.55) * br, br * 0.25, Color.WHITE)
+	ci.draw_set_transform(Vector2(0.5, 0.6), 0, Vector2(1.0 + _ball_height * 0.06, 0.85 + _ball_height * 0.04))
+	ci.draw_circle(Vector2.ZERO, 1.9, Color(0, 0, 0, 0.38 - _ball_height * 0.05))
+	ci.draw_set_transform(Vector2.ZERO)
+	var ball := -Vector2(0, _ball_height * 0.85)
+	ci.draw_circle(ball, br, Color("d9d3c7"))
+	ci.draw_circle(ball - Vector2(0.35, 0.35) * br, br * 0.62, Color("f4f1ea"))
+	ci.draw_circle(ball - Vector2(0.55, 0.55) * br, br * 0.25, Color.WHITE)

@@ -30,6 +30,9 @@ var occupants := {}   # seat -> {entity, name, human}
 var chair_state := {}
 var chair_side := {}  # seat -> which side of it its sitter got on from (1 or -1), to get off the same way
 var _backs := {}      # seat -> its ChairBack (the back drawn over its sitter)
+## Whether any of it is in the camera's view (a VisibleOnScreenNotifier2D round it says): off
+## screen, nothing that's only for show is redrawn every frame (see breathes_now()).
+var on_screen_now := false
 var phase := ""
 var _queue: Array[Callable] = []
 var _busy_until := 0.0
@@ -168,8 +171,8 @@ func redraw_chairs() -> void:
 ## glows while you're walking.
 func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	var st := Seating.style(table_id)
-	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 5.0)
 	var glow := offer_seats and not occupants.has(seat) and not Engine.is_editor_hint()
+	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 5.0) if glow and Settings.value("seat_glow") else 0.8
 	var cs: Dictionary = chair_state.get(seat, {})
 	var turn := screen_turn()
 	at += cs.get("offset", Vector2.ZERO)
@@ -177,10 +180,20 @@ func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	Seating.draw_chair(ci, at, -turn, theta, float(cs.get("press", 0.0)), st, layer, glow, pulse)
 
 
+## Whether a free chair's glow takes a breath this frame: a few times a second while it's on
+## screen, each table on a frame of its own so they don't all land on the same one (and never,
+## with Settings' seat glow off: it glows steadily).
+func breathes_now() -> bool:
+	return offer_seats and on_screen_now and (Engine.get_process_frames() + get_instance_id()) % 4 == 0 \
+		and Settings.value("seat_glow")
+
+
 ## Each chair's back gets a node of its own, just behind its sitter in the floor's Y-sort (and
 ## at their z while they're there), so a back between them and us draws over them.
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_READY and not Engine.is_editor_hint() and seat_pose() == "sit":
+	if what != NOTIFICATION_READY or Engine.is_editor_hint():
+		return
+	if seat_pose() == "sit":
 		for seat in seat_count():
 			var b := ChairBack.new()
 			b.game = self
@@ -188,6 +201,34 @@ func _notification(what: int) -> void:
 			add_child(b)
 			_backs[seat] = b
 		place_chair_backs()
+	var seen := VisibleOnScreenNotifier2D.new()
+	seen.name = "OnScreen"
+	seen.rect = footprint().grow(48.0)
+	seen.screen_entered.connect(func():
+		on_screen_now = true
+		redraw_chairs())   # (whatever changed while it was out of sight)
+	seen.screen_exited.connect(func(): on_screen_now = false)
+	add_child(seen)
+
+
+## Everything it covers in its own coordinates: its collision shapes and its chairs, with
+## room for whoever sits in them (as tools/floor_map.gd measures a table).
+func footprint() -> Rect2:
+	var into := global_transform.affine_inverse()
+	var r := Rect2(-20, -20, 40, 40)
+	for n in find_children("*", "CollisionShape2D", true, false) + find_children("*", "CollisionPolygon2D", true, false):
+		var pts := PackedVector2Array()
+		if n is CollisionPolygon2D:
+			pts = n.polygon
+		elif n.shape is CircleShape2D:
+			pts = [Vector2(-1, -1) * n.shape.radius, Vector2(1, 1) * n.shape.radius]
+		elif n.shape is RectangleShape2D:
+			pts = [-n.shape.size / 2.0, n.shape.size / 2.0]
+		for q in pts:
+			r = r.expand(into * (n.global_transform * q))
+	for seat in seat_count():
+		r = r.merge(Rect2(chair_pos(seat) + Vector2(-16, -44), Vector2(32, 52)))
+	return r
 
 
 func place_chair_backs() -> void:

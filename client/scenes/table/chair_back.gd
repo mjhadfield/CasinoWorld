@@ -7,15 +7,24 @@ extends Node2D
 
 var game: FloorGame
 var seat := 0
-var _seen := []   # what it was last drawn for: [offering, free, turn]
+# what it was last drawn for
+var _drawn := false
+var _offering := false
+var _free := false
+var _turn := 0.0
 
 
 func _process(_delta: float) -> void:
-	var seen := [game.offer_seats, not game.occupants.has(seat), game.screen_turn()]
-	z_index = 0 if seen[1] else 1
-	# (a glowing chair breathes: redrawn a few times a second, not every frame)
-	if seen != _seen or (game.offer_seats and seen[1] and Engine.get_process_frames() % 4 == 0):
-		_seen = seen
+	var free := not game.occupants.has(seat)
+	var turn := game.screen_turn()
+	if not _drawn or free != _free or game.offer_seats != _offering or turn != _turn:
+		_drawn = true
+		_free = free
+		_offering = game.offer_seats
+		_turn = turn
+		z_index = 0 if free else 1
+		queue_redraw()
+	elif free and game.breathes_now():   # (a glowing chair breathes: redrawn a few times a second)
 		queue_redraw()
 
 

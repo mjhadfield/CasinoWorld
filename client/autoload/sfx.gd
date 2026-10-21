@@ -119,6 +119,9 @@ func play_at(key: String, at: Vector2, trim_db := 0.0, table := "") -> void:
 	var scene := get_tree().current_scene
 	if scene == null or not scene is Node2D:
 		return
+	var camera := get_viewport().get_camera_2d()
+	if camera and camera.get_screen_center_position().distance_to(at) > HEARING:
+		return   # (too far off to hear: no player for it)
 	var c := _choice(key, table)
 	var stream := _pick(key, c, str(at.snapped(Vector2(200, 200))))  # each table keeps its own gap
 	if stream == null:

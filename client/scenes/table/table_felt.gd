@@ -10,7 +10,8 @@ extends Node2D
 ## _draw_layout(). Geometry comes from the parent table, so moving a Seat
 ## marker in the editor moves that seat's spots too.
 ##
-## Everything is drawn in code, so it stays sharp at any zoom. This node sits
+## Everything is drawn in code, so it stays sharp at any zoom, and in the game it's shown as a
+## picture painted at the screen's resolution (FeltCache): paint() is the drawing. This node sits
 ## just in front of the dealer's feet, so Y-sorting draws the table over the
 ## dealer's legs (they stand in the bay, behind the chip tray) and under
 ## everyone standing beside or in front of it. Everything is drawn in table
@@ -38,10 +39,30 @@ const TRAY_FILL := [0.45, 1.0, 0.6, 0.0, 0.85, 1.0, 0.7, 0.0, 0.9, 0.35]
 const CHIP_EDGE := 1.05               # one chip lying in a channel, seen from above
 
 var _vignette: GradientTexture2D
+var painting := false        # this is FeltCache's copy, which paints the picture
+var table_ref: CasinoTable   # (the copy's table: it isn't the copy's parent)
+var _cache: FeltCache
+
+
+func _ready() -> void:
+	if not Engine.is_editor_hint() and not painting:
+		_attach_cache.call_deferred()   # once the table has its Body
+
+
+func _attach_cache() -> void:
+	_cache = FeltCache.attach(self)
+	queue_redraw()
 
 
 func _table() -> CasinoTable:
-	return get_parent() as CasinoTable
+	return table_ref if table_ref else get_parent() as CasinoTable
+
+
+func _draw() -> void:
+	if _cache:   # shown as FeltCache's picture: have it painted again instead
+		_cache.repaint()
+		return
+	paint()
 
 
 ## The felt gets lighter towards the middle of the table.
@@ -61,7 +82,7 @@ func _felt_gradient() -> GradientTexture2D:
 	return _vignette
 
 
-func _draw() -> void:
+func paint() -> void:
 	var t := _table()
 	if t == null:
 		return

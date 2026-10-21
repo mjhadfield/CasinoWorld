@@ -10,7 +10,7 @@
 # For a worktree that needs its own instance:
 #   tools/dev.sh setup                 link the main checkout's .venv and lpc_cache in here
 #   tools/dev.sh port                  print this checkout's HTTP port (HTTPS is port + 1)
-#   tools/dev.sh server [--live-data]  run it (foreground; log in .dev/server.log)
+#   tools/dev.sh server [--live-data]  run it (foreground; log in .dev/server.log); CASINO_WEB_DIR=dir serves that export
 #   tools/dev.sh list                  every checkout's port, and whether it is running
 #
 # The live server is Citadel's unit hub-proj-casino-world on 8660/8661, run from the main
@@ -90,7 +90,7 @@ server() {
     p=$(port)
     [[ "$p" == "$LIVE_PORT" ]] && die "refusing to use the live port"
     listening "$p" && die "port $p is already in use (another dev.sh server here?)"
-    web="$ROOT/build/web"
+    web="${CASINO_WEB_DIR:-$ROOT/build/web}"   # (a scratch export, to check a client change before the live one gets it)
     if [[ ! -f "$web/index.html" ]]; then
         web="$MAIN/build/web"
         echo "dev.sh: no build/web here, so serving the main checkout's client; run 'tools/dev.sh export' to test client changes"

@@ -17,6 +17,8 @@ Steps:
     click:X,Y          click at viewport pixels
     wait:MS            let an animation finish after an `until`
     shot:NAME[@X,Y,W,H]  save .dev/shots/NAME.png, optionally clipped to that rectangle
+    frames:NAME:MS[:KEY]  time MS of frames (holding KEY, e.g. KeyD, to walk) and print the frame
+                       rate, the gaps between frames and the main-thread work in each (docs/performance.md)
     eval:JS            print a JavaScript expression (window.__shot holds the message log)
 
 Example: sit at Craps, bet the Pass Line when betting opens, shoot the roll as it lands:
@@ -27,6 +29,9 @@ Example: sit at Craps, bet the Pass Line when betting opens, shoot the roll as i
 By default it uses this checkout's dev instance (start it with `tools/dev.sh server`), so the
 screenshot player and its bets land in .dev/data, not the live floor. The browser profile is
 kept in .dev/shot-browser, so it's the same named player every run.
+
+--cpu-slowdown N slows the page's CPU N times (a stand-in for a low-end machine), and --gpu
+draws with the real GPU instead of SwiftShader's software renderer (a stand-in for no GPU).
 
 Keep shots small: clip to what changed, and look at one only when the step it checks has run.
 """
@@ -54,6 +59,19 @@ NAME = "Shot"
 HOOK = """
 (() => {
   const st = window.__shot = {socket: null, seq: 0, log: [], seated: null, tables: {}, me: null};
+  // Every Godot frame is one requestAnimationFrame callback: time the work in each, and when it started.
+  const perf = st.perf = {work: [], at: []};
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => raf((t) => {
+    const s = performance.now();
+    window.__rafSkipped = false;
+    try { cb(t); } finally {
+      if (window.__rafSkipped) return;   // a frame the game's frame cap skipped (Settings.WEB_CAP)
+      perf.work.push(performance.now() - s);
+      perf.at.push(s);
+      if (perf.at.length > 20000) { perf.work.splice(0, 10000); perf.at.splice(0, 10000); }
+    }
+  });
   const keep = 400;
   const Native = window.WebSocket;
   window.WebSocket = class extends Native {
@@ -104,6 +122,8 @@ def main() -> None:
     ap.add_argument("--size", default="1280x720", help="viewport, WxH (default 1280x720)")
     ap.add_argument("--timeout", type=float, default=60, help="seconds an `until` or `sit` may wait (default 60)")
     ap.add_argument("--out", type=Path, default=ROOT / ".dev/shots")
+    ap.add_argument("--cpu-slowdown", type=float, default=1, help="slow the page's CPU this many times (default 1)")
+    ap.add_argument("--gpu", action="store_true", help="draw with the GPU, not SwiftShader")
     args = ap.parse_args()
     url = args.url or dev_url()
     w, h = map(int, args.size.split("x"))
@@ -115,8 +135,11 @@ def main() -> None:
         ctx = pw.chromium.launch_persistent_context(
             str(ROOT / ".dev/shot-browser"), headless=True, ignore_https_errors=True,
             viewport={"width": w, "height": h},
-            args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+            args=(["--enable-gpu", "--use-angle=vulkan", "--enable-features=Vulkan", "--ignore-gpu-blocklist"] if args.gpu
+                  else ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]))
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        if args.cpu_slowdown > 1:
+            ctx.new_cdp_session(page).send("Emulation.setCPUThrottlingRate", {"rate": args.cpu_slowdown})
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.add_init_script(HOOK)
@@ -134,6 +157,30 @@ def main() -> None:
 
         def send(msg: dict) -> None:
             page.evaluate("(m) => window.__shot.socket.send(JSON.stringify(m))", msg)
+
+        def frames(name: str, ms: int, key: str) -> None:
+            start = page.evaluate("performance.now()")
+            if key:
+                page.keyboard.down(key)
+            page.wait_for_timeout(ms)
+            if key:
+                page.keyboard.up(key)
+            work, at = page.evaluate("""(t) => { const p = window.__shot.perf, i = p.at.findIndex(a => a >= t);
+                return i < 0 ? [[], []] : [p.work.slice(i), p.at.slice(i)]; }""", start)
+            if len(at) < 2:
+                print(f"{name}: no frames")
+                return
+            gaps = sorted(b - a for a, b in zip(at, at[1:]))
+            work = sorted(work)
+            pct = lambda xs, q: xs[min(len(xs) - 1, int(q * len(xs)))]
+            fps = (len(at) - 1) * 1000 / (at[-1] - at[0])
+            print(f"{name}: {fps:.1f} fps over {len(at)} frames | gap p50 {pct(gaps, .5):.1f} p95 {pct(gaps, .95):.1f} "
+                  f"max {gaps[-1]:.1f} ms | work avg {sum(work) / len(work):.2f} p50 {pct(work, .5):.2f} "
+                  f"p95 {pct(work, .95):.2f} max {work[-1]:.2f} ms")
+            godot = page.evaluate("window.__godotPerf || null")   # (the game's PerfOverlay leaves these)
+            if godot:
+                print(f"  godot: {godot['draw_calls']:.0f} draw calls, {godot['objects']:.0f} objects, "
+                      f"{godot['nodes']:.0f} nodes, {godot['video_mb']:.0f} MB textures, graphics {godot.get('graphics')}")
 
         def on_floor() -> None:
             welcome = wait_for("welcome")["msg"]
@@ -191,6 +238,10 @@ def main() -> None:
                         opts["clip"] = {"x": x, "y": y, "width": cw, "height": ch}
                     page.screenshot(path=str(path), **opts)
                     print(f"saved {path}")
+                elif op == "frames":
+                    name, _, rest = arg.partition(":")
+                    span, _, key = rest.partition(":")
+                    frames(name or "frames", int(span or 5000), key)
                 elif op == "eval":
                     print(json.dumps(page.evaluate(arg))[:2000])
                 else:

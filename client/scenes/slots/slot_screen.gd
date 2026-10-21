@@ -153,6 +153,9 @@ var _queue: Array = []
 var _running := false
 var _hits: Array = []
 var _hover := ""
+var _input_until := 0.0   # (just touched: drawn every frame for a moment, see _lively())
+## Idle, the screen is redrawn every this many frames: often enough for a skin's slow glows.
+const IDLE_EVERY := 3
 var _last_spin_sent := -10.0
 var _credit_adj := 0      # what the credit meter shows on top of the held balance: -stakes, +wins shown so far
 var _loops := {}          # name -> Sfx loop handle: the loops this screen has running ("spin", "meter", ...)
@@ -300,6 +303,11 @@ func _apply_theme() -> void:
 	var on: Array = rules.get("features", [])
 	var names: Dictionary = theme.get("texts", {}).get("feature_names", {})
 	feature_rows = FEATURE_ROWS.filter(func(f): return on.is_empty() or on.has(f[0])).map(func(f): return [f[0], str(names.get(f[0], f[1]))])
+
+
+## Whether it's fully open, covering the floor (which needn't be drawn under it).
+func covers_floor() -> bool:
+	return visible and _grow >= 1.0 and not _closing
 
 
 func close(to_rect: Rect2) -> void:
@@ -720,13 +728,16 @@ func _process(delta: float) -> void:
 		return
 	var dt := minf(delta, 0.05) * (1.8 if turbo else 1.0)
 	_now += dt
-	for tw in _tweens.duplicate():
+	var done := []
+	for tw in _tweens:
 		tw.t += dt / tw.dur
 		var k := _ease(tw.ease, minf(1.0, tw.t))
 		for key in tw.to:
 			tw.obj[key] = lerpf(tw.from[key], tw.to[key], k)
 		if tw.t >= 1.0:
-			_tweens.erase(tw)
+			done.append(tw)
+	for tw in done:
+		_tweens.erase(tw)
 	for x in reels:
 		if x.spinning:
 			x.pos -= x.v * dt
@@ -758,10 +769,37 @@ func _process(delta: float) -> void:
 	if not expedition.is_empty() and expedition.get("waiting", false) and _now >= float(expedition.get("auto_at", 1e9)) + 1.0:
 		expedition.waiting = false   # ...and the expedition's
 	_place_layers()
-	_under.queue_redraw()
-	_reels_layer.queue_redraw()
-	_over.queue_redraw()
-	queue_redraw()
+	var idle_frame := Engine.get_process_frames() % IDLE_EVERY == 0
+	if idle_frame or _under_lively():
+		_under.queue_redraw()
+	if idle_frame or _lively():
+		_reels_layer.queue_redraw()
+		_over.queue_redraw()
+		queue_redraw()
+
+
+## Whether the layer under the reels has anything moving: a bonus game's board, or a button
+## under the pointer. (Its meters, a lit feature row's slow glow and a skin's decor change
+## gently enough for the idle redraw, and it's the dearest layer: the frame, the panels, the wood.)
+func _under_lively() -> bool:
+	return _now < _input_until \
+		or not (trail.is_empty() and battle.is_empty() and voyage.is_empty() and expedition.is_empty())
+
+
+## Whether anything's moving (a spin, a tween, a win counting up, a bonus game, sparks...) or
+## was just touched: then it's redrawn every frame, otherwise only every IDLE_EVERY frames.
+func _lively() -> bool:
+	if _running or _grow < 1.0 or _now < _input_until or shake > 0.0 or win_shown < win_target:
+		return true
+	if not (_tweens.is_empty() and particles.is_empty() and flyers.is_empty() and wins.is_empty() and overlay.is_empty()
+			and _queue.is_empty() and free.is_empty() and pick.is_empty()):
+		return true
+	if not (trail.is_empty() and battle.is_empty() and voyage.is_empty() and expedition.is_empty()):
+		return true
+	for x in reels:
+		if x.spinning or x.stopping:
+			return true
+	return false
 
 
 func _wait(sec: float) -> void:
@@ -807,7 +845,7 @@ func _canvas_rect() -> Rect2:
 func _place_layers() -> void:
 	var r := _canvas_rect()
 	var sc := Vector2(r.size.x / W, r.size.y / H)
-	var jitter := Vector2(randf_range(-7, 7), randf_range(-5, 5)) * shake * sc.x if shake > 0 else Vector2.ZERO
+	var jitter := Vector2(randf_range(-7, 7), randf_range(-5, 5)) * shake * sc.x if shake > 0 and not _reduced() else Vector2.ZERO
 	for layer in [_under, _over]:
 		layer.position = r.position + jitter
 		layer.size = Vector2(W, H)
@@ -1914,8 +1952,13 @@ func _draw_flyers(ci: CanvasItem) -> void:
 		ci.draw_set_transform(Vector2.ZERO)
 
 
+## Settings' slot effects "reduced": half the coins, and the screen doesn't shake.
+func _reduced() -> bool:
+	return Settings.value("slot_effects") == "reduced"
+
+
 func _coin_burst(x: float, y: float, n: int, spread := 1.0) -> void:
-	for i in n:
+	for i in (ceili(n / 2.0) if _reduced() else n):
 		var ang := -PI / 2.0 + (randf() - 0.5) * 2.2 * spread
 		var v := 300.0 + randf() * 520.0
 		particles.append({"x": x, "y": y, "vx": cos(ang) * v, "vy": sin(ang) * v, "g": 1100.0, "life": 2.4,
@@ -1923,7 +1966,7 @@ func _coin_burst(x: float, y: float, n: int, spread := 1.0) -> void:
 
 
 func _coin_rain(n: int) -> void:
-	for i in n:
+	for i in (ceili(n / 2.0) if _reduced() else n):
 		particles.append({"x": randf() * W, "y": -40.0 - randf() * 400.0, "vx": (randf() - 0.5) * 80.0, "vy": 100.0 + randf() * 200.0,
 			"g": 500.0, "life": 4.0, "spin": randf() * 6.0, "vs": 5.0 + randf() * 9.0, "r": 11.0 + randf() * 10.0})
 
@@ -3619,6 +3662,7 @@ func _hit(p: Vector2) -> String:
 
 
 func _gui_input(event: InputEvent) -> void:
+	_input_until = _now + 0.4
 	if event is InputEventMouseMotion:
 		_hover = _hit(event.position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -3629,6 +3673,7 @@ func _gui_input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or _closing:
 		return
+	_input_until = _now + 0.4
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_SPACE:
 		if not overlay.is_empty() and overlay.kind in ["bigwin", "summary"]:
 			_act("overlay")

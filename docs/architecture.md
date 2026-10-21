@@ -87,7 +87,10 @@ background task. The slots have their own Mini/Minor/Major/Grand meters (`slots/
 A Godot 4.7 project exported to the web.
 
 - **Autoloads:** `Net` (the socket, reconnects, away/resync), `Session` (who you are, your balance, the
-  jackpot meter), `Sfx` (sounds chosen on the admin page), `Settings`, `LookLoader` and `SlotArt`.
+  jackpot meter), `Sfx` (sounds chosen on the admin page), `Settings` (sound, and the Graphics presets with
+  their auto step-down), `LookLoader` and `SlotArt`.
+- **Performance** (docs/performance.md): nothing is redrawn every frame unless it's moving and on screen;
+  felts are shown as one painted picture each (`FeltCache`), and the floor isn't drawn under the slot screen.
 - **Slot variants** (`server/casino_server/slots/`): a variant (`variant.py`) brings its strips, rates and bonus
   settings, and its own pays, upgrade chain, feature list and `routes` (which bonuses 3+ BS, 3+ FS and Buy Bonus
   play; `outcome.pick_bonus` draws one only when there are several, so one bonus per way in spins as it always
