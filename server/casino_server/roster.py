@@ -170,14 +170,14 @@ def random_look(rng: random.Random, body: str | None = None, uniform: str | None
 PUNTER_NAMES = ["Rita", "Dev", "Marcus", "June", "Theo", "Priya", "Sal", "Bea", "Otis", "Lena",
                 "Ray", "Ivy", "Gus", "Nora", "Felix", "Mabel", "Arlo", "Tess", "Omar", "Edie"]
 DEALER_NAMES = ["Sofia", "Hector", "Amara", "Giles", "Yuki", "Darius", "Elena", "Kofi", "Margot", "Ravi",
-                "Celeste", "Bruno", "Ines", "Tobias"]
+                "Celeste", "Bruno", "Ines", "Tobias", "Mei", "Anton", "Rosalind", "Jonas", "Farah", "Callum"]
 FEMALE = {"Rita", "June", "Priya", "Bea", "Lena", "Ivy", "Nora", "Mabel", "Tess", "Edie",
-          "Sofia", "Amara", "Yuki", "Elena", "Margot", "Celeste", "Ines"}
+          "Sofia", "Amara", "Yuki", "Elena", "Margot", "Celeste", "Ines", "Mei", "Rosalind", "Farah"}
 
 
 def seed(store, rng: random.Random | None = None):
     """The first cast, if the roster's empty: 20 punters (a spread of archetypes and
-    modifiers) and 14 dealers in uniform."""
+    modifiers) and 20 dealers in uniform (one for each of the 15 tables, and some to relieve them)."""
     if store.npcs():
         return
     rng = rng or random.Random(2026)

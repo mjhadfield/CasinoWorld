@@ -7,6 +7,7 @@ extends SceneTree
 const OUT := "res://../server/casino_server/floor_map.json"
 const SITTER := Rect2(-12, -36, 24, 44)   # a chair and the player sitting on it, from the chair
 const DEALER_HEAD := 24.0                 # the dealer stands at the felt's top edge: their head clears it by this
+                                          # (at a turned table their back is to us and their head is over the felt)
 
 func bounds(points: PackedVector2Array, xf: Transform2D) -> Rect2:
 	var r := Rect2(xf * points[0], Vector2.ZERO)
@@ -34,27 +35,29 @@ func rect_json(r: Rect2) -> Array:
 
 func _initialize() -> void:
 	var floor_scene: Node = load("res://scenes/world/casino_floor.tscn").instantiate()
+	var world: Node = floor_scene.get_node("World")
 	var tables := []
 	var points := {}
-	for n in floor_scene.get_children():
+	for n in world.get_children():
 		if n.get("table_id") != null and n.scene_file_path.begins_with("res://scenes/table/"):
-			floor_scene.remove_child(n)
+			world.remove_child(n)
 			n.owner = null
 			root.add_child(n)
 			await process_frame
 			var rects := []
 			shapes(n, rects)
 			for seat in n.seat_count():
-				rects.append(Rect2(n.global_position + n.chair_pos(seat) + SITTER.position, SITTER.size))
+				rects.append(Rect2(n.to_global(n.chair_pos(seat)) + SITTER.position, SITTER.size))  # (sitters are upright)
 			var r: Rect2 = rects[0]
 			for x in rects:
 				r = r.merge(x)
-			r = r.grow_side(SIDE_TOP, DEALER_HEAD)
+			if is_zero_approx(n.rotation):
+				r = r.grow_side(SIDE_TOP, DEALER_HEAD)
 			tables.append({"id": n.table_id, "name": n.get("game_label") if n.get("game_label") else n.table_id,
 				"x": n.position.x, "y": n.position.y, "rect": rect_json(r)})
-	for m in floor_scene.get_node("Points").get_children():
+	for m in world.get_node("Points").get_children():
 		points[str(m.name)] = [m.position.x, m.position.y]
-	var room: Vector2 = floor_scene.get_node("Room").SIZE
+	var room: Vector2 = world.get_node("Room").SIZE
 	var out := {"room": [room.x, room.y], "walkable": [14, 74, room.x - 28, room.y - 88], "tables": tables, "points": points}
 	var f := FileAccess.open(OUT, FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, " ") + "\n")

@@ -5,7 +5,7 @@ How the floor works and what every table has in common. Each game's rules are in
 | Game | Table id | File |
 |---|---|---|
 | Three Card Poker | `tcp_1` | [three_card_poker.md](three_card_poker.md) |
-| Blackjack | `bj_1` | [blackjack.md](blackjack.md) |
+| Blackjack | `bj_1`, and `bj_2`..`bj_5` in the pit room | [blackjack.md](blackjack.md) |
 | Fortune Pai Gow, Face Up Pai Gow | `pgf_1`, `pgu_1` | [pai_gow.md](pai_gow.md) |
 | Mississippi Stud | `ms_1` | [mississippi_stud.md](mississippi_stud.md) |
 | Ultimate Texas Hold'em | `uth_1` | [ultimate_texas_holdem.md](ultimate_texas_holdem.md) |
@@ -18,11 +18,17 @@ How the floor works and what every table has in common. Each game's rules are in
 
 ## The floor
 
-The floor is 1900×1160 (`client/scenes/world/room.gd`). The nine card tables are in a 3×3 grid, and a fourth
-column to the east holds the wheel and the dice:
+The main floor is 1900×1160 (`client/scenes/world/room.gd`). The nine card tables are in a 3×3 grid, and a
+fourth column to the east holds the wheel and the dice:
 - **Top row:** Three Card Poker, Blackjack, Mississippi Stud, then Roulette.
 - **Middle row:** Fortune Pai Gow, Face Up Pai Gow, Ultimate Texas Hold'em, then Craps.
 - **Bottom row:** Let It Ride, High Card Flush, Baccarat.
+
+**The Blackjack pit room** is east of the main floor (1000×1160), through a doorway low in the shared wall. Its
+four blackjack tables stand in two rows facing apart across a pit, with the dealers back to back and the pit boss
+at a podium between them. The far row (`bj_2`, `bj_3`) is turned upside down, so its players sit on the north side.
+When you sit there, the view turns round so the table is the right way up, and it turns back when you stand. The
+near row (`bj_4`, `bj_5`) is the usual way round. The pit boss is decoration for now.
 
 The slot banks stand wherever the admin page's Floor tab puts them (the south-east corner, below Craps, is the
 open floor for them). When a table moves or changes shape, run `tools/floor_map.gd` so the Floor tab and its
@@ -37,7 +43,7 @@ The entrance is below the bottom row (at x 700).
   way. Your name tag comes from the welcome prompt on your first visit.
 - **Taking a seat:** while you're walking, every free stool glows with **SIT**. Click one to sit there; if
   it's further away you walk over first. Or stand on a free stool and press **E**. The camera glides onto
-  the table.
+  the table, turning the view round first at a table that faces the other way.
 - **Standing up:** use **Stand up** (or **Esc**). Standing mid-hand folds it at Three Card Poker, or stands
   your hands at Blackjack, after a confirmation. If you sit out three hands in a row, the table stands you up.
 

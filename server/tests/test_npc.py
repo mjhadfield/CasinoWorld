@@ -23,7 +23,7 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
             store.update_npc(rec["id"], punters)
     casino = Casino(store, npc_population=population, rng=random.Random(seed), clock=lambda: now[0],
                     wall=lambda: now[0])
-    stats = {"max_npc_seated": 0, "seated_ever": set(), "despawned": 0, "rounds": 0, "dealer_changes": 0}
+    stats = {"reserve_taken": 0, "seated_ever": set(), "despawned": 0, "rounds": 0, "dealer_changes": 0}
     original_remove = casino.world.remove
 
     def remove(entity_id):
@@ -40,7 +40,9 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
             runner.publish(events)
             stats["rounds"] += sum(e["kind"] == "round_end" for e in events)
             seated = [s.participant for s in runner.machine.seats if s.participant]
-            stats["max_npc_seated"] = max(stats["max_npc_seated"], len(seated))
+            if len(runner.machine.seats) > 1:   # (slot cabinets keep their free seats across the bank)
+                stats["reserve_taken"] = max(stats["reserve_taken"],
+                                             len(seated) - (len(runner.machine.seats) - RESERVED_FOR_HUMANS))
             stats["seated_ever"].update(p.entity_id for p in seated)
         if until and until(casino):
             break
@@ -50,7 +52,7 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
 def test_npcs_populate_play_respect_reserved_seats_and_leave(tmp_path):
     casino, stats = simulate(tmp_path, seconds=1800, settings={"cooldown_min": [1, 2], "bust_cooldown_min": [2, 3]})
     assert len([n for n in casino.npcs.npcs.values() if not n.ended]) <= 6
-    assert stats["max_npc_seated"] <= 6 - RESERVED_FOR_HUMANS
+    assert stats["reserve_taken"] <= 0     # no table's last free seats taken (Craps has 8)
     assert len(stats["seated_ever"]) >= 3  # plenty of NPCs sat down
     assert stats["rounds"] >= 20           # and actually played hands
     assert stats["despawned"] >= 1         # some finished up and left

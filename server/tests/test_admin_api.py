@@ -5,7 +5,7 @@ from conftest import recv_until  # noqa: F401  (the client fixture lives in conf
 def test_the_roster_is_seeded_and_listed(client):
     data = client.get("/api/npcs").json()
     roles = [n["role"] for n in data["npcs"]]
-    assert roles.count("punter") == 20 and roles.count("dealer") == 14
+    assert roles.count("punter") == 20 and roles.count("dealer") == 20
     assert all(n["look_url"] for n in data["npcs"])         # every look is built at startup
     assert data["settings"]["population"] == 6
     sheet = client.get(data["npcs"][0]["look_url"])

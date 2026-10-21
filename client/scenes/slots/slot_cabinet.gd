@@ -91,7 +91,7 @@ func sit_z(_seat: int) -> int:
 
 
 func focus_point() -> Vector2:
-	return global_position + Vector2(0, -36)
+	return to_global(Vector2(0, -36))
 
 
 ## Where the cabinet's screen is, in global coordinates (the full-screen game grows out of it).

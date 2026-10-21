@@ -7,17 +7,25 @@ extends Node2D
 ##
 ## The server owns the table and the world; this scene routes its messages to
 ## the right avatar or table and turns your clicks into requests.
+##
+## Everything on the floor is under World, and every position the floor and the
+## server deal in is in World's frame. A table can be turned (`rotation`: the far
+## row of the Blackjack pit is upside down, its dealers' backs to the pit), and
+## sitting at one turns World about the table so it shows the right way up; World's
+## Y-sort turns with it, so who's in front of whom stays right. Standing turns it
+## back. The camera stays unturned, and avatars stand upright whatever the turn.
 
 const WALK_ZOOM := Vector2(2, 2)
 const TABLE_ZOOM := Vector2(2.8, 2.8)
 const ENTITY_SCENE := preload("res://scenes/world/entity_avatar.tscn")
 const MAIN_BET_NAMES := {"ante": "an Ante", "bet": "a Blackjack bet", "player": "a Player, Banker or Tie bet"}
 
-@onready var player: CharacterBody2D = $LocalPlayer
+@onready var world: Node2D = $World
+@onready var player: CharacterBody2D = $World/LocalPlayer
 @onready var camera: Camera2D = $Camera
 @onready var hud: CanvasLayer = $HUD
-@onready var entities_root: Node2D = $Entities
-@onready var nav: NavigationRegion2D = $Nav
+@onready var entities_root: Node2D = $World/Entities
+@onready var nav: NavigationRegion2D = $Nav   # (outside World, never turned: the nav map is in World's frame)
 
 var tables := {}    # table id -> FloorGame (a CasinoTable, or a SlotCabinet)
 var points := {}    # floor point name -> position
@@ -34,6 +42,8 @@ var played_a_hand := false
 var my_hand := ""  # your hand's name or total (shown in the HUD bar)
 var _actions: Array = []  # the action buttons on offer right now (for their keys)
 var _camera_tween: Tween
+var _limits := []          # the camera's limits (lifted while the floor is turned)
+var _bake_pending := false # a navigation bake waiting for the floor to be upright
 var _was_my_turn := false
 var _last_tick := -1      # the countdown second last ticked
 var _placed: Array = []   # this round's chips, newest last ([spot, amount added]): what Undo takes back
@@ -64,10 +74,11 @@ func _ready() -> void:
 	slot_screen.stand_requested.connect(func(): Net.send("stand"))
 	slot_screen.settings_requested.connect(hud.settings_menu.toggle)
 	for m in get_tree().get_nodes_in_group("floor_points"):
-		points[str(m.name)] = m.global_position
-	player.global_position = points.get("entrance", Vector2(700, 1110))
+		points[str(m.name)] = m.position
+	player.position = points.get("entrance", Vector2(700, 1110))
 	camera.global_position = player.global_position
 	camera.zoom = WALK_ZOOM
+	_limits = [camera.limit_left, camera.limit_top, camera.limit_right, camera.limit_bottom]
 	_bake_navigation()
 	_offer_seats(true)
 	Sfx.start_room()
@@ -93,11 +104,22 @@ func _ready() -> void:
 	Net.disconnected.connect(_on_disconnected)
 
 
+## The walkable floor: each room inside its walls, and the doorway between them
+## (the baker merges the outlines). It reads the obstacles where they are now, so it
+## waits while the floor is turned.
 func _bake_navigation() -> void:
+	if not is_zero_approx(world.rotation):
+		_bake_pending = true
+		return
+	_bake_pending = false
 	var poly: NavigationPolygon = nav.navigation_polygon
 	poly.clear_outlines()
-	var size: Vector2 = $Room.SIZE
-	poly.add_outline(PackedVector2Array([Vector2(14, 74), Vector2(size.x - 14, 74), size - Vector2(14, 14), Vector2(14, size.y - 14)]))
+	var room := $World/Room
+	var door: Vector2 = room.DOORWAY
+	for r in [Rect2(Vector2.ZERO, room.SIZE), room.PIT, Rect2(room.SIZE.x - 20, door.x + 10, 40, door.y - door.x - 20)]:
+		var inner: Rect2 = r if r.size.x < 100 else Rect2(r.position + Vector2(14, 74), r.size - Vector2(28, 88))
+		poly.add_outline(PackedVector2Array([inner.position, Vector2(inner.end.x, inner.position.y), inner.end,
+			Vector2(inner.position.x, inner.end.y)]))
 	nav.bake_navigation_polygon(false)
 
 
@@ -202,7 +224,7 @@ func _take_seat(t: FloorGame, seat: int) -> void:
 		_heading_for = {}
 		Net.send("sit", {"table": t.table_id, "seat": seat})
 	else:
-		var goal: Vector2 = t.to_global(t.chair_pos(seat) + Vector2(0, 14))  # just in front of the stool
+		var goal := _on_floor(t, t.chair_pos(seat) + Vector2(0, 14))  # just in front of the stool
 		_heading_for = {"table": t, "seat": seat, "goal": goal}
 		player.walk_to(goal)
 
@@ -232,7 +254,7 @@ func _check_heading() -> void:
 const SLOT_CABINET := preload("res://scenes/slots/slot_cabinet.tscn")
 
 func _sync_cabinets(list: Array) -> void:
-	var anchor := $SlotCabinets
+	var anchor := $World/SlotCabinets
 	var changed := false
 	var listed := {}
 	for cab in list:
@@ -268,7 +290,7 @@ func _sync_cabinets(list: Array) -> void:
 
 func _drop_cabinet(c: SlotCabinet) -> void:
 	tables.erase(c.table_id)
-	remove_child(c)   # out of the tree now, so the bake leaves it out
+	c.get_parent().remove_child(c)   # out of the tree now, so the bake leaves it out
 	c.queue_free()
 
 
@@ -290,7 +312,7 @@ func _sat_down(msg: Dictionary) -> void:
 	state = "seated"
 	_heading_for = {}
 	_offer_seats(false)
-	_camera_to(t.focus_point(), TABLE_ZOOM)
+	_camera_to(world.to_local(t.focus_point()), TABLE_ZOOM, wrapf(-t.rotation, -PI, PI))  # a turned table, the right way up
 	t.my_seat = my_seat
 	t.mode = "seated"
 	my_bets = t.zero_bets()
@@ -303,7 +325,7 @@ func _sat_down(msg: Dictionary) -> void:
 		t.chip_value = hud.selected_chip
 	_placed.clear()
 	hud.set_mode("seated")
-	player.sit_at(t.to_global(t.chair_pos(my_seat)), t.sit_facing(my_seat), t.seat_pose())
+	player.sit_at(_on_floor(t, t.chair_pos(my_seat)), t.world_dir(t.sit_facing(my_seat)), t.seat_pose())
 	var ask: Dictionary = t.on_seated_prompt()
 	if not ask.is_empty():
 		hud.ask(ask.text, ask.yes, ask.no, func(): Net.send(ask.message[0], ask.message[1]))
@@ -320,8 +342,8 @@ func _sat_down_slot(c: SlotCabinet, msg: Dictionary) -> void:
 	c.my_seat = my_seat
 	c.mode = "seated"
 	hud.set_mode("slot")
-	player.sit_at(c.to_global(c.chair_pos(my_seat)), c.sit_facing(my_seat), c.seat_pose(), c.sit_z(my_seat))
-	_camera_to(c.focus_point(), TABLE_ZOOM)
+	player.sit_at(_on_floor(c, c.chair_pos(my_seat)), c.world_dir(c.sit_facing(my_seat)), c.seat_pose(), c.sit_z(my_seat))
+	_camera_to(world.to_local(c.focus_point()), TABLE_ZOOM)
 	slot_screen.open(c, msg.get("rules", {}), _screen_rect_of(c))
 
 
@@ -431,10 +453,12 @@ func _leave_table() -> void:
 	var t := active_table
 	Sfx.focus = ""
 	state = "walking"
+	var stand := player.position
 	if t:
 		t.mode = ""
 		t.my_seat = -1
-		player.stand_at(t.to_global(t.stand_pos(my_seat)))
+		stand = _on_floor(t, t.stand_pos(my_seat))
+		player.stand_at(stand)
 	my_seat = -1
 	active_table = null
 	_actions = []
@@ -443,7 +467,7 @@ func _leave_table() -> void:
 	my_hand = ""
 	Session.hold_balance(false)
 	_offer_seats(true)
-	_camera_to_player()
+	_camera_to_player(stand)
 
 
 func _leave_slot() -> void:
@@ -452,29 +476,67 @@ func _leave_slot() -> void:
 	state = "walking"
 	c.mode = ""
 	c.my_seat = -1
-	player.stand_at(c.to_global(c.stand_pos(my_seat)))
+	var stand := _on_floor(c, c.stand_pos(my_seat))
+	player.stand_at(stand)
 	slot_screen.close(_screen_rect_of(c))
 	my_seat = -1
 	active_slot = null
 	hud.set_mode("walking")
 	Session.hold_balance(false)
 	_offer_seats(true)
-	_camera_to_player()
+	_camera_to_player(stand)
 
 
 # ------------------------------------------------------------------ camera
-func _camera_to(pos: Vector2, zoom: Vector2) -> Tween:
+## Glide the camera onto `at` (a point on the floor, in World's frame) at `zoom`, with
+## the floor turned by `turn` about it. Through the glide, the floor point under the
+## camera moves steadily to `at` as the turn goes, so it all turns and travels as one.
+func _camera_to(at: Vector2, zoom: Vector2, turn := 0.0) -> Tween:
 	if _camera_tween:
 		_camera_tween.kill()
 	camera.position_smoothing_enabled = false
-	_camera_tween = create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(camera, "global_position", pos, 0.6)
-	_camera_tween.tween_property(camera, "zoom", zoom, 0.6)
+	var c0 := camera.get_screen_center_position()   # (where it shows: clamped at a wall, or still smoothing)
+	var a0 := world.to_local(c0)
+	if is_zero_approx(turn):
+		at = _within_limits(at, zoom)   # upright, the limits hold again at the end: end where they'd show
+	var z0 := camera.zoom
+	var t0 := world.rotation
+	if not (is_zero_approx(t0) and is_zero_approx(turn)):
+		_set_limits(false)   # the turned room isn't where the limits are
+	_camera_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.tween_method(func(u: float):
+		var c := c0.lerp(at, u)
+		var th := lerpf(t0, turn, u)
+		world.transform = Transform2D(th, c - a0.lerp(at, u).rotated(th))
+		camera.global_position = c
+		camera.zoom = z0.lerp(zoom, u), 0.0, 1.0, 0.6)
+	_camera_tween.tween_callback(func():
+		if is_zero_approx(turn):
+			world.transform = Transform2D.IDENTITY
+			_set_limits(true)
+			if _bake_pending:
+				_bake_navigation())
 	return _camera_tween
 
 
-func _camera_to_player() -> void:
-	_camera_to(player.global_position, WALK_ZOOM).chain().tween_callback(func(): camera.position_smoothing_enabled = true)
+func _camera_to_player(at: Vector2) -> void:
+	_camera_to(at, WALK_ZOOM).tween_callback(func(): camera.position_smoothing_enabled = true)
+
+
+## Where the camera would show if it were centred on `at` at `zoom`, its limits holding.
+func _within_limits(at: Vector2, zoom: Vector2) -> Vector2:
+	var half := get_viewport_rect().size / zoom / 2.0
+	var lo := Vector2(_limits[0], _limits[1]) + half
+	var hi := Vector2(_limits[2], _limits[3]) - half
+	return Vector2(clampf(at.x, lo.x, maxf(lo.x, hi.x)), clampf(at.y, lo.y, maxf(lo.y, hi.y)))
+
+
+func _set_limits(on: bool) -> void:
+	var far := 10000000
+	camera.limit_left = _limits[0] if on else -far
+	camera.limit_top = _limits[1] if on else -far
+	camera.limit_right = _limits[2] if on else far
+	camera.limit_bottom = _limits[3] if on else far
 
 
 # ------------------------------------------------------------------ server messages
@@ -546,7 +608,7 @@ func _on_slot_state(c: SlotCabinet, msg: Dictionary) -> void:
 	c.apply_snapshot(msg)
 	var seats: Array = msg.get("seats", [])
 	if not seats.is_empty() and seats[0] != null and entities.has(seats[0].entity):
-		entities[seats[0].entity].sit_at(c.to_global(c.chair_pos(0)), c.sit_facing(0), c.seat_pose(), c.sit_z(0))
+		entities[seats[0].entity].sit_at(_on_floor(c, c.chair_pos(0)), c.world_dir(c.sit_facing(0)), c.seat_pose(), c.sit_z(0))
 	if msg.get("meters") != null:
 		SlotScreen.set_meters(msg.meters, msg.get("rates"))
 	if c == active_slot and state == "slot":
@@ -560,12 +622,12 @@ func _on_slot_event(c: SlotCabinet, ev: Dictionary) -> void:
 	match ev.kind:
 		"seated":
 			if ev.entity != Session.entity_id and entities.has(ev.entity):
-				entities[ev.entity].sit_at(c.to_global(c.chair_pos(0)), c.sit_facing(0), c.seat_pose(), c.sit_z(0))
+				entities[ev.entity].sit_at(_on_floor(c, c.chair_pos(0)), c.world_dir(c.sit_facing(0)), c.seat_pose(), c.sit_z(0))
 		"stood":
 			if ev.entity == Session.entity_id:
 				_leave_table()
 			elif entities.has(ev.entity):
-				entities[ev.entity].stand_at(c.to_global(c.stand_pos(0)))
+				entities[ev.entity].stand_at(_on_floor(c, c.stand_pos(0)))
 	if c == active_slot and state == "slot":
 		slot_screen.on_event(ev)
 
@@ -579,7 +641,7 @@ func _on_table_state(msg: Dictionary) -> void:
 	for i in seats.size():
 		var s = seats[i]
 		if s != null and entities.has(s.entity):
-			entities[s.entity].sit_at(t.to_global(t.chair_pos(i)), t.sit_facing(i), t.seat_pose())
+			entities[s.entity].sit_at(_on_floor(t, t.chair_pos(i)), t.world_dir(t.sit_facing(i)), t.seat_pose())
 	if t == active_table and state == "seated":
 		var mine = seats[my_seat] if my_seat < seats.size() else null
 		if mine != null:
@@ -597,12 +659,12 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 	match ev.kind:
 		"seated":
 			if ev.entity != Session.entity_id and entities.has(ev.entity):
-				entities[ev.entity].sit_at(t.to_global(t.chair_pos(int(ev.seat))), t.sit_facing(int(ev.seat)), t.seat_pose())
+				entities[ev.entity].sit_at(_on_floor(t, t.chair_pos(int(ev.seat))), t.world_dir(t.sit_facing(int(ev.seat))), t.seat_pose())
 		"stood":
 			if ev.entity == Session.entity_id:
 				_leave_table()
 			elif entities.has(ev.entity):
-				entities[ev.entity].stand_at(t.to_global(t.stand_pos(int(ev.seat))))
+				entities[ev.entity].stand_at(_on_floor(t, t.stand_pos(int(ev.seat))))
 		"bet_changed":
 			if mine and int(ev.seat) == my_seat:
 				my_bets = ev.bets.duplicate()
@@ -710,11 +772,16 @@ func _resolve_target(target: String) -> Vector2:
 		return points[parts[1]]
 	if parts[0] == "seat" and parts.size() == 3 and tables.has(parts[1]):
 		var t: FloorGame = tables[parts[1]]
-		return t.to_global(t.stand_pos(int(parts[2])))
+		return _on_floor(t, t.stand_pos(int(parts[2])))
 	return points.get("entrance", Vector2(800, 1450))
 
 
 # ------------------------------------------------------------------ helpers
+## A point at a table or cabinet (its own coordinates), on the floor (World's frame).
+func _on_floor(t: FloorGame, p: Vector2) -> Vector2:
+	return world.to_local(t.to_global(p))
+
+
 static func _total(b: Dictionary) -> int:
 	var t := 0
 	for spot in b:

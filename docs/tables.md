@@ -45,6 +45,26 @@ Every card table follows the same alignment rules:
 - **Countdown:** centred under the title where that band is roomy, otherwise level with it at the right-hand
   end (`countdown_pos()`).
 
+## Turned tables
+
+A table on the floor can be turned (`rotation` on its instance in `casino_floor.tscn`). For example, the far row of
+the Blackjack pit is set to `PI`, so its dealers stand with their backs to the pit. The table needs nothing of its
+own for this:
+- **To a walker** it's drawn as seen from that side. The felt's printing is upside down, the dealer has their
+  back to you and stands in front of the felt, and the players face you from behind it. The **SIT** labels are
+  drawn upright (`FloorGame._draw_stool`).
+- **Sitting there** turns the whole floor (`World` in `casino_floor.tscn`) about the table, so the table is the
+  right way up. Standing turns it back (`casino_floor.gd`, `_camera_to`'s `turn`). World Y-sorts, and Godot sorts
+  in the turned frame, so the dealer goes behind the felt again and everyone overlaps the right way.
+- **People stay upright.** `Avatar` keeps itself at no rotation on screen. Its `facing` is in its parent's frame
+  (a dealer faces "down" across their own table), and the sprite shows that direction as the screen sees it.
+  `FloorGame.world_dir()` turns a table's directions (`sit_facing`) into the floor's frame.
+- **Positions** the floor and server use are in World's frame. Use `to_global()` for points on a table, never
+  `global_position + offset`, as `focus_point()` does.
+
+`tools/floor_map.gd` measures turned tables too. Their dealer's head is over the felt, so it adds nothing above
+them.
+
 ## The layout audit
 
 `tools/layout_audit.gd` measures all of this for every card table, headless, in a few seconds. For Roulette,

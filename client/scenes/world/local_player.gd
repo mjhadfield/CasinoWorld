@@ -4,6 +4,10 @@ extends CharacterBody2D
 ## so you can cross the whole floor that way). Movement is client-side
 ## and reported to the server (move) ~10 times a second, so everyone else
 ## sees you walk around; the server still owns every game result.
+##
+## Positions are in the floor's frame (World, our parent), which the floor turns to
+## show a turned table the right way up -- so the keys still move you across the
+## screen, and a tap still walks you to where you tapped.
 
 const SEND_INTERVAL := 0.1
 
@@ -20,23 +24,24 @@ var _last_sent := {}
 func _physics_process(delta: float) -> void:
 	if not controls_enabled:
 		return
+	var frame := get_parent() as Node2D
 	if _holding:
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			_tap_target = get_global_mouse_position()
+			_tap_target = frame.get_local_mouse_position()
 		else:
 			_holding = false  # let go: finish the walk to the last point, like a tap
-	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down").rotated(-frame.global_rotation)
 	if dir != Vector2.ZERO:
 		_tap_target = null
 		_holding = false
 	elif _tap_target != null:
-		var to_target: Vector2 = _tap_target - global_position
+		var to_target: Vector2 = _tap_target - position
 		if to_target.length() < 3.0:
 			if not _holding:  # held over yourself: just wait for the pointer to move on
 				_tap_target = null
 		else:
 			dir = to_target.normalized()
-	velocity = dir * speed
+	velocity = dir.rotated(frame.global_rotation) * speed   # (velocity is global)
 	move_and_slide()
 	if _tap_target != null and not _holding and get_slide_collision_count() > 0 \
 			and get_real_velocity().length() < speed * 0.25:
@@ -54,7 +59,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	# Touch is emulated as a left click. HUD buttons consume their own clicks first.
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_tap_target = get_global_mouse_position()
+		_tap_target = (get_parent() as Node2D).get_local_mouse_position()
 		_holding = true
 
 
@@ -96,8 +101,8 @@ func sit_at(pos: Vector2, facing: String, pose := "sit", z := 1) -> void:
 	avatar.z_index = z  # 1: over the table rail, whatever the Y-sort says (0 behind a slot cabinet)
 	avatar.name_below = true
 	var tween := create_tween()
-	avatar.set_action("walk", Looks.dir_from(pos - global_position, facing))
-	tween.tween_property(self, "global_position", pos, 0.35)
+	avatar.set_action("walk", Looks.dir_from(pos - position, facing))
+	tween.tween_property(self, "position", pos, 0.35)
 	tween.tween_callback(func(): avatar.set_action(pose, facing))
 
 
@@ -107,7 +112,7 @@ func stand_at(pos: Vector2) -> void:
 	avatar.name_below = false
 	var tween := create_tween()
 	avatar.set_action("walk")
-	tween.tween_property(self, "global_position", pos, 0.3)
+	tween.tween_property(self, "position", pos, 0.3)
 	tween.tween_callback(func():
 		$Collision.disabled = false
 		avatar.set_action("idle", "down")
@@ -115,7 +120,7 @@ func stand_at(pos: Vector2) -> void:
 
 
 func _report() -> void:
-	var msg := {"x": snappedf(global_position.x, 0.1), "y": snappedf(global_position.y, 0.1),
+	var msg := {"x": snappedf(position.x, 0.1), "y": snappedf(position.y, 0.1),
 		"dir": avatar.facing, "anim": avatar.action if avatar.action != "sit" else "idle"}
 	if not (Session.on_floor and Net.is_open()):
 		_last_sent = {}  # say where we are once we've joined: a fresh join puts us at the entrance

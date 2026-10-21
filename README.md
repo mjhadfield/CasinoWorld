@@ -70,7 +70,7 @@ and Tailscale. It has six tabs:
     `FACTORY` choices in `casino_server/sounds.py`, where the moments and sets are defined.
   - The game's `Sfx` fetches every set when it connects, plays each table's sounds from its game's set, and
     until then falls back to the sounds built into the client (`client/assets/audio/`).
-- **NPCs:** the roster, seeded on first run with 20 punters and 14 dealers (tables `npcs` and `npc_visits`).
+- **NPCs:** the roster, seeded on first run with 20 punters and 20 dealers (tables `npcs` and `npc_visits`).
   - **Looks:** body, hair, clothes and accessories in their colours, plus Randomise and uniforms, with a live
     preview. The server builds each sheet from the LPC generator's layers (`casino_server/art.py`; downloads
     cached in `server/lpc_cache/`, `python -m casino_server.art prefetch` fetches the lot).
@@ -275,7 +275,7 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
   - `slot_banks.py`: the slot banks on the floor (the Floor tab, its UI in `slot_banks_web/`), checked against
     `floor_map.json` (written by `tools/floor_map.gd`).
 - **client/**
-  - `scenes/world/`: the floor (`casino_floor`), avatars and the room.
+  - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), each game's `*_table` and `*_felt`, the
     shoe, shuffler, discard rack, cards and chips, the roulette wheel and the craps dice.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).

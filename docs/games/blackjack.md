@@ -1,4 +1,4 @@
-# Blackjack (`bj_1`)
+# Blackjack (`bj_1`, and `bj_2`..`bj_5` in the pit room)
 
 3:2 for a Blackjack, dealt from a real 8-deck shoe. The shoe carries on from hand to hand, and the discards
 pile up in the rack, until the yellow cut card comes out. That hand is the last one; then the discards and

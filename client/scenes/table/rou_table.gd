@@ -323,7 +323,7 @@ func shoe_pos() -> Vector2:
 
 
 func focus_point() -> Vector2:
-	return global_position + Vector2(20, -50)
+	return to_global(Vector2(20, -50))
 
 
 func title_y() -> float:

@@ -90,7 +90,7 @@ func stand_pos(seat: int) -> Vector2:
 
 ## The point the camera centres on when you're here.
 func focus_point() -> Vector2:
-	return global_position + Vector2(0, -42)
+	return to_global(Vector2(0, -42))
 
 
 ## How players take a seat: "sit" on a stool, or "idle" (standing at the rail, at Craps).
@@ -98,9 +98,16 @@ func seat_pose() -> String:
 	return "sit"
 
 
-## Which way someone sitting in a seat faces (everyone faces the dealer, "up", at a table).
+## Which way someone sitting in a seat faces (everyone faces the dealer, "up", at a table),
+## in the table's own frame.
 func sit_facing(_seat: int) -> String:
 	return "up"
+
+
+## A direction in the table's frame, as the floor sees it: a table can be turned (a
+## blackjack pit's far row is upside down, `rotation` PI, its dealers' backs to the pit).
+func world_dir(dir: String) -> String:
+	return Looks.dir_from(Avatar.dir_vector(dir).rotated(rotation), dir)
 
 
 ## Whether someone sitting here draws over everything around (1: over a table's rail) or
@@ -164,5 +171,7 @@ func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
 	draw_circle(Vector2.ZERO, STOOL_R, Color("8a5a14") if glow else Color("3b1d0e"))  # mahogany stools, to match the rail
 	draw_circle(Vector2(0, -0.8), STOOL_R - 2.0, Color("e7b84a").lerp(Color("ffe08a"), pulse) if glow else Color("6e3a1e"))
 	draw_set_transform(Vector2.ZERO)
-	if glow:
-		draw_string(Card2D.FONT, p + Vector2(-20, 2.0), "SIT", HORIZONTAL_ALIGNMENT_CENTER, 40, 6, Color(0.25, 0.12, 0.0))
+	if glow:  # (upright to someone walking past a turned table)
+		draw_set_transform(p, -rotation)
+		draw_string(Card2D.FONT, Vector2(-20, 2.0), "SIT", HORIZONTAL_ALIGNMENT_CENTER, 40, 6, Color(0.25, 0.12, 0.0))
+		draw_set_transform(Vector2.ZERO)

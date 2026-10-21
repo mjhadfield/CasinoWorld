@@ -34,7 +34,7 @@ def test_the_floor_map_matches_the_scene():
     """floor_map.json (tools/floor_map.gd) has every table, where the scene puts it."""
     text = SCENE.read_text()
     placed = {m[1]: (float(m[0].split(",")[0]), float(m[0].split(",")[1]))
-              for m in re.findall(r"position = Vector2\(([^)]*)\)\ntable_id = \"(\w+)\"", text)}
+              for m in re.findall(r"position = Vector2\(([^)]*)\)\n(?:rotation = .*\n)?table_id = \"(\w+)\"", text)}
     tables = {t["id"]: (t["x"], t["y"]) for t in slot_banks.FLOOR_MAP["tables"]}
     assert set(tables) == {t for t, cfg in floor.TABLES.items() if cfg["game"] != "slots"}
     assert all(placed.get(t, xy) == xy for t, xy in tables.items())

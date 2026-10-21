@@ -36,7 +36,7 @@ game result and every penny is decided on the server; the client only renders an
 - **The world (`world.py`)** is every avatar on the floor: `{id, kind, name, look, x, y, dir, anim, seat,
   walk}`. Players move themselves and report it (`move`, about 10 times a second), and the server relays it.
   NPCs are sent walks instead (`entity_walk {id, target, duration}` to a named point or a seat). Each client
-  paths them with `NavigationAgent2D` at whatever speed arrives on time, so everyone sees them arrive
+  paths them on its navigation map at whatever speed arrives on time, so everyone sees them arrive
   together and the server needs no floor geometry. The point names live in `floor.py`, and each must exist as
   a `Marker2D` in the client's floor scene.
 
@@ -111,9 +111,14 @@ A Godot 4.7 project exported to the web.
   files, resolves a moment up the tree for the table it's played at (`Sfx.focus` is the one you're seated
   at), and loops a copy of a stream for `start_loop` so its one-shot uses stay one-shots.
 - **The floor (`scenes/world/casino_floor.gd`)** routes server messages to avatars and tables, and turns
-  clicks into requests. The camera follows you at zoom 2 while walking and glides onto a table at 2.8 when
-  you sit. The room, the tables and the felt are drawn in code, so they stay sharp at any zoom, and the scene
-  Y-sorts so avatars pass in front of and behind each other.
+  clicks into requests. Everything on it is under a Y-sorted `World` node, and every position the floor and the
+  server use is in World's frame. The camera follows you at zoom 2 while walking and glides onto a table at 2.8
+  when you sit. At a table that's turned round (the far row of the Blackjack pit), the glide also turns World
+  about the table so it's the right way up, and the Y-sort turns with it (`docs/tables.md`, Turned tables).
+  The camera itself never turns, and avatars keep themselves upright. The navigation region sits outside World,
+  so the nav map stays in World's frame through a turn; a bake waits until the floor is upright. The rooms
+  (the main floor and the Blackjack pit room, joined by a doorway), the tables and the felt are drawn in code,
+  so they stay sharp at any zoom.
 - **Avatars:** `avatar.gd` shows a look, a name tag (an MSDF font) and a speech bubble. `local_player.gd`
   drives you (keys, click-to-walk, click and hold), and `entity_avatar.gd` drives everyone else: other
   players' reported moves are smoothed, and NPC walks are pathed.
@@ -135,9 +140,10 @@ A Godot 4.7 project exported to the web.
 ## Not done yet
 
 - Staff other than dealers (waiters, pit bosses, cashiers, bar staff) can be designed but don't work the
-  floor.
+  floor. The pit room's pit boss is a figure at a podium, nothing more.
+- Slot banks can only go on the main floor (`floor_map.json`'s `walkable` is that room).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Customising your own look, chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.
-- A floor redesign with decor (a bar, a cashier's cage, plants): the room is still just the tables, so NPCs
+- A floor redesign with decor (a bar, a cashier's cage, plants): the rooms are still just the tables, so NPCs
   wander between aisle points.

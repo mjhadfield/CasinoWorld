@@ -6,8 +6,3 @@
 [node name="EntityAvatar" instance=ExtResource("1_avatar")]
 script = ExtResource("2_entity")
 
-[node name="Agent" type="NavigationAgent2D" parent="."]
-path_desired_distance = 6.0
-target_desired_distance = 4.0
-radius = 7.0
-avoidance_enabled = false

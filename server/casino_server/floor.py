@@ -9,6 +9,10 @@ lists match.
 TABLES = {
     "tcp_1": {"game": "three_card_poker", "name": "Three Card Poker", "seats": 6},
     "bj_1": {"game": "blackjack", "name": "Blackjack", "seats": 6},
+    "bj_2": {"game": "blackjack", "name": "Blackjack", "seats": 6},   # the Blackjack pit room: bj_2, bj_3 face bj_4, bj_5 across the pit
+    "bj_3": {"game": "blackjack", "name": "Blackjack", "seats": 6},
+    "bj_4": {"game": "blackjack", "name": "Blackjack", "seats": 6},
+    "bj_5": {"game": "blackjack", "name": "Blackjack", "seats": 6},
     "ms_1": {"game": "mississippi_stud", "name": "Mississippi Stud", "seats": 6},
     "pgf_1": {"game": "pai_gow_fortune", "name": "Fortune Pai Gow", "seats": 6},
     "pgu_1": {"game": "pai_gow_face_up", "name": "Face Up Pai Gow", "seats": 6},
@@ -24,8 +28,8 @@ SLOTS_FOR_HUMANS = 2   # NPCs leave at least this many slot cabinets free
 
 ENTRANCE = "entrance"
 
-# Places NPCs wander to between games: spots in the aisles between the tables (the
-# floor has no decor to visit yet).
-WANDER_POINTS = ["aisle_w", "aisle_mid", "aisle_e", "corner_w", "corner_e"]
+# Places NPCs wander to between games: spots in the aisles between the tables, on the
+# main floor and either side of the Blackjack pit (the floor has no decor to visit yet).
+WANDER_POINTS = ["aisle_w", "aisle_mid", "aisle_e", "corner_w", "corner_e", "pit_n", "pit_s"]
 
 ALL_POINTS = [ENTRANCE] + WANDER_POINTS

@@ -4,6 +4,11 @@ extends Node2D
 ## A person on the floor -- the local player, someone else, an NPC or a dealer.
 ## Origin is at their feet (for Y-sorting). Drivers (local_player.gd,
 ## entity_avatar.gd) move it; this just shows the look, the name and speech.
+##
+## They always stand upright on screen, however the world or their table is turned
+## (a turned table, or the view turned to it while you sit there). `facing` is the
+## way they face in their parent's frame -- a dealer faces "down" across their own
+## table -- and the sprite shows that direction as the screen sees it.
 
 const FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 
@@ -38,6 +43,8 @@ var name_below := false:
 			_refresh_anim()
 
 var action := "idle"  # idle | walk | sit
+const DIRS := ["up", "right", "down", "left"]   # clockwise, as Godot turns on screen
+var _turn := 0        # quarter turns their parent's frame is at on screen
 @onready var _sprite: AnimatedSprite2D = $Sprite
 @onready var _name_tag: Label = $NameTag
 @onready var _bubble: Label = $Bubble
@@ -54,6 +61,8 @@ func _ready() -> void:
 					_apply_look())
 	_name_tag.text = display_name
 	_name_tag.visible = display_name != ""
+	if not Engine.is_editor_hint():
+		_keep_upright()
 	_bubble.hide()
 	_bubble.z_index = 4   # over chips on the felt (z 1) and the dice (z 2)
 	if bubble_side == "right":
@@ -65,6 +74,32 @@ func _ready() -> void:
 		_bubble.custom_minimum_size = Vector2.ZERO
 		_bubble.size = _bubble.get_minimum_size()
 		_bubble.draw.connect(_draw_bubble_tail)
+
+
+func _process(_delta: float) -> void:
+	if not Engine.is_editor_hint():
+		_keep_upright()
+
+
+func _keep_upright() -> void:
+	var parent := get_parent() as Node2D
+	var turn := posmod(roundi(parent.global_rotation / (PI / 2)), 4) if parent else 0
+	if not is_zero_approx(global_rotation):
+		global_rotation = 0.0
+	if turn != _turn:
+		_turn = turn
+		_refresh_anim()
+
+
+## A direction's unit vector ("up" is (0, -1)).
+static func dir_vector(dir: String) -> Vector2:
+	return {"up": Vector2.UP, "right": Vector2.RIGHT, "down": Vector2.DOWN, "left": Vector2.LEFT}.get(dir, Vector2.DOWN)
+
+
+## The way they face as the screen shows it.
+func screen_facing() -> String:
+	var i := DIRS.find(facing)
+	return facing if i < 0 else DIRS[(i + _turn) % 4]
 
 
 func _draw_bubble_tail() -> void:
@@ -91,7 +126,7 @@ func set_action(new_action: String, new_facing := "") -> void:
 func _refresh_anim() -> void:
 	# Seated at a table, the name goes under the chair so it doesn't cover their cards.
 	_name_tag.position.y = 2.0 if action == "sit" or name_below else -64.0
-	var anim := "%s_%s" % [action, facing]
+	var anim := "%s_%s" % [action, screen_facing()]
 	if _sprite.sprite_frames and _sprite.sprite_frames.has_animation(anim) and _sprite.animation != anim:
 		_sprite.play(anim)
 	queue_redraw()
