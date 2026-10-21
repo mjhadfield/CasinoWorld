@@ -56,6 +56,7 @@ const WOOD_TILE := {"mahogany": 58.0, "walnut": 52.0, "wenge": 46.0, "rosewood":
 const LEATHER := preload("res://assets/tiles/table/leather_shade.png")
 const WEAVE := preload("res://assets/tiles/table/weave_shade.png")
 const VELVET := preload("res://assets/tiles/table/velvet_shade.png")
+const BAIZE := preload("res://assets/tiles/table/baize_shade.png")
 const FONTS := {
 	"cinzel": preload("res://assets/fonts/Cinzel-SemiBold.ttf"),
 	"cormorant": preload("res://assets/fonts/CormorantSC-Bold.ttf"),

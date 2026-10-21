@@ -3,7 +3,7 @@ class_name StyledFelt
 extends TableFelt
 ## A card table drawn in its table style (TableStyle; designed on the admin page's Tables tab, whose renderer
 ## this matches): the rail (wood, leather or both, with a metal bead where it meets the felt), the felt (its
-## colour, darker towards the rail, velvet or woven grain), a border line, the chip tray (a well cut into a
+## colour, darker towards the rail, woven, baize or velvet), a border line, the chip tray (a well cut into a
 ## dealer's ledge, or sunk in where today's tray was) and the game's printing, every spot in the style's
 ## artwork. A game's felt (tcp_felt.gd and the rest) extends this and lays its spots out in _draw_layout()
 ## with spot() and its shorthands, at exactly the places the game puts its chips and cards.
@@ -237,7 +237,9 @@ func _felt(felt: PackedVector2Array) -> void:
 		"grain":   # the fine grain the tables had before styles
 			draw_colored_polygon(felt, Color(1, 1, 1, 0.25), _uv(felt, 40.0), GRAIN)
 		"velvet":
-			draw_colored_polygon(felt, Color(1, 1, 1, 0.85), _uv(felt, 70.0), TableStyle.VELVET)
+			draw_colored_polygon(felt, Color(1, 1, 1, 0.85), _uv(felt, 240.0), TableStyle.VELVET)
+		"baize":
+			draw_colored_polygon(felt, Color(1, 1, 1, 0.85), _uv(felt, 120.0), TableStyle.BAIZE)
 		"weave":
 			draw_colored_polygon(felt, Color(1, 1, 1, 0.7), _uv(felt, 16.0), TableStyle.WEAVE)
 	# Its shadow under the rail.

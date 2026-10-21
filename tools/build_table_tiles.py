@@ -4,9 +4,10 @@ Builds the table styles' material tiles from Poly Haven's CC0 scans, for the gam
 table designer alike, so both draw from the same pictures:
 
   client/assets/tiles/table/wood_<name>.jpg      the rail woods, 512px, grain running left to right
-  client/assets/tiles/table/<name>_shade.png     the leather and felt grain: white where the scan is lighter
+  client/assets/tiles/table/<name>_shade.png     the leather and cloth grain: white where the scan is lighter
                                                  than its average, black where darker, the difference as alpha,
-                                                 so drawn over any colour it lightens and darkens it
+                                                 so drawn over any colour it lightens and darkens it. The velvet
+                                                 is made here rather than scanned: soft sheen brushed along the nap
   server/casino_server/table_styles_web/textures/  the same files, plus the carpet, the dealer and the fine felt grain
                                                  (Roulette's and Craps' House cloth) for the designer
   server/casino_server/table_styles_web/fonts/     the game's lettering fonts, for the designer
@@ -20,6 +21,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,8 +41,14 @@ WOODS = {
 SHADES = {
     "leather": ("leather_white", 512, 16, 0.8),
     "weave": ("terlenka", 256, 8, 1.0),
-    "velvet": ("velour_velvet", 512, 20, 1.0),
+    "baize": ("caban", 384, 5, 0.7),
 }
+
+
+def fetch(url: str) -> bytes:
+    """Poly Haven turns away urllib's own User-Agent."""
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "CasinoWorld-tiles/1"})) as r:
+        return r.read()
 
 
 def source(asset_id: str) -> Image.Image:
@@ -48,11 +56,8 @@ def source(asset_id: str) -> Image.Image:
     CACHE.mkdir(parents=True, exist_ok=True)
     path = CACHE / f"{asset_id}.jpg"
     if not path.exists():
-        with urllib.request.urlopen(f"https://api.polyhaven.com/files/{asset_id}") as r:
-            files = json.load(r)
-        url = files["Diffuse"]["1k"]["jpg"]["url"]
-        with urllib.request.urlopen(url) as r:
-            path.write_bytes(r.read())
+        files = json.loads(fetch(f"https://api.polyhaven.com/files/{asset_id}"))
+        path.write_bytes(fetch(files["Diffuse"]["1k"]["jpg"]["url"]))
     return Image.open(path).convert("RGB").resize((1024, 1024), Image.LANCZOS)
 
 
@@ -73,16 +78,40 @@ def wood(name: str) -> Image.Image:
 def shade(name: str) -> Image.Image:
     asset, size, blur, gain = SHADES[name]
     grey = ImageOps.grayscale(source(asset)).resize((size, size), Image.LANCZOS)
-    hp = ImageChops.subtract(grey, grey.filter(ImageFilter.GaussianBlur(blur)), scale=1.0, offset=128)
+    tiled = Image.new("L", (size * 3, size * 3))   # blurred as a 3x3 of itself, so the high-pass tiles without a seam
+    for y in range(3):
+        for x in range(3):
+            tiled.paste(grey, (x * size, y * size))
+    blurred = tiled.filter(ImageFilter.GaussianBlur(blur)).crop((size, size, 2 * size, 2 * size))
+    hp = ImageChops.subtract(grey, blurred, scale=1.0, offset=128)
     k = 22.0 * gain / max(ImageStat.Stat(hp).stddev[0], 0.5)   # gain 1: a spread of 22 grey levels
-    out = Image.new("RGBA", hp.size)
-    px, src = out.load(), hp.load()
-    for y in range(size):
-        for x in range(size):
-            d = (src[x, y] - 128) * k
-            v = 255 if d > 0 else 0
-            px[x, y] = (v, v, v, min(255, round(abs(d) * 2.2)))
-    return out
+    return shade_tile((np.asarray(hp, float) - 128) * k)
+
+
+def shade_tile(d: np.ndarray) -> Image.Image:
+    """Grey-level differences to a shade: white where lighter, black where darker, the difference (x2.2) as alpha."""
+    v = np.where(d > 0, 255, 0)
+    a = np.clip(np.round(np.abs(d) * 2.2), 0, 255)
+    return Image.fromarray(np.stack([v, v, v, a], -1).astype(np.uint8), "RGBA")
+
+
+def noise(size: int, wavelength: float, stretch: float = 1.0, angle: float = 0.0, seed: int = 0) -> np.ndarray:
+    """Tiling noise with features about `wavelength` px across, `stretch` times longer along `angle` (radians):
+    white noise low-passed in frequency space, so it wraps at the edges. Mean 0, deviation 1."""
+    white = np.random.default_rng(seed).standard_normal((size, size))
+    fy, fx = np.fft.fftfreq(size)[:, None], np.fft.fftfreq(size)[None, :]
+    u = (fx * np.cos(angle) + fy * np.sin(angle)) * stretch
+    v = -fx * np.sin(angle) + fy * np.cos(angle)
+    out = np.real(np.fft.ifft2(np.fft.fft2(white) * np.exp(-(u * u + v * v) * wavelength ** 2)))
+    return (out - out.mean()) / out.std()
+
+
+def velvet(size: int = 512) -> Image.Image:
+    """Velvet: broad soft sheen where the pile lies one way or the other, drawn out along the nap, over a very
+    faint fine pile. No speckle, so it reads as plush rather than as carpet."""
+    sheen = 0.8 * noise(size, 120, 2.2, 0.45, seed=1) + 0.4 * noise(size, 30, 2.9, 0.45, seed=2)
+    d = sheen / sheen.std() + 0.18 * noise(size, 1.4, seed=3)
+    return shade_tile(d * 5.5)
 
 
 def main():
@@ -92,8 +121,8 @@ def main():
         im = wood(name)
         for out in (OUT_GAME, OUT_WEB):
             im.save(out / f"wood_{name}.jpg", quality=86)
-    for name in SHADES:
-        im = shade(name)
+    shades = {name: shade(name) for name in SHADES} | {"velvet": velvet()}
+    for name, im in shades.items():
         for out in (OUT_GAME, OUT_WEB):
             im.save(out / f"{name}_shade.png", optimize=True)
     # The designer's stage: the floor's carpet and the dealer, as the game has them.
@@ -105,7 +134,7 @@ def main():
     fonts.mkdir(exist_ok=True)
     for name in ("Cinzel-SemiBold", "CormorantSC-Bold", "JosefinSans-SemiBold", "Montserrat-SemiBold", "DejaVuSans-Bold"):
         shutil.copy(ROOT / "client" / "assets" / "fonts" / f"{name}.ttf", fonts / f"{name}.ttf")
-    print(f"wrote {len(WOODS)} woods and {len(SHADES)} shades to {OUT_GAME.relative_to(ROOT)} and {OUT_WEB.relative_to(ROOT)}")
+    print(f"wrote {len(WOODS)} woods and {len(shades)} shades to {OUT_GAME.relative_to(ROOT)} and {OUT_WEB.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

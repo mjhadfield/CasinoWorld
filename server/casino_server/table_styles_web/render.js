@@ -11,7 +11,7 @@ const TEX = {};      // the tiles, by name
 export async function loadAssets(base) {
   G = await fetch(base + "geometry.json").then(r => { if (!r.ok) throw new Error("no geometry.json"); return r.json(); });
   const files = { mahogany: "wood_mahogany.jpg", walnut: "wood_walnut.jpg", wenge: "wood_wenge.jpg", rosewood: "wood_rosewood.jpg",
-    ebony: "wood_ebony.jpg", leather: "leather_shade.png", grain: "felt_grain.png", weave: "weave_shade.png", velvet: "velvet_shade.png", carpet: "carpet.png", dealer: "dealer.png" };
+    ebony: "wood_ebony.jpg", leather: "leather_shade.png", grain: "felt_grain.png", weave: "weave_shade.png", baize: "baize_shade.png", velvet: "velvet_shade.png", carpet: "carpet.png", dealer: "dealer.png" };
   await Promise.all(Object.entries(files).map(([k, f]) => new Promise(res => { const i = new Image(); i.onload = () => { TEX[k] = i; res(); };
     i.onerror = () => { const c = document.createElement("canvas"); c.width = c.height = 4; TEX[k] = c; res(); }; i.src = base + "textures/" + f; })));
   await Promise.all(Object.entries(FONT_FILES).map(([family, [file, weight]]) =>
@@ -49,7 +49,7 @@ export const BACK_MAIN = { charcoal: "#34373c", lattice: "#8e1a22", sunburst: "#
 export const SLOTS = [
   { id: "felt", label: "Felt", keys: ["felt"], ctl: [
     { key: "felt.colour", type: "swatch", options: FELTS, custom: true, label: "Colour" },
-    { key: "felt.texture", type: "seg", options: [["weave", "Woven"], ["velvet", "Velvet"], ["plain", "Plain"]], label: "Cloth" },
+    { key: "felt.texture", type: "seg", options: [["weave", "Woven"], ["baize", "Baize"], ["velvet", "Velvet"], ["plain", "Plain"]], label: "Cloth" },
     { key: "felt.vignette", type: "range", label: "Darker towards the rail" }] },
   { id: "border", label: "Border line", keys: ["border", "led"], ctl: [
     { key: "border", type: "seg", options: [["none", "None"], ["pinstripe", "Pinstripe"], ["gilt", "Gilt"], ["double", "Double"], ["deco", "Deco"], ["led", "LED glow"]] },
@@ -93,7 +93,7 @@ export const VIEWS = { seated: ["Seated", [-166, -188, 332, 242]], table: ["Whol
   bay: ["Bay close-up", [-112, -160, 224, 70]], seat: ["One seat", [-16, -98, 82, 108]] };
 
 // Roulette's and Craps' own parts (table_styles.KINDS: their House is how they looked before styles, "today").
-const CLOTHS = [["grain", "Fine grain (today)"], ["weave", "Woven"], ["velvet", "Velvet"], ["plain", "Plain"]];
+const CLOTHS = [["grain", "Fine grain (today)"], ["weave", "Woven"], ["baize", "Baize"], ["velvet", "Velvet"], ["plain", "Plain"]];
 const PAD_LEATHERS = [["Brown (today)", "#2a140a"], ...LEATHERS];
 const feltSlot = { id: "felt", label: "Felt", ctl: [
   { key: "felt.colour", type: "swatch", options: FELTS, custom: true, label: "Colour" },
@@ -308,7 +308,7 @@ function drawFelt(ctx, S, D, felt) {
   const g = ctx.createRadialGradient(mx, my, 0, mx, my, S.reach / 2);
   g.addColorStop(0, rgba(lighten(c, 0.07), 1)); g.addColorStop(0.35, c); g.addColorStop(1, darken(c, 0.25 + 0.45 * D.felt.vignette));
   fillBox(ctx, S, g);
-  const cloth = { velvet: ["velvet", 70, 0.85], weave: ["weave", 16, 0.7], grain: ["grain", 40, 0.25] }[D.felt.texture];
+  const cloth = { velvet: ["velvet", 240, 0.85], baize: ["baize", 120, 0.85], weave: ["weave", 16, 0.7], grain: ["grain", 40, 0.25] }[D.felt.texture];
   if (cloth) {
     ctx.globalAlpha = cloth[2];
     fillBox(ctx, S, pat(ctx, cloth[0], cloth[1]));

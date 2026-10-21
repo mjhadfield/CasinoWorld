@@ -88,7 +88,7 @@ BUILT_IN = {
 
 WOODS = ("mahogany", "walnut", "wenge", "rosewood", "ebony")
 CHOICES = {
-    "felt.texture": ("weave", "velvet", "plain"),
+    "felt.texture": ("weave", "baize", "velvet", "plain"),
     "border": ("none", "pinstripe", "gilt", "double", "deco", "led"),
     "rail.wood": WOODS,
     "rail.armrest": ("none", "player", "all"),
@@ -170,7 +170,7 @@ CRAPS_BUILT_IN = {
     "cards": _preset("Card tables' House", CRAPS_HOUSE, felt=copy.deepcopy(HOUSE["felt"]), rail=copy.deepcopy(HOUSE["rail"]),
                      print__ink=HOUSE["print"]["ink"]),
 }
-FELT_TEXTURES = ("grain", "weave", "velvet", "plain")
+FELT_TEXTURES = ("grain", "weave", "baize", "velvet", "plain")
 DICE = ("red", "green", "blue", "smoke", "amber", "violet")
 
 KINDS = {
