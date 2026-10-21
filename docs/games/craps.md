@@ -5,7 +5,9 @@ in the seating style's look (`craps_spot`: footprints on a brass-rimmed plate by
 walking; a taken one shows its player's colour. While you're at the table the free ones are hidden. Each player
 has a run of chips in the rail's groove beside them (on the stickman's side of their head, so it isn't hidden):
 the edge-on chips of the dealer's rack, in the denominations they bet in (the biggest bet, odds aside, they've
-had down since they came; the table minimum, or your picked chip, before that). It isn't their balance. Signed
+had down since they came; the table minimum, or your picked chip, before that). It isn't their balance. The groove
+runs the length of the players' rail, round both corners and up the ends, as on a real table. The boxman's chip rack
+is set into the rail across the floor of his bay, in front of him. Signed
 off on Mike's Craps mockup (v1). The bet catalogue and
 payouts are in the docstring of `server/casino_server/engines/craps.py`; the table's flow is in `tables/craps.py`.
 

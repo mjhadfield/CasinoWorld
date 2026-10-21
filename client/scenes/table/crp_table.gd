@@ -38,13 +38,16 @@ const CORNER := 17.0
 const RUBBER_W := 4.0            # the pyramids lining the end walls, round the corners to where the rail turns level
 # The chip rail: a groove along the players' rail, each side of the stickman. A player's
 # chips start just inboard of them (towards the stickman), clear of their head.
-const GROOVE := Rect2(20, 2.2, 158, 4.6)   # the right-hand side's; mirrored on the left
+const GROOVE_FROM := 20.0       # the chip rail's groove: from this far either side of the middle,
+const GROOVE_OUT := 4.5         # this far out from the felt (its middle),
+const GROOVE_W := 4.6           # this wide,
+const GROOVE_TO := -100.0       # round the corners and up the ends to here
 const RAIL_HEAD := 12.0         # how far either side of a player their head hides the rail
 const RAIL_MAX := 15             # chips in one player's run (the gap to the next player's head)
 const BAY_HALF := 35.0           # the boxman's bay: half its width at the felt,
 const BAY_FLOOR := -107.0        # how far into the table it reaches,
 const BAY_CORNER := 5.0          # and its corners
-const RACK_AT := Vector2(0, -123.5)
+const RACK_AT := Vector2(0, -111.6)   # the boxman's chip rack, set into the rail across the bay's floor
 const TITLE_AT := Vector2(0, -12.5)
 # The layout. Each end is the same, mirrored; these are the right-hand end's x.
 const NUMS := [4, 5, 6, 8, 9, 10]
@@ -398,6 +401,19 @@ static func number_box(n: int, h: int) -> Rect2:
 
 ## The rubber lining an end wall (h: which end), `inset` in from the felt's edge: from where
 ## the rail turns level at the back, round the corner, down the wall and round to the front.
+## The middle of the chip rail's groove on one side, or a line `out` from the felt alongside
+## it: along the players' rail from beside the stickman, round the corner and up the end.
+static func groove_path(h: int, out: float) -> PackedVector2Array:
+	var pts := PackedVector2Array([Vector2(mx(GROOVE_FROM, h), FELT_FRONT + out)])
+	var centre := Vector2(FELT_HALF - CORNER, FELT_FRONT - CORNER)
+	for i in 13:
+		var a := lerpf(0.5 * PI, 0.0, i / 12.0)
+		var p := centre + Vector2(cos(a), sin(a)) * (CORNER + out)
+		pts.append(Vector2(mx(p.x, h), p.y))
+	pts.append(Vector2(mx(FELT_HALF + out, h), GROOVE_TO))
+	return pts
+
+
 static func rubber_path(h: int, inset: float) -> PackedVector2Array:
 	var rad := Vector2(CORNER - inset, CORNER - inset)
 	var x := FELT_HALF - CORNER
@@ -698,7 +714,7 @@ func _make_stack(seat: int) -> ChipStack2D:
 
 
 func tray_rect() -> Rect2:
-	return Rect2(RACK_AT - Vector2(24, 5.5), Vector2(48, 11))
+	return Rect2(RACK_AT - Vector2(25, 4.2), Vector2(50, 8.4))
 
 
 func tray_pos() -> Vector2:
@@ -1128,7 +1144,7 @@ func _draw_rail() -> void:
 		var chips := rail_chips(seat, _rail_drawn[seat])
 		for k in chips.size():
 			var x := from - side * (k + 0.5) * w
-			var chip := Rect2(x - (w - 0.12) / 2, GROOVE.position.y + 0.4, w - 0.12, GROOVE.size.y - 0.8)
+			var chip := Rect2(x - (w - 0.12) / 2, GROOVE_OUT - GROOVE_W / 2 + 0.4, w - 0.12, GROOVE_W - 0.8)
 			TableFelt.edge_chip(_rail, chip, chips[k], k, true)
 
 

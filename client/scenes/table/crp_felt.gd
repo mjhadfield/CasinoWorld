@@ -65,14 +65,17 @@ func paint() -> void:
 			zig[1].append(marks[k][0] - across * (1 if k % 2 == 0 else -1))
 		for z in zig:
 			draw_polyline(z, Color(1, 1, 1, 0.18), 0.35)
-	# The chip rail: a groove along the players' rail, either side of the stickman.
+	# The chip rail: a groove sunk into the players' rail, from beside the stickman round the
+	# corners and up the ends. Its inner wall shades it; its outer lip catches the light.
+	var hw := CrapsTable.GROOVE_W / 2
 	for h in [1, -1]:
-		var g := CrapsTable.GROOVE
-		var groove := Rect2(minf(CrapsTable.mx(g.position.x, h), CrapsTable.mx(g.end.x, h)), g.position.y, g.size.x, g.size.y)
-		draw_colored_polygon(_rounded(groove.grow(0.4), 2.4), Color(WOOD_DARK, 0.9))
-		draw_colored_polygon(_rounded(groove, 2.0), RECESS)
-		draw_line(groove.position + Vector2(2, 0.5), Vector2(groove.end.x - 2, groove.position.y + 0.5), Color(0, 0, 0, 0.6), 0.6)
-		draw_line(Vector2(groove.position.x + 2, groove.end.y + 0.3), groove.end + Vector2(-2, 0.3), Color(WOOD_SHINE, 0.25), 0.4)
+		var mid := CrapsTable.groove_path(h, CrapsTable.GROOVE_OUT)
+		for part in Geometry2D.offset_polyline(mid, hw + 0.4, Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND):
+			draw_colored_polygon(part, Color(WOOD_DARK, 0.9))
+		for part in Geometry2D.offset_polyline(mid, hw, Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND):
+			draw_colored_polygon(part, RECESS)
+		draw_polyline(CrapsTable.groove_path(h, CrapsTable.GROOVE_OUT - hw + 0.5), Color(0, 0, 0, 0.6), 0.6, true)
+		draw_polyline(CrapsTable.groove_path(h, CrapsTable.GROOVE_OUT + hw + 0.3), Color(WOOD_SHINE, 0.25), 0.4, true)
 	_chip_tray(t, felt)
 	_layout(t)
 	draw_set_transform(-position)
