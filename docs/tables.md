@@ -6,22 +6,38 @@ How the tables are drawn and laid out in the client. The rules of each game are 
 
 The tables are drawn in code, as is the room (`scenes/world/room.gd`), so they stay sharp at any zoom.
 
-**The card tables are drawn in their table style.** A style is a design made on the admin page's Tables tab:
-- the felt (colour, velvet or woven grain, how much darker it gets towards the rail) and a border line
-- the rail (one of five woods, a leather armrest or leather all round, a brass/gold/chrome bead where it meets the felt)
-- the chip tray (a well cut into a dealer's ledge, or sunk in where it's always been, in three finishes)
-- the printing's font and colours, and the betting spots' artwork
-- the Jackpot disc, the shuffler, shoe and discard rack, card backs and chips
+**Every table is drawn in its table style.** A style is a design made on the admin page's Tables tab, which has
+a tab for each kind of table, because they have different parts:
+- **Card Games:** the felt (colour, velvet or woven grain, how much darker it gets towards the rail) and a border
+  line; the rail (one of five woods, a leather armrest or leather all round, a brass/gold/chrome bead where it
+  meets the felt); the chip tray (a well cut into a dealer's ledge, or sunk in where it's always been, in three
+  finishes); the printing's font and colours, and the betting spots' artwork; the Jackpot disc, the shuffler,
+  shoe and discard rack, card backs and chips.
+- **Roulette:** the felt (with the fine grain it's always had as a fourth cloth), a border line, the rail (bare
+  wood or leather all round), the printing's font, ink and accent, the red, black and zero colours (on the layout
+  and the wheel's pockets), the float (wood frame, brushed steel or under a smoked lid) and the wheel (its bowl's
+  wood and its metal: frets, turret, rims and the chip hole's rim).
+- **Craps:** the felt, the rail (bare wood, leather on the dealers' side, or all round), the printing's font, ink,
+  gold (6 and 8, Field, Horn) and red (Come, Big 6/8, Seven, Any Craps), the rubber walls, the chip rack and the
+  dice (on the table and the sign).
 
-Every card table uses the default style, House (Mike's pick on the mockup, `docs/table_styles/`), unless the
-Tables tab places another on it.
+Each kind has its own styles and its own default, House, unless the Tables tab places another on a table. The
+card tables' House is Mike's pick on the mockup (`docs/table_styles/`); Roulette's and Craps' House is how they
+looked before they took styles (Mahogany & Brass: crimson felt with a fine grain, a mahogany rail, a brass bead,
+cream Cinzel printing). Roulette's and Craps' chips stay the game's own whatever the style.
 
 How it's put together:
-- **The styles** live on the server (`table_styles.py`) and come in the welcome; `scripts/table_style.gd`
-  (`TableStyle`) holds them.
-- **The table** is painted by `scenes/table/styled_felt.gd` (`StyledFelt`), which each card game's felt extends.
+- **The styles** live on the server (`table_styles.py`, `KINDS`) and come in the welcome, every kind at once;
+  `scripts/table_style.gd` (`TableStyle`) holds them. `CasinoTable.style_kind()` says which kind a table takes,
+  and `styled()` whether its chips, cards and card machines follow a card table's style (false for Roulette and
+  Craps).
+- **The table** is painted by `scenes/table/styled_felt.gd` (`StyledFelt`), which each card game's felt extends,
+  and so do `rou_felt.gd` and `crp_felt.gd`: they give their own outline (`_grown()`), rail width, middle and
+  padding area, and draw their own float or rack (`float_tray()`) and printing. `RouletteWheel.restyle()` and
+  `CrapsDice.tone` take the wheel's and the dice's colours.
 - **The admin designer's renderer** (`server/casino_server/table_styles_web/render.js`) draws the same way, with
-  the same tiles and fonts, so what's designed is what the floor shows.
+  the same tiles and fonts, so what's designed is what the floor shows. It draws Roulette and Craps (and the
+  wheel) from their real geometry too.
 - **A style changes looks only.** Every spot, card and machine stays where the game puts it. `tools/layout_audit.gd`
   doesn't change with a style, and the designer's "Fixed layout" draws those places over any design.
 - **The dealer's ledge** replaces the felt behind the dealer's cards with the rail, swept across the bay with
@@ -31,16 +47,11 @@ How it's put together:
   - The wood, leather and felt tiles in `client/assets/tiles/table/` come from Poly Haven (CC0), made by
     `tools/build_table_tiles.py`. The leather and felt ones are "shades": white where the scan is lighter, black
     where darker, laid over the colour. Their import settings make mipmaps, so they don't shimmer at a distance.
+    The fine grain is the game's own `assets/tiles/felt_grain.png` (`tools/build_art.py`).
   - The fonts are Cinzel, Cormorant SC, Josefin Sans and Montserrat, all OFL. Each is a static instance with its
     overlapping outlines merged (`fonttools varLib.instancer ... --remove-overlaps`), because MSDF text draws
     overlaps as specks.
   - Every outside asset is recorded in `docs/table_styles/LICENSES.md`.
-
-**Roulette and Craps keep Mahogany & Brass** (`scenes/table/table_felt.gd`, `TableFelt`, which StyledFelt extends
-for its helpers). `CasinoTable.styled()` is false for them, so they take no style and their chips stay the game's
-own. That look is a wood rail with a brass bead, on craps leather-padded on the dealers' side (with a faint fine
-grain from `assets/tiles/leather_grain.png`, drawn by `TableFelt._padding()`), crimson felt, and cream printing in
-Cinzel.
 
 In the game, a felt isn't drawn straight. `FeltCache` paints it into a texture at the screen's resolution and
 shows that (docs/performance.md), so a felt's `paint()` (not `_draw()`) is its drawing. The felt's `_table()` is
@@ -61,13 +72,14 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   `jackpot_disc()`. **`chip_face.gd` (`ChipFace`)** draws chips in a style (`ChipStack2D.style`); the card tables
   give every stack, card (`Card2D.back`) and machine their style, and `CasinoTable.restyle()` redraws them all
   when the styles change.
-- **`scenes/table/table_felt.gd` (`TableFelt`)** draws the Mahogany & Brass table for Roulette and Craps. The dealer's chip tray (`_chip_tray()`) is built into the table, not sat on it: its wood frame is
-  flush with the rail and casts no shadow, the felt's brass bead runs round its edge where it meets the felt, and
-  the channels are a well sunk into it (shadowed under its back wall, lit along its front). Craps has no
-  tray piece: its rail is a deeper ledge across the floor of the boxman's bay (`CrapsTable.LEDGE`, part of
-  `CrapsTable.shape()`), padded in leather like the rest of its dealers'
-  side, and the rack's well (`_tray_well()`) is cut straight into it with a brass rim. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the dealer's chip tray, the
-  craps chip rail). **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
+- **`scenes/table/table_felt.gd` (`TableFelt`)** is the base every felt extends: it puts the drawing in
+  FeltCache and holds the shared helpers. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the
+  chip trays, the craps chip rail). The chip trays are built into the table, not sat on it: Roulette's float
+  (`StyledFelt.float_tray()`) has a frame in the rail's wood, flush with the rail, the bead running round its edge
+  where it meets the felt, and its channels are a well sunk into it (shadowed under its back wall, lit along its
+  front). Craps has no tray piece: its rail is a deeper ledge across the floor of the boxman's bay
+  (`CrapsTable.LEDGE`, part of `CrapsTable.shape()`), and the rack's well is cut straight into it, rimmed with the
+  bead. **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).

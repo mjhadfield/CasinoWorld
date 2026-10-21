@@ -1,8 +1,9 @@
 extends SceneTree
-# Writes the card tables' real geometry for the admin page's table designer (server/casino_server/table_styles_web/)
+# Writes the tables' real geometry for the admin page's table designer (server/casino_server/table_styles_web/)
 # and the table styles mockup (docs/table_styles/mockup/): the felt outline and the rail offsets, the chip tray and bay, and for every table its seats'
-# spots, cards, dealer cards, equipment and title. The mockup draws only from this, so it can't drift
-# from the game. Table-local units, as layout_audit.gd uses.
+# spots, cards, dealer cards, equipment and title; and Roulette's and Craps' outlines, layouts and fittings
+# ("rou" and "crp"). The designer draws only from this, so it can't drift from the game. Table-local units,
+# as layout_audit.gd uses.
 #   cd client && CASINO_SERVER_URL=ws://127.0.0.1:1/ws godot --headless --path . -s ../tools/table_geometry.gd
 const TABLES := {
 	"tcp": "res://scenes/table/tcp_table.tscn", "bj": "res://scenes/table/bj_table.tscn",
@@ -109,12 +110,82 @@ func _initialize() -> void:
 		data.tables[key] = tab
 		t.queue_free()
 		await process_frame
+	data["rou"] = await _roulette()
+	data["crp"] = await _craps()
 	for out in OUT:
 		var f := FileAccess.open(out, FileAccess.WRITE)
 		f.store_string(JSON.stringify(data, " ", false))
 		f.close()
 		print("wrote ", out, " (", data.tables.size(), " tables)")
 	quit(0)
+
+
+## The outline grown by everything StyledFelt asks of a 9-wide rail, keyed as the designer asks ("%.2f").
+func _grows(t, rw: float, extra: Array) -> Dictionary:
+	var out := {}
+	for g in [rw + 4.0, rw + 1.5, rw + 0.5, rw / 2, rw * 4.0 / 7.0, 1.2, rw - 1.1] + extra:
+		out["%.2f" % g] = poly(t.shape(g))
+	return out
+
+
+func rect(r: Rect2) -> Array:
+	return [snappedf(r.position.x, 0.01), snappedf(r.position.y, 0.01), snappedf(r.size.x, 0.01), snappedf(r.size.y, 0.01)]
+
+
+func _roulette() -> Dictionary:
+	var t = load("res://scenes/table/rou_table.tscn").instantiate()
+	root.add_child(t)
+	await process_frame
+	var out := {
+		"rail": t.RAIL_W, "felt": poly(t.shape(0.0, true, 12)), "grown": _grows(t, t.RAIL_W, [-5.0, -4.0, -6.0, -3.5, -4.75, -2.0]),
+		"tray": rect(t.tray_rect()), "hole": v(t.HOLE_AT), "hole_r": t.HOLE_R, "title": v(t.TITLE_AT), "wheel": v(t.WHEEL_AT),
+		"wheel_order": t.wheel.WHEEL, "red": t.RED, "evens": t.EVENS,
+		"grid": {"zx": t.ZX, "gx": t.GX, "gy": t.GY, "bw": t.BW, "bh": t.BH, "dy": t.DY, "dh": t.DH, "ey": t.EY, "eh": t.EH},
+		"dealer": _node_pos(t, "Dealer"), "chairs": [], "chips": {},
+	}
+	for seat in t.seat_count():
+		out.chairs.append(v(t.chair_pos(seat)))
+	for spot in ["n17", "sp_8_11", "co_20_24", "n32", "red", "doz2", "col1", "n0"]:
+		out.chips[spot] = v(t.chip_pos(spot))
+	t.queue_free()
+	await process_frame
+	return out
+
+
+func _craps() -> Dictionary:
+	var t = load("res://scenes/table/crp_table.tscn").instantiate()
+	root.add_child(t)
+	await process_frame
+	var felt = load("res://scenes/table/crp_felt.gd").new()
+	var out := {
+		"rail": t.RAIL_W, "felt": poly(t.shape(0.0, true, 12)), "grown": _grows(t, t.RAIL_W, []),
+		"pad": poly(felt._pad_area("dealer")), "tray": rect(t.tray_rect()),
+		"rubber_w": t.RUBBER_W, "groove_w": t.GROOVE_W, "rubber": {}, "groove": {}, "zones": {}, "polys": {},
+		"props": {}, "prop_box": rect(t.PROP_BOX), "pass": poly(t.pass_line()), "nums": t.NUMS,
+		"dice": [v(t.dice.HOME[0]), v(t.dice.HOME[1])], "pips": {}, "mx": {},
+		"dealer": _node_pos(t, "Dealer"), "boxman": _node_pos(t, "Boxman"),
+	}
+	felt.free()
+	for h in [1, -1]:
+		var rw: float = t.RUBBER_W
+		var go: float = t.GROOVE_OUT
+		var hw: float = t.GROOVE_W / 2
+		out.rubber[str(h)] = {"edge": poly(t.rubber_path(h, 0.0)), "inner": poly(t.rubber_path(h, rw)), "mid": poly(t.rubber_path(h, rw / 2))}
+		out.groove[str(h)] = {"mid": poly(t.groove_path(h, go)), "in": poly(t.groove_path(h, go - hw + 0.5)), "out": poly(t.groove_path(h, go + hw + 0.3))}
+		var z: Dictionary = t.zones(h)
+		out.zones[str(h)] = {}
+		out.polys[str(h)] = {}
+		for id in z:
+			out.zones[str(h)][id] = rect(z[id])
+			out.polys[str(h)][id] = poly(t.zone_poly(id, h))
+		out.mx[str(h)] = [t.mx(110, h), t.mx(177, h)]
+	for id in t.PROPS:
+		out.props[id] = rect(t.PROPS[id])
+	for n in t.dice.PIPS:
+		out.pips[str(n)] = poly(PackedVector2Array(t.dice.PIPS[n]))
+	t.queue_free()
+	await process_frame
+	return out
 
 
 func _has_spot(key: String, spot: String) -> bool:

@@ -15,7 +15,8 @@ take a style later.
   `card_shoe.gd`, `discard_rack.gd`, `jackpot_lights.gd`, `card_2d.gd`, `chip_stack_2d.gd`, `casino_table.gd`
   (and `styled()` in `rou_table.gd`/`crp_table.gd`), `casino_floor.gd`, a new `client/scripts/table_style.gd`, a
   new `server/casino_server/table_styles.py` with `table_styles_web/`, the admin page and `server/protocol.md`.
-  `table_felt.gd` stays as it was: it's Roulette's and Craps' look.
+  Since then Roulette and Craps have their own kinds of style too (docs/tables.md), and `table_felt.gd` is only
+  every felt's base.
 
 ## Done when
 - [x] Mike picked his default (House) on the mockup, 2026-10-21

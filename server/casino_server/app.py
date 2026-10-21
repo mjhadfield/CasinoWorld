@@ -1092,46 +1092,58 @@ async def seating_tables_put(request: Request):
 
 
 # ------------------------------------------------------------------ table styles
-def _table_styles_changed(request: Request) -> dict:
-    """Every client restyles its card tables."""
-    current = table_styles.load(request.app.state.casino.store)
-    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": current})
-    return current
+def _table_styles_changed(request: Request, kind: str) -> dict:
+    """Every client restyles its tables; the admin page gets the kind it changed back."""
+    store = request.app.state.casino.store
+    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": table_styles.load_all(store)})
+    return table_styles.load(store, kind)
 
 
+def _style_kind(kind: str) -> str:
+    if kind not in table_styles.KINDS:
+        raise HTTPException(404, f"No kind of table called {kind!r}.")
+    return kind
+
+
+# Each takes ?kind=cards (the default), roulette or craps: each kind has its own styles and placement.
 @app.get("/api/table-styles")
-async def table_styles_get(request: Request):
-    return JSONResponse({**table_styles.load(request.app.state.casino.store), "games": table_styles.styled_tables(),
-                         "choices": table_styles.CHOICES}, headers=NO_STORE)
+async def table_styles_get(request: Request, kind: str = "cards"):
+    kind = _style_kind(kind)
+    return JSONResponse({**table_styles.load(request.app.state.casino.store, kind), "kind": kind,
+                         "games": table_styles.styled_tables(kind), "choices": table_styles.KINDS[kind]["choices"]},
+                        headers=NO_STORE)
 
 
 @app.put("/api/table-styles/styles/{style_id}")
-async def table_style_put(style_id: str, request: Request):
+async def table_style_put(style_id: str, request: Request, kind: str = "cards"):
+    kind = _style_kind(kind)
     try:
-        table_styles.save_style(request.app.state.casino.store, style_id, await _body(request))
+        table_styles.save_style(request.app.state.casino.store, style_id, await _body(request), kind)
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e) or "That style doesn't make sense.")
-    return _table_styles_changed(request)
+    return _table_styles_changed(request, kind)
 
 
 @app.delete("/api/table-styles/styles/{style_id}")
-async def table_style_delete(style_id: str, request: Request):
+async def table_style_delete(style_id: str, request: Request, kind: str = "cards"):
+    kind = _style_kind(kind)
     try:
-        table_styles.delete_style(request.app.state.casino.store, style_id)
+        table_styles.delete_style(request.app.state.casino.store, style_id, kind)
     except KeyError:
         raise HTTPException(404, "No such style.")
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return _table_styles_changed(request)
+    return _table_styles_changed(request, kind)
 
 
 @app.put("/api/table-styles/tables")
-async def table_styles_tables_put(request: Request):
+async def table_styles_tables_put(request: Request, kind: str = "cards"):
+    kind = _style_kind(kind)
     try:
-        table_styles.assign(request.app.state.casino.store, await _body(request))
+        table_styles.assign(request.app.state.casino.store, await _body(request), kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return _table_styles_changed(request)
+    return _table_styles_changed(request, kind)
 
 
 @app.get("/api/players")

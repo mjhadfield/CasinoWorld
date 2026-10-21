@@ -26,8 +26,7 @@ const PIPS := {1: [Vector2(0, 0)], 2: [Vector2(-1, -1), Vector2(1, 1)], 3: [Vect
 	4: [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)],
 	5: [Vector2(-1, -1), Vector2(1, -1), Vector2(0, 0), Vector2(-1, 1), Vector2(1, 1)],
 	6: [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(1, 1)]}
-const BODY_LIGHT := Color("f04a4f")
-const BODY_DARK := Color("a5101a")
+var tone: Array = TableStyle.DICE.red   # their lit and shaded sides, from the table's style (TableStyle.DICE)
 
 var dice := [{"p": HOME[0], "h": 0.0, "f": 5, "r": 0.2}, {"p": HOME[1], "h": 0.0, "f": 2, "r": -0.1}]
 var _plan := []           # the throw being played: each die's segments
@@ -141,11 +140,11 @@ static func _die_at(segs: Array, t: float) -> Dictionary:
 func _draw() -> void:
 	var order := [0, 1] if dice[0].h <= dice[1].h else [1, 0]   # the higher one over the other
 	for i in order:
-		draw_die(self, dice[i].p, float(dice[i].h), int(dice[i].f), float(dice[i].r))
+		draw_die(self, dice[i].p, float(dice[i].h), int(dice[i].f), float(dice[i].r), SIZE, tone)
 
 
-## A die at `at` (its spot on the felt), `h` up off it, showing `face`, turned `turn`.
-static func draw_die(ci: CanvasItem, at: Vector2, h: float, face: int, turn: float, size := SIZE) -> void:
+## A die at `at` (its spot on the felt), `h` up off it, showing `face`, turned `turn`, in `tone` (lit, shaded).
+static func draw_die(ci: CanvasItem, at: Vector2, h: float, face: int, turn: float, size := SIZE, tone: Array = TableStyle.DICE.red) -> void:
 	var s := size * (1.0 + h * 0.025)
 	ci.draw_set_transform(at + Vector2(0.6, 0.9), 0, Vector2(1, 0.78))
 	ci.draw_circle(Vector2.ZERO, 3.6 + h * 0.06, Color(0, 0, 0, maxf(0.12, 0.42 - h * 0.012)))
@@ -160,7 +159,7 @@ static func draw_die(ci: CanvasItem, at: Vector2, h: float, face: int, turn: flo
 			body.append(c[0] + Vector2(cos(a), sin(a)) * r)
 	var colours := PackedColorArray()
 	for p in body:
-		colours.append(BODY_LIGHT.lerp(BODY_DARK, clampf((p.x + p.y) / (2 * s) + 0.5, 0, 1)))
+		colours.append((tone[0] as Color).lerp(tone[1], clampf((p.x + p.y) / (2 * s) + 0.5, 0, 1)))
 	ci.draw_polygon(body, colours)
 	body.append(body[0])
 	ci.draw_polyline(body, Color(1, 1, 1, 0.35), 0.3, true)

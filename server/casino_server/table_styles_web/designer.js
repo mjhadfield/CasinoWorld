@@ -1,17 +1,23 @@
-// The admin page's Tables tab: design table styles and place them on the floor's card tables.
-// Styles live on the server (table_styles.py); saving one restyles every table using it straight away.
-// House is the default every card table uses unless it's given another; the four mockup presets are built in
-// (save a copy to change one). Roulette and Craps keep their own look and aren't listed.
-import { render, loadAssets, clone, getKey, setKey, distance, SLOTS, GAMES, VIEWS, BACK_MAIN } from "./render.js";
+// The admin page's Tables tab: design table styles and place them on the floor's tables. Its three tabs are the
+// kinds of table (table_styles.KINDS): Card Games, Roulette and Craps, each with its own styles, parts and
+// placement. Styles live on the server (table_styles.py); saving one restyles every table using it straight away.
+// House is the default every table of its kind uses unless it's given another; the presets are built in (save a
+// copy to change one).
+import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, BACK_MAIN } from "./render.js";
 
 const BASE = "/table-styles-ui/";
+const KIND_NAMES = { cards: "card table", roulette: "roulette table", craps: "craps table" };
 let ctx = null;            // {$, el, api, status} from the admin page
-let data = null;           // GET /api/table-styles
+let kind = "cards";        // the tab: which kind of table's styles are shown
+let data = null;           // GET /api/table-styles?kind=
 let cur = null;            // the style being edited: {id, name, design, builtin}
 let saved = "";            // its design as last saved, to tell when it's changed
-let view = { game: "tcp", view: "seated", play: true, lit: true, fixed: false };
+const VIEW = { cards: { game: "tcp", view: "seated", play: true, lit: true, fixed: false },
+  roulette: { view: "table", play: true }, craps: { view: "table", play: true } };
+let view = VIEW.cards;     // the stage's settings, kept for each kind
 let placing = {};          // table id -> style id ("" for the default), as edited
 let placingDefault = "house";
+const q = () => "?kind=" + kind;
 
 export function init(c) {
   // The admin page's el() sets properties, so attributes like aria-label go through setAttribute here.
@@ -27,14 +33,47 @@ export function init(c) {
 export async function load() {
   const { $, status } = ctx;
   const app = $("#tables-app");
-  try { if (!app.dataset.built) { app.textContent = "Loading…"; await loadAssets(BASE); build(app); app.dataset.built = "1"; } }
+  try {
+    if (!app.dataset.built) {
+      app.textContent = "Loading…"; await loadAssets(BASE); build(app); app.dataset.built = "1";
+      try { const k = localStorage.getItem("ts-kind"); if (KINDS[k]) kind = k; } catch (e) { /* (no storage: Card Games) */ }
+      setKind(kind);
+    }
+  }
   catch (e) { app.textContent = "The designer's pictures didn't load: " + e.message; return; }
   await refresh(cur ? cur.id : null);
   status("Table styles loaded.", "ok");
 }
 
+// The tabs above the designer: Card Games, Roulette, Craps.
+function wireKinds() {
+  document.querySelectorAll("#ts-kinds [data-kind]").forEach(b => b.addEventListener("click", async () => {
+    if (b.dataset.kind === kind) return;
+    if (dirty() && !confirmLeave(b)) return;
+    setKind(b.dataset.kind);
+    try { localStorage.setItem("ts-kind", kind); } catch (e) { /* (a convenience only) */ }
+    cur = null;
+    try { await refresh(null); } catch (e) { ctx.status(e.message, "warn"); }
+  }));
+}
+
+function setKind(k) {
+  kind = k;
+  view = VIEW[k];
+  document.querySelectorAll("#ts-kinds [data-kind]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.kind === k)));
+  const cards = k === "cards";
+  for (const sel of ["#ts-games", "#ts-lit-box", "#ts-fixed-box", ".ts-compare"]) ctx.$(sel).hidden = !cards;
+  ctx.$("#ts-default-label").textContent = `Default for every ${KIND_NAMES[k]}`;
+  ctx.$("#ts-play-label").textContent = cards ? "Hand in play" : "Bets down";
+  ctx.$("#ts-play").checked = view.play;
+  const views = ctx.$("#ts-views");
+  views.replaceChildren();
+  for (const [id, [label]] of Object.entries(KINDS[k].views)) segButton("#ts-views", id, label, () => { view.view = id; drawAll(); });
+  buildSlots();
+}
+
 async function refresh(keep) {
-  data = await ctx.api("GET", "/api/table-styles");
+  data = await ctx.api("GET", "/api/table-styles" + q());
   placing = { ...data.tables };
   placingDefault = data.default;
   pick(keep && data.styles[keep] ? keep : data.default);
@@ -45,7 +84,7 @@ function pick(id) {
   cur = { id, name: s.name, design: clone(s.design), builtin: s.builtin };
   saved = JSON.stringify(s.design);
   const first = Object.entries(data.games).find(([tid]) => (placing[tid] || placingDefault) === id);
-  if (first) view.game = first[1].layout;
+  if (first && kind === "cards") view.game = first[1].layout;
   drawAll();
 }
 
@@ -60,7 +99,7 @@ function build(app) {
         el("div", { className: "card ts-list", id: "ts-list" }),
         el("h2", {}, "Placement"),
         el("div", { className: "card ts-place" },
-          el("label", { className: "field" }, el("span", {}, "Default for every card table"), el("select", { id: "ts-default" })),
+          el("label", { className: "field" }, el("span", { id: "ts-default-label" }, "Default for every card table"), el("select", { id: "ts-default" })),
           el("div", { id: "ts-tables", className: "ts-tables" }),
           el("div", { className: "controls" }, el("button", { id: "ts-place-save", type: "button", className: "primary" }, "Save placement")))),
       el("div", { className: "ts-stage pane" },
@@ -86,8 +125,7 @@ function build(app) {
         el("div", { className: "card ts-slots", id: "ts-slots" }))));
 
   for (const [id, label] of GAMES) segButton("#ts-games", id, label, () => { view.game = id; drawAll(); });
-  for (const [id, [label]] of Object.entries(VIEWS)) segButton("#ts-views", id, label, () => { view.view = id; drawAll(); });
-  buildSlots();
+  wireKinds();
   ctx.$("#ts-name").addEventListener("input", e => { cur.name = e.target.value; syncButtons(); });
   ctx.$("#ts-save").addEventListener("click", () => save(false));
   ctx.$("#ts-copy").addEventListener("click", () => save(true));
@@ -109,7 +147,7 @@ function toggle(id, label, key) {
   const { el } = ctx;
   const box = el("input", { type: "checkbox", id, checked: view[key] });
   box.addEventListener("change", () => { view[key] = box.checked; drawStage(); });
-  return el("label", { className: "ts-toggle" }, box, " " + label);
+  return el("label", { className: "ts-toggle", id: id + "-box" }, box, " ", el("span", { id: id + "-label" }, label));
 }
 
 function compareFig(mode, title, blurb) {
@@ -130,12 +168,14 @@ function segButton(sel, value, label, onClick) {
   ctx.$(sel).append(b);
 }
 
-// The design's controls, one group per part of the table (render.js SLOTS, as on the mockup).
+// The design's controls, one group per part of the table (render.js KINDS[kind].slots; the card tables' as on the mockup).
 function buildSlots() {
   const { el, $ } = ctx;
   const host = $("#ts-slots");
-  for (const slot of SLOTS) {
-    const group = el("details", { className: "ts-slot", open: ["felt", "rail", "tray"].includes(slot.id) },
+  host.replaceChildren();
+  const slots = KINDS[kind].slots;
+  for (const slot of slots) {
+    const group = el("details", { className: "ts-slot", open: ["felt", "rail", "tray", "numbers", "print"].includes(slot.id) && (kind !== "cards" || slot.id !== "print") },
       el("summary", {}, slot.label, slot.hint ? el("span", { className: "hint" }, " · " + slot.hint) : null));
     group.dataset.slot = slot.id;
     for (const c of slot.ctl) {
@@ -237,7 +277,7 @@ function drawPlacement() {
     const sel = el("select", { "aria-label": `${t.name} (${tid})` });
     options(sel, placing[tid] || "", true);
     sel.addEventListener("change", () => { if (sel.value) placing[tid] = sel.value; else delete placing[tid]; });
-    const show = el("button", { type: "button", className: "icon", title: "Preview this game" }, "▸");
+    const show = el("button", { type: "button", className: "icon", title: "Preview this game", hidden: kind !== "cards" }, "▸");
     show.addEventListener("click", () => { view.game = t.layout; drawStage(); syncButtons(); });
     host.append(el("label", { className: "ts-table" }, el("span", {}, t.name, el("small", { className: "hint" }, " " + tid)), sel, show));
   }
@@ -266,24 +306,32 @@ function syncButtons() {
   $("#ts-delete").disabled = !cur.id || cur.builtin || cur.id === "house";
   $("#ts-note").textContent = cur.builtin ? "A built-in style: change it, then Save as new to keep your version."
     : !cur.id ? "Not saved yet: Save adds it to the styles."
-    : cur.id === "house" ? "House is the casino's own style. Saving it restyles every table that uses it straight away."
+    : cur.id === "house" ? `House is the casino's own ${KIND_NAMES[kind]} style. Saving it restyles every table that uses it straight away.`
     : "Saving restyles every table that uses it straight away.";
   document.querySelectorAll("#ts-games button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === view.game)));
   document.querySelectorAll("#ts-views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === view.view)));
-  document.querySelectorAll(".ts-compare figure").forEach(f => f.setAttribute("aria-pressed", String(f.dataset.tray === cur.design.tray.mode)));
+  if (kind === "cards") document.querySelectorAll(".ts-compare figure").forEach(f => f.setAttribute("aria-pressed", String(f.dataset.tray === cur.design.tray.mode)));
 }
 
 function viewRect() {
-  if (view.view !== "seat") return VIEWS[view.view][1];
+  const views = KINDS[kind].views;
+  if (view.view !== "seat") return (views[view.view] || Object.values(views)[0])[1];
   return [24.5 - 41, -100, 82, 108];   // seat 2's column
 }
 
 function drawStage() {
   const { $ } = ctx;
   if (!cur) return;
+  if (kind !== "cards") {
+    render($("#ts-stage"), cur.design, KINDS[kind].game, viewRect(), { play: view.play });
+    $("#ts-legend").hidden = true;
+    $("#ts-warn").hidden = true;
+    syncButtons();
+    return;
+  }
   render($("#ts-stage"), cur.design, view.game, viewRect(), { play: view.play, lit: view.lit, fixed: view.fixed });
   for (const mode of ["ledge", "sunk"]) {
-    render($("#ts-cmp-" + mode), { ...cur.design, tray: { ...cur.design.tray, mode } }, view.game, VIEWS.bay[1], { play: view.play });
+    render($("#ts-cmp-" + mode), { ...cur.design, tray: { ...cur.design.tray, mode } }, view.game, KINDS.cards.views.bay[1], { play: view.play });
   }
   $("#ts-legend").hidden = !view.fixed;
   const warn = $("#ts-warn");
@@ -311,7 +359,7 @@ async function save(asNew) {
     id = newId(saveName);
   }
   try {
-    data = { ...data, ...(await api("PUT", `/api/table-styles/styles/${id}`, { name: saveName, design: cur.design })) };
+    data = { ...data, ...(await api("PUT", `/api/table-styles/styles/${id}${q()}`, { name: saveName, design: cur.design })) };
     status(`Saved "${saveName}". Tables using it are restyled.`, "ok");
     await refresh(id);
   } catch (e) { status(e.message, "warn"); }
@@ -329,7 +377,7 @@ async function remove() {
   delete b.dataset.sure;
   b.textContent = "Delete";
   try {
-    await api("DELETE", `/api/table-styles/styles/${cur.id}`);
+    await api("DELETE", `/api/table-styles/styles/${cur.id}${q()}`);
     status(`Deleted "${cur.name}". Its tables are back on the default.`, "ok");
     cur = null;
     await refresh(null);
@@ -341,7 +389,7 @@ async function savePlacement() {
   const tables = {};
   for (const tid of Object.keys(data.games)) tables[tid] = placing[tid] || null;
   try {
-    await api("PUT", "/api/table-styles/tables", { tables, default: placingDefault });
+    await api("PUT", "/api/table-styles/tables" + q(), { tables, default: placingDefault });
     status("Placement saved: the floor's tables are restyled.", "ok");
     await refresh(cur && cur.id);
   } catch (e) { status(e.message, "warn"); }

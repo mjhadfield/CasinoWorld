@@ -252,23 +252,27 @@ func _betting_info(ctx: Dictionary) -> String:
 
 
 # ------------------------------------------------------------------ its style
-## Whether the table takes a table style (TableStyle). Roulette and Craps keep their own look for now.
+## Whether the table takes a card table's style (TableStyle "cards"), so its chips and card backs follow it.
+## Roulette and Craps have their own kinds of style (style_kind()) and keep their chips.
 func styled() -> bool:
 	return true
+
+
+## Which kind of table style it takes: "cards", "roulette" or "craps".
+func style_kind() -> String:
+	return "cards"
 
 
 ## The design it's drawn in: its style's, or House before the server has said (and in the editor).
 func style() -> Dictionary:
 	if look.is_empty():
-		look = TableStyle.design(table_id)
+		look = TableStyle.design(table_id, style_kind())
 	return look
 
 
 ## The table styles changed (the admin page's Tables tab): draw the table, its machines and what's on it again.
 func restyle() -> void:
-	if not styled():
-		return
-	look = TableStyle.design(table_id)
+	look = TableStyle.design(table_id, style_kind())
 	_felt.queue_redraw()
 	for path in ["Felt/Fixtures", "Felt/Machines", "Felt/Lights"]:
 		var layer := get_node_or_null(path)
@@ -276,7 +280,8 @@ func restyle() -> void:
 			for n in layer.get_children():
 				if n is CanvasItem:
 					n.queue_redraw()
-	_restyle_under(_dyn)
+	if styled():
+		_restyle_under(_dyn)
 
 
 func _restyle_under(node: Node) -> void:

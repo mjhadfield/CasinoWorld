@@ -121,6 +121,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	dice.position = -_felt.position
+	_dice_tone()
 	dice.z_index = 2   # over the chips (which sit over cards at z 1); the dice only rest where no one's head reaches
 	_rail = Node2D.new()
 	_rail.position = -_felt.position
@@ -707,9 +708,27 @@ func payout_pos(seat: int, spot: String, _bonus := false) -> Vector2:
 	return spot_pos(seat, spot) + Vector2(4.5, -3.5)
 
 
-## Craps keeps its own look for now (no table style).
+## Craps has its own kind of table style (and keeps today's chips).
 func styled() -> bool:
 	return false
+
+
+func style_kind() -> String:
+	return "craps"
+
+
+func restyle() -> void:
+	super.restyle()
+	_dice_tone()
+
+
+## The dice, on the table and on the sign, in the style's colour.
+func _dice_tone() -> void:
+	var tone: Array = TableStyle.DICE.get(str(style().dice), TableStyle.DICE.red)
+	dice.tone = tone
+	dice.queue_redraw()
+	sign_board.tone = tone
+	sign_board.queue_redraw()
 
 
 func _make_stack(seat: int) -> ChipStack2D:

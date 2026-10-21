@@ -44,12 +44,15 @@ const R_TRACK := 38.2
 const R_FRET := 27.6
 const R_POCKET := 25.0
 const FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
-const BRASS := Color("c9a24a")
-const BRASS_HI := Color("ecd08a")
-const CREAM := Color("f1e4c4")
-const RED_POCKET := Color("e0453d")
-const BLACK_POCKET := Color("1a0d0b")
-const GREEN_POCKET := Color("1f8a52")
+# Its colours, from the table's style (restyle()): the metal (frets, rims, deflectors, turret), the numbers,
+# the pockets, and the wood of the bowl (its track, floor and cone are shades of it). House's to begin with.
+var BRASS := Color("c9a24a")
+var BRASS_HI := Color("ecd08a")
+var CREAM := Color("f1e4c4")
+var RED_POCKET := Color("e0453d")
+var BLACK_POCKET := Color("1a0d0b")
+var GREEN_POCKET := Color("1f8a52")
+var _bowl := Color("4e2814")
 
 var rest_pocket := 0           # where the ball sits between spins (an index into WHEEL)
 var _spin := {}                # {t0, scale, b0, [number, landing, k, segs, off0, tc, delta, end]}
@@ -78,6 +81,26 @@ func _ready() -> void:
 	_turret = _layer(_draw_turret)
 	_ball = _layer(_draw_ball)
 	_show()
+
+
+## Take the colours of a roulette style (TableStyle "roulette") and draw again.
+func restyle(d: Dictionary) -> void:
+	var metal: Array = TableStyle.BEADS.get(str(d.wheel.metal), TableStyle.BEADS.brass)
+	BRASS = metal[0]
+	BRASS_HI = metal[0].lerp(metal[1], 0.6)
+	CREAM = TableStyle.colour(d, "print.ink")
+	RED_POCKET = TableStyle.colour(d, "numbers.red")
+	BLACK_POCKET = TableStyle.colour(d, "numbers.black")
+	GREEN_POCKET = TableStyle.colour(d, "numbers.zero")
+	_bowl = TableStyle.WHEEL_WOODS.get(TableStyle.wood_of(d, str(d.wheel.wood)), TableStyle.WHEEL_WOODS.mahogany)
+	queue_redraw()
+	for l in get_children():
+		(l as CanvasItem).queue_redraw()
+
+
+## The bowl's wood scaled channel by channel (House's mahogany gives the shades the wheel always had).
+func _wood(k: Vector3) -> Color:
+	return Color(minf(1.0, _bowl.r * k.x), minf(1.0, _bowl.g * k.y), minf(1.0, _bowl.b * k.z))
 
 
 func _layer(paint: Callable) -> Layer:
@@ -308,12 +331,12 @@ func _ring(ci: CanvasItem, r0: float, r1: float, a0: float, a1: float, colour: C
 ## The bowl and the ball track, which don't move.
 func _draw() -> void:
 	draw_circle(Vector2(0.8, 1.6), R_BOWL + 0.8, Color(0, 0, 0, 0.3))
-	draw_circle(Vector2.ZERO, R_BOWL, Color("4e2814"))
+	draw_circle(Vector2.ZERO, R_BOWL, _bowl)
 	draw_circle(Vector2(-6, -7), R_BOWL - 8, Color(0.6, 0.32, 0.17, 0.25))
 	draw_arc(Vector2.ZERO, R_BOWL, 0, TAU, 72, BRASS, 1.0, true)
-	draw_circle(Vector2.ZERO, 40.0, Color("4a2a17"))
+	draw_circle(Vector2.ZERO, 40.0, _wood(Vector3(0.95, 1.05, 1.15)))
 	draw_arc(Vector2.ZERO, 40.0, 0, TAU, 72, Color(1, 0.86, 0.7, 0.25), 0.5, true)
-	draw_circle(Vector2.ZERO, 34.0, Color("24120a"))
+	draw_circle(Vector2.ZERO, 34.0, _wood(Vector3(0.46, 0.45, 0.5)))
 	for i in 8:  # the deflectors (fixed)
 		var a := i * PI / 4 + PI / 8
 		var c := Vector2(cos(a), sin(a)) * 35.8
@@ -341,7 +364,7 @@ func _draw_rotor(ci: CanvasItem) -> void:
 
 ## The cone, lit from the top left whichever way the rotor's turned.
 func _draw_cone(ci: CanvasItem) -> void:
-	ci.draw_circle(Vector2.ZERO, 22.0, Color("6a3519"))
+	ci.draw_circle(Vector2.ZERO, 22.0, _wood(Vector3(1.36, 1.33, 1.25)))
 	ci.draw_circle(Vector2(-4, -5), 14.0, Color(0.75, 0.45, 0.22, 0.35))
 	ci.draw_arc(Vector2.ZERO, 22.0, 0, TAU, 64, BRASS, 0.6, true)
 

@@ -178,7 +178,7 @@ class Casino:
         session.push({"type": "welcome", "player": {"id": player.id, "name": player.name},
                       "token": player.token, "entity_id": session.entity_id, "look": PLAYER_LOOK,
                       "needs_name": needs_name, "cabinets": slot_banks.cabinets(),
-                      "seating": seating.load(self.store), "table_styles": table_styles.load(self.store)})
+                      "seating": seating.load(self.store), "table_styles": table_styles.load_all(self.store)})
 
     def _resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while

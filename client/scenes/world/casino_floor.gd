@@ -307,7 +307,7 @@ func _drop_cabinet(c: SlotCabinet) -> void:
 	c.queue_free()
 
 
-## Every card table in its table style again.
+## Every table in its table style again.
 func _restyle_tables() -> void:
 	for t in tables.values():
 		if t is CasinoTable:

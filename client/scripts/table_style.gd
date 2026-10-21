@@ -1,12 +1,14 @@
 class_name TableStyle
-## How each card table looks: the table styles from the server (server/casino_server/table_styles.py, sent in
-## the welcome and in `table_styles` when the admin page's Tables tab changes them). A style is a design --
-## felt, rail, chip tray, printing, betting spots, Jackpot disc, shuffler, shoe, discard rack, card backs,
-## chips -- and every card table uses the default (House) unless the server gives it another. Roulette and
-## Craps don't take one (CasinoTable.styled()). Where anything sits never depends on the style.
+## How each table looks: the table styles from the server (server/casino_server/table_styles.py, sent in
+## the welcome and in `table_styles` when the admin page's Tables tab changes them). There are three kinds,
+## each with its own styles and default (House): "cards" (felt, rail, chip tray, printing, betting spots,
+## Jackpot disc, shuffler, shoe, discard rack, card backs, chips), "roulette" (felt, rail, printing, number
+## colours, float, wheel) and "craps" (felt, rail, printing, rubber, chip rack, dice). A table uses its kind's
+## default unless the server gives it another (CasinoTable.style_kind()). Where anything sits never depends on
+## the style.
 ##
-## The pieces that draw it: StyledFelt (the table and its printing), ChipFace (chips), Card2D.draw_back,
-## CardShuffler, CardShoe, DiscardRack and the Jackpot lights.
+## The pieces that draw it: StyledFelt (the table and its printing, Roulette's and Craps' too), ChipFace
+## (chips), Card2D.draw_back, CardShuffler, CardShoe, DiscardRack, the Jackpot lights, RouletteWheel and CrapsDice.
 
 ## House, as the server has it (table_styles.HOUSE): what a table shows before the welcome, and in the editor.
 const HOUSE := {
@@ -21,6 +23,25 @@ const HOUSE := {
 	"print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
 	"back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
 }
+## Roulette's and Craps' House (table_styles.ROULETTE_HOUSE, CRAPS_HOUSE): how they looked before they took styles.
+const ROULETTE_HOUSE := {
+	"felt": {"colour": "#93141f", "texture": "grain", "vignette": 0.3},
+	"border": "none", "led": "#ffd28a",
+	"rail": {"wood": "mahogany", "armrest": "none", "leather": "#2a140a", "bead": "brass"},
+	"print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
+	"numbers": {"red": "#e0453d", "black": "#1a0d0b", "zero": "#1f8a52"},
+	"float": "wood",
+	"wheel": {"wood": "match", "metal": "brass"},
+}
+const CRAPS_HOUSE := {
+	"felt": {"colour": "#93141f", "texture": "grain", "vignette": 0.3},
+	"rail": {"wood": "mahogany", "armrest": "dealer", "leather": "#2a140a", "bead": "brass"},
+	"print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#f2cf6a", "red": "#e0453d"},
+	"rubber": "#1b1413",
+	"rack": "wood",
+	"dice": "red",
+}
+const HOUSES := {"cards": HOUSE, "roulette": ROULETTE_HOUSE, "craps": CRAPS_HOUSE}
 
 const WOODS := {
 	"mahogany": preload("res://assets/tiles/table/wood_mahogany.jpg"),
@@ -45,28 +66,34 @@ const FONTS := {
 const BEADS := {"brass": [Color("c9a24a"), Color("f3d78e")], "gold": [Color("d9b453"), Color("fff0b8")],
 	"chrome": [Color("aeb7bf"), Color("ffffff")]}
 const JADE := Color("7fc8a9")   # the Baccarat Dragon circles, whatever the style
+## The roulette wheel's bowl in each wood (its track, floor and cone are shades of it).
+const WHEEL_WOODS := {"mahogany": Color("4e2814"), "walnut": Color("4a3222"), "wenge": Color("302520"),
+	"rosewood": Color("4c1f17"), "ebony": Color("1c1917")}
+## The craps dice: their lit and shaded sides.
+const DICE := {"red": [Color("f04a4f"), Color("a5101a")], "green": [Color("3fcf7a"), Color("0d6b34")],
+	"blue": [Color("4a8ff0"), Color("0f3c9a")], "smoke": [Color("8a8f96"), Color("2c3036")],
+	"amber": [Color("f2b04a"), Color("9a5a0c")], "violet": [Color("a77bf0"), Color("4a1f9a")]}
 
-static var styles := {}        # style id -> {name, design, builtin}
-static var tables := {}        # table id -> style id, where it isn't the default
-static var default_id := "house"
+static var kinds := {}         # kind -> {styles: {style id -> {name, design, builtin}}, tables: {table id -> style id}, default}
 
 
-## The table styles from the server: {styles, tables, default}.
+## The table styles from the server: {kind: {styles, tables, default}}.
 static func configure(data: Dictionary) -> void:
-	styles = data.get("styles", {})
-	tables = data.get("tables", {})
-	default_id = str(data.get("default", "house"))
+	kinds = data
 
 
 ## The design `table_id` is drawn in, everything filled in (a design saved before a choice existed takes House's).
-static func design(table_id: String) -> Dictionary:
-	var id: String = tables.get(table_id, default_id)
+static func design(table_id: String, kind := "cards") -> Dictionary:
+	var k: Dictionary = kinds.get(kind, {})
+	var styles: Dictionary = k.get("styles", {})
+	var default_id := str(k.get("default", "house"))
+	var id: String = k.get("tables", {}).get(table_id, default_id)
 	var style: Dictionary = styles.get(id, styles.get(default_id, {}))
-	return fill(style.get("design", {}))
+	return fill(style.get("design", {}), kind)
 
 
-static func fill(given: Dictionary) -> Dictionary:
-	var out := HOUSE.duplicate(true)
+static func fill(given: Dictionary, kind := "cards") -> Dictionary:
+	var out: Dictionary = HOUSES.get(kind, HOUSE).duplicate(true)
 	for key in given:
 		if out.get(key) is Dictionary and given[key] is Dictionary:
 			out[key] = (out[key] as Dictionary).merged(given[key], true)

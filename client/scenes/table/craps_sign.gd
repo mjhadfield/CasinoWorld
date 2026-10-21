@@ -17,6 +17,7 @@ const W := 32.0
 const H := 134.0
 const TOP := -168.0          # the housing's top edge, above the base
 
+var tone: Array = TableStyle.DICE.red   # the dice's colours, as the table's (CrapsTable.restyle)
 var history: Array = [[5, 3], [6, 1], [4, 4], [2, 3], [6, 5], [3, 1], [5, 2], [6, 6], [2, 2], [4, 1], [5, 5], [3, 3]]:
 	set(v):
 		history = v.map(func(r): return [int(r[0]), int(r[1])])   # (JSON numbers arrive as floats)
@@ -92,8 +93,8 @@ func _draw() -> void:
 		var pulse := 0.5 + 0.5 * cos(age * PI * 3.0) if age < 2.0 else 0.0
 		if pulse > 0:
 			draw_colored_polygon(TableFelt._rounded(Rect2(x + 3, y + 12, W - 6, 18), 3.0), Color(1, 0.93, 0.67, 0.3 * pulse))
-		CrapsDice.draw_die(self, Vector2(-5, y + 18), 0.0, latest[0], 0.0)
-		CrapsDice.draw_die(self, Vector2(5, y + 18), 0.0, latest[1], 0.0)
+		CrapsDice.draw_die(self, Vector2(-5, y + 18), 0.0, latest[0], 0.0, CrapsDice.SIZE, tone)
+		CrapsDice.draw_die(self, Vector2(5, y + 18), 0.0, latest[1], 0.0, CrapsDice.SIZE, tone)
 		var total: int = latest[0] + latest[1]
 		_text(str(total), Vector2(0, y + 27), 5.0, Color("ff5148") if total == 7 else Color.WHITE)
 	# the ten before it, on the LED screen

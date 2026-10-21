@@ -70,6 +70,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	$Felt/Wheel.position = WHEEL_AT - _felt.position
+	wheel.restyle(style())
 	wheel.ball_sound.connect(_ball_sound)
 
 
@@ -304,9 +305,18 @@ func _show_bets(seat: int, b: Dictionary, d: float) -> void:
 				_relayout(spot, d))
 
 
-## Roulette keeps its own look for now (no table style).
+## Roulette has its own kind of table style (and keeps its seat-coloured chips).
 func styled() -> bool:
 	return false
+
+
+func style_kind() -> String:
+	return "roulette"
+
+
+func restyle() -> void:
+	super.restyle()
+	wheel.restyle(style())
 
 
 func _make_stack(seat: int) -> ChipStack2D:

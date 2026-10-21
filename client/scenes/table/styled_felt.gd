@@ -8,7 +8,9 @@ extends TableFelt
 ## artwork. A game's felt (tcp_felt.gd and the rest) extends this and lays its spots out in _draw_layout()
 ## with spot() and its shorthands, at exactly the places the game puts its chips and cards.
 ##
-## Roulette and Craps aren't drawn with this: they keep TableFelt's Mahogany & Brass.
+## Roulette (rou_felt.gd) and Craps (crp_felt.gd) are drawn with this too, in their own kinds of style: they
+## give their own outline (_grown), rail width, middle and padding (_pad_area), and draw their own float or rack
+## (float_tray) and printing in place of the card table's ledge, tray and spots.
 
 ## The dealer's ledge, where the rail sweeps across the bay to hold the chip tray: half its width (the tray's),
 ## the fillets where it leaves the dealer's edge, the radius of its front corners. Its front is the tray's.
@@ -25,6 +27,43 @@ var _gradients := {}
 func _init() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+
+
+# ------------------------------------------------------------------ the table's shape (Roulette and Craps give theirs)
+## The table's outline grown `by` outwards from the felt's edge (negative: into the felt).
+func _grown(by: float) -> PackedVector2Array:
+	return CasinoTable.grown(by)
+
+
+func _rail_w() -> float:
+	return CasinoTable.RAIL
+
+
+## The felt's middle: its shading centres on it, and the rail's grain runs round it.
+func _middle() -> Vector2:
+	return Vector2(0, -70)
+
+
+## How far the felt's shading reaches from the middle.
+func _reach() -> float:
+	return 400.0
+
+
+## Where the rail runs straight across (the dealer's edge and the ledge): its wood isn't laid round the curve there.
+func _straight(p: Vector2, half := 70.0) -> bool:
+	return absf(p.x) < half and p.y < -118.0
+
+
+## The part of the rail padding `arm` covers, or nothing for all of it ("all").
+func _pad_area(arm: String) -> PackedVector2Array:
+	if arm == "all":
+		return PackedVector2Array()
+	return PackedVector2Array([Vector2(-220, ARMREST_FROM), Vector2(220, ARMREST_FROM), Vector2(220, 80), Vector2(-220, 80)])
+
+
+## The rail's crown, where it's lit.
+func _crown() -> float:
+	return _rail_w() * 4.0 / 7.0
 
 
 func paint() -> void:
@@ -97,16 +136,16 @@ static func _uv(pts: PackedVector2Array, tile: float) -> PackedVector2Array:
 
 # ------------------------------------------------------------------ the rail
 func _rail(felt: PackedVector2Array, ledge: bool) -> void:
-	var outer := CasinoTable.grown(CasinoTable.RAIL + 0.5)
+	var outer := _grown(_rail_w() + 0.5)
 	var arm: String = d.rail.armrest
 	if arm != "all":
 		_wood(outer)
 	if arm != "none":
-		_leather(outer, arm == "player", ledge and arm == "all")
+		_leather(outer, _pad_area(arm), ledge and arm == "all")
 	# The rounded profile: a dark outer edge, a lit crown, a shadow where it meets the felt.
 	_loop(outer, Color(0, 0, 0, 0.6), 1.3)
-	_loop(_shifted(CasinoTable.grown(4.0), Vector2(0, -1.0)), Color(SHEEN, 0.10), 2.4)
-	_loop(_shifted(CasinoTable.grown(4.0), Vector2(0, -1.2)), Color(1.0, 0.9, 0.784, 0.2), 0.6)
+	_loop(_shifted(_grown(_crown()), Vector2(0, -1.0)), Color(SHEEN, 0.10), 2.4)
+	_loop(_shifted(_grown(_crown()), Vector2(0, -1.2)), Color(1.0, 0.9, 0.784, 0.2), 0.6)
 	_loop(felt, Color(0, 0, 0, 0.5), 1.8)
 	if ledge:
 		draw_polyline(tongue(-2.4), Color(SHEEN, 0.12), 1.4, true)
@@ -124,7 +163,8 @@ func _wood(outer: PackedVector2Array) -> void:
 	var tile: float = TableStyle.WOOD_TILE[key]
 	draw_colored_polygon(outer, Color("2a160b"))
 	draw_colored_polygon(outer, Color.WHITE, _uv(outer, tile), tex)
-	var c := CasinoTable.grown(3.5)   # the rail's centreline
+	var half := _rail_w() / 2
+	var c := _grown(half)   # the rail's centreline
 	var s := 0.0
 	for i in c.size():
 		var p := c[i]
@@ -133,43 +173,46 @@ func _wood(outer: PackedVector2Array) -> void:
 		var length := seg.length()
 		if length < 1e-6:
 			continue
-		if not (absf(p.x) < 70.0 and p.y < -118.0):
+		if not _straight(p):
 			var along := seg / length
 			var n := Vector2(-along.y, along.x)
-			if n.dot(p - Vector2(0, -70)) < 0.0:
+			if n.dot(p - _middle()) < 0.0:
 				n = -n   # (outwards)
 			var a := p - along * 0.35
 			var b := q + along * 0.35
-			var quad := PackedVector2Array([a + n * 4.0, b + n * 4.0, b - n * 3.6, a - n * 3.6])
+			var out := half + 0.5
+			var inn := half + 0.1
+			var quad := PackedVector2Array([a + n * out, b + n * out, b - n * inn, a - n * inn])
 			var u0 := (s - 0.35) / tile
 			var u1 := (s + length + 0.35) / tile
-			var uv := PackedVector2Array([Vector2(u0, 4.0 / tile), Vector2(u1, 4.0 / tile), Vector2(u1, -3.6 / tile), Vector2(u0, -3.6 / tile)])
+			var uv := PackedVector2Array([Vector2(u0, out / tile), Vector2(u1, out / tile), Vector2(u1, -inn / tile), Vector2(u0, -inn / tile)])
 			draw_colored_polygon(quad, Color.WHITE, uv, tex)
 		s += length
 	if key == "ebony":   # lacquered: a gloss along the crown
-		_loop(_shifted(CasinoTable.grown(4.0), Vector2(0, -1.4)), Color(1, 1, 1, 0.10), 1.6)
+		_loop(_shifted(_grown(_crown()), Vector2(0, -1.4)), Color(1, 1, 1, 0.10), 1.6)
 
 
-## Padded leather, all round or just the players' side: lit along its crown, stitched near both edges.
-func _leather(outer: PackedVector2Array, players_side: bool, ledge_crest: bool) -> void:
+## Padded leather, all round or just `area` of the rail (the players' side, or Craps' dealers' side): lit along
+## its crown, stitched near both edges.
+func _leather(outer: PackedVector2Array, area: PackedVector2Array, ledge_crest: bool) -> void:
 	var col := TableStyle.colour(d, "rail.leather")
-	var area := PackedVector2Array([Vector2(-220, ARMREST_FROM), Vector2(220, ARMREST_FROM), Vector2(220, 80), Vector2(-220, 80)])
-	var parts: Array = Geometry2D.intersect_polygons(outer, area) if players_side else [outer]
+	var some := not area.is_empty()
+	var parts: Array = Geometry2D.intersect_polygons(outer, area) if some else [outer]
 	for part in parts:
 		draw_colored_polygon(part, col)
 		draw_colored_polygon(part, Color.WHITE, _uv(part, 22.0), TableStyle.LEATHER)
 	var hi := Color(1, 1, 1, 0.18 if col.get_luminance() > 0.3 else 0.09)
-	_band(_shifted(CasinoTable.grown(4.0), Vector2(0, -0.6)), hi, 3.2, area if players_side else PackedVector2Array())
-	_band(_shifted(CasinoTable.grown(4.0), Vector2(0, -0.9)), hi, 1.2, area if players_side else PackedVector2Array())
+	_band(_shifted(_grown(_crown()), Vector2(0, -0.6)), hi, 3.2, area)
+	_band(_shifted(_grown(_crown()), Vector2(0, -0.9)), hi, 1.2, area)
 	if ledge_crest:
 		draw_polyline(tongue(-3.0), hi, 2.4, true)
 	var thread := Color(col.lightened(0.35), 0.55)
-	for edge in [CasinoTable.grown(1.2), CasinoTable.grown(5.9)]:
+	for edge in [_grown(1.2), _grown(_rail_w() - 1.1)]:
 		for i in edge.size():
 			var p: Vector2 = edge[i]
 			var q: Vector2 = edge[(i + 1) % edge.size()]
-			if (players_side and p.y < ARMREST_FROM) or (absf(p.x) < 60.0 and p.y < -118.0):
-				continue   # (no stitching across the ledge, or above the armrest)
+			if (some and not Geometry2D.is_point_in_polygon(p, area)) or _straight(p, 60.0):
+				continue   # (no stitching across the ledge, or past the padding)
 			draw_dashed_line(p, q, thread, 0.18, 0.8)
 
 
@@ -188,9 +231,11 @@ func _band(pts: PackedVector2Array, colour: Color, width: float, within: PackedV
 func _felt(felt: PackedVector2Array) -> void:
 	var uv := PackedVector2Array()
 	for p in felt:
-		uv.append((p - Vector2(0, -70)) / 400.0 + Vector2(0.5, 0.5))
+		uv.append((p - _middle()) / _reach() + Vector2(0.5, 0.5))
 	draw_colored_polygon(felt, Color.WHITE, uv, _gradient(TableStyle.colour(d, "felt.colour"), float(d.felt.vignette)))
 	match str(d.felt.texture):
+		"grain":   # the fine grain the tables had before styles
+			draw_colored_polygon(felt, Color(1, 1, 1, 0.25), _uv(felt, 40.0), GRAIN)
 		"velvet":
 			draw_colored_polygon(felt, Color(1, 1, 1, 0.85), _uv(felt, 70.0), TableStyle.VELVET)
 		"weave":
@@ -232,7 +277,7 @@ func _border(ledge: bool) -> void:
 		cut = tongue(3.0)
 		cut.append(Vector2(cut[cut.size() - 1].x, -170))
 		cut.append(Vector2(cut[0].x, -170))
-	var g := func(by: float) -> PackedVector2Array: return CasinoTable.grown(by)
+	var g := func(by: float) -> PackedVector2Array: return _grown(by)
 	match b:
 		"pinstripe":
 			_line(g.call(-5.0), Color(ink, 0.7), 0.5, cut)
@@ -300,16 +345,49 @@ func _tray(t: CasinoTable, ledge: bool) -> void:
 			_lid(well.grow(0.3))
 	else:   # sunk in where the tray has always been, with a metal lip
 		var r := t.tray_rect()
-		draw_colored_polygon(_rounded(r.grow(0.5), 2.8), Color(0, 0, 0, 0.6))
-		var lip := _rounded(r, 2.4)
-		var shades := PackedColorArray()
-		for p in lip:   # lit along the top, shadowed along the bottom
-			var f := inverse_lerp(r.position.y, r.end.y, p.y)
-			shades.append(b[0].lightened(0.35 * (1.0 - f * 2.5)) if f < 0.4 else b[0].darkened(0.35 * (f - 0.4) / 0.6))
-		draw_polygon(lip, shades)
+		_lip(r, b[0])
 		_channels(r.grow(-1.3), "steel" if fin == "steel" else "wood")
 		if fin == "lid":
 			_lid(r.grow(-0.8))
+
+
+## A metal lip round a tray, lit along the top and shadowed along the bottom.
+func _lip(r: Rect2, metal: Color) -> void:
+	draw_colored_polygon(_rounded(r.grow(0.5), 2.8), Color(0, 0, 0, 0.6))
+	var lip := _rounded(r, 2.4)
+	var shades := PackedColorArray()
+	for p in lip:
+		var f := inverse_lerp(r.position.y, r.end.y, p.y)
+		shades.append(metal.lightened(0.35 * (1.0 - f * 2.5)) if f < 0.4 else metal.darkened(0.35 * (f - 0.4) / 0.6))
+	draw_polygon(lip, shades)
+
+
+## Roulette's float and Craps' chip rack, finished `fin`: "wood" (a frame in the rail's wood, flush with the
+## rail, or with `frame` false just the well cut into it), "steel" (a brushed-steel well in a metal lip) or "lid"
+## (the wooden one under a smoked lid). The bead carries on round its edge where it meets the felt.
+func float_tray(r: Rect2, felt: PackedVector2Array, fin: String, frame := true) -> void:
+	var b := TableStyle.bead(d)
+	if fin == "steel":
+		_lip(r, b[0] if not b.is_empty() else Color("6d757c"))
+		_channels(r.grow(-1.3), "steel")
+		return
+	var well := r
+	if frame:
+		var key := str(d.rail.wood)
+		var outline := _rounded(r, 2.5)
+		draw_colored_polygon(outline, Color("2a160b"))
+		draw_colored_polygon(outline, Color.WHITE, _uv(outline, TableStyle.WOOD_TILE[key]), TableStyle.WOODS[key])
+		if not b.is_empty():
+			outline.append(outline[0])
+			for edge in Geometry2D.intersect_polyline_with_polygon(outline, felt):
+				draw_polyline(edge, b[0], 0.6, true)
+		well = r.grow(-1.6)
+	_channels(well, "wood")
+	draw_line(Vector2(well.position.x + 1.4, well.end.y - 0.25), Vector2(well.end.x - 1.4, well.end.y - 0.25), Color(SHEEN, 0.28), 0.35)
+	if not frame and not b.is_empty():
+		_loop(_rounded(r.grow(0.5), 2.1), b[0], 0.5)
+	if fin == "lid":
+		_lid(well.grow(0.3))
 
 
 ## The tray's well: ten lined channels with the chips lying in them on their edges, some full, some part-full,
@@ -324,7 +402,7 @@ func _channels(well: Rect2, fin: String) -> void:
 		draw_colored_polygon(_rounded(ch, 1.0), lining)
 		var n := int(round(TRAY_FILL[i] * floorf((ch.size.y - 0.6) / CHIP_EDGE)))
 		for k in n:
-			ChipFace.edge(self, Rect2(ch.position.x + 0.35, ch.end.y - 0.3 - (k + 1) * CHIP_EDGE, ch.size.x - 0.7, CHIP_EDGE - 0.12), TRAY_DENOMS[i], k, str(d.chips))
+			ChipFace.edge(self, Rect2(ch.position.x + 0.35, ch.end.y - 0.3 - (k + 1) * CHIP_EDGE, ch.size.x - 0.7, CHIP_EDGE - 0.12), TRAY_DENOMS[i], k, str(d.get("chips", "classic")))
 	for band in [3.0, 2.0, 1.0]:
 		draw_rect(Rect2(well.position, Vector2(well.size.x, band)), Color(0, 0, 0, 0.18))
 	if fin == "steel":

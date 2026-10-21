@@ -1,15 +1,18 @@
 """
-Table styles: how a card table looks, as named designs made on the admin page's Tables tab (its designer is
+Table styles: how a table looks, as named designs made on the admin page's Tables tab (its designer is
 table_styles_web/, the same renderer as the signed-off mockup in docs/table_styles/mockup/).
 
-A style is only looks: the felt, rail, chip tray, printing, betting spots, Jackpot disc, shuffler, shoe, discard
-rack, card backs and chips. Where anything sits on the felt never changes. Every card table uses the default
-style (House, Mike's design, 2026-10-21) unless `tables` gives it another. Roulette and Craps keep
-their own look for now (STYLED_GAMES), so they can't be given one.
+There are three kinds, each with its own styles, default and placement, because the tables have different
+parts: the card tables ("cards"), Roulette ("roulette") and Craps ("craps"). A style is only looks: for a
+card table the felt, rail, chip tray, printing, betting spots, Jackpot disc, shuffler, shoe, discard rack, card
+backs and chips; for Roulette the felt, rail, printing, number colours, float and wheel; for Craps the felt, rail,
+printing, rubber, chip rack and dice. Where anything sits on the felt never changes. Every table uses its kind's
+default style (House) unless `tables` gives it another. Card House is Mike's design (2026-10-21); Roulette's
+and Craps' House is how those tables looked before they took styles.
 
-Saved in the meta table under "table_styles":
+Saved in the meta table under each kind's KEY:
     {"styles": {style_id: {"name": ..., "design": {...}}}, "tables": {table_id: style_id}, "default": style_id}
-The four mockup presets (BUILT_IN) are always there and can't be changed or deleted; save a copy to change one.
+Each kind's presets (BUILT_IN) are always there and can't be changed or deleted; save a copy to change one.
 House is saved the first time it's asked for and can be changed but not deleted.
 """
 import copy
@@ -50,8 +53,8 @@ _PRESET_BASE = {
 }
 
 
-def _preset(name: str, **changes) -> dict:
-    design = copy.deepcopy(_PRESET_BASE)
+def _preset(name: str, base: dict | None = None, **changes) -> dict:
+    design = copy.deepcopy(_PRESET_BASE if base is None else base)
     for path, value in changes.items():
         *parents, last = path.split("__")
         node = design
@@ -108,19 +111,99 @@ CHOICES = {
 COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.accent", "shufflerTint", "shoeTint", "rackTint")
 RANGES = {"felt.vignette": (0.0, 1.0)}
 
-# Roulette and Craps keep their own look for now.
-STYLED_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
-                "ultimate_texas_holdem", "let_it_ride", "high_card_flush", "baccarat")
+CARD_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
+              "ultimate_texas_holdem", "let_it_ride", "high_card_flush", "baccarat")
 # Which of the designer's layouts each game prints.
 LAYOUTS = {"three_card_poker": "tcp", "blackjack": "bj", "mississippi_stud": "ms", "pai_gow_fortune": "pgf",
            "pai_gow_face_up": "pgu", "ultimate_texas_holdem": "uth", "let_it_ride": "lir",
-           "high_card_flush": "hcf", "baccarat": "bac"}
+           "high_card_flush": "hcf", "baccarat": "bac", "roulette": "rou", "craps": "crp"}
+
+# ---------------------------------------------------------------- Roulette
+# How the roulette table looked before it took a style (TableFelt's Mahogany & Brass).
+ROULETTE_HOUSE = {
+    "felt": {"colour": "#93141f", "texture": "grain", "vignette": 0.3},
+    "border": "none", "led": "#ffd28a",
+    "rail": {"wood": "mahogany", "armrest": "none", "leather": "#2a140a", "bead": "brass"},
+    "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
+    "numbers": {"red": "#e0453d", "black": "#1a0d0b", "zero": "#1f8a52"},
+    "float": "wood",
+    "wheel": {"wood": "match", "metal": "brass"},
+}
+ROULETTE_BUILT_IN = {
+    "grand": _preset("Grand Mahogany", ROULETTE_HOUSE, felt__texture="weave", felt__vignette=0.55, border="gilt"),
+    "monte": _preset("Monte Carlo", ROULETTE_HOUSE, felt__colour="#0f5b3f", felt__texture="velvet", felt__vignette=0.6,
+                     border="double", rail__wood="walnut", rail__bead="gold", print__font="cormorant",
+                     print__ink="#e8d3a0", print__accent="#e0b84e", numbers__red="#c8283a", float="lid",
+                     wheel__metal="gold"),
+    "deco": _preset("Midnight Deco", ROULETTE_HOUSE, felt__colour="#14284a", felt__texture="weave", felt__vignette=0.5,
+                    border="deco", rail__wood="rosewood", rail__bead="gold", print__font="josefin", print__ink="#e8d3a0",
+                    print__accent="#e0b84e", numbers__red="#b3263a", numbers__black="#0e0f14", wheel__metal="gold"),
+    "vegas": _preset("Modern Vegas", ROULETTE_HOUSE, felt__colour="#1a3f93", felt__texture="weave", felt__vignette=0.35,
+                     border="led", led="#8fd3ff", rail__wood="ebony", rail__bead="chrome", print__font="montserrat",
+                     print__ink="#f4f4f2", print__accent="#8fd3ff", float="steel", wheel__metal="chrome"),
+    "cards": _preset("Card tables' House", ROULETTE_HOUSE, felt=copy.deepcopy(HOUSE["felt"]), border=HOUSE["border"],
+                     led=HOUSE["led"], rail=copy.deepcopy(HOUSE["rail"]), print=copy.deepcopy(HOUSE["print"]),
+                     wheel__metal="gold"),
+}
+
+# ---------------------------------------------------------------- Craps
+# How the craps table looked before it took a style.
+CRAPS_HOUSE = {
+    "felt": {"colour": "#93141f", "texture": "grain", "vignette": 0.3},
+    "rail": {"wood": "mahogany", "armrest": "dealer", "leather": "#2a140a", "bead": "brass"},
+    "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#f2cf6a", "red": "#e0453d"},
+    "rubber": "#1b1413",
+    "rack": "wood",
+    "dice": "red",
+}
+CRAPS_BUILT_IN = {
+    "grand": _preset("Grand Mahogany", CRAPS_HOUSE, felt__texture="weave", felt__vignette=0.55, rail__leather="#1b1a1a"),
+    "monte": _preset("Monte Carlo", CRAPS_HOUSE, felt__colour="#0f5b3f", felt__texture="velvet", felt__vignette=0.6,
+                     rail__wood="walnut", rail__leather="#1b1a1a", rail__bead="gold", print__font="cormorant",
+                     print__ink="#e8d3a0", print__accent="#e0b84e", rack="lid"),
+    "deco": _preset("Midnight Deco", CRAPS_HOUSE, felt__colour="#14284a", felt__texture="weave", felt__vignette=0.5,
+                    rail__wood="rosewood", rail__leather="#1a2234", rail__bead="gold", print__font="josefin",
+                    print__ink="#e8d3a0", print__accent="#e0b84e", rubber="#141a2a"),
+    "vegas": _preset("Modern Vegas", CRAPS_HOUSE, felt__colour="#1a3f93", felt__texture="weave", felt__vignette=0.35,
+                     rail__wood="ebony", rail__armrest="all", rail__leather="#1b1a1a", rail__bead="chrome",
+                     print__font="montserrat", print__ink="#f4f4f2", print__accent="#8fd3ff", rack="steel", dice="blue"),
+    "cards": _preset("Card tables' House", CRAPS_HOUSE, felt=copy.deepcopy(HOUSE["felt"]), rail=copy.deepcopy(HOUSE["rail"]),
+                     print__ink=HOUSE["print"]["ink"]),
+}
+FELT_TEXTURES = ("grain", "weave", "velvet", "plain")
+DICE = ("red", "green", "blue", "smoke", "amber", "violet")
+
+KINDS = {
+    "cards": {"key": KEY, "label": "card table", "games": CARD_GAMES, "house": HOUSE, "built_in": BUILT_IN,
+              "choices": CHOICES, "colours": COLOURS, "ranges": RANGES},
+    "roulette": {"key": KEY + "_roulette", "label": "roulette table", "games": ("roulette",), "house": ROULETTE_HOUSE,
+                 "built_in": ROULETTE_BUILT_IN, "ranges": RANGES,
+                 "choices": {"felt.texture": FELT_TEXTURES, "border": CHOICES["border"], "rail.wood": WOODS,
+                             "rail.armrest": ("none", "all"), "rail.bead": CHOICES["rail.bead"],
+                             "print.font": CHOICES["print.font"], "float": ("wood", "steel", "lid"),
+                             "wheel.wood": ("match",) + WOODS, "wheel.metal": ("brass", "gold", "chrome")},
+                 "colours": ("felt.colour", "led", "rail.leather", "print.ink", "print.accent",
+                             "numbers.red", "numbers.black", "numbers.zero")},
+    "craps": {"key": KEY + "_craps", "label": "craps table", "games": ("craps",), "house": CRAPS_HOUSE,
+              "built_in": CRAPS_BUILT_IN, "ranges": RANGES,
+              "choices": {"felt.texture": FELT_TEXTURES, "rail.wood": WOODS, "rail.armrest": ("none", "dealer", "all"),
+                          "rail.bead": CHOICES["rail.bead"], "print.font": CHOICES["print.font"],
+                          "rack": ("wood", "steel", "lid"), "dice": DICE},
+              "colours": ("felt.colour", "rail.leather", "print.ink", "print.accent", "print.red", "rubber")},
+}
 
 
-def styled_tables() -> dict:
-    """The tables that take a style: {table_id: {name, game, layout}}."""
+def _kind(kind: str) -> dict:
+    if kind not in KINDS:
+        raise ValueError(f"No kind of table called {kind!r}.")
+    return KINDS[kind]
+
+
+def styled_tables(kind: str = "cards") -> dict:
+    """The tables of a kind: {table_id: {name, game, layout}}."""
+    games = _kind(kind)["games"]
     return {tid: {"name": t["name"], "game": t["game"], "layout": LAYOUTS[t["game"]]}
-            for tid, t in floor.TABLES.items() if t.get("game") in STYLED_GAMES}
+            for tid, t in floor.TABLES.items() if t.get("game") in games}
 
 
 def _get(design: dict, path: str):
@@ -138,12 +221,14 @@ def _set(design: dict, path: str, value) -> None:
     node[last] = value
 
 
-def clean_design(data: dict) -> dict:
-    """A design from the designer, checked, with anything it leaves out taken from House (ValueError says what's wrong)."""
+def clean_design(data: dict, kind: str = "cards") -> dict:
+    """A design from the designer, checked, with anything it leaves out taken from its kind's House (ValueError
+    says what's wrong)."""
+    k = _kind(kind)
     if not isinstance(data, dict):
         raise ValueError("A design is a set of choices.")
-    out = copy.deepcopy(HOUSE)
-    for path, allowed in CHOICES.items():
+    out = copy.deepcopy(k["house"])
+    for path, allowed in k["choices"].items():
         try:
             value = _get(data, path)
         except (KeyError, TypeError):
@@ -151,7 +236,7 @@ def clean_design(data: dict) -> dict:
         if value not in allowed:
             raise ValueError(f"{path} is one of {', '.join(allowed)}.")
         _set(out, path, value)
-    for path in COLOURS:
+    for path in k["colours"]:
         try:
             value = str(_get(data, path)).lower()
         except (KeyError, TypeError):
@@ -159,7 +244,7 @@ def clean_design(data: dict) -> dict:
         if not re.fullmatch(r"#[0-9a-f]{6}", value):
             raise ValueError(f"{path} is a colour like #93141f.")
         _set(out, path, value)
-    for path, (lo, hi) in RANGES.items():
+    for path, (lo, hi) in k["ranges"].items():
         try:
             value = float(_get(data, path))
         except (KeyError, TypeError):
@@ -172,78 +257,86 @@ def clean_design(data: dict) -> dict:
     return out
 
 
-def load(store) -> dict:
-    """Every style (the built-ins marked `builtin`), which tables have which, and the default."""
-    saved = store.get_json(KEY, None)
+def load(store, kind: str = "cards") -> dict:
+    """A kind's styles (the built-ins marked `builtin`), which tables have which, and the default."""
+    k = _kind(kind)
+    house = k["house"]
+    saved = store.get_json(k["key"], None)
     if saved is None:
-        saved = {"styles": {HOUSE_ID: {"name": "House", "design": copy.deepcopy(HOUSE)}}, "tables": {}, "default": HOUSE_ID}
-        store.set_json(KEY, saved)
-    styles = {sid: {"name": s["name"], "design": copy.deepcopy(s["design"]), "builtin": True} for sid, s in BUILT_IN.items()}
+        saved = {"styles": {HOUSE_ID: {"name": "House", "design": copy.deepcopy(house)}}, "tables": {}, "default": HOUSE_ID}
+        store.set_json(k["key"], saved)
+    styles = {sid: {"name": s["name"], "design": copy.deepcopy(s["design"]), "builtin": True} for sid, s in k["built_in"].items()}
     for sid, s in (saved.get("styles") or {}).items():
-        if sid in BUILT_IN:
+        if sid in k["built_in"]:
             continue
         try:
-            design = clean_design(s.get("design") or {})   # (anything added since it was saved comes from House)
+            design = clean_design(s.get("design") or {}, kind)   # (anything added since it was saved comes from House)
         except ValueError:
-            design = copy.deepcopy(HOUSE)
+            design = copy.deepcopy(house)
         styles[sid] = {"name": str(s.get("name") or sid), "design": design, "builtin": False}
-    styles.setdefault(HOUSE_ID, {"name": "House", "design": copy.deepcopy(HOUSE), "builtin": False})
+    styles.setdefault(HOUSE_ID, {"name": "House", "design": copy.deepcopy(house), "builtin": False})
     default = saved.get("default") if saved.get("default") in styles else HOUSE_ID
-    known = styled_tables()
+    known = styled_tables(kind)
     tables = {t: sid for t, sid in (saved.get("tables") or {}).items() if sid in styles and t in known}
     return {"styles": styles, "tables": tables, "default": default}
 
 
-def _save(store, current: dict) -> dict:
-    store.set_json(KEY, {"styles": {sid: {"name": s["name"], "design": s["design"]}
-                                    for sid, s in current["styles"].items() if not s["builtin"]},
-                         "tables": current["tables"], "default": current["default"]})
+def load_all(store) -> dict:
+    """Every kind's styles, as the welcome and the `table_styles` broadcast send them: {kind: load(kind)}."""
+    return {kind: load(store, kind) for kind in KINDS}
+
+
+def _save(store, current: dict, kind: str) -> dict:
+    store.set_json(_kind(kind)["key"], {"styles": {sid: {"name": s["name"], "design": s["design"]}
+                                                   for sid, s in current["styles"].items() if not s["builtin"]},
+                                        "tables": current["tables"], "default": current["default"]})
     return current
 
 
-def save_style(store, style_id: str, data: dict) -> dict:
+def save_style(store, style_id: str, data: dict, kind: str = "cards") -> dict:
+    k = _kind(kind)
     if not re.fullmatch(r"[a-z0-9_]{1,30}", style_id):
         raise ValueError("A style's id is lower-case letters, digits and _.")
-    if style_id in BUILT_IN:
+    if style_id in k["built_in"]:
         raise ValueError("The built-in styles stay as they are: save a copy under a new name.")
-    current = load(store)
+    current = load(store, kind)
     old = current["styles"].get(style_id)
     name = str(data.get("name", old["name"] if old else "")).strip()
     if not name or len(name) > 40:
         raise ValueError("Give the style a name (up to 40 characters).")
-    design = clean_design(data["design"]) if "design" in data else (old["design"] if old else copy.deepcopy(HOUSE))
+    design = clean_design(data["design"], kind) if "design" in data else (old["design"] if old else copy.deepcopy(k["house"]))
     current["styles"][style_id] = {"name": name, "design": design, "builtin": False}
-    return _save(store, current)
+    return _save(store, current, kind)
 
 
-def delete_style(store, style_id: str) -> dict:
-    current = load(store)
+def delete_style(store, style_id: str, kind: str = "cards") -> dict:
+    current = load(store, kind)
     if style_id not in current["styles"]:
         raise KeyError(style_id)
-    if style_id in BUILT_IN or style_id == HOUSE_ID:
+    if style_id in _kind(kind)["built_in"] or style_id == HOUSE_ID:
         raise ValueError("House and the built-in styles stay; change House instead.")
     del current["styles"][style_id]
     current["tables"] = {t: s for t, s in current["tables"].items() if s != style_id}
     if current["default"] == style_id:
         current["default"] = HOUSE_ID
-    return _save(store, current)
+    return _save(store, current, kind)
 
 
-def assign(store, data: dict) -> dict:
+def assign(store, data: dict, kind: str = "cards") -> dict:
     """{"tables": {table_id: style_id, or None for the default}, "default": style_id}, either part optional."""
-    current = load(store)
-    known = styled_tables()
+    current = load(store, kind)
+    known = styled_tables(kind)
     if "default" in data:
         if data["default"] not in current["styles"]:
             raise ValueError(f"No table style called {data['default']!r}.")
         current["default"] = data["default"]
     for table_id, style_id in (data.get("tables") or {}).items():
         if table_id not in known:
-            raise ValueError(f"{table_id} can't take a table style (Roulette and Craps keep their own look).")
+            raise ValueError(f"{table_id} isn't a {_kind(kind)['label']}.")
         if style_id in (None, ""):
             current["tables"].pop(table_id, None)
         elif style_id not in current["styles"]:
             raise ValueError(f"No table style called {style_id!r}.")
         else:
             current["tables"][table_id] = style_id
-    return _save(store, current)
+    return _save(store, current, kind)

@@ -7,7 +7,8 @@ table designer alike, so both draw from the same pictures:
   client/assets/tiles/table/<name>_shade.png     the leather and felt grain: white where the scan is lighter
                                                  than its average, black where darker, the difference as alpha,
                                                  so drawn over any colour it lightens and darkens it
-  server/casino_server/table_styles_web/textures/  the same files, plus the carpet and the dealer for the designer
+  server/casino_server/table_styles_web/textures/  the same files, plus the carpet, the dealer and the fine felt grain
+                                                 (Roulette's and Craps' House cloth) for the designer
   server/casino_server/table_styles_web/fonts/     the game's lettering fonts, for the designer
 
 Downloads are cached in .dev/polyhaven/. Every source and what's done to it is in docs/table_styles/LICENSES.md;
@@ -98,6 +99,7 @@ def main():
     # The designer's stage: the floor's carpet and the dealer, as the game has them.
     shutil.copy(ROOT / "client" / "assets" / "tiles" / "carpet.png", OUT_WEB / "carpet.png")
     shutil.copy(ROOT / "client" / "assets" / "sprites" / "characters" / "dealer.png", OUT_WEB / "dealer.png")
+    shutil.copy(ROOT / "client" / "assets" / "tiles" / "felt_grain.png", OUT_WEB / "felt_grain.png")
     # ...and the game's lettering, so the designer prints with the very same fonts.
     fonts = OUT_WEB.parent / "fonts"
     fonts.mkdir(exist_ok=True)

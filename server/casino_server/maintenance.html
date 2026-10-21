@@ -242,6 +242,10 @@ details summary { cursor: pointer; }
 .ts-sw[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--panel) inset; }
 .ts-swatches input[type="color"] { width: 30px; height: 24px; padding: 1px; }
 .ts-field input[type="range"] { width: 100%; accent-color: var(--gold); }
+.ts-kinds { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.ts-kinds button { border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; padding: 7px 16px; margin-bottom: -1px; background: none; color: var(--muted); font-weight: 600; }
+.ts-kinds button[aria-selected="true"] { border-color: var(--line); background: var(--panel); color: var(--felt); }
+.ts-kinds[hidden], .ts [hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -362,9 +366,11 @@ details summary { cursor: pointer; }
 
 <!-- ============================================================ tables -->
 <section class="tab" id="tab-tables" aria-label="Tables">
-  <p class="lead">How the card tables look. Design a style, save it, and place it on any card table; every card table uses
-    the default (House) unless it's given another. Saving changes the floor straight away. Styles only change looks: the
-    cards, chips and betting spots stay exactly where they are. Roulette and Craps keep their own look for now.</p>
+  <div class="ts-kinds" id="ts-kinds" role="tablist" aria-label="Kind of table">
+    <button type="button" role="tab" data-kind="cards" aria-selected="true">Card Games</button>
+    <button type="button" role="tab" data-kind="roulette" aria-selected="false">Roulette</button>
+    <button type="button" role="tab" data-kind="craps" aria-selected="false">Craps</button>
+  </div>
   <div id="tables-app"><p class="hint">Loading…</p></div>
 </section>
 

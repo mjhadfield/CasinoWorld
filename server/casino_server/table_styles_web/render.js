@@ -1,7 +1,8 @@
-// The table designer's renderer: draws a card table in a table style, from the game's real geometry
-// (geometry.json, made by tools/table_geometry.gd). It is the signed-off mockup's renderer
-// (docs/table_styles/mockup/index.html), drawing with the game's own tiles and fonts, and the game's StyledFelt
-// draws the same way, so what's designed here is what the floor shows. Positions never depend on the style.
+// The table designer's renderer: draws a table in a table style, from the game's real geometry
+// (geometry.json, made by tools/table_geometry.gd). For the card tables it is the signed-off mockup's renderer
+// (docs/table_styles/mockup/index.html); Roulette and Craps are ports of rou_felt.gd and crp_felt.gd. It draws
+// with the game's own tiles and fonts, and the game's StyledFelt draws the same way, so what's designed here is
+// what the floor shows. Positions never depend on the style.
 
 let G = null;        // the geometry
 const TEX = {};      // the tiles, by name
@@ -10,7 +11,7 @@ const TEX = {};      // the tiles, by name
 export async function loadAssets(base) {
   G = await fetch(base + "geometry.json").then(r => { if (!r.ok) throw new Error("no geometry.json"); return r.json(); });
   const files = { mahogany: "wood_mahogany.jpg", walnut: "wood_walnut.jpg", wenge: "wood_wenge.jpg", rosewood: "wood_rosewood.jpg",
-    ebony: "wood_ebony.jpg", leather: "leather_shade.png", weave: "weave_shade.png", velvet: "velvet_shade.png", carpet: "carpet.png", dealer: "dealer.png" };
+    ebony: "wood_ebony.jpg", leather: "leather_shade.png", grain: "felt_grain.png", weave: "weave_shade.png", velvet: "velvet_shade.png", carpet: "carpet.png", dealer: "dealer.png" };
   await Promise.all(Object.entries(files).map(([k, f]) => new Promise(res => { const i = new Image(); i.onload = () => { TEX[k] = i; res(); };
     i.onerror = () => { const c = document.createElement("canvas"); c.width = c.height = 4; TEX[k] = c; res(); }; i.src = base + "textures/" + f; })));
   await Promise.all(Object.entries(FONT_FILES).map(([family, [file, weight]]) =>
@@ -91,6 +92,61 @@ export const GAMES = [["tcp", "Three Card"], ["bj", "Blackjack"], ["pgf", "Pai G
 export const VIEWS = { seated: ["Seated", [-166, -188, 332, 242]], table: ["Whole table", [-182, -192, 364, 254]],
   bay: ["Bay close-up", [-112, -160, 224, 70]], seat: ["One seat", [-16, -98, 82, 108]] };
 
+// Roulette's and Craps' own parts (table_styles.KINDS: their House is how they looked before styles, "today").
+const CLOTHS = [["grain", "Fine grain (today)"], ["weave", "Woven"], ["velvet", "Velvet"], ["plain", "Plain"]];
+const PAD_LEATHERS = [["Brown (today)", "#2a140a"], ...LEATHERS];
+const feltSlot = { id: "felt", label: "Felt", ctl: [
+  { key: "felt.colour", type: "swatch", options: FELTS, custom: true, label: "Colour" },
+  { key: "felt.texture", type: "seg", options: CLOTHS, label: "Cloth" },
+  { key: "felt.vignette", type: "range", label: "Darker towards the rail" }] };
+const railSlot = pads => ({ id: "rail", label: "Rail", ctl: [
+  { key: "rail.wood", type: "seg", options: Object.entries(WOODS).map(([k, v]) => [k, v.label]), label: "Wood" },
+  { key: "rail.armrest", type: "seg", options: pads, label: "Padding" },
+  { key: "rail.leather", type: "swatch", options: PAD_LEATHERS, custom: true, label: "Leather" },
+  { key: "rail.bead", type: "seg", options: [["brass", "Brass"], ["gold", "Gold"], ["chrome", "Chrome"], ["none", "None"]], label: "Bead where it meets the felt" }] });
+const fontCtl = { key: "print.font", type: "seg", options: Object.entries(FONTS).map(([k, v]) => [k, v[2]]), label: "Lettering" };
+export const ROULETTE_SLOTS = [
+  feltSlot,
+  { id: "border", label: "Border line", ctl: [
+    { key: "border", type: "seg", options: [["none", "None (today)"], ["pinstripe", "Pinstripe"], ["gilt", "Gilt"], ["double", "Double"], ["deco", "Deco"], ["led", "LED glow"]] },
+    { key: "led", type: "swatch", options: LEDS, custom: true, label: "LED colour" }] },
+  railSlot([["none", "Bare wood (today)"], ["all", "Leather all round"]]),
+  { id: "print", label: "Printing", ctl: [fontCtl,
+    { key: "print.ink", type: "swatch", options: INKS, custom: true, label: "Ink (lines, numbers, the wheel's numbers)" },
+    { key: "print.accent", type: "swatch", options: ACCENTS, custom: true, label: "Accent (gilt, double and deco borders)" }] },
+  { id: "numbers", label: "Number colours", hint: "the layout and the wheel's pockets", ctl: [
+    { key: "numbers.red", type: "swatch", options: [["Today's red", "#e0453d"], ["Crimson", "#c8283a"], ["Deep red", "#b3263a"], ["Scarlet", "#ff4a3d"], ["Wine", "#8e1a2a"]], custom: true, label: "Red" },
+    { key: "numbers.black", type: "swatch", options: [["Today's black", "#1a0d0b"], ["Ink", "#0e0f14"], ["Charcoal", "#2b2f33"], ["Navy", "#14203a"]], custom: true, label: "Black" },
+    { key: "numbers.zero", type: "swatch", options: [["Today's green", "#1f8a52"], ["Emerald", "#0f6b45"], ["Jade", "#2fa37a"], ["Gold", "#b8902e"]], custom: true, label: "Zero" }] },
+  { id: "float", label: "Float (chip tray)", ctl: [
+    { key: "float", type: "seg", options: [["wood", "Wood frame (today)"], ["steel", "Brushed steel"], ["lid", "Wood, smoked lid"]] }] },
+  { id: "wheel", label: "Wheel", ctl: [
+    { key: "wheel.wood", type: "seg", options: WOOD_PICKS, label: "Bowl wood" },
+    { key: "wheel.metal", type: "seg", options: [["brass", "Brass (today)"], ["gold", "Gold"], ["chrome", "Chrome"]], label: "Metal (frets, turret, rims, the chip hole)" }] },
+];
+export const CRAPS_SLOTS = [
+  feltSlot,
+  railSlot([["none", "Bare wood"], ["dealer", "Dealers' side (today)"], ["all", "Leather all round"]]),
+  { id: "print", label: "Printing", ctl: [fontCtl,
+    { key: "print.ink", type: "swatch", options: INKS, custom: true, label: "Ink (lines and most lettering)" },
+    { key: "print.accent", type: "swatch", options: [["Today's gold", "#f2cf6a"], ...ACCENTS], custom: true, label: "Gold (6 and 8, Field, Horn)" },
+    { key: "print.red", type: "swatch", options: [["Today's red", "#e0453d"], ["Deep red", "#b3263a"], ["Scarlet", "#ff4a3d"], ["Gold", "#f2cf6a"], ["Cream", "#f1e4c4"]], custom: true, label: "Red (Come, Big 6/8, Seven, Any Craps)" }] },
+  { id: "rubber", label: "Rubber walls", ctl: [
+    { key: "rubber", type: "swatch", options: [["Black (today)", "#1b1413"], ["Red", "#7a1418"], ["Navy", "#141a2a"], ["Green", "#123a24"], ["Grey", "#3a3e44"]], custom: true }] },
+  { id: "rack", label: "Chip rack", ctl: [
+    { key: "rack", type: "seg", options: [["wood", "Felt-lined well (today)"], ["steel", "Brushed steel"], ["lid", "Smoked lid"]] }] },
+  { id: "dice", label: "Dice", ctl: [
+    { key: "dice", type: "seg", options: [["red", "Red (today)"], ["green", "Green"], ["blue", "Blue"], ["smoke", "Smoke"], ["amber", "Amber"], ["violet", "Violet"]] }] },
+];
+// What each kind's designer shows: its parts, its games (the card tables' layouts) and its views.
+export const KINDS = {
+  cards: { slots: SLOTS, views: VIEWS },
+  roulette: { slots: ROULETTE_SLOTS, game: "rou", views: { table: ["Whole table", [-190, -160, 380, 215]],
+    layout: ["Layout close-up", [-75, -125, 250, 120]], wheel: ["Wheel and float", [-180, -125, 165, 130]] } },
+  craps: { slots: CRAPS_SLOTS, game: "crp", views: { table: ["Whole table", [-212, -190, 424, 210]],
+    end: ["One end", [30, -140, 180, 150]], middle: ["Middle", [-70, -140, 140, 150]] } },
+};
+
 // ---------------------------------------------------------------- small helpers
 export function clone(o) { return JSON.parse(JSON.stringify(o)); }
 export function getKey(o, k) { return k.split(".").reduce((a, p) => a && a[p], o); }
@@ -135,6 +191,19 @@ function feltPoly(mode) {
   o.forEach((p, i) => { if (p[1] < -110 && Math.abs(p[0]) < lim) { if (first < 0) first = i; last = i; } });
   return [...o.slice(0, first), ...tongue(0), ...o.slice(last + 1)];
 }
+// The shape a table's rail and felt are drawn round (StyledFelt's _grown, _rail_w, _middle, _reach, _pad_area):
+// the card table's, or Roulette's or Craps' ("rou", "crp"). g(by) is the outline grown `by` out from the felt.
+const CARD_SHAPE = {
+  g: by => G.grown[Number.isInteger(by) ? by.toFixed(1) : String(by)], rail: RAIL, middle: [0, -70], reach: 400,
+  box: [-200, -200, 400, 260], cards: true,
+  pad: arm => arm === "player" ? [[-200, -94], [200, -94], [200, 66], [-200, 66]] : null,
+};
+function shapeOf(key) {
+  const T = G[key];
+  return { g: by => { const p = T.grown[by.toFixed(2)]; if (!p) throw new Error("geometry.json has no " + key + " outline at " + by); return p; },
+    rail: T.rail, middle: key === "rou" ? [30, -60] : [0, -60], reach: key === "rou" ? 420 : 460, box: [-230, -160, 460, 200],
+    pad: arm => arm === "dealer" ? T.pad : null };
+}
 const grown = k => G.grown[k];
 function shift(pts, dx, dy) { return pts.map(p => [p[0] + dx, p[1] + dy]); }
 
@@ -152,7 +221,7 @@ function pat(ctx, key, units, m) {
 }
 function text(ctx, s, x, y, size, colour, D, opts = {}) {
   const f = FONTS[opts.font || D.print.font];
-  ctx.save(); ctx.translate(x, y + size * 0.35); ctx.scale(0.1, 0.1);
+  ctx.save(); ctx.translate(x, y); if (opts.angle) ctx.rotate(opts.angle); ctx.translate(0, size * 0.35); ctx.scale(0.1, 0.1);
   ctx.font = `${f[1]} ${size * 10}px "${f[0]}", Georgia, serif`;
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   if (opts.foil) { const g = ctx.createLinearGradient(0, -size * 8, 0, size * 2); g.addColorStop(0, lighten(colour, 0.45)); g.addColorStop(0.55, colour); g.addColorStop(1, darken(colour, 0.35)); ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillText(s, 2, 3); ctx.fillStyle = g; }
@@ -165,89 +234,93 @@ function drawCarpet(ctx, r) {
   ctx.fillStyle = "#1f3a3e"; ctx.fillRect(r[0], r[1], r[2], r[3]);
   ctx.fillStyle = pat(ctx, "carpet", 128); ctx.fillRect(r[0], r[1], r[2], r[3]);
 }
-function drawDealer(ctx) {
+function drawDealer(ctx, at = [0, -123]) {
   const img = TEX.dealer; if (!img) return;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 6 * 64, 64, 64, -32, -123 - 28 - 32, 64, 64);   // the sheet's idle row, facing down
+  ctx.drawImage(img, 0, 6 * 64, 64, 64, at[0] - 32, at[1] - 28 - 32, 64, 64);   // the sheet's idle row, facing down
   ctx.imageSmoothingEnabled = true;
 }
-function railRegion(ctx, felt) { ctx.beginPath(); path(ctx, grown("7.5")); path(ctx, felt); ctx.clip("evenodd"); }
+function railRegion(ctx, S, felt) { ctx.beginPath(); path(ctx, S.g(S.rail + 0.5)); path(ctx, felt); ctx.clip("evenodd"); }
+const crown = S => S.rail * 4 / 7;
+function fillBox(ctx, S, style) { const b = S.box; ctx.fillStyle = style; ctx.fillRect(b[0], b[1], b[2], b[3]); }
 
-function drawWood(ctx, D, felt) {
+function drawWood(ctx, S, D) {
   const W = WOODS[D.rail.wood];
-  ctx.fillStyle = "#2a160b"; ctx.fillRect(-200, -200, 400, 260);
-  ctx.fillStyle = pat(ctx, W.tex, W.tile); ctx.fillRect(-200, -200, 400, 260);
-  // Strips round the curve, so the grain follows the rail (the straight dealer's edge and the ledge run left to right).
-  const c = grown("3.5"); let s = 0;
+  fillBox(ctx, S, "#2a160b");
+  fillBox(ctx, S, pat(ctx, W.tex, W.tile));
+  // Strips round the curve, so the grain follows the rail (the card table's straight dealer's edge and ledge run left to right).
+  const c = S.g(S.rail / 2); let s = 0;
   for (let i = 0; i < c.length; i++) {
     const p = c[i], q = c[(i + 1) % c.length];
     const dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy);
     if (len < 1e-6) continue;
-    if (!(Math.abs(p[0]) < 70 && p[1] < -118)) {
-      const tx = dx / len, ty = dy / len, nx = -ty, ny = tx, e = 0.35, w = 5.5;
+    if (!(S.cards && Math.abs(p[0]) < 70 && p[1] < -118)) {
+      const tx = dx / len, ty = dy / len, nx = -ty, ny = tx, e = 0.35, w = S.rail / 2 + 2;
       const quad = [[p[0] - tx * e + nx * w, p[1] - ty * e + ny * w], [q[0] + tx * e + nx * w, q[1] + ty * e + ny * w],
         [q[0] + tx * e - nx * w, q[1] + ty * e - ny * w], [p[0] - tx * e - nx * w, p[1] - ty * e - ny * w]];
       fillPoly(ctx, quad, pat(ctx, W.tex, W.tile, { x: p[0], y: p[1], deg: Math.atan2(dy, dx) * 180 / Math.PI, s }));
     }
     s += len;
   }
-  if (W.gloss) { strokePoly(ctx, shift(grown("4.0"), 0, -1.4), "rgba(255,255,255,.10)", 1.6); }
+  if (W.gloss) { strokePoly(ctx, shift(S.g(crown(S)), 0, -1.4), "rgba(255,255,255,.10)", 1.6); }
 }
-function drawLeather(ctx, D, felt, ledge) {
+function drawLeather(ctx, S, D, ledge) {
   const c = D.rail.leather;
-  ctx.fillStyle = c; ctx.fillRect(-200, -200, 400, 260);
-  ctx.fillStyle = pat(ctx, "leather", 22); ctx.fillRect(-200, -200, 400, 260);
+  fillBox(ctx, S, c);
+  fillBox(ctx, S, pat(ctx, "leather", 22));
   // Padded: lit along its crown, falling away to both edges.
   const hi = lum(c) > 0.3 ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.09)";
-  strokePoly(ctx, shift(grown("4.0"), 0, -0.6), hi, 3.2);
-  strokePoly(ctx, shift(grown("4.0"), 0, -0.9), hi, 1.2);
+  strokePoly(ctx, shift(S.g(crown(S)), 0, -0.6), hi, 3.2);
+  strokePoly(ctx, shift(S.g(crown(S)), 0, -0.9), hi, 1.2);
   if (ledge) { const t = tongue(-3); ctx.beginPath(); path(ctx, t, false); ctx.strokeStyle = hi; ctx.lineWidth = 2.4; ctx.stroke(); }
   // stitching just inside both edges
   ctx.setLineDash([0.8, 0.6]);
-  strokePoly(ctx, grown("1.2"), rgba(lighten(c, 0.35), 0.55), 0.18);
-  strokePoly(ctx, grown("5.9"), rgba(lighten(c, 0.35), 0.55), 0.18);
+  strokePoly(ctx, S.g(1.2), rgba(lighten(c, 0.35), 0.55), 0.18);
+  strokePoly(ctx, S.g(S.rail - 1.1), rgba(lighten(c, 0.35), 0.55), 0.18);
   ctx.setLineDash([]);
 }
-function drawRail(ctx, D, felt, ledge) {
-  ctx.save(); railRegion(ctx, felt);
+function drawRail(ctx, S, D, felt, ledge) {
+  ctx.save(); railRegion(ctx, S, felt);
   const arm = D.rail.armrest;
-  if (arm !== "all") drawWood(ctx, D, felt);
+  if (arm !== "all") drawWood(ctx, S, D);
   if (arm !== "none") {
     ctx.save();
-    if (arm === "player") { ctx.beginPath(); ctx.rect(-200, -94, 400, 160); ctx.clip(); }
-    drawLeather(ctx, D, felt, ledge && arm === "all");
+    const area = S.pad(arm);
+    if (area) { ctx.beginPath(); path(ctx, area); ctx.clip(); }
+    drawLeather(ctx, S, D, ledge && arm === "all");
     ctx.restore();
-    if (arm === "player" && BEADS[D.rail.bead]) {   // end caps where the padding stops
+    if (S.cards && arm === "player" && BEADS[D.rail.bead]) {   // end caps where the padding stops
       for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * 155.5, -94); ctx.lineTo(sx * 164, -94); ctx.strokeStyle = BEADS[D.rail.bead][0]; ctx.lineWidth = 0.7; ctx.stroke(); }
     }
   }
   // the rounded profile: dark outer edge, a lit crown, a shadow where it meets the felt
-  strokePoly(ctx, grown("7.5"), "rgba(0,0,0,.6)", 1.3);
-  strokePoly(ctx, shift(grown("4.0"), 0, -1.0), "rgba(255,226,190,.10)", 2.4);
-  strokePoly(ctx, shift(grown("4.0"), 0, -1.2), "rgba(255,230,200,.20)", 0.6);
+  strokePoly(ctx, S.g(S.rail + 0.5), "rgba(0,0,0,.6)", 1.3);
+  strokePoly(ctx, shift(S.g(crown(S)), 0, -1.0), "rgba(255,226,190,.10)", 2.4);
+  strokePoly(ctx, shift(S.g(crown(S)), 0, -1.2), "rgba(255,230,200,.20)", 0.6);
   strokePoly(ctx, felt, "rgba(0,0,0,.5)", 1.8);
   if (ledge) { ctx.beginPath(); path(ctx, tongue(-2.4), false); ctx.strokeStyle = "rgba(255,226,190,.12)"; ctx.lineWidth = 1.4; ctx.stroke(); }
   ctx.restore();
 }
-function drawFelt(ctx, D, felt) {
+function drawFelt(ctx, S, D, felt) {
   ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip();
-  const c = D.felt.colour;
-  ctx.fillStyle = c; ctx.fillRect(-200, -200, 400, 260);
-  const g = ctx.createRadialGradient(0, -70, 0, 0, -70, 200);
+  const c = D.felt.colour, [mx, my] = S.middle;
+  fillBox(ctx, S, c);
+  const g = ctx.createRadialGradient(mx, my, 0, mx, my, S.reach / 2);
   g.addColorStop(0, rgba(lighten(c, 0.07), 1)); g.addColorStop(0.35, c); g.addColorStop(1, darken(c, 0.25 + 0.45 * D.felt.vignette));
-  ctx.fillStyle = g; ctx.fillRect(-200, -200, 400, 260);
-  if (D.felt.texture !== "plain") {
-    ctx.globalAlpha = D.felt.texture === "velvet" ? 0.85 : 0.7;
-    ctx.fillStyle = D.felt.texture === "velvet" ? pat(ctx, "velvet", 70) : pat(ctx, "weave", 16);
-    ctx.fillRect(-200, -200, 400, 260);
+  fillBox(ctx, S, g);
+  const cloth = { velvet: ["velvet", 70, 0.85], weave: ["weave", 16, 0.7], grain: ["grain", 40, 0.25] }[D.felt.texture];
+  if (cloth) {
+    ctx.globalAlpha = cloth[2];
+    fillBox(ctx, S, pat(ctx, cloth[0], cloth[1]));
     ctx.globalAlpha = 1;
   }
   strokePoly(ctx, felt, "rgba(0,0,0,.22)", 6);
   strokePoly(ctx, felt, "rgba(0,0,0,.35)", 2.6);
   ctx.restore();
 }
-function drawBorder(ctx, D, felt, ledge) {
-  const b = D.border; if (b === "none") return;
+function drawBorder(ctx, S, D, felt, ledge) {
+  const b = D.border; if (!b || b === "none") return;
+  const grown = by => S.g(+by);
   const ink = D.print.ink, acc = D.print.accent;
   ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip();
   if (ledge) {   // the line runs into the ledge rather than round it
@@ -258,7 +331,7 @@ function drawBorder(ctx, D, felt, ledge) {
   if (b === "double") { strokePoly(ctx, grown("-4.0"), rgba(acc, 0.85), 0.55); strokePoly(ctx, grown("-6.0"), rgba(acc, 0.6), 0.3); }
   if (b === "deco") {
     strokePoly(ctx, grown("-3.5"), rgba(acc, 0.9), 0.6); strokePoly(ctx, grown("-6.0"), rgba(acc, 0.65), 0.3);
-    const p = grown("-4.75") || grown("-5.0"); let s = 0;
+    const p = grown("-4.75"); let s = 0;
     for (let i = 0; i < p.length; i++) {
       const a = p[i], q = p[(i + 1) % p.length], len = Math.hypot(q[0] - a[0], q[1] - a[1]);
       if (Math.floor((s + len) / 34) > Math.floor(s / 34)) { const m = [(a[0] + q[0]) / 2, (a[1] + q[1]) / 2]; fillPoly(ctx, [[m[0], m[1] - 1.3], [m[0] + 1.0, m[1]], [m[0], m[1] + 1.3], [m[0] - 1.0, m[1]]], rgba(acc, 0.95)); }
@@ -754,22 +827,269 @@ function drawFixed(ctx, T) {
   ctx.setLineDash([]); ctx.restore();
 }
 
+// ---------------------------------------------------------------- Roulette and Craps (ports of rou_felt.gd, crp_felt.gd)
+const WOOD_DARK = "#4a2412", RECESS = "#1a0b05", SHEEN = "255,226,190";
+// The wheel's bowl in each wood (TableStyle.WHEEL_WOODS); its track, floor and cone are shades of it.
+const WHEEL_WOODS = { mahogany: "#4e2814", walnut: "#4a3222", wenge: "#302520", rosewood: "#4c1f17", ebony: "#1c1917" };
+const DICE = { red: ["#f04a4f", "#a5101a"], green: ["#3fcf7a", "#0d6b34"], blue: ["#4a8ff0", "#0f3c9a"], smoke: ["#8a8f96", "#2c3036"],
+  amber: ["#f2b04a", "#9a5a0c"], violet: ["#a77bf0", "#4a1f9a"] };
+const SEAT_COLOURS = ["#5ab0e8", "#f2c14e", "#ef7aa0", "#5fd3a0", "#a98ef2", "#e8935a"];
+const centre = r => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+const add = (p, dx, dy) => [p[0] + dx, p[1] + dy];
+function scaled(c, k) { return "#" + hex(c).map((v, i) => Math.min(255, Math.round(v * k[i])).toString(16).padStart(2, "0")).join(""); }
+function metalOf(key) { const m = BEADS[key] || BEADS.brass; return [m[0], mix(m[0], m[1], 0.6)]; }
+
+// The table's base: shadows, rail, felt, (border), bead.
+function drawBase(ctx, S, D, felt) {
+  fillPoly(ctx, shift(S.g(S.rail + 4), 0, 3), "rgba(0,0,0,.16)");
+  fillPoly(ctx, shift(S.g(S.rail + 1.5), 0, 2), "rgba(0,0,0,.3)");
+  drawRail(ctx, S, D, felt, false);
+  drawFelt(ctx, S, D, felt);
+  drawBorder(ctx, S, D, felt, false);
+  drawBead(ctx, D, felt);
+}
+// Roulette's float and Craps' rack (StyledFelt.float_tray): a frame in the rail's wood, or just the well cut in.
+function floatTray(ctx, D, r, felt, fin, frame) {
+  const [x, y, w, h] = r, bead = BEADS[D.rail.bead];
+  const C = { ...D, chips: "classic" };
+  if (fin === "steel") {
+    const m = bead ? bead[0] : "#6d757c";
+    ctx.beginPath(); rrect(ctx, x - 0.5, y - 0.5, w + 1, h + 1, 2.8); ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fill();
+    ctx.beginPath(); rrect(ctx, x, y, w, h, 2.4); ctx.fillStyle = m; ctx.fill();
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "rgba(255,255,255,.35)"); g.addColorStop(0.4, "rgba(255,255,255,0)"); g.addColorStop(1, "rgba(0,0,0,.35)");
+    ctx.fillStyle = g; ctx.fill();
+    wellChannels(ctx, C, x + 1.3, y + 1.3, w - 2.6, h - 2.6, "steel");
+    return;
+  }
+  let well = r;
+  if (frame) {
+    const W = WOODS[D.rail.wood];
+    ctx.beginPath(); rrect(ctx, x, y, w, h, 2.5); ctx.fillStyle = "#2a160b"; ctx.fill(); ctx.fillStyle = pat(ctx, W.tex, W.tile); ctx.fill();
+    if (bead) { ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip(); ctx.beginPath(); rrect(ctx, x, y, w, h, 2.5); ctx.strokeStyle = bead[0]; ctx.lineWidth = 0.6; ctx.stroke(); ctx.restore(); }
+    well = [x + 1.6, y + 1.6, w - 3.2, h - 3.2];
+  }
+  const [wx, wy, ww, wh] = well;
+  wellChannels(ctx, C, wx, wy, ww, wh, "wood");
+  ctx.beginPath(); ctx.moveTo(wx + 1.4, wy + wh - 0.25); ctx.lineTo(wx + ww - 1.4, wy + wh - 0.25); ctx.strokeStyle = `rgba(${SHEEN},.28)`; ctx.lineWidth = 0.35; ctx.stroke();
+  if (!frame && bead) { ctx.beginPath(); rrect(ctx, x - 0.5, y - 0.5, w + 1, h + 1, 2.1); ctx.strokeStyle = bead[0]; ctx.lineWidth = 0.5; ctx.stroke(); }
+  if (fin === "lid") lid(ctx, wx - 0.3, wy - 0.3, ww + 0.6, wh + 0.6);
+}
+
+function ringSeg(ctx, r0, r1, a0, a1, style) {
+  ctx.beginPath(); ctx.arc(0, 0, r1, a0, a1); ctx.arc(0, 0, r0, a1, a0, true); ctx.closePath(); ctx.fillStyle = style; ctx.fill();
+}
+function circle(ctx, x, y, r, style) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = style; ctx.fill(); }
+function ring(ctx, x, y, r, style, w) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.strokeStyle = style; ctx.lineWidth = w; ctx.stroke(); }
+
+// The wheel at rest (RouletteWheel: the bowl, the deflectors, the rotor's pockets and numbers, the cone, the turret).
+function wheel(ctx, D, at, order) {
+  const [brass, hi] = metalOf(D.wheel.metal), ink = D.print.ink;
+  const bowl = WHEEL_WOODS[D.wheel.wood === "match" || !WHEEL_WOODS[D.wheel.wood] ? D.rail.wood : D.wheel.wood] || WHEEL_WOODS.mahogany;
+  const red = new Set(G.rou.red), STEP = Math.PI * 2 / 37;
+  ctx.save(); ctx.translate(at[0], at[1]);
+  circle(ctx, 0.8, 1.6, 46.8, "rgba(0,0,0,.3)");
+  circle(ctx, 0, 0, 46, bowl);
+  circle(ctx, -6, -7, 38, "rgba(153,82,43,.25)");
+  ring(ctx, 0, 0, 46, brass, 1.0);
+  circle(ctx, 0, 0, 40, scaled(bowl, [0.95, 1.05, 1.15]));
+  ring(ctx, 0, 0, 40, "rgba(255,219,178,.25)", 0.5);
+  circle(ctx, 0, 0, 34, scaled(bowl, [0.46, 0.45, 0.5]));
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4 + Math.PI / 8, c = [Math.cos(a) * 35.8, Math.sin(a) * 35.8], b = a + (i % 2 ? Math.PI / 2 : 0);
+    const al = [Math.cos(b), Math.sin(b)], ac = [al[1], -al[0]];
+    fillPoly(ctx, [[c[0] - al[0] * 2.2, c[1] - al[1] * 2.2], [c[0] - ac[0] * 0.9, c[1] - ac[1] * 0.9], [c[0] + al[0] * 2.2, c[1] + al[1] * 2.2], [c[0] + ac[0] * 0.9, c[1] + ac[1] * 0.9]], hi);
+  }
+  order.forEach((n, k) => {
+    const a = k * STEP - Math.PI / 2;
+    ringSeg(ctx, 27, 33, a - STEP / 2, a + STEP / 2, n === 0 ? D.numbers.zero : red.has(n) ? D.numbers.red : D.numbers.black);
+    ringSeg(ctx, 22, 27, a - STEP / 2, a + STEP / 2, "rgba(0,0,0,.45)");
+    const a0 = a - STEP / 2;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a0) * 22, Math.sin(a0) * 22); ctx.lineTo(Math.cos(a0) * 33, Math.sin(a0) * 33); ctx.strokeStyle = brass; ctx.lineWidth = 0.35; ctx.stroke();
+    ctx.save(); ctx.translate(Math.cos(a) * 30, Math.sin(a) * 30); ctx.rotate(a + Math.PI / 2); ctx.scale(0.11, 0.11);
+    ctx.font = `700 30px ${SANS}`; ctx.textAlign = "center"; ctx.fillStyle = ink; ctx.fillText(String(n), 0, 10.5); ctx.restore();
+  });
+  ring(ctx, 0, 0, 27, brass, 0.5);
+  circle(ctx, 0, 0, 22, scaled(bowl, [1.36, 1.33, 1.25]));
+  circle(ctx, -4, -5, 14, "rgba(191,115,56,.35)");
+  ring(ctx, 0, 0, 22, brass, 0.6);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2, tip = [Math.cos(a) * 11, Math.sin(a) * 11];
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(tip[0], tip[1]); ctx.strokeStyle = hi; ctx.lineWidth = 1.4; ctx.lineCap = "round"; ctx.stroke();
+    circle(ctx, tip[0], tip[1], 1.5, hi);
+  }
+  circle(ctx, 0, 0, 3.2, hi);
+  ctx.restore();
+}
+
+// A seat's roulette chip (they're in the seat's colour).
+function rouChip(ctx, x, y, colour, n) {
+  for (let i = 0; i < n; i++) {
+    const yy = y - i * 1.2;
+    circle(ctx, x + 0.4, yy + 0.8, 4.8, "rgba(0,0,0,.3)");
+    circle(ctx, x, yy, 4.6, colour);
+    for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; ctx.beginPath(); ctx.arc(x, yy, 3.9, a, a + 0.4); ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 0.9; ctx.lineCap = "butt"; ctx.stroke(); }
+    ring(ctx, x, yy, 2.8, "rgba(255,255,255,.5)", 0.3);
+  }
+}
+
+function drawRoulette(ctx, D, rect, opts) {
+  const R = G.rou, S = shapeOf("rou"), felt = R.felt, g = R.grid, ink = D.print.ink, line = rgba(ink, 0.9);
+  drawCarpet(ctx, rect);
+  if (R.dealer) drawDealer(ctx, R.dealer);
+  drawBase(ctx, S, D, felt);
+  floatTray(ctx, D, R.tray, felt, D.float, true);
+  // The hole the losing chips go down, rimmed in the wheel's metal.
+  const [hx, hy] = R.hole, hr = R.hole_r;
+  circle(ctx, hx, hy + 0.6, hr + 0.8, "rgba(0,0,0,.3)"); circle(ctx, hx, hy, hr, "#3a1a0c"); circle(ctx, hx, hy, hr - 1.2, "#120604"); circle(ctx, hx, hy + 0.6, hr - 2.4, "#000");
+  ring(ctx, hx, hy, hr, metalOf(D.wheel.metal)[1], 1.1);
+  ctx.beginPath(); ctx.arc(hx, hy, hr - 1, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 0.6; ctx.stroke();
+  text(ctx, "ROULETTE", R.title[0], R.title[1], 8, ink, D);
+  text(ctx, "SINGLE ZERO · LA PARTAGE · £1 – £100 STRAIGHT UP", R.title[0], R.title[1] + 7.5, 3.1, rgba(ink, 0.8), D);
+  // The layout: fills, the diamonds, the grid as one set of lines, the lettering.
+  const right = g.gx + 12 * g.bw, bottom = g.ey + g.eh, col = n => Math.floor((n - 1) / 3), row = n => 2 - (n - 1) % 3, red = new Set(R.red);
+  fillPoly(ctx, [[g.gx, g.gy], [g.zx + 5, g.gy], [g.zx, g.gy + 1.5 * g.bh], [g.zx + 5, g.gy + 3 * g.bh], [g.gx, g.gy + 3 * g.bh]], D.numbers.zero);
+  for (let n = 1; n <= 36; n++) { ctx.fillStyle = red.has(n) ? D.numbers.red : D.numbers.black; ctx.fillRect(g.gx + col(n) * g.bw, g.gy + row(n) * g.bh, g.bw, g.bh); }
+  for (const i of [2, 3]) {
+    const c = [g.gx + i * 2 * g.bw + g.bw, g.ey + g.eh / 2], dm = [[c[0], c[1] - 4.5], [c[0] + 9, c[1]], [c[0], c[1] + 4.5], [c[0] - 9, c[1]]];
+    fillPoly(ctx, dm, i === 2 ? D.numbers.red : D.numbers.black); strokePoly(ctx, dm, rgba(ink, 0.7), 0.5);
+  }
+  strokePoly(ctx, [[g.zx + 5, g.gy], [right + g.bw, g.gy], [right + g.bw, g.gy + 3 * g.bh], [right, g.gy + 3 * g.bh], [right, bottom], [g.gx, bottom],
+    [g.gx, g.gy + 3 * g.bh], [g.zx + 5, g.gy + 3 * g.bh], [g.zx, g.gy + 1.5 * g.bh]], line, 0.7);
+  const seg = (x0, y0, x1, y1) => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = line; ctx.lineWidth = 0.7; ctx.stroke(); };
+  for (const r of [1, 2]) seg(g.gx, g.gy + r * g.bh, right + g.bw, g.gy + r * g.bh);
+  for (const y of [g.gy + 3 * g.bh, g.dy + g.dh]) seg(g.gx, y, right, y);
+  for (let c = 0; c <= 12; c++) seg(g.gx + c * g.bw, g.gy, g.gx + c * g.bw, g.gy + 3 * g.bh);
+  for (const k of [4, 8]) seg(g.gx + k * g.bw, g.gy + 3 * g.bh, g.gx + k * g.bw, bottom);
+  for (const k of [2, 6, 10]) seg(g.gx + k * g.bw, g.ey, g.gx + k * g.bw, bottom);
+  text(ctx, "0", (g.zx + g.gx) / 2 + 1, g.gy + 1.5 * g.bh, 8, ink, D);
+  for (let n = 1; n <= 36; n++) text(ctx, String(n), g.gx + col(n) * g.bw + g.bw / 2, g.gy + row(n) * g.bh + g.bh / 2 + 0.3, 6.4, ink, D);
+  for (let r = 0; r < 3; r++) text(ctx, "2 to 1", right + g.bw / 2, g.gy + r * g.bh + g.bh / 2, 3.3, ink, D);
+  ["1st 12", "2nd 12", "3rd 12"].forEach((s, k) => text(ctx, s, g.gx + k * 4 * g.bw + 2 * g.bw, g.dy + g.dh / 2, 5, ink, D));
+  for (const [i, s] of [[0, "1 – 18"], [1, "EVEN"], [4, "ODD"], [5, "19 – 36"]]) text(ctx, s, g.gx + i * 2 * g.bw + g.bw, g.ey + g.eh / 2, 4.6, ink, D);
+  wheel(ctx, D, R.wheel, R.wheel_order);
+  if (opts.play) Object.values(R.chips).forEach((at, i) => rouChip(ctx, at[0] + (i % 2) * 1.5, at[1], SEAT_COLOURS[i % SEAT_COLOURS.length], 1 + (i % 3)));
+  R.chairs.forEach(c => chair(ctx, c));
+}
+
+// A printed die on the craps layout, and a real one.
+function miniDie(ctx, at, n, s, face, pip) {
+  ctx.beginPath(); rrect(ctx, at[0] - s / 2, at[1] - s / 2, s, s, s * 0.18); ctx.fillStyle = face; ctx.fill();
+  for (const p of G.crp.pips[n]) circle(ctx, at[0] + p[0] * s * 0.27, at[1] + p[1] * s * 0.27, s * 0.09, pip);
+}
+function die(ctx, at, n, tone, turn = 0) {
+  const s = 6.2;
+  ctx.save(); ctx.translate(at[0] + 0.6, at[1] + 0.9); ctx.scale(1, 0.78); circle(ctx, 0, 0, 3.6, "rgba(0,0,0,.42)"); ctx.restore();
+  ctx.save(); ctx.translate(at[0], at[1]); ctx.rotate(turn);
+  const g = ctx.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2); g.addColorStop(0, tone[0]); g.addColorStop(1, tone[1]);
+  ctx.beginPath(); rrect(ctx, -s / 2, -s / 2, s, s, s * 0.18); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 0.3; ctx.stroke();
+  for (const p of G.crp.pips[n]) circle(ctx, p[0] * s * 0.27, p[1] * s * 0.27, s * 0.085, "#fff");
+  ctx.restore();
+}
+// Points every `step` along a path, with the path's direction there (crp_felt.gd _along).
+function along(pts, step) {
+  const out = []; let into = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i + 1][0] - pts[i][0], dy = pts[i + 1][1] - pts[i][1], seg = Math.hypot(dx, dy);
+    if (seg <= 0) continue;
+    const dir = [dx / seg, dy / seg];
+    while (into <= seg) { out.push([[pts[i][0] + dir[0] * into, pts[i][1] + dir[1] * into], dir]); into += step; }
+    into -= seg;
+  }
+  return out;
+}
+
+function drawCraps(ctx, D, rect, opts) {
+  const C = G.crp, S = shapeOf("crp"), felt = C.felt, ink = D.print.ink, line = rgba(ink, 0.9), gold = D.print.accent, red = D.print.red;
+  const face = rgba(ink, 0.92), pip = darken(D.felt.colour, 0.37);
+  const t = (s, at, size, colour, angle) => text(ctx, s, at[0], at[1], size, colour, D, { angle });
+  drawCarpet(ctx, rect);
+  if (C.boxman) drawDealer(ctx, C.boxman);
+  drawBase(ctx, S, D, felt);
+  // The rubber pyramids lining both end walls, seen as two zigzags.
+  const rw = C.rubber_w, ridge = lum(D.rubber) < 0.05 ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.3)";
+  for (const h of ["1", "-1"]) {
+    const R = C.rubber[h];
+    fillPoly(ctx, [...R.edge, ...[...R.inner].reverse()], D.rubber);
+    const zig = [[], []];
+    along(R.mid, rw * 0.75).forEach(([p, d], k) => { const ac = [d[1] * rw / 2, -d[0] * rw / 2], sg = k % 2 === 0 ? 1 : -1;
+      zig[0].push([p[0] + ac[0] * sg, p[1] + ac[1] * sg]); zig[1].push([p[0] - ac[0] * sg, p[1] - ac[1] * sg]); });
+    for (const z of zig) { ctx.beginPath(); path(ctx, z, false); ctx.strokeStyle = ridge; ctx.lineWidth = 0.35; ctx.lineJoin = "miter"; ctx.stroke(); }
+  }
+  // The players' chip rail: a groove sunk into the rail.
+  const hw = C.groove_w / 2;
+  for (const h of ["1", "-1"]) {
+    const Gr = C.groove[h];
+    strokePoly(ctx, Gr.mid, rgba(WOOD_DARK, 0.9), 2 * (hw + 0.4), false);
+    strokePoly(ctx, Gr.mid, RECESS, 2 * hw, false);
+    strokePoly(ctx, Gr.in, "rgba(0,0,0,.6)", 0.6, false);
+    strokePoly(ctx, Gr.out, "rgba(255,214,171,.25)", 0.4, false);
+  }
+  floatTray(ctx, D, C.tray, felt, D.rack, false);
+  // The printed lines, then the lettering.
+  for (const h of ["1", "-1"]) for (const p of Object.values(C.polys[h])) strokePoly(ctx, p, line, 0.7);
+  for (const r of Object.values(C.props)) { ctx.strokeStyle = line; ctx.lineWidth = 0.7; ctx.strokeRect(r[0], r[1], r[2], r[3]); }
+  { const r = C.prop_box; ctx.lineWidth = 0.9; ctx.strokeRect(r[0], r[1], r[2], r[3]); }
+  strokePoly(ctx, C.pass, line, 0.7);
+  for (const hs of ["1", "-1"]) {
+    const h = +hs, z = C.zones[hs], dc = centre(z.dont_come);
+    t("DON'T", add(dc, 0, -6.5), 3.3, ink); t("COME", add(dc, 0, -2.5), 3.3, ink); t("BAR", add(dc, 0, 3), 2.6, ink);
+    miniDie(ctx, add(dc, -3.2, 7.5), 6, 5, face, pip); miniDie(ctx, add(dc, 3.2, 7.5), 6, 5, face, pip);
+    for (const n of C.nums) {
+      const label = { 6: "SIX", 9: "NINE" }[n] || String(n);
+      t(label, add(centre(z["place_" + n]), 0, 0.5), label.length > 2 ? 5.2 : 8.2, n === 6 || n === 8 ? gold : ink);
+      t("LAY", add(centre(z["lay_" + n]), 0, 0.3), 2.6, ink); t("BUY", add(centre(z["buy_" + n]), 0, 0.3), 2.6, ink);
+    }
+    t("COME", add(centre(z.come), 0, 0.5), 13, red);
+    const fi = z.field, fy = centre(fi)[1], step = (fi[2] - 12) / 6;
+    t("FIELD", [centre(fi)[0], fy + 5.5], 6.5, gold);
+    ["2", "3", "4", "9", "10", "11", "12"].forEach((s, i) => { const at = [fi[0] + 6 + i * step, fy - 4]; if (s === "2" || s === "12") ring(ctx, at[0], at[1], 3.6, gold, 0.5); t(s, add(at, 0, 0.2), 4.4, ink); });
+    t("PAYS DOUBLE", [fi[0] + 13, fi[1] + fi[3] - 2.6], 1.8, gold); t("PAYS TRIPLE", [fi[0] + fi[2] - 13, fi[1] + fi[3] - 2.6], 1.8, gold);
+    const dp = centre(z.dont_pass);
+    t("DON'T PASS BAR", add(dp, -6, 0.3), 3.8, ink); miniDie(ctx, add(dp, 24, 0), 6, 5, face, pip); miniDie(ctx, add(dp, 30.5, 0), 6, 5, face, pip);
+    t("6", add(centre(z.big6), -3 * h, -1), 8, red); t("8", add(centre(z.big8), 3 * h, 1), 8, red);
+    t("PASS LINE", [C.mx[hs][0], -19.7], 4.6, ink); t("PASS LINE", [C.mx[hs][1], -61], 4.6, ink, h * Math.PI / 2);
+  }
+  t("PASS LINE", [0, -19.7], 4.6, ink);
+  const pc = id => centre(C.props[id]);
+  t("SEVEN  ·  4 TO 1", add(pc("any7"), 0, 0.3), 3.6, red);
+  for (const [id, a, b, odds] of [["hard6", 3, 3, "9 TO 1"], ["hard10", 5, 5, "7 TO 1"], ["hard8", 4, 4, "9 TO 1"], ["hard4", 2, 2, "7 TO 1"],
+      ["two", 1, 1, "30 TO 1"], ["twelve", 6, 6, "30 TO 1"], ["three", 1, 2, "15 TO 1"], ["eleven", 5, 6, "15 TO 1"]]) {
+    const box = C.props[id], c = centre(box), s = Math.min(7, box[3] * 0.5);
+    miniDie(ctx, add(c, -s * 0.6, -box[3] * 0.16), a, s, face, pip); miniDie(ctx, add(c, s * 0.6, -box[3] * 0.16), b, s, face, pip);
+    t(odds, add(c, 0, box[3] * 0.33), Math.min(2.5, box[3] * 0.2), ink);
+  }
+  t("HORN", add(pc("horn"), 0, 0.3), 4, gold);
+  const ce = pc("ce");
+  for (const sd of [-1, 1]) ring(ctx, ce[0] + 5 * sd, ce[1], 3.6, ink, 0.5);
+  t("C", add(ce, -5, 0.3), 3.8, ink); t("E", add(ce, 5, 0.3), 3.8, ink);
+  t("ANY CRAPS  ·  7 TO 1", add(pc("any_craps"), 0, 0.3), 3.6, red);
+  const tone = DICE[D.dice] || DICE.red;
+  if (opts.play) {
+    const z = C.zones["1"], C2 = { chips: "classic" };
+    stack(ctx, C2, 2500, 96, -9); stack(ctx, C2, 1000, ...add(centre(z.place_6), 0, 2)); stack(ctx, C2, 500, ...centre(z.field));
+    die(ctx, [118, -96], 5, tone, 0.3); die(ctx, [128, -90], 2, tone, -0.5);
+  } else {
+    for (const [i, at] of C.dice.entries()) die(ctx, at, [6, 1][i], tone);
+  }
+}
+
 // ---------------------------------------------------------------- one picture
 export function render(canvas, D, game, rect, opts = {}) {
-  const T = G.tables[game], cssW = canvas.clientWidth || canvas.width || 600;
+  const T = G.tables[game] || {}, cssW = canvas.clientWidth || canvas.width || 600;
   const dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
   canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(rect[3] * k * dpr);
   if (!canvas.clientWidth) canvas.style.width = cssW + "px";
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
-  const ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
+  if (game === "rou" || game === "crp") { (game === "rou" ? drawRoulette : drawCraps)(ctx, D, rect, opts); return; }
+  const S = CARD_SHAPE, ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
   drawCarpet(ctx, rect);
   drawDealer(ctx);
   fillPoly(ctx, shift(grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
   fillPoly(ctx, shift(grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
-  drawRail(ctx, D, felt, ledge);
-  drawFelt(ctx, D, felt);
-  drawBorder(ctx, D, felt, ledge);
+  drawRail(ctx, S, D, felt, ledge);
+  drawFelt(ctx, S, D, felt);
+  drawBorder(ctx, S, D, felt, ledge);
   drawBead(ctx, D, felt);
   drawTray(ctx, D, ledge);
   const L = layout(game, T, D);

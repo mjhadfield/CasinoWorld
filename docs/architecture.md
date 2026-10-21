@@ -124,8 +124,9 @@ A Godot 4.7 project exported to the web.
   server's seating styles (`seating.py`, in the welcome): `scripts/seating.gd` draws every chair (the seat under
   its sitter, its back in a `ChairBack` node just behind them in the Y-sort) and plays the same sit-down and
   getting-up for you, other players and NPCs. The camera, and a slot's full-screen game, wait for your sit. How each
-  card table looks comes the same way, from the server's table styles (`table_styles.py`, in the welcome and in a
-  `table_styles` broadcast): `scripts/table_style.gd` holds them and `StyledFelt` paints the table in its style. The navigation region sits outside World,
+  table looks comes the same way, from the server's table styles (`table_styles.py`: one set for the card tables,
+  one for Roulette, one for Craps; in the welcome and in a `table_styles` broadcast): `scripts/table_style.gd`
+  holds them and `StyledFelt` paints every table in its style. The navigation region sits outside World,
   so the nav map stays in World's frame through a turn; a bake waits until the floor is upright. The rooms
   (the main floor and the Blackjack pit room, joined by a doorway), the tables and the felt are drawn in code,
   so they stay sharp at any zoom. A static body on collision layer 2 (the Blackjack pit's `PitFence`) is in the
