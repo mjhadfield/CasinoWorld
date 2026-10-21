@@ -32,8 +32,11 @@ func paint() -> void:
 	draw_colored_polygon(CrapsTable.shape(r - 1.1), WOOD)
 	for grain in [[1.6, 0.45], [2.9, 0.3], [4.3, 0.4], [5.4, 0.25]]:
 		_loop(CrapsTable.shape(grain[0]), Color(WOOD_DARK, grain[1]), 0.35)
+	# The leather: round the corners and down the ends to just above the chip rail's groove
+	# (the felt hides it across the middle)...
+	var pad_to := CrapsTable.GROOVE_TO - CrapsTable.GROOVE_W / 2 - 1.0
 	var dealer_side := PackedVector2Array([Vector2(-400, -400), Vector2(400, -400),
-		Vector2(400, CrapsTable.FELT_TOP + 1.5), Vector2(-400, CrapsTable.FELT_TOP + 1.5)])
+		Vector2(400, pad_to), Vector2(-400, pad_to)])
 	# ...all the way round the bay and across the ledge (the felt hides where it stops).
 	var bay := CrapsTable.BAY_HALF + CrapsTable.BAY_CORNER
 	dealer_side = Geometry2D.merge_polygons(dealer_side, PackedVector2Array([Vector2(-bay, -400), Vector2(bay, -400),
