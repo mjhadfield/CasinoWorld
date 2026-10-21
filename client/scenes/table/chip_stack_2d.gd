@@ -18,6 +18,10 @@ const MAX_LAYERS := 8
 	set(v):
 		tint = v
 		queue_redraw()
+@export var caption := "":  # a word over the stack (craps: "VIG" on the chips that pay it)
+	set(v):
+		caption = v
+		queue_redraw()
 
 const TINT_RADIUS := 5.4
 const TINT_LAYER := 1.1
@@ -46,6 +50,11 @@ static func breakdown(pence: int) -> Array:
 func _draw() -> void:
 	if amount <= 0:
 		return
+	if caption != "":
+		var cw := FONT.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 4).x
+		var cy := -breakdown(amount).size() * (TINT_LAYER if tint.a > 0 else LAYER) - RADIUS - 1.0
+		draw_string_outline(FONT, Vector2(-cw / 2, cy), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 4, 1, Color(0, 0, 0, 0.8))
+		draw_string(FONT, Vector2(-cw / 2, cy), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 4, Color("ecd08a"))
 	if tint.a > 0:
 		_draw_colour_chips()
 		return

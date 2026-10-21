@@ -22,6 +22,12 @@ extends CasinoTable
 ## the stickman's call, the losers swept into the rack, the winners paid beside
 ## their bets a player at a time, winnings back to the players, come bets off
 ## to their numbers, the puck over, the dice hooked back to the middle.
+##
+## Everything pays in whole pounds, so chips go down in each bet's proper unit
+## (step_bet()). The vig is chips you can see: a lay bet's goes from the player
+## past the bet into the rack as the dice go out (it comes back if the bet comes
+## down), and a winning buy or lay bet is paid in full and then the dealer takes
+## the vig off the payout.
 
 # The table (table coordinates: the players' edge of the felt is y = 0).
 const FELT_HALF := 189.0
@@ -64,6 +70,7 @@ const PASS_OUT := 22.0           # its outside edge,
 const ODDS_OUT := 33.0           # and the odds strip's outside edge
 const ODDS_END := 0.9            # where the odds strip stops on the curve (radians from the end wall)
 const ODDS_X := {4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3}
+const MIN_MAIN := 500            # engines/craps.MIN_MAIN (hardways, props and odds go lower)
 const SEAT_COLOURS := [Color("5ab0e8"), Color("f2c14e"), Color("ef7aa0"), Color("5fd3a0"),
 	Color("a98ef2"), Color("e8935a"), Color("e85a5a"), Color("9ad94f")]
 const CHIP_SCALE := 0.6
@@ -72,6 +79,8 @@ const T_CALL := 1.4
 const T_SWEEP := 1.0
 const T_PAY_STEP := 0.32
 const T_PAY_PAUSE := 0.6
+const T_VIG := 0.45              # a payout's vig comes off this long after it's put down,
+const T_VIG_PAUSE := 0.5         # and the winnings wait this much longer to go back
 const T_BACK := 0.9
 const T_MOVE := 0.7
 const T_FETCH := 0.85
@@ -156,9 +165,9 @@ static func info(spot: String) -> Array:
 	if spot.begins_with("place_"):
 		return ["Place %d" % n, place[n]]
 	if spot.begins_with("buy_"):
-		return ["Buy %d" % n, "%s, less 5%% of the bet" % odds[n]]
+		return ["Buy %d" % n, "%s; £1 vig per £20 bet, out of a win" % odds[n]]
 	if spot.begins_with("lay_"):
-		return ["Lay %d" % n, "%s, less 5%% of the win" % lay[n]]
+		return ["Lay %d" % n, "%s; £1 vig per £20 it wins, paid with the bet" % lay[n]]
 	if spot.begins_with("come_odds_"):
 		return ["Odds on your come bet on %d" % n, odds[n]]
 	if spot.begins_with("dcome_odds_"):
@@ -209,12 +218,96 @@ func seat_pose() -> String:
 	return "idle"
 
 
-## What the local player has down that isn't paid for yet (it's paid for when the dice go out).
+## What the local player has down that isn't paid for yet (it's paid for when the dice go out),
+## with the vig on new lay bets.
 func pending_cost(bets: Dictionary) -> int:
 	var total := 0
 	for spot in bets:
 		total += maxi(0, int(bets[spot]) - int(_locked.get(spot, 0)))
+	return total + maxi(0, vig_up_front(bets) - vig_up_front(_locked))
+
+
+# ------------------------------------------------------------------ whole pounds and the vig
+## A bet's proper unit: in multiples of it, it's paid (and its vig taken) in whole pounds.
+## The server's engines/craps.unit().
+static func unit(spot: String, the_point: int) -> int:
+	var n := the_point if spot in ["pass_odds", "dont_odds"] else number_of(spot)
+	if spot.begins_with("place_"):
+		return 600 if n in [6, 8] else 500
+	if n > 0 and (spot.begins_with("buy_") or spot == "pass_odds" or spot.begins_with("come_odds_")):
+		return {4: 100, 10: 100, 5: 200, 9: 200, 6: 500, 8: 500}[n]
+	if n > 0 and (spot.begins_with("lay_") or spot == "dont_odds" or spot.begins_with("dcome_odds_")):
+		return {4: 200, 10: 200, 5: 300, 9: 300, 6: 600, 8: 600}[n]
+	return {"horn": 400, "ce": 200}.get(spot, 100)
+
+
+## Chips go on and come off in the bet's proper unit, as a dealer would make them up: a £5
+## chip places the 6 for £6, a £25 one buys the 9 for £26, a £1 chip on the Horn makes it £4.
+func step_bet(spot: String, old: int, chip: int, adding: bool) -> int:
+	var u := unit(spot, point)
+	if not adding:
+		return maxi(0, old - chip) / u * u
+	var low := 0 if PROPS.has(spot) or "odds" in spot else MIN_MAIN
+	return (maxi(old + chip, low) + u - 1) / u * u
+
+
+## 5% in whole pounds: £1 for every £20, rounded down, never less than £1 (engines/craps.vig()).
+static func vig(pence: int) -> int:
+	return maxi(100, pence / 2000 * 100) if pence > 0 else 0
+
+
+## What a lay bet on n wins, in whole pounds.
+static func lay_win(n: int, amount: int) -> int:
+	var win := amount / 2 if n in [4, 10] else amount * 2 / 3 if n in [5, 9] else amount * 5 / 6
+	return win / 100 * 100
+
+
+## The vig paid with these bets, up front (the lay bets').
+static func vig_up_front(bets: Dictionary) -> int:
+	var total := 0
+	for spot in bets:
+		if spot.begins_with("lay_") and int(bets[spot]) > 0:
+			total += vig(lay_win(number_of(spot), int(bets[spot])))
 	return total
+
+
+## A seat hands the dealer a lay bet's vig: a chip from the player, past the bet, into the rack.
+func _vig_to_rack(seat: int, spot: String, amount: int, d: float) -> void:
+	var chip := _vig_stack(seat, amount, chair_pos(seat))
+	var tw := _tween()
+	tw.tween_property(chip, "position", payout_pos(seat, spot), 0.3 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.25 * d)
+	tw.tween_callback(sfx_at.bind("sweep", to_global(payout_pos(seat, spot))))
+	tw.tween_property(chip, "position", tray_pos(), 0.35 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(chip.queue_free)
+
+
+func _vig_stack(seat: int, amount: int, at: Vector2) -> ChipStack2D:
+	var chip := _make_stack(seat)
+	chip.amount = amount
+	chip.caption = "VIG"
+	chip.position = at
+	_dyn.add_child(chip)
+	return chip
+
+
+## A winning buy or lay bet: paid in full beside the bet, then the dealer takes the vig off
+## the payout into the rack.
+func _pay_less_vig(seat: int, spot: String, win: int, vig_taken: int, d: float) -> void:
+	var stack := _payout_from_tray(seat, win + vig_taken)
+	var to := payout_pos(seat, spot)
+	_tween().tween_property(stack, "position", to, 0.35 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_after(T_VIG * d).timeout.connect(func():
+		if not is_instance_valid(stack):
+			return
+		stack.amount = win
+		var chip := _vig_stack(seat, vig_taken, to)
+		sfx_at("sweep", to_global(to))
+		var tw := _tween()   # lifted off the payout, held a moment, then into the rack
+		tw.tween_property(chip, "position", to + Vector2(4.5, -4), 0.14 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(0.18 * d)
+		tw.tween_property(chip, "position", tray_pos(), 0.32 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_callback(chip.queue_free))
 
 
 func max_cost(bets: Dictionary) -> int:
@@ -647,6 +740,9 @@ func _note_event(ev: Dictionary) -> void:
 			if int(ev.seat) == my_seat:
 				for spot in _locked.keys():
 					_locked[spot] = mini(int(_locked[spot]), int(ev.bets.get(spot, 0)))
+			if int(ev.get("vig_back", 0)) > 0:   # a lay bet's come down: the dealer hands its vig back
+				var seat := int(ev.seat)
+				_fly_and_free(_vig_stack(seat, int(ev.vig_back), tray_pos()), chair_pos(seat), 0.45)
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
@@ -672,6 +768,10 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 					_locked[spot] = int(_chips_for(my_seat)[spot].amount)
 			sfx_at("dice_out", to_global(_hand(shooter)))
 			dice.throw(ev.plan, float(ev.out) * d, _hand(shooter))
+			var vigs: Dictionary = ev.get("vig", {})
+			for key in vigs:
+				for spot in vigs[key]:
+					_vig_to_rack(int(key), spot, int(vigs[key][spot]), d)
 			return 0.0
 		"roll_result":
 			return _roll_result(ev, d)
@@ -725,7 +825,10 @@ func _roll_result(ev: Dictionary, d: float) -> float:
 		var seat := int(key)
 		var paid := false
 		for st in steps[key]:
-			if st.kind == "win":
+			if st.kind == "win" and int(st.get("vig", 0)) > 0:
+				_after(t).timeout.connect(_pay_less_vig.bind(seat, st.spot, int(st.win), int(st.vig), d))
+				paid = true
+			elif st.kind == "win":
 				_after(t).timeout.connect(_settle_step.bind(seat, {"spot": st.spot, "action": "pay", "payout": int(st.win)}, d))
 				paid = true
 			if st.kind in ["win", "return"]:
@@ -737,6 +840,8 @@ func _roll_result(ev: Dictionary, d: float) -> float:
 		Session.hold_balance(true)   # show the new balance when the chips reach you
 	if not paid_seats.is_empty():
 		t += T_PAY_PAUSE * d
+	if steps.values().any(func(list): return list.any(func(st): return st.kind == "win" and int(st.get("vig", 0)) > 0)):
+		t += T_VIG_PAUSE * d
 	# ...the winnings go back, with the stakes that come off (come bets, odds).
 	var back := mine_paid or not paid_seats.is_empty()
 	_after(t).timeout.connect(func():
@@ -946,7 +1051,10 @@ func _draw_game(now: float, _pulse: float) -> void:
 		var c: Color = SEAT_COLOURS[my_seat % SEAT_COLOURS.size()]
 		_disc(at, ChipStack2D.TINT_RADIUS * CHIP_SCALE, Color(c, 0.55))
 		draw_arc(at, ChipStack2D.TINT_RADIUS * CHIP_SCALE - 0.4, 0, TAU, 24, Color(1, 1, 1, 0.5), 0.6, true)
-		_label(at + Vector2(0, 0.1), ChipStack2D._label(chip_value), 2.4, Color(0.1, 0.05, 0.02, 0.8))
+		var aim := spot_for(hover.id)   # (what the click adds, in the bet's proper unit)
+		var old := int(_chips_for(my_seat)[aim].amount) if _chips_for(my_seat).has(aim) else 0
+		_label(at + Vector2(0, 0.1), ChipStack2D._label(maxi(step_bet(aim, old, chip_value, true) - old, 0)), 2.4,
+			Color(0.1, 0.05, 0.02, 0.8))
 
 
 const BRASS_RING := Color("c9a24a")

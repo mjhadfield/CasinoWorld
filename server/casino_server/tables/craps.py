@@ -16,7 +16,9 @@ Signed off on Mike's Craps mockup (v1).
 Unlike the card tables, bets stay on the layout from roll to roll. A seat's
 `bets` are everything it has on the table; `locked` is what's already paid for.
 Taking a paid-for bet down refunds it at once; chips put down since the last
-throw are paid for at the next one.
+throw are paid for at the next one. A lay bet's vig is paid with it (so what's
+been paid for a seat is its locked bets plus cr.vig_up_front(locked)), and comes
+back with it when it's taken down.
 
 The shooter: anyone seated can shoot, NPCs included. After a seven-out the dice
 move clockwise (seat 0, the right-hand end of the near rail, to seat 7). A
@@ -48,6 +50,7 @@ class Timings:
     sweep: float = 1.0
     pay_step: float = 0.32         # each winning seat in turn
     pay_pause: float = 0.6
+    vig: float = 0.5               # longer when the dealer takes a vig off a payout
     back: float = 0.9              # winnings go back to the players
     move: float = 0.7              # come bets travel to their numbers
     fetch: float = 0.85            # the stickman brings the dice back
@@ -133,8 +136,9 @@ class CrapsMachine(TableMachine):
         s = self.seats[seat]
         events = []
         if self.phase == "betting":
-            back = sum(min(s.bets.get(spot, 0), paid) for spot, paid in self.locked[seat].items()
-                       if cr.removable(spot, self.point))
+            down = {spot: min(s.bets.get(spot, 0), paid) for spot, paid in self.locked[seat].items()
+                    if cr.removable(spot, self.point)}
+            back = sum(down.values()) + cr.vig_up_front(down)
             if back:
                 s.participant.refund(back, "taken down")
                 events.append({"kind": "bets_back", "seat": seat, "amount": back, "_paid": [s.participant]})
@@ -193,15 +197,20 @@ class CrapsMachine(TableMachine):
                 if err:
                     raise TableError(err)
         paid = self.locked[seat]
-        refund = sum(max(0, amount - new[spot]) for spot, amount in paid.items())
-        owed = sum(max(0, new[spot] - paid.get(spot, 0)) for spot in self.SPOTS)
+        kept = {spot: min(amount, new[spot]) for spot, amount in paid.items() if min(amount, new[spot])}
+        vig_back = cr.vig_up_front(paid) - cr.vig_up_front(kept)
+        refund = sum(max(0, amount - new[spot]) for spot, amount in paid.items()) + vig_back
+        owed = (sum(max(0, new[spot] - paid.get(spot, 0)) for spot in self.SPOTS)
+                + cr.vig_up_front(new) - cr.vig_up_front(kept))
         if owed > s.participant.balance + refund:
             raise TableError(self.CANT_COVER)
         events = [{"kind": "bet_changed", "seat": seat, "bets": self._bets_view(new)}]
         if refund:
             s.participant.refund(refund, "taken down")
             events[0]["_paid"] = [s.participant]
-        self.locked[seat] = {spot: min(amount, new[spot]) for spot, amount in paid.items() if min(amount, new[spot])}
+        if vig_back:
+            events[0]["vig_back"] = vig_back
+        self.locked[seat] = kept
         s.bets = new
         return events
 
@@ -326,15 +335,19 @@ class CrapsMachine(TableMachine):
         return self._throw(now)
 
     def _throw(self, now: float) -> list:
-        events, paid = [], []
+        events, paid, vigs = [], [], {}
         for i in self.occupied():
             s = self.seats[i]
-            owed = sum(max(0, a - self.locked[i].get(spot, 0)) for spot, a in s.bets.items())
+            vig = cr.vig_up_front(s.bets) - cr.vig_up_front(self.locked[i])
+            owed = sum(max(0, a - self.locked[i].get(spot, 0)) for spot, a in s.bets.items()) + vig
             if owed and not s.participant.debit(owed, "bets"):
                 s.bets = {spot: min(a, self.locked[i].get(spot, 0)) for spot, a in s.bets.items()}   # new chips come back
                 events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(s.bets)})
             elif owed:
                 paid.append(s.participant)
+                if vig:   # the player hands the dealer each lay bet's vig with it
+                    vigs[str(i)] = {spot: v for spot, a in s.bets.items() if spot.startswith("lay_") and
+                                    (v := cr.vig_up_front({spot: a}) - cr.vig_up_front({spot: self.locked[i].get(spot, 0)}))}
             self.locked[i] = {spot: a for spot, a in s.bets.items() if a}
             if s.participant.is_human:
                 self.idle_rolls[i] = 0 if self.locked[i] else self.idle_rolls[i] + 1
@@ -349,7 +362,7 @@ class CrapsMachine(TableMachine):
         self.phase = "throwing"
         self.deadline = now + self.timings.dice_out + cr.throw_seconds(plan) + self.timings.land_pause
         events.append({"kind": "throw", "shooter": self.shooter, "dice": [d1, d2], "plan": plan,
-                       "out": self.timings.dice_out, "_paid": paid})
+                       "out": self.timings.dice_out, "vig": vigs, "_paid": paid})
         return events + say(self.lines.say("craps", "dice_out"))
 
     def _resolve(self, now: float) -> list:
@@ -357,7 +370,7 @@ class CrapsMachine(TableMachine):
         total = d1 + d2
         before = self.point
         seats, after, paid = {}, {}, []
-        losers = winners = moves = 0
+        losers = winners = moves = vigs = 0
         for i in self.occupied():
             s = self.seats[i]
             outcomes = cr.resolve(s.bets, d1, d2, before, self.working[i])
@@ -368,12 +381,13 @@ class CrapsMachine(TableMachine):
             for spot, o in outcomes.items():
                 stake = s.bets[spot]   # (as it was before this roll: see `arriving`)
                 steps.append({"spot": spot, "kind": o.kind, "amount": stake, "win": o.win, "stays": o.stays,
-                              "to": o.to})
+                              "to": o.to, "vig": o.vig})
                 if o.kind == "lose":
                     bets[spot] = 0
                     losers += 1
                 elif o.kind == "win":
                     credit += o.win
+                    vigs += o.vig > 0
                     if not o.stays:
                         credit += stake
                         bets[spot] = 0
@@ -414,6 +428,7 @@ class CrapsMachine(TableMachine):
         t = self.timings
         self.phase = "settling"
         self.deadline = now + (t.call + (t.sweep if losers else 0) + t.pay_step * winners + (t.pay_pause if winners else 0)
+                               + (t.vig if vigs else 0)
                                + (t.back if winners else 0) + (t.move if moves else 0) + t.fetch)
         events = say(self._call(d1, d2, before, what))   # the call first: the client plays the payout after it
         events += [{"kind": "roll_result", "dice": [d1, d2], "total": total, "words": cr.call_words(d1, d2),

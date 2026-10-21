@@ -869,9 +869,9 @@ class NpcDirector:
         style = npc.craps_style or "casual"
         wants = []
 
-        def need(spot: str, amount: int):
+        def need(spot: str, amount: int):   # (in the bet's proper unit, so it's paid in whole pounds)
             if not b.get(spot) and amount > 0:
-                wants.append((spot, amount))
+                wants.append((spot, cr.proper(spot, amount, pt)))
 
         if style == "grinder":
             if pt is None:
@@ -888,9 +888,8 @@ class NpcDirector:
             if pt is None:
                 need("pass", u)
             else:
-                place = max(600, u // 600 * 600)   # in sixes, so 7 to 6 pays in whole pounds
-                need("place_6", place)
-                need("place_8", place)
+                need("place_6", u)
+                need("place_8", u)
                 if self._side(npc, 0.2):
                     need("field", u)
         elif style == "gambler":

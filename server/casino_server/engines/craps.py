@@ -11,8 +11,8 @@ Every bet has an id (the "spot" its chips are on):
   come_N, dcome_N            a come / don't come bet that has travelled to N
   come_odds_N, dcome_odds_N  odds on those                            true odds
   place_N                    4/10 9 to 5, 5/9 7 to 5, 6/8 7 to 6
-  buy_N                      true odds, less 5% of the bet on a win
-  lay_N                      true odds against, less 5% of the win
+  buy_N                      true odds; the vig (5% of the bet) comes out of a win
+  lay_N                      true odds against; the vig (5% of the win) is paid up front
   field                      3, 4, 9, 10, 11 even money; 2 double, 12 triple
   big6, big8                 even money
   hard4 .. hard10            4/10 7 to 1, 6/8 9 to 1
@@ -22,7 +22,16 @@ N is a point number (4, 5, 6, 8, 9, 10). Odds go up to 3-4-5x (lay odds 6x).
 Place and buy bets, hardways and come odds are off on the come-out unless the
 player marks them working; lay bets, Big 6/8 and the props always work.
 Winning bets stay up and only the winnings come back -- except come bets and
-odds, which come back with them. Payouts round down to the penny.
+odds, which come back with them.
+
+The house pays in whole chips, as a casino does: a payout that isn't whole
+pounds is paid down to the pound and the change stays with the house. Bets made
+in their proper units (unit()) never lose anything that way; the client steps
+your chips in them, and the NPCs bet in them. The vig is whole pounds too: £1
+for every £20, rounded down, and never less than £1 (vig()). A buy bet's comes
+out of the win; a lay bet's is paid with the bet, up front, and once it's won
+the next one comes out of the win to keep it up -- so either way each decision
+costs one vig.
 
 There's no craps in Casino v2, so this is checked against the arithmetic (see
 the tests: every bet's exact house edge against the published one).
@@ -90,21 +99,55 @@ def place_pays(n: int, amount: int) -> int:
     return amount * 9 // 5 if n in (4, 10) else amount * 7 // 5 if n in (5, 9) else amount * 7 // 6
 
 
-def buy_pays(n: int, amount: int) -> int:
-    return true_odds(n, amount) - amount * 5 // 100
+def pounds(pence: int) -> int:
+    """Paid down to whole chips: the change stays with the house."""
+    return pence // 100 * 100
 
 
-def lay_pays(n: int, amount: int) -> int:
-    win = lay_odds(n, amount)
-    return win - win * 5 // 100
+def vig(pence: int) -> int:
+    """5% in whole pounds: £1 for every £20, rounded down, at least £1 (nothing on nothing)."""
+    return max(100, pence // 2000 * 100) if pence > 0 else 0
+
+
+def buy_vig(amount: int) -> int:
+    return vig(amount)
+
+
+def lay_vig(n: int, amount: int) -> int:
+    return vig(pounds(lay_odds(n, amount)))
+
+
+def vig_up_front(bets: dict) -> int:
+    """The vig that goes with these bets when they're paid for (the lay bets')."""
+    return sum(lay_vig(number_of(spot), a) for spot, a in bets.items() if a and spot.startswith("lay_"))
+
+
+def unit(spot: str, point: int | None = None) -> int:
+    """A bet's proper unit: in multiples of it, its payout (and vig) is whole pounds. Mirrored
+    in crp_table.gd's unit()."""
+    n = point if spot in ("pass_odds", "dont_odds") else number_of(spot)
+    if spot.startswith("place_"):
+        return 600 if n in (6, 8) else 500
+    if spot.startswith(("buy_", "pass_odds", "come_odds_")) and n:
+        return {4: 100, 10: 100, 5: 200, 9: 200, 6: 500, 8: 500}[n]
+    if spot.startswith(("lay_", "dont_odds", "dcome_odds_")) and n:
+        return {4: 200, 10: 200, 5: 300, 9: 300, 6: 600, 8: 600}[n]
+    return {"horn": 400, "ce": 200}.get(spot, 100)
+
+
+def proper(spot: str, amount: int, point: int | None = None) -> int:
+    """`amount` paid down to the bet's proper unit (at least one unit)."""
+    u = unit(spot, point)
+    return max(u, amount // u * u)
 
 
 @dataclass(frozen=True)
 class Outcome:
     kind: str               # "win" | "lose" | "return" (the stake comes back) | "move" (to its number)
-    win: int = 0
+    win: int = 0            # what's paid, after any vig
     stays: bool = True      # a winning bet's stake stays up (False: it comes back with the winnings)
     to: str | None = None   # where a moving come bet goes
+    vig: int = 0            # the vig the dealer takes out of the win
 
 
 def resolve(bets: dict, d1: int, d2: int, point: int | None, working: bool = False) -> dict:
@@ -154,12 +197,16 @@ def resolve(bets: dict, d1: int, d2: int, point: int | None, working: bool = Fal
                  else Outcome("win", 3 * a) if t == 12 else Outcome("lose"))
         elif spot in ("big6", "big8"):
             o = Outcome("win", a) if t == n else Outcome("lose") if t == 7 else None
-        elif spot.startswith(("place_", "buy_")):
+        elif spot.startswith("place_"):
             if not come_out or working:
-                pays = place_pays if spot.startswith("place_") else buy_pays
-                o = Outcome("win", pays(n, a)) if t == n else Outcome("lose") if t == 7 else None
-        elif spot.startswith("lay_"):
-            o = Outcome("win", lay_pays(n, a)) if t == 7 else Outcome("lose") if t == n else None
+                o = Outcome("win", place_pays(n, a)) if t == n else Outcome("lose") if t == 7 else None
+        elif spot.startswith("buy_"):
+            if not come_out or working:
+                v = buy_vig(a)
+                o = Outcome("win", pounds(true_odds(n, a)) - v, vig=v) if t == n else Outcome("lose") if t == 7 else None
+        elif spot.startswith("lay_"):   # (the next decision's vig, to keep it up)
+            v = lay_vig(n, a)
+            o = Outcome("win", pounds(lay_odds(n, a)) - v, vig=v) if t == 7 else Outcome("lose") if t == n else None
         elif spot in HARDWAYS:
             if not come_out or working:
                 if t == n and hard:
@@ -180,7 +227,7 @@ def resolve(bets: dict, d1: int, d2: int, point: int | None, working: bool = Fal
         elif spot == "ce":     # half on any craps, half on 11
             o = Outcome("win", 3 * a) if t in (2, 3, 12) else Outcome("win", 7 * a) if t == 11 else Outcome("lose")
         if o is not None:
-            out[spot] = o
+            out[spot] = o if o.kind != "win" or o.vig else Outcome(o.kind, pounds(o.win), o.stays, o.to)
     return out
 
 
@@ -433,9 +480,10 @@ def rules() -> dict:
             "sections": [
                 {"title": "Line bets", "rows": [["Pass Line, Come", "1 to 1"], ["Don't Pass, Don't Come (bar 12)", "1 to 1"],
                                                 ["Odds 3-4-5x", "2:1, 3:2, 6:5"], ["Lay odds up to 6x", "1:2, 2:3, 5:6"]]},
-                {"title": "Numbers", "rows": [["Place 6 or 8", "7 to 6"], ["Place 5 or 9", "7 to 5"],
-                                              ["Place 4 or 10", "9 to 5"], ["Buy (5% of the bet on a win)", "true odds"],
-                                              ["Lay (5% of the win)", "true odds"]]},
+                {"title": "Numbers", "rows": [["Place 6 or 8 (in £6s)", "7 to 6"], ["Place 5 or 9", "7 to 5"],
+                                              ["Place 4 or 10", "9 to 5"],
+                                              ["Buy: £1 vig per £20 bet, out of a win", "true odds"],
+                                              ["Lay: £1 vig per £20 it wins, up front", "true odds"]]},
                 {"title": "Field and Big 6/8", "rows": [["Field 3, 4, 9, 10, 11", "1 to 1"], ["Field 2", "2 to 1"],
                                                         ["Field 12", "3 to 1"], ["Big 6, Big 8", "1 to 1"]]},
                 {"title": "Hardways and props", "rows": [["Hard 6 or 8", "9 to 1"], ["Hard 4 or 10", "7 to 1"],
@@ -446,4 +494,6 @@ def rules() -> dict:
                       "Once the point is on, a Pass Line or come bet can't come down. Click the Pass Line (or just behind "
                       "it) for odds; click Don't Pass to lay odds.",
                       "The shooter needs a Pass Line or Don't Pass bet. After a seven-out the dice move clockwise.",
+                      "Everything pays in whole pounds. Your chips go down in each bet's proper units "
+                      "(Place 6 and 8 in £6s, a Horn in £4s) so nothing's paid down.",
                       "£5 minimum (£1 on hardways and props), £500 maximum (£100 on a prop)."]}

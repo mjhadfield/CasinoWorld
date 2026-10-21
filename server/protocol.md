@@ -188,8 +188,9 @@ The snapshot adds:
 
 ### Craps (`event.kind`)
 Bets stay on the layout from roll to roll. A seat's `bets` are everything it has down; `locked` is
-what's already paid for. New chips are paid for when the dice go out (one debit per seat per roll);
-taking a paid-for bet down refunds it at once. Spot ids: see `engines/craps.py` (`pass`, `pass_odds`,
+what's already paid for. New chips are paid for when the dice go out (one debit per seat per roll),
+with the vig on new lay bets; taking a paid-for bet down refunds it at once, a lay bet's vig with it
+(`bet_changed` then carries `vig_back`, the pence of vig that came back). Spot ids: see `engines/craps.py` (`pass`, `pass_odds`,
 `dont_pass`, `dont_odds`, `come`, `dont_come`, `come_N`, `come_odds_N`, `dcome_N`, `dcome_odds_N`,
 `place_N`, `buy_N`, `lay_N`, `field`, `big6`, `big8`, `hard4`..`hard10`, `any7`, `any_craps`, `two`,
 `three`, `eleven`, `twelve`, `horn`, `ce`).
@@ -202,8 +203,8 @@ they seven out), `working` {`on`} (place/buy bets, hardways and come odds work o
 | kind | fields | when |
 |---|---|---|
 | `roll_open` | `shooter`, `point`, `seconds`, `human_shooter` | Bets are open; the shooter rolls when ready (a human within `seconds`, else the dice pass on). |
-| `throw` | `shooter`, `dice` [d1, d2], `plan` (each die's path: segments {`k` air/slide, `t0`, `t1`, `x0`, `y0`, `x1`, `y1`, `h`, `f`, `r0`, `r1`} in table coordinates), `out` (seconds the stickman takes to push the dice out first) | Dice are out: no more bets. |
-| `roll_result` | `dice`, `total`, `words`, `was` (the point before), `point`, `what` (point_set, point_made, seven_out, natural, craps, roll), `seats` {seat: [{`spot`, `kind` win/lose/return/move, `amount`, `win`, `stays`, `to`}]}, `after` {seat: bets}, `shooter`, `rolls`, `history`, `rest` | The roll's decided and paid (wallets follow). |
+| `throw` | `shooter`, `dice` [d1, d2], `plan` (each die's path: segments {`k` air/slide, `t0`, `t1`, `x0`, `y0`, `x1`, `y1`, `h`, `f`, `r0`, `r1`} in table coordinates), `out` (seconds the stickman takes to push the dice out first), `vig` {seat: {lay spot: pence}} (the vig each player handed over with their lay bets) | Dice are out: no more bets. |
+| `roll_result` | `dice`, `total`, `words`, `was` (the point before), `point`, `what` (point_set, point_made, seven_out, natural, craps, roll), `seats` {seat: [{`spot`, `kind` win/lose/return/move, `amount`, `win` (what's paid, after any vig), `vig` (taken off a buy or lay bet's win), `stays`, `to`}]}, `after` {seat: bets}, `shooter`, `rolls`, `history`, `rest` | The roll's decided and paid (wallets follow). |
 | `shooter_change` | `shooter`, `reason` (taken, passed, timeout, no_line_bet, left), `point` | The dice move outside the normal rotation. |
 | `dice_queued` | `seat`, `on` | A player is waiting for the dice. |
 | `working` | `seat`, `on` | |

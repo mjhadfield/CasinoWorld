@@ -15,7 +15,8 @@ from casino_server.tables.craps import INACTIVE_ROLLS, CrapsMachine, Timings
 from test_machine import FakeParticipant
 
 ROLLS = list(product(range(1, 7), repeat=2))
-STAKE = 3000   # divides cleanly by every payout's denominator
+STAKE = 6000   # a proper unit of every bet, and its buy vig is exactly 5%
+LAY_STAKE = {4: 12_000, 10: 12_000, 5: 9000, 9: 9000, 6: 7200, 8: 7200}   # each wins £60: a 5% vig
 
 
 # ---------------------------------------------------------------- the engine
@@ -27,8 +28,10 @@ def test_the_catalogue():
 
 
 def _ev(spot: str, point, working=True, stake=STAKE, push_counts=False) -> Fraction:
-    """The bet's expected return per decision, rolling until something happens to it."""
+    """The bet's expected return per decision, rolling until something happens to it. A lay
+    bet carries the vig it was paid with up front, and a loss takes that too."""
     total = decided = Fraction(0)
+    carried = cr.vig_up_front({spot: stake})
     for d1, d2 in ROLLS:
         o = cr.resolve({spot: stake}, d1, d2, point, working).get(spot)
         if o is None:
@@ -36,7 +39,7 @@ def _ev(spot: str, point, working=True, stake=STAKE, push_counts=False) -> Fract
                 decided += Fraction(1, 36)   # a bar-12 push is a decision worth nothing
             continue
         decided += Fraction(1, 36)
-        total += Fraction(1, 36) * (o.win if o.kind == "win" else -stake if o.kind == "lose" else 0)
+        total += Fraction(1, 36) * (o.win if o.kind == "win" else -stake - carried if o.kind == "lose" else 0)
     return total / decided / stake
 
 
@@ -63,8 +66,9 @@ EDGES = {
     "place_6": Fraction(1, 66), "place_8": Fraction(1, 66),
     "buy_4": Fraction(1, 60), "buy_10": Fraction(1, 60), "buy_5": Fraction(1, 50), "buy_9": Fraction(1, 50),
     "buy_6": Fraction(1, 44), "buy_8": Fraction(1, 44),
-    "lay_4": Fraction(1, 60), "lay_10": Fraction(1, 60), "lay_5": Fraction(1, 50), "lay_9": Fraction(1, 50),
-    "lay_6": Fraction(1, 44), "lay_8": Fraction(1, 44),
+    # Lay vig up front: of the bet, 1/40, 1/30, 1/24 (2.44%, 3.23%, 4.00% of the bet and vig together).
+    "lay_4": Fraction(1, 40), "lay_10": Fraction(1, 40), "lay_5": Fraction(1, 30), "lay_9": Fraction(1, 30),
+    "lay_6": Fraction(1, 24), "lay_8": Fraction(1, 24),
     "field": Fraction(1, 36), "big6": Fraction(1, 11), "big8": Fraction(1, 11),
     "hard4": Fraction(1, 9), "hard10": Fraction(1, 9), "hard6": Fraction(1, 11), "hard8": Fraction(1, 11),
     "any7": Fraction(1, 6), "any_craps": Fraction(1, 9), "two": Fraction(5, 36), "twelve": Fraction(5, 36),
@@ -74,7 +78,8 @@ EDGES = {
 
 @pytest.mark.parametrize("spot", sorted(EDGES))
 def test_every_bet_has_its_published_edge(spot):
-    assert _ev(spot, point=4 if cr.number_of(spot) != 4 else 5) == -EDGES[spot]
+    stake = LAY_STAKE[cr.number_of(spot)] if spot.startswith("lay_") else STAKE
+    assert _ev(spot, point=4 if cr.number_of(spot) != 4 else 5, stake=stake) == -EDGES[spot]
 
 
 @pytest.mark.parametrize("n", cr.NUMBERS)
@@ -100,7 +105,7 @@ def test_how_a_roll_decides_things():
     # Place bets and hardways are off coming out, unless working; lay bets aren't.
     assert cr.resolve({"place_6": 600, "hard6": 100, "lay_4": 1000}, 3, 3, None) == {}
     r = cr.resolve({"place_6": 600, "hard6": 100, "lay_4": 1000}, 3, 4, None)
-    assert list(r) == ["lay_4"] and r["lay_4"].win == 475
+    assert list(r) == ["lay_4"] and r["lay_4"].win == 400 and r["lay_4"].vig == 100   # £5, less the £1 to keep it up
     r = cr.resolve({"place_6": 600, "hard6": 100}, 3, 3, None, working=True)
     assert r["place_6"].win == 700 and r["hard6"].win == 900
     assert cr.resolve({"hard6": 100}, 2, 4, 8)["hard6"].kind == "lose"       # easy six
@@ -109,7 +114,32 @@ def test_how_a_roll_decides_things():
     assert cr.resolve({"horn": 400}, 5, 6, 4)["horn"].win == 1200
     assert cr.resolve({"ce": 200}, 1, 2, None)["ce"].win == 600 and cr.resolve({"ce": 200}, 5, 6, 9)["ce"].win == 1400
     assert cr.resolve({"buy_4": 2000}, 2, 2, 6)["buy_4"].win == 3900            # 2 to 1 less £1
+    assert cr.resolve({"buy_4": 2500}, 2, 2, 6)["buy_4"].vig == 100             # £1.25 rounds down
+    assert cr.resolve({"buy_6": 4000}, 2, 4, 9)["buy_6"].win == 4600            # 6 to 5 less £2
     assert cr.resolve({"field": 500}, 6, 6, 9)["field"].win == 1500
+
+
+def test_the_house_pays_in_whole_pounds():
+    assert cr.resolve({"place_6": 500}, 3, 3, 8)["place_6"].win == 500          # £5.83, paid down
+    assert cr.resolve({"pass_odds": 500}, 2, 3, 5)["pass_odds"].win == 700      # 3 to 2 on £5
+    assert cr.resolve({"horn": 100}, 1, 1, 4)["horn"].win == 600                # 27 to 4 on £1
+    assert cr.vig(0) == 0 and cr.vig(500) == 100 and cr.vig(3900) == 100 and cr.vig(4000) == 200
+    assert cr.lay_vig(4, 4000) == 100 and cr.lay_vig(6, 2400) == 100 and cr.lay_vig(9, 6000) == 200
+
+
+@pytest.mark.parametrize("spot", [s for s in cr.SPOTS if not cr.is_travelled(s) and s not in ("come", "dont_come")])
+def test_proper_units_pay_whole_pounds(spot):
+    """Every multiple of a bet's unit wins whole pounds, whatever the roll."""
+    for k in range(1, 7):
+        for point in cr.NUMBERS:
+            a = k * cr.unit(spot, point)
+            for d1, d2 in ROLLS:
+                o = cr.resolve({spot: a}, d1, d2, point, True).get(spot)
+                if o is not None and o.kind == "win":
+                    gross = {"pass_odds": cr.true_odds, "dont_odds": cr.lay_odds}.get(spot)
+                    exact = gross(point, a) if gross else o.win + o.vig
+                    assert exact % 100 == 0 and o.win % 100 == 0, (spot, a, point, d1, d2)
+    assert cr.proper("place_6", 500) == 600 and cr.proper("place_6", 2500) == 2400 and cr.proper("horn", 500) == 400
 
 
 def test_the_point():
@@ -359,6 +389,26 @@ def test_taking_bets_down():
     assert ev[0]["_paid"] == [p] and p.balance == 100_000 and m.locked[4] == {}
     with pytest.raises(TableError, match="Your bets stay"):
         m.rebet(4, now)
+
+
+def test_a_lay_bet_pays_its_vig_up_front():
+    m = table(7)                         # coming out 7: the lay wins
+    p, q = FakeParticipant("Pat"), FakeParticipant("Quin", human=False)
+    m.sit(0, q, 0)
+    m.sit(4, p, 0)
+    m.set_bet(0, "pass", 500, 0)
+    m.set_bet(4, "lay_4", 4000, 0)
+    now, ev = roll(m, 0)
+    throw = next(e for e in ev if e["kind"] == "throw")
+    assert throw["vig"] == {"4": {"lay_4": 100}}
+    step = next(e for e in ev if e["kind"] == "roll_result")["seats"]["4"][0]
+    assert step["win"] == 1900 and step["vig"] == 100   # £20, less the £1 to keep it up
+    assert p.balance == 100_000 - 4100 + 1900
+    ev = m.set_bet(4, "lay_4", 0, now)   # taken down: the bet and its vig come back
+    assert ev[0]["vig_back"] == 100 and p.balance == 100_000 + 1900
+    m.set_bet(4, "lay_4", 2000, now)
+    with pytest.raises(TableError):
+        m.set_bet(4, "lay_4", p.balance, now)   # (the vig has to be covered too)
 
 
 def test_working_bets_on_the_come_out():

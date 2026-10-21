@@ -184,6 +184,12 @@ func on_seated_prompt() -> Dictionary:
 	return {}
 
 
+## What a spot's bet becomes when a chip goes on it (or comes off). A table can step
+## its bets in their own units (craps pays in whole pounds).
+func step_bet(_spot: String, old: int, chip: int, adding: bool) -> int:
+	return old + chip if adding else maxi(0, old - chip)
+
+
 ## What of these bets hasn't been paid for yet (shown off the balance until it is).
 func pending_cost(bets: Dictionary) -> int:
 	var total := 0

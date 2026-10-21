@@ -400,16 +400,20 @@ func _on_spot_clicked(spot: String) -> void:
 	if flat.has(spot):  # on/off, a fixed amount (the £1 Jackpot)
 		Net.send("bet", {"spot": spot, "amount": 0 if int(my_bets.get(spot, 0)) else int(flat[spot])})
 		return
+	var old := int(my_bets.get(spot, 0))
+	var add := active_table.step_bet(spot, old, hud.selected_chip, true) - old
+	if add <= 0:
+		return
 	var trial := my_bets.duplicate()
-	trial[spot] = int(my_bets.get(spot, 0)) + hud.selected_chip
+	trial[spot] = old + add
 	if active_table.max_cost(trial) > Session.balance:
 		var main := active_table.main_spot()
 		hud.show_toast("You wouldn't have enough to match that Ante with a Play bet." if spot == "ante"
 			else "You wouldn't have enough left to double." if spot == main else "Not enough balance for that.")
 		return
 	my_bets = trial  # optimistic; the server's bet_changed confirms it
-	_placed.append([spot, hud.selected_chip])
-	Net.send("bet", {"spot": spot, "add": hud.selected_chip})
+	_placed.append([spot, add])
+	Net.send("bet", {"spot": spot, "add": add})
 
 
 func _on_spot_removed(spot: String) -> void:
@@ -418,8 +422,9 @@ func _on_spot_removed(spot: String) -> void:
 	if active_table.flat_spots().has(spot):
 		Net.send("bet", {"spot": spot, "amount": 0})
 		return
-	my_bets[spot] = maxi(0, int(my_bets[spot]) - hud.selected_chip)
-	Net.send("bet", {"spot": spot, "add": -hud.selected_chip})
+	var old := int(my_bets[spot])
+	my_bets[spot] = active_table.step_bet(spot, old, hud.selected_chip, false)
+	Net.send("bet", {"spot": spot, "add": int(my_bets[spot]) - old})
 
 
 ## Undo: your last chip this round comes back off the layout.
