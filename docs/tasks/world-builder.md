@@ -1,6 +1,6 @@
 # World builder: rooms, blueprints, lobby, asset library
 
-**Branch:** `task/world-builder` (worktree `.claude/worktrees/world-builder`, dev port 8672)
+**Branch:** merged to `main` 2026-10-22 (was `task/world-builder`)
 **Plan:** `~/.claude/plans/pasted-content-id-7584-up-to-zesty-thacker.md` (approved 2026-10-21)
 
 ## Goal
@@ -22,18 +22,18 @@ Server: new `plan.py`, `plan_catalogue.json`, `plan_classic.json`, `plan_web/`; 
 - [x] Phase 2: client builds the world from the plan; lobby spawn; zones; preview mode
 - [x] Phase 3: admin Floor plan tab (plan view, blueprint editor, paths, problems)
 - [x] Phase 4: LPC furniture library, uploads, PlanArt
-- [ ] `tools/dev.sh test` passes; docs updated; merged and live
+- [x] `tools/dev.sh test` passes; docs updated; merged and live
 
 ## Handoff
-- **State:** Phases 0-4 committed on the branch (server plan, client floor, admin Floor plan tab, asset library with
-  57 LPC pieces + 9 floors, uploads, PlanArt/Furniture). Next: merge to main, test, export, restart live (the live
-  floor becomes the lobby; Classic floor/pit wait in the library).
+- **State:** done and live (2026-10-22). The live floor is the lobby (spawn, door top centre); the classic floor
+  and pit are unplaced blueprints in the library. Mike builds from here on the admin page's Floor plan tab.
 - **Changed:** `tools/plan_catalogue.gd` + `server/casino_server/plan_catalogue.json` (table/cabinet footprints).
 - **Checked:** admin tab in Playwright (scratch script): plan view, room editor (place, rotate, door, point,
   zone, resize), phone width; fresh first-run plan with Classic placed above the lobby, published, walked through
   the lobby door in the game. `tools/dev.sh test`: 876 pass (test_plan.py covers the plan). shot.py on the dev instance: the
   lobby and its door; `dev.sh server --classic`: tables, NPCs, a tap-walk through the archway into the pit; a
   draft room's preview.
-- **Questions for Mike:** —
+- **Questions for Mike:** whether to enable turned card tables beyond Blackjack, and 90° tables; interactive
+  objects (nothing on the floor responds to a click yet).
 - **Gotcha:** headless Godot tools connect to the live server through the Net autoload unless
   `CASINO_SERVER_URL=ws://127.0.0.1:9/ws` is set.
