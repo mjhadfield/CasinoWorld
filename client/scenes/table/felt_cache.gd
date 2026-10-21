@@ -67,7 +67,9 @@ func repaint() -> void:
 
 func _process(delta: float) -> void:
 	var want: float
-	if _scale > 0.0 and not _table.on_screen_now:
+	if not _table.on_screen_now:
+		if _scale == 0.0:
+			return   # not painted until it's nearly in view (FloorGame's notifier reaches past the table)
 		_away += delta
 		if _away < AWAY_AFTER or _scale <= AWAY_SCALE:
 			return

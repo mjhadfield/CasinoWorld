@@ -144,8 +144,43 @@ def index(request: Request):
         return RedirectResponse(f"https://{host}:{https_port}/")
     index_html = WEB_EXPORT_DIR / "index.html"
     if index_html.exists():
-        return FileResponse(index_html)
+        return FileResponse(index_html, headers={"Cache-Control": "no-cache"})
     return NOT_EXPORTED_PAGE
+
+
+# The engine (a 40 MB wasm, the pck, its loader) as the brotli or gzip copy tools/dev.sh export
+# makes, when the browser takes it and the copy isn't older than the file (an export that's still
+# compressing serves the plain one). Always revalidated (no-cache), so a reload costs a 304.
+ENGINE_FILES = {"index.wasm": "application/wasm", "index.pck": "application/octet-stream",
+                "index.js": "text/javascript"}
+
+
+def _engine_file(name: str, request: Request):
+    path = WEB_EXPORT_DIR / name
+    if not path.is_file():
+        raise HTTPException(404)
+    headers = {"Cache-Control": "no-cache", "Vary": "Accept-Encoding"}
+    accepts = request.headers.get("accept-encoding", "")
+    for encoding, ext in (("br", ".br"), ("gzip", ".gz")):
+        packed = path.with_name(name + ext)
+        if encoding in accepts and packed.is_file() and packed.stat().st_mtime >= path.stat().st_mtime:
+            path, headers["Content-Encoding"] = packed, encoding
+            break
+    response = FileResponse(path, media_type=ENGINE_FILES[name], headers=headers, stat_result=path.stat())
+    etag = response.headers.get("etag")
+    if etag and etag in request.headers.get("if-none-match", ""):
+        return Response(status_code=304, headers={"ETag": etag, **headers})
+    return response
+
+
+def _engine_route(name: str):
+    def serve(request: Request):
+        return _engine_file(name, request)
+    return serve
+
+
+for _name in ENGINE_FILES:
+    app.add_api_route(f"/{_name}", _engine_route(_name), methods=["GET", "HEAD"], include_in_schema=False)
 
 
 # ------------------------------------------------------------------ sounds

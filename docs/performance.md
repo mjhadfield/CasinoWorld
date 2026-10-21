@@ -29,7 +29,8 @@ so Emscripten copies an offscreen back buffer at the end of every frame and quer
   with `position` (the ball), and fade it with `modulate`. Each of those is one property write.
 - **Draw static things once.** `FeltCache` paints each felt into a SubViewport at the screen's own resolution
   (times 1.25) and shows it as one texture. It repaints when the felt would have redrawn, and when the camera's
-  zoom or the window changes its size on screen. Off screen for 3 s, a felt keeps only a half-scale copy.
+  zoom or the window changes its size on screen. A felt isn't painted until it's nearly in view, and after 3 s
+  off screen it keeps only a half-scale copy.
   Chairs keep their built geometry in the style (`Seating.Ink`), as triangle lists played back in a few calls.
 - **Spread periodic work.** A glowing chair "breathes" every 4th frame on a frame of its own
   (`FloorGame.breathes_now()`), so the tables don't all redraw on the same frame.
@@ -37,6 +38,18 @@ so Emscripten copies an offscreen back buffer at the end of every frame and quer
   still processes, so the tables keep up.
 - **Never use `Engine.max_fps` on the web.** It waits out the rest of each frame inside the frame (the CPU
   spins). `Settings.WEB_CAP` skips the browser's frames instead.
+
+## Loading
+
+- **The engine is sent compressed.** `tools/dev.sh export` writes brotli and gzip copies of `index.wasm`,
+  `index.pck` and `index.js`. The wasm goes from 39.5 MB to 6.9 MB at brotli 11; a file is only packed again
+  when its content changes, because the wasm's brotli takes a minute. `app.py` sends the copy the browser
+  takes, but only while the copy is at least as new as the file, so a half-finished export sends the plain
+  file. Each response is `no-cache` with an ETag, so a reload costs a 304.
+- **Caching needs a trusted certificate.** Chrome caches nothing from a site whose certificate it doesn't trust.
+  On the self-signed 8661 port every reload downloads everything again; compressed, that's about 12 MB plus the
+  sounds and art.
+- **Slot art is decoded a few pictures a frame** (`SlotArt.DECODE_MS`), not a hundred-odd in one frame.
 
 ## Measuring
 

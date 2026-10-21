@@ -111,6 +111,25 @@ export_web() {
     mkdir -p "$ROOT/build/web"
     cd "$ROOT/client"
     godot --headless --export-release Web ../build/web/index.html
+    compress_web "$ROOT/build/web"
+}
+
+# Brotli and gzip copies of the engine files, which the server sends to browsers that take them
+# (docs/performance.md). The wasm only changes with Godot itself, and its best brotli takes a
+# minute, so a file is only packed again when its content has changed.
+compress_web() {
+    local web=$1 f sum
+    for f in index.wasm index.pck index.js; do
+        [[ -f "$web/$f" ]] || continue
+        sum=$(sha256sum "$web/$f" | cut -c1-64)
+        if [[ -f "$web/$f.br" && "$(cat "$web/$f.sha256" 2>/dev/null)" == "$sum" ]]; then
+            touch "$web/$f.br" "$web/$f.gz"   # (as new as the file Godot just rewrote)
+            continue
+        fi
+        brotli -f -q "$([[ $f == index.wasm ]] && echo 11 || echo 9)" -o "$web/$f.br" "$web/$f"
+        gzip -9 -c "$web/$f" > "$web/$f.gz"
+        echo "$sum" > "$web/$f.sha256"
+    done
 }
 
 run_tests() {

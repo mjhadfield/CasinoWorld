@@ -21,6 +21,7 @@ var _downloaded := {}  # URL -> Texture2D (or a FontFile, for a built slot's fon
 var _fonts := {}       # "variant/role" -> FontFile: a built slot's display and interface fonts
 var _version := -1
 var _loading := 0
+const DECODE_MS := 8
 
 
 func _ready() -> void:
@@ -63,7 +64,14 @@ func reload() -> void:
 	var bodies := await _fetch_all(wanted.filter(func(u): return not _downloaded.has(u)))
 	if serial != _loading:
 		return
+	# Unpacked a few a frame (about DECODE_MS each): all at once, a hundred-odd pictures stop the game for a second.
+	var started := Time.get_ticks_msec()
 	for url in bodies:
+		if Time.get_ticks_msec() - started > DECODE_MS:
+			await get_tree().process_frame
+			if serial != _loading:
+				return
+			started = Time.get_ticks_msec()
 		var body: PackedByteArray = bodies[url]
 		if url.contains("/fonts/"):
 			var f := FontFile.new()

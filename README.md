@@ -32,7 +32,8 @@ run from this folder with `server/data/`. `tools/dev.sh` does the everyday jobs:
 
 ```fish
 tools/dev.sh restart        # after server changes
-tools/dev.sh export         # after client changes, then reload the page (no restart needed)
+tools/dev.sh export         # after client changes, then reload the page (no restart needed); also packs
+                            # brotli/gzip copies of the engine (a minute when Godot's wasm has changed)
 tools/dev.sh server         # a scratch instance on its own port (8670 up) with .dev/data
 ```
 
