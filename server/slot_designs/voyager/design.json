@@ -1,0 +1,3010 @@
+{
+ "name": "Voyager",
+ "concept": {
+  "brief": "Star Trek: Voyager, space themed video slot machine.",
+  "style": "",
+  "tiers": {
+   "high": 2,
+   "mid": 4,
+   "low": 4
+  },
+  "target_rtp": 91.5,
+  "volatility": "medium"
+ },
+ "categories": [
+  {
+   "id": "royals",
+   "title": "Royals",
+   "role": "low",
+   "kind": "royal",
+   "required": 4
+  },
+  {
+   "id": "set1",
+   "title": "Symbol set 1 \u00b7 high pays",
+   "role": "high",
+   "kind": "character",
+   "required": 2
+  },
+  {
+   "id": "set2",
+   "title": "Symbol set 2 \u00b7 mid pays",
+   "role": "mid",
+   "kind": "object",
+   "required": 4
+  },
+  {
+   "id": "specials",
+   "title": "Specials \u00b7 wild & scatters",
+   "role": "specials",
+   "kind": "special",
+   "required": 3
+  },
+  {
+   "id": "bonus",
+   "title": "Bonus screens",
+   "role": null,
+   "kind": "object",
+   "required": null
+  }
+ ],
+ "symbols": [
+  {
+   "id": "a",
+   "name": "A",
+   "category": "royals",
+   "kind": "royal",
+   "key": "magenta",
+   "keep_text": "letter A",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "red",
+   "prompt": "",
+   "binned": [
+    "cut/a_1.png",
+    "cut/a_2.png",
+    "cut/a_3.png",
+    "cut/a_5.png",
+    "cut/a_4.png"
+   ],
+   "reiterate": false,
+   "takes": 1,
+   "first_takes": 1,
+   "rank": "A",
+   "choice": "cut/a_6.png",
+   "keep": true
+  },
+  {
+   "id": "k",
+   "name": "K",
+   "category": "royals",
+   "kind": "royal",
+   "key": "magenta",
+   "keep_text": "letter K",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "blue",
+   "prompt": "",
+   "rank": "K",
+   "first_takes": 1,
+   "reiterate": false,
+   "choice": "cut/k_3.png",
+   "binned": [
+    "cut/k_1.png",
+    "cut/k_2.png"
+   ],
+   "keep": true
+  },
+  {
+   "id": "q",
+   "name": "Q",
+   "category": "royals",
+   "kind": "royal",
+   "key": "magenta",
+   "keep_text": "letter Q",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "purple",
+   "prompt": "",
+   "rank": "Q",
+   "first_takes": 1,
+   "reiterate": false,
+   "keep": true,
+   "binned": [
+    "cut/q_1.png"
+   ],
+   "choice": "cut/q_2.png"
+  },
+  {
+   "id": "j",
+   "name": "J",
+   "category": "royals",
+   "kind": "royal",
+   "key": "magenta",
+   "keep_text": "letter J",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "green",
+   "prompt": "",
+   "first_takes": 1,
+   "reiterate": false,
+   "binned": [
+    "cut/j_1.png",
+    "cut/j_2.png",
+    "cut/j_3.png",
+    "cut/j_4.png"
+   ],
+   "choice": "cut/j_5.png",
+   "rank": "J",
+   "keep": true
+  },
+  {
+   "id": "wild",
+   "name": "Wild",
+   "category": "specials",
+   "kind": "special",
+   "key": "magenta",
+   "keep_text": "word WILD",
+   "refs": [
+    "links/delta.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "prompt": "",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "links/delta.png",
+     "note": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta."
+    },
+    {
+     "from": "links/delta.png",
+     "note": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta."
+    },
+    {
+     "from": "links/delta.png",
+     "note": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta."
+    },
+    {
+     "from": "links/delta.png",
+     "note": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta. the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta."
+    },
+    {
+     "from": "links/delta.png",
+     "note": "the word \"WILD\" in big gold 3D letters over a silver Starfleet delta. the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta."
+    },
+    {
+     "from": "raw/wild_2.png",
+     "note": "Remove the red glow"
+    }
+   ],
+   "base": null,
+   "note": "Remove the red glow",
+   "choice": "badge/wild_2",
+   "binned": [
+    "cut/wild_1.png",
+    "cut/wild_2.png",
+    "cut/wild_3.png",
+    "cut/wild_4.png"
+   ],
+   "keep": true,
+   "word": "WILD",
+   "first_takes": 2
+  },
+  {
+   "id": "bonus_scatter",
+   "name": "Bonus scatter",
+   "category": "specials",
+   "kind": "special",
+   "key": "magenta",
+   "keep_text": "word BONUS",
+   "refs": [
+    "links/delta_flyer.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "prompt": "",
+   "reiterate": false,
+   "takes": 3,
+   "history": [
+    {
+     "from": "links/delta_flyer.png",
+     "note": "the word \"BONUS\" in big gold 3D letters over the delta flyer."
+    },
+    {
+     "from": "raw/bonus_scatter_1.png",
+     "note": "Increase the realism from the reference image and remove the outer glow"
+    },
+    {
+     "from": "links/delta_flyer.png",
+     "note": "the word \"BONUS\" in big gold 3D letters over the delta flyer keeping the geometry of the original image, no background glow but a faint outline. Increase the realism from the reference image and remove the outer glow."
+    },
+    {
+     "from": "raw/bonus_scatter_3.png",
+     "note": "The word \"Bonus\" should be horizontal across the centre of the image"
+    },
+    {
+     "from": "links/delta_flyer.png",
+     "note": "the word \"BONUS\" in big gold 3D letters over the delta flyer keeping the geometry of the original image, no background glow but a faint outline. The word \"Bonus\" should be horizontal across the centre of the image."
+    }
+   ],
+   "note": "The word \"Bonus\" should be horizontal across the centre of the image",
+   "base": "links/delta_flyer.png",
+   "binned": [
+    "cut/bonus_scatter_2.png",
+    "cut/bonus_scatter_1.png",
+    "cut/bonus_scatter_4.png",
+    "cut/bonus_scatter_3.png",
+    "cut/bonus_scatter_5.png",
+    "cut/bonus_scatter_6.png",
+    "cut/bonus_scatter_7.png"
+   ],
+   "keep": true,
+   "word": "BONUS",
+   "first_takes": 2,
+   "choice": "badge/bonus_scatter_1"
+  },
+  {
+   "id": "free_spins",
+   "name": "Free-spins scatter",
+   "category": "specials",
+   "kind": "special",
+   "key": "magenta",
+   "keep_text": "words FREE SPINS",
+   "refs": [
+    "links/wormhole_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "prompt": "",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "links/voyager.png",
+     "note": "the word \"SCATTER\" in big gold 3D letters over the USS voyager."
+    },
+    {
+     "from": "links/voyager.png",
+     "note": "the word \"SCATTER\" in big gold 3D letters over the USS voyager."
+    }
+   ],
+   "binned": [
+    "cut/free_spins_1.png",
+    "cut/free_spins_3.png",
+    "badge/free_spins_1",
+    "cut/free_spins_2.png",
+    "badge/free_spins_4",
+    "badge/free_spins_5",
+    "badge/free_spins_6",
+    "badge/free_spins_7"
+   ],
+   "keep": true,
+   "fits": {
+    "cut/free_spins_3.png": {
+     "src": "raw/free_spins_2.png",
+     "fit": {
+      "scale": 0.97,
+      "dx": 0.0,
+      "dy": 0.0,
+      "rot": 0.0
+     }
+    },
+    "badge/free_spins_3": {
+     "src": "raw/badge_free_spins_2.png",
+     "fit": {
+      "scale": 1.27,
+      "dx": 0.0,
+      "dy": 0.0,
+      "rot": 0.0
+     }
+    }
+   },
+   "labels": {
+    "cut/free_spins_3.png": "Take 2, fitted",
+    "badge/free_spins_3": "Badge 2, fitted"
+   },
+   "word": "SCATTER",
+   "first_takes": 2,
+   "choice": "badge/free_spins_3"
+  },
+  {
+   "id": "janeway",
+   "name": "Janeway",
+   "category": "set2",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/janeway.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "red",
+   "first_takes": 3,
+   "reiterate": false,
+   "choice": "bust/janeway_6",
+   "binned": [
+    "bust/janeway_1",
+    "bust/janeway_2",
+    "bust/janeway_3",
+    "bust/janeway_4"
+   ],
+   "keep": true
+  },
+  {
+   "id": "seven",
+   "name": "Seven",
+   "category": "set2",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/seven_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "silver",
+   "first_takes": 3,
+   "reiterate": false,
+   "binned": [
+    "bust/seven_4",
+    "bust/seven_3",
+    "bust/seven_1",
+    "bust/seven_5",
+    "bust/seven_6",
+    "bust/seven_7",
+    "bust/seven_2",
+    "bust/seven_9"
+   ],
+   "takes": 1,
+   "note": "Thinner outer black border on the character",
+   "history": [
+    {
+     "from": "raw/bust_seven_5.png",
+     "note": "Thinner outer black border on the character"
+    }
+   ],
+   "choice": "bust/seven_8",
+   "keep": true
+  },
+  {
+   "id": "emh",
+   "name": "EMH",
+   "category": "set2",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/emh.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "blue",
+   "first_takes": 3,
+   "reiterate": false,
+   "choice": "bust/emh_3",
+   "binned": [
+    "bust/emh_1",
+    "bust/emh_2"
+   ],
+   "keep": true
+  },
+  {
+   "id": "tuvok",
+   "name": "Tuvok",
+   "category": "set2",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/tuvok_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 3,
+   "reiterate": false,
+   "choice": "bust/tuvok_1",
+   "binned": [
+    "bust/tuvok_2"
+   ],
+   "keep": true
+  },
+  {
+   "id": "wormhole",
+   "name": "Wormhole",
+   "category": "set1",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/wormhole.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false,
+   "choice": "cut/wormhole_2.png",
+   "keep": true
+  },
+  {
+   "id": "transwarpconduit",
+   "name": "TranswarpConduit",
+   "category": "set1",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/screenshot_20261020_222954.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/transwarpconduit_2.png"
+  },
+  {
+   "id": "voyager",
+   "name": "Voyager",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/voyager_3.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false,
+   "choice": "cut/voyager_1.png"
+  },
+  {
+   "id": "borgsphere",
+   "name": "BorgSphere",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/borg_sphere.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false,
+   "choice": "cut/borgsphere_3.png",
+   "fits": {
+    "cut/borgsphere_3.png": {
+     "src": "raw/borgsphere_1.png",
+     "fit": {
+      "scale": 0.83,
+      "dx": 0.0,
+      "dy": 0.0,
+      "rot": 0.0
+     }
+    }
+   },
+   "labels": {
+    "cut/borgsphere_3.png": "Take 1, fitted"
+   }
+  },
+  {
+   "id": "borgcube",
+   "name": "BorgCube",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/borg_cube.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false
+  },
+  {
+   "id": "expedition_unexplored_planet",
+   "name": "Expedition: unexplored planet",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/alien_planet.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "binned": [
+    "cut/expedition_unexplored_planet_1.png",
+    "cut/expedition_unexplored_planet_2.png"
+   ],
+   "first_takes": 2,
+   "reiterate": false
+  },
+  {
+   "id": "expedition_credits",
+   "name": "Expedition: credits",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "Credits",
+   "refs": [
+    "links/latinum.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "binned": [
+    "cut/expedition_credits_1.png"
+   ],
+   "first_takes": 2,
+   "reiterate": false
+  },
+  {
+   "id": "expedition_multiplier",
+   "name": "Expedition: multiplier",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "binned": [
+    "cut/expedition_multiplier_1.png"
+   ]
+  },
+  {
+   "id": "expedition_scanner",
+   "name": "Expedition: Scanner",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "Scanner",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "binned": [
+    "cut/expedition_scanner_1.png"
+   ]
+  },
+  {
+   "id": "expedition_shuttle",
+   "name": "Expedition: Shuttle",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "links/delta_flyer_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "first_takes": 2,
+   "reiterate": false,
+   "binned": [
+    "cut/expedition_shuttle_1.png"
+   ]
+  },
+  {
+   "id": "expedition_shields",
+   "name": "Expedition: Shields",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "Representation of shields",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "binned": [
+    "cut/expedition_shields_1.png"
+   ]
+  }
+ ],
+ "jobs": [
+  {
+   "id": 1,
+   "symbol": "wild",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "wild_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta.png",
+   "text": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 2,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bonus_scatter_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta_flyer.png",
+   "text": "the word \"BONUS\" in big gold 3D letters over the delta flyer.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 3,
+   "symbol": "free_spins",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "free_spins_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/voyager.png",
+   "text": "the word \"SCATTER\" in big gold 3D letters over the USS voyager.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 4,
+   "symbol": "wild",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "wild_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta.png",
+   "text": "the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta. the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 5,
+   "symbol": "wild",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "wild_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta.png",
+   "text": "the word \"WILD\" in big gold 3D letters over a silver Starfleet delta. the word \"WILD\" in big gold 3D letters over a glowing silver Starfleet delta.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 6,
+   "symbol": "wild",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "wild_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/wild_2.png",
+   "text": "Remove the red glow",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 7,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bonus_scatter_2"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/bonus_scatter_1.png",
+   "text": "Increase the realism from the reference image and remove the outer glow",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 8,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bonus_scatter_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta_flyer.png",
+   "text": "the word \"BONUS\" in big gold 3D letters over the delta flyer keeping the geometry of the original image, no background glow but a faint outline. Increase the realism from the reference image and remove the outer glow.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 9,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bonus_scatter_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/bonus_scatter_3.png",
+   "text": "The word \"Bonus\" should be horizontal across the centre of the image",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 10,
+   "symbol": "free_spins",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "free_spins_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/voyager.png",
+   "text": "the word \"SCATTER\" in big gold 3D letters over the USS voyager.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 11,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_scatter_5",
+    "bonus_scatter_6",
+    "bonus_scatter_7"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta_flyer.png",
+   "text": "the word \"BONUS\" in big gold 3D letters over the delta flyer keeping the geometry of the original image, no background glow but a faint outline. The word \"Bonus\" should be horizontal across the centre of the image.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 12,
+   "symbol": "janeway",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_janeway_1",
+    "bust_janeway_2",
+    "bust_janeway_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/janeway.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 13,
+   "symbol": "seven",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_seven_1",
+    "bust_seven_2",
+    "bust_seven_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/seven.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 14,
+   "symbol": "seven",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "bust_seven_4",
+    "bust_seven_5"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/seven2.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 15,
+   "symbol": "seven",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bust_seven_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/bust_seven_5.png",
+   "text": "Thinner outer black border on the character",
+   "out": "character",
+   "action": "reiterate"
+  },
+  {
+   "id": 16,
+   "symbol": "emh",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "bust_emh_1",
+    "bust_emh_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/emh.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 17,
+   "symbol": "janeway",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_janeway_4",
+    "bust_janeway_5",
+    "bust_janeway_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/janeway.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 18,
+   "symbol": "seven",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_seven_7",
+    "bust_seven_8",
+    "bust_seven_9"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/seven_2.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 19,
+   "symbol": "emh",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_emh_3",
+    "bust_emh_4",
+    "bust_emh_5"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/emh.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 20,
+   "symbol": "a",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "a_2"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 21,
+   "symbol": "a",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "a_3",
+    "a_4",
+    "a_5"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 25,
+   "symbol": "wild",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "badge_wild_1",
+    "badge_wild_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta.png",
+   "text": "",
+   "out": "special",
+   "action": "new"
+  },
+  {
+   "id": 26,
+   "symbol": "bonus_scatter",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "badge_bonus_scatter_1",
+    "badge_bonus_scatter_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta_flyer.png",
+   "text": "",
+   "out": "special",
+   "action": "new"
+  },
+  {
+   "id": 27,
+   "symbol": "free_spins",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "badge_free_spins_1",
+    "badge_free_spins_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/voyager.png",
+   "text": "",
+   "out": "special",
+   "action": "new"
+  },
+  {
+   "id": 28,
+   "symbol": "j",
+   "status": "failed",
+   "done": 0,
+   "count": 2,
+   "made": [],
+   "error": "docker exec failed",
+   "how": "text",
+   "src": null,
+   "text": "The letter 'J'",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 30,
+   "symbol": "j",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "j_3",
+    "j_4"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "The letter 'J'",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 31,
+   "symbol": "a",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "a_6"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 32,
+   "symbol": "k",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "k_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 33,
+   "symbol": "q",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "q_2"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 34,
+   "symbol": "j",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "j_5"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "",
+   "out": "royal",
+   "action": "new"
+  },
+  {
+   "id": 35,
+   "symbol": "wormhole",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "wormhole_1",
+    "wormhole_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/wormhole.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 36,
+   "symbol": "free_spins",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "badge_free_spins_6",
+    "badge_free_spins_7"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/wormhole_2.png",
+   "text": "",
+   "out": "special",
+   "action": "new"
+  },
+  {
+   "id": 37,
+   "symbol": "transwarpconduit",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "transwarpconduit_1",
+    "transwarpconduit_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/screenshot_20261020_222954.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 38,
+   "symbol": null,
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bg_1",
+    "bg_2",
+    "bg_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "the bridge of the starship Voyager at night: near-black, softly lit LCARS console panels glowing light blue and amber at the edges, a wide viewscreen of distant stars and a faint blue nebula, very dark and calm in the middle where the reels sit",
+   "out": "background",
+   "action": "background"
+  },
+  {
+   "id": 39,
+   "symbol": null,
+   "status": "failed",
+   "done": 0,
+   "count": 3,
+   "made": [],
+   "error": "docker exec failed",
+   "how": "stylise",
+   "src": null,
+   "text": "glowing light-blue LCARS lettering, crisp edges, a soft cyan glow and a frosted-glass sheen, like a starship display",
+   "lines": [
+    "VOYAGER"
+   ],
+   "font": "star-trek-film-bt.ttf",
+   "out": "logo",
+   "action": "logo"
+  },
+  {
+   "id": 40,
+   "symbol": "voyager",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "voyager_1",
+    "voyager_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/voyager_3.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 41,
+   "symbol": "borgsphere",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "borgsphere_1",
+    "borgsphere_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/borg_sphere.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 42,
+   "symbol": "borgcube",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "borgcube_1",
+    "borgcube_2"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/borg_cube.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 43,
+   "symbol": "expedition_unexplored_planet",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_unexplored_planet_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Unexplored Planet",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 44,
+   "symbol": "expedition_credits",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_credits_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Credits",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 45,
+   "symbol": "expedition_multiplier",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_multiplier_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Multiplier",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 46,
+   "symbol": "expedition_scanner",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_scanner_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Scanner",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 47,
+   "symbol": "expedition_shuttle",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_shuttle_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Delta Flyer",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 48,
+   "symbol": "expedition_shields",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "expedition_shields_1"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Representation of shields",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 49,
+   "symbol": "expedition_unexplored_planet",
+   "status": "done",
+   "done": 2,
+   "count": 2,
+   "made": [
+    "expedition_unexplored_planet_2",
+    "expedition_unexplored_planet_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "links/alien_planet.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 50,
+   "symbol": "expedition_credits",
+   "status": "failed",
+   "done": 1,
+   "count": 2,
+   "made": [
+    "expedition_credits_2"
+   ],
+   "error": "The image model failed (most likely out of GPU memory; see the Odysseus diffusion log)",
+   "how": "redraw",
+   "src": "links/latinum.png",
+   "text": "Credits",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 51,
+   "symbol": "expedition_shuttle",
+   "status": "waiting",
+   "done": 0,
+   "count": 2,
+   "made": [],
+   "error": "",
+   "how": "redraw",
+   "src": "links/delta_flyer_2.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  }
+ ],
+ "steps": {
+  "concept": "done",
+  "art": "done",
+  "ladder": "done",
+  "scene": "done",
+  "features": "done",
+  "bonuses": "done",
+  "sprites": "done",
+  "sounds": "done",
+  "maths": "done",
+  "mockup": "done",
+  "build": "done"
+ },
+ "art_prompts": {
+  "first_takes": 1,
+  "redraw": {
+   "1": "Redraw this exact slot machine symbol, keeping its design, colours, shape and pose, in crisp high-detail glossy casino slot game art.",
+   "2": "A bold new take on this slot machine symbol: same subject and colour scheme, same level of detail."
+  },
+  "bust": "a slot machine character portrait in a bold painted style like premium mobile casino slot art: a thin dark ink outline around the figure, smooth soft painted shading, light glossy highlights, no cross-hatching. Head and shoulders, facing the viewer, the shoulders wide and cut off flat at the bottom edge of the image, the head in the upper half. Maintain the original facial features and skin tone.",
+  "special": "a slot machine special-symbol emblem in bold premium casino slot art: one striking badge or icon of the theme, glossy, rim-lit, rich fine detail. No lettering, no words, no numbers.",
+  "royal": "Repaint this card-rank symbol as premium glossy casino slot art: keep the exact character shape, thickness, size, position and colour; give it a bevelled edge, glossy highlights, rich shading and rim light, theme it to Star Trek Voyager."
+ },
+ "lettering": {
+  "special_font": "star-trek-film-bt.ttf",
+  "royal_font": "star-trek-film-bt.ttf"
+ },
+ "sprites": {},
+ "ladder": {
+  "slots": {
+   "W": "wild",
+   "FS": "free_spins",
+   "BS": "bonus_scatter",
+   "H1": "wormhole",
+   "H2": "transwarpconduit",
+   "M1": "janeway",
+   "M2": "seven",
+   "M3": "emh",
+   "M4": "tuvok",
+   "L1": "a",
+   "L2": "k",
+   "L3": "q",
+   "L4": "j"
+  },
+  "upgrades": {
+   "L1": "M3",
+   "L2": "M3",
+   "L3": "M4",
+   "L4": "M4",
+   "M1": "H1",
+   "M2": "H1",
+   "M3": "H2",
+   "M4": "M2",
+   "H2": "H1"
+  }
+ },
+ "scene": {
+  "skins": {
+   "classic": {
+    "name": "Classic",
+    "by": "house",
+    "base": "classic",
+    "note": "",
+    "frame": {
+     "style": "metal",
+     "colour": "#c9a24a"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "colours": {
+     "gold": "#f4c94f",
+     "goldHi": "#fff1b0",
+     "goldLo": "#9a6614",
+     "edge": "#d9a54a",
+     "cream": "#f6ead0",
+     "muted": "#b89b74",
+     "ink": "#2b1004",
+     "shade": "#1a0b03",
+     "win": "#ffe27a",
+     "spin": "#f0b43a",
+     "alert": "#7d130c"
+    },
+    "palette": {},
+    "glass": {},
+    "parts": {},
+    "decor": [],
+    "fonts": {
+     "display": "star-trek-film-bt.ttf",
+     "ui": "star-trek-film-bt.ttf"
+    },
+    "texts": {}
+   },
+   "voyager-lcars": {
+    "name": "Voyager LCARS",
+    "by": "claude",
+    "base": "lcars",
+    "note": "Mike's brief: an LCARS interface like the modern LCARS phone mockup, glassy with light-blue highlights. Navy frosted glass over the bridge, steel-blue and pale-teal elbows wrapping the reels and side panels, amber only for the registry and Buy Bonus, StarTrek Film on every word. Readouts and the stardate tick in the band under the meters (y 86-106), the only free chrome that the panels' contents never move into.",
+    "colours": {
+     "gold": "#9fdcff",
+     "goldHi": "#e6f6ff",
+     "goldLo": "#2c5a85",
+     "edge": "#5f9ec4",
+     "cream": "#e4f2ff",
+     "muted": "#7fa3bf",
+     "ink": "#04101c",
+     "shade": "#030a14",
+     "win": "#ffd27a",
+     "spin": "#5f9ec4",
+     "alert": "#c8453a"
+    },
+    "palette": {
+     "hl": "#9fe3ff",
+     "a": "#4a7cab",
+     "b": "#6aa5cf",
+     "c": "#a6d3dc",
+     "d": "#22446a",
+     "warn": "#f5a623",
+     "glass": "#08131f",
+     "grand": "#f2a33a",
+     "major": "#b98fd6",
+     "minor": "#7fc4c9",
+     "mini": "#6f9fd8"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#9fdcff"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "pill",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [
+     {
+      "id": "rd-l",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 22,
+      "y": 91,
+      "w": 170,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       2,
+       5,
+       2,
+       2
+      ],
+      "colours": [
+       "b",
+       "a",
+       "c",
+       "b"
+      ],
+      "text_colour": "ink",
+      "tick": 2.5,
+      "seed": 3
+     },
+     {
+      "id": "reg",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 200,
+      "y": 87,
+      "w": 140,
+      "h": 20,
+      "colour": "warn",
+      "text": "NCC-74656",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "bar-l",
+      "kind": "bar",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 346,
+      "y": 92,
+      "w": 138,
+      "h": 10,
+      "colour": "d",
+      "round": "right"
+     },
+     {
+      "id": "sd",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 796,
+      "y": 87,
+      "w": 230,
+      "h": 20,
+      "colour": "c",
+      "text": "STARDATE {stardate}",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "rd-r",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 1040,
+      "y": 91,
+      "w": 218,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       5,
+       2,
+       3,
+       2
+      ],
+      "colours": [
+       "a",
+       "b",
+       "d",
+       "c"
+      ],
+      "text_colour": "ink",
+      "tick": 3,
+      "seed": 9
+     }
+    ],
+    "fonts": {
+     "display": "@lettering",
+     "ui": "@lettering"
+    },
+    "texts": {
+     "spin": "ENGAGE",
+     "features": "TACTICAL SUBSYSTEMS",
+     "buy": "BUY BONUS",
+     "tagline": "ALL HANDS STAND BY",
+     "cashout": "BEAM OUT"
+    },
+    "at": "2026-10-20T23:29:48",
+    "original": {
+     "name": "Voyager LCARS",
+     "by": "claude",
+     "base": "lcars",
+     "note": "Mike's brief: an LCARS interface like the modern LCARS phone mockup, glassy with light-blue highlights. Navy frosted glass over the bridge, steel-blue and pale-teal elbows wrapping the reels and side panels, amber only for the registry and Buy Bonus, StarTrek Film on every word. Readouts and the stardate tick in the band under the meters (y 86-106), the only free chrome that the panels' contents never move into.",
+     "colours": {
+      "gold": "#9fdcff",
+      "goldHi": "#e6f6ff",
+      "goldLo": "#2c5a85",
+      "edge": "#5f9ec4",
+      "cream": "#e4f2ff",
+      "muted": "#7fa3bf",
+      "ink": "#04101c",
+      "shade": "#030a14",
+      "win": "#ffd27a",
+      "spin": "#5f9ec4",
+      "alert": "#c8453a"
+     },
+     "palette": {
+      "hl": "#9fe3ff",
+      "a": "#4a7cab",
+      "b": "#6aa5cf",
+      "c": "#a6d3dc",
+      "d": "#22446a",
+      "warn": "#f5a623",
+      "glass": "#08131f",
+      "grand": "#f2a33a",
+      "major": "#b98fd6",
+      "minor": "#7fc4c9",
+      "mini": "#6f9fd8"
+     },
+     "frame": {
+      "style": "glass",
+      "colour": "#9fdcff"
+     },
+     "deck": {
+      "style": "frame",
+      "colour": null
+     },
+     "glass": {
+      "opacity": 0.55,
+      "sheen": 0.12,
+      "edge": 1.5,
+      "blur": 14
+     },
+     "parts": {
+      "meter": {
+       "shape": "tab",
+       "fill": "tier",
+       "text": "goldHi"
+      },
+      "panel": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "spine": [
+        "b",
+        "d",
+        "c"
+       ],
+       "fill": "glass",
+       "edge": "hl",
+       "title": "hl"
+      },
+      "frame": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "edge": "hl",
+       "fill": "glass"
+      },
+      "box": {
+       "shape": "pill",
+       "fill": "glass",
+       "edge": "b",
+       "label": "c",
+       "value": "goldHi"
+      },
+      "button": {
+       "shape": "pill",
+       "fill": "b",
+       "on": "warn",
+       "text": "ink"
+      },
+      "spin": {
+       "shape": "pill",
+       "fill": "hl",
+       "text": "ink"
+      },
+      "deck": {
+       "shape": "elbow",
+       "fill": "d",
+       "edge": "hl",
+       "accent": "a"
+      }
+     },
+     "decor": [
+      {
+       "id": "rd-l",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 22,
+       "y": 91,
+       "w": 170,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        2,
+        5,
+        2,
+        2
+       ],
+       "colours": [
+        "b",
+        "a",
+        "c",
+        "b"
+       ],
+       "text_colour": "ink",
+       "tick": 2.5,
+       "seed": 3
+      },
+      {
+       "id": "reg",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 200,
+       "y": 87,
+       "w": 140,
+       "h": 20,
+       "colour": "warn",
+       "text": "NCC-74656",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "bar-l",
+       "kind": "bar",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 346,
+       "y": 92,
+       "w": 138,
+       "h": 10,
+       "colour": "d",
+       "round": "right"
+      },
+      {
+       "id": "sd",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 796,
+       "y": 87,
+       "w": 230,
+       "h": 20,
+       "colour": "c",
+       "text": "STARDATE {stardate}",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "rd-r",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 1040,
+       "y": 91,
+       "w": 218,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        5,
+        2,
+        3,
+        2
+       ],
+       "colours": [
+        "a",
+        "b",
+        "d",
+        "c"
+       ],
+       "text_colour": "ink",
+       "tick": 3,
+       "seed": 9
+      }
+     ],
+     "fonts": {
+      "display": "@lettering",
+      "ui": "@lettering"
+     },
+     "texts": {
+      "spin": "ENGAGE",
+      "features": "TACTICAL SUBSYSTEMS",
+      "buy": "BUY BONUS",
+      "tagline": "ALL HANDS STAND BY",
+      "cashout": "BEAM OUT"
+     }
+    }
+   }
+  },
+  "skin": "voyager-lcars",
+  "brief": {
+   "text": "Redesign the whole screen as an LCARS interface: glass-like, with light-blue highlighting, the vibe of the modern LCARS phone mockup (reference). Keep the structure (reels in the middle, jackpots on top, bonus on the right, random features on the left) but make the feel different. The slot's font (StarTrek Film) should carry over to the text on the scene. The image model can do text now, so the logo can use it.",
+   "refs": [
+    "scene/brief_1.png"
+   ],
+   "status": "answered",
+   "asked": "2026-10-20T23:25:15",
+   "answer": "voyager-lcars"
+  },
+  "logo": {
+   "lines": [
+    "VOYAGER"
+   ],
+   "style": "glowing light-blue LCARS lettering, crisp edges, a soft cyan glow and a frosted-glass sheen, like a starship display"
+  },
+  "background": "scene/bg_3.png",
+  "binned_skins": []
+ },
+ "art_slots": {
+  "armadillo": "sym:wild",
+  "barrel": "sym:wormhole",
+  "b_hero": "sym:voyager",
+  "b_enemy": "sym:borgsphere",
+  "b_boss": "sym:borgcube",
+  "x_ship": "sym:voyager",
+  "x_planet": "sym:expedition_unexplored_planet",
+  "x_credits": "sym:expedition_credits",
+  "x_mult": "sym:expedition_multiplier",
+  "x_scanner": "sym:expedition_scanner",
+  "x_shuttle": "sym:expedition_shuttle",
+  "x_shields": "sym:expedition_shields",
+  "x_wormhole": "sym:wormhole",
+  "x_spins": "sym:free_spins",
+  "x_hazard": "sym:borgcube",
+  "x_final": "sym:transwarpconduit"
+ },
+ "bonuses": {
+  "battle": {
+   "enabled": true
+  },
+  "voyage": {
+   "enabled": false
+  },
+  "trail": {
+   "enabled": false
+  },
+  "expedition": {
+   "enabled": true,
+   "name": "DELTA QUADRANT",
+   "hint": "choose a route",
+   "planet_hint": "choose a planet to explore",
+   "start": "VOYAGER",
+   "final": "TRANSWARP CONDUIT",
+   "sector": "SECTOR",
+   "credits_name": "CREDITS",
+   "mult_name": "MULTIPLIER",
+   "scanner_name": "SCANNER",
+   "shuttle_name": "SHUTTLE",
+   "shields_name": "SHIELDS",
+   "artefact_name": "ANCIENT ARTEFACT",
+   "wormhole_name": "WORMHOLE",
+   "spins_name": "FREE GAMES",
+   "level_names": [
+    "LOW",
+    "MODERATE",
+    "SEVERE"
+   ],
+   "hazards": [
+    "BORG CUBE",
+    "KAZON RAIDERS",
+    "HIROGEN HUNTERS",
+    "SPECIES 8472",
+    "SPATIAL ANOMALY"
+   ],
+   "levels": [
+    {
+     "weight": 1,
+     "hazard": 3,
+     "scale": 1,
+     "final": 20
+    },
+    {
+     "weight": 1,
+     "hazard": 7,
+     "scale": 1.7,
+     "final": 22
+    },
+    {
+     "weight": 1,
+     "hazard": 12,
+     "scale": 2.6,
+     "final": 24
+    }
+   ],
+   "ramp": 2.5,
+   "kinds": [
+    [
+     "credits",
+     52
+    ],
+    [
+     "mult",
+     9
+    ],
+    [
+     "tech",
+     15
+    ],
+    [
+     "special",
+     6
+    ]
+   ],
+   "techs": [
+    [
+     "scanner",
+     1
+    ],
+    [
+     "shuttle",
+     1
+    ],
+    [
+     "shields",
+     1
+    ]
+   ],
+   "specials": [
+    [
+     "artefact",
+     50
+    ],
+    [
+     "wormhole",
+     25
+    ],
+    [
+     "spins",
+     25
+    ]
+   ],
+   "lengths": [
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     6,
+     1
+    ]
+   ],
+   "credits": [
+    [
+     1,
+     40
+    ],
+    [
+     2,
+     30
+    ],
+    [
+     3,
+     15
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     8,
+     4
+    ],
+    [
+     15,
+     2
+    ]
+   ],
+   "mults": [
+    [
+     1,
+     80
+    ],
+    [
+     2,
+     20
+    ]
+   ],
+   "artefact": [
+    [
+     10,
+     40
+    ],
+    [
+     20,
+     30
+    ],
+    [
+     40,
+     20
+    ],
+    [
+     100,
+     10
+    ]
+   ],
+   "spins": [
+    [
+     1,
+     60
+    ],
+    [
+     2,
+     30
+    ],
+    [
+     3,
+     10
+    ]
+   ],
+   "wormhole": 2
+  }
+ },
+ "art_adjust": {
+  "b_hero": {
+   "scale": 0.75,
+   "bright": 0.79,
+   "sat": 0.95
+  },
+  "b_enemy": {
+   "scale": 0.73
+  },
+  "b_boss": {
+   "scale": 1.12
+  }
+ },
+ "maths": {
+  "pays": {
+   "W": [
+    20,
+    40,
+    120
+   ],
+   "H1": [
+    20,
+    40,
+    120
+   ],
+   "H2": [
+    20,
+    40,
+    100
+   ],
+   "M1": [
+    16,
+    24,
+    60
+   ],
+   "M2": [
+    16,
+    24,
+    60
+   ],
+   "M3": [
+    12,
+    20,
+    48
+   ],
+   "M4": [
+    12,
+    20,
+    48
+   ],
+   "L1": [
+    4,
+    8,
+    20
+   ],
+   "L2": [
+    4,
+    8,
+    20
+   ],
+   "L3": [
+    4,
+    8,
+    20
+   ],
+   "L4": [
+    4,
+    8,
+    20
+   ]
+  },
+  "counts": [
+   {
+    "W": 0,
+    "BS": 1,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6
+   },
+   {
+    "W": 4,
+    "BS": 1,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6
+   },
+   {
+    "W": 4,
+    "BS": 2,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6
+   },
+   {
+    "W": 4,
+    "BS": 1,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6
+   },
+   {
+    "W": 4,
+    "BS": 1,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6
+   }
+  ],
+  "big_counts": {
+   "W": 1,
+   "H1": 2,
+   "H2": 2,
+   "M1": 3,
+   "M2": 3,
+   "M3": 3,
+   "M4": 3,
+   "L1": 4,
+   "L2": 4,
+   "L3": 4,
+   "L4": 4
+  },
+  "strips": [
+   [
+    "L2",
+    "M1",
+    "M3",
+    "H1",
+    "M2",
+    "L2",
+    "M4",
+    "L4",
+    "M1",
+    "H2",
+    "L4",
+    "L4",
+    "M3",
+    "M2",
+    "L3",
+    "H2",
+    "H1",
+    "L3",
+    "M2",
+    "L1",
+    "M4",
+    "M1",
+    "M2",
+    "L1",
+    "M3",
+    "L1",
+    "M4",
+    "L3",
+    "L1",
+    "M4",
+    "L2",
+    "L2",
+    "L4",
+    "L2",
+    "M1",
+    "M1",
+    "FS",
+    "M3",
+    "L4",
+    "L4",
+    "H2",
+    "M4",
+    "L1",
+    "L1",
+    "H1",
+    "M2",
+    "M3",
+    "BS",
+    "L3",
+    "L2",
+    "L3",
+    "L3"
+   ],
+   [
+    "M3",
+    "H2",
+    "H1",
+    "L2",
+    "M4",
+    "W",
+    "L2",
+    "M2",
+    "L4",
+    "L3",
+    "H1",
+    "M3",
+    "M1",
+    "W",
+    "M4",
+    "L2",
+    "L3",
+    "M3",
+    "L3",
+    "H2",
+    "W",
+    "M4",
+    "L1",
+    "L1",
+    "L4",
+    "M1",
+    "M1",
+    "L1",
+    "M3",
+    "L4",
+    "W",
+    "L3",
+    "L2",
+    "H2",
+    "M2",
+    "M2",
+    "L3",
+    "L4",
+    "L4",
+    "M3",
+    "L2",
+    "L1",
+    "M2",
+    "M4",
+    "BS",
+    "L4",
+    "M1",
+    "L1",
+    "L2",
+    "M4",
+    "L3",
+    "L1",
+    "M2",
+    "FS",
+    "M1",
+    "H1"
+   ],
+   [
+    "L4",
+    "L1",
+    "L1",
+    "L3",
+    "M4",
+    "L3",
+    "L1",
+    "W",
+    "L4",
+    "W",
+    "L4",
+    "L3",
+    "H2",
+    "M1",
+    "L3",
+    "L2",
+    "M3",
+    "L4",
+    "L3",
+    "M4",
+    "FS",
+    "M2",
+    "H2",
+    "H2",
+    "M3",
+    "L3",
+    "M3",
+    "H1",
+    "L4",
+    "L1",
+    "BS",
+    "L2",
+    "L1",
+    "M2",
+    "L4",
+    "M4",
+    "L2",
+    "W",
+    "M1",
+    "L2",
+    "H1",
+    "M1",
+    "M1",
+    "L1",
+    "W",
+    "M2",
+    "L2",
+    "BS",
+    "L2",
+    "H1",
+    "M1",
+    "M4",
+    "M3",
+    "M2",
+    "M2",
+    "M4",
+    "M3"
+   ],
+   [
+    "M1",
+    "BS",
+    "L4",
+    "H2",
+    "L1",
+    "W",
+    "M2",
+    "L1",
+    "L4",
+    "M3",
+    "M4",
+    "M2",
+    "W",
+    "H1",
+    "L3",
+    "L1",
+    "H1",
+    "W",
+    "M3",
+    "L1",
+    "H2",
+    "L4",
+    "L1",
+    "L2",
+    "M3",
+    "W",
+    "M4",
+    "M3",
+    "L1",
+    "L2",
+    "FS",
+    "M4",
+    "M3",
+    "M2",
+    "M4",
+    "H2",
+    "L4",
+    "L2",
+    "M1",
+    "L4",
+    "L2",
+    "L2",
+    "L3",
+    "M1",
+    "L2",
+    "M1",
+    "H1",
+    "L3",
+    "L3",
+    "M2",
+    "L3",
+    "M4",
+    "L4",
+    "L3",
+    "M1",
+    "M2"
+   ],
+   [
+    "L4",
+    "L3",
+    "M1",
+    "L3",
+    "L1",
+    "M4",
+    "M3",
+    "H2",
+    "L2",
+    "L1",
+    "L3",
+    "M2",
+    "H1",
+    "L2",
+    "M1",
+    "L2",
+    "M3",
+    "L3",
+    "L3",
+    "M1",
+    "FS",
+    "W",
+    "L1",
+    "L2",
+    "L1",
+    "M2",
+    "L4",
+    "L4",
+    "L3",
+    "M3",
+    "L4",
+    "M3",
+    "W",
+    "M2",
+    "L1",
+    "M1",
+    "H1",
+    "L4",
+    "M2",
+    "H1",
+    "W",
+    "M4",
+    "M1",
+    "L4",
+    "L2",
+    "H2",
+    "L2",
+    "M2",
+    "M4",
+    "M4",
+    "W",
+    "M4",
+    "L1",
+    "M3",
+    "BS",
+    "H2"
+   ]
+  ],
+  "free_strips": [
+   [
+    "H2",
+    "H1",
+    "L1",
+    "M2",
+    "H2",
+    "L1",
+    "M1",
+    "M2",
+    "L2",
+    "M2",
+    "L2",
+    "M1",
+    "L2",
+    "M2",
+    "L2",
+    "L4",
+    "M3",
+    "L4",
+    "M4",
+    "L3",
+    "H1",
+    "L2",
+    "L3",
+    "L4",
+    "M4",
+    "L1",
+    "L2",
+    "L3",
+    "M4",
+    "L1",
+    "L3",
+    "H1",
+    "M1",
+    "L3",
+    "M2",
+    "M3",
+    "M4",
+    "M4",
+    "M3",
+    "L4",
+    "M1",
+    "L3",
+    "M3",
+    "L1",
+    "M3",
+    "L4",
+    "H2",
+    "L1",
+    "M1",
+    "L4"
+   ],
+   [
+    "L3",
+    "M3",
+    "L3",
+    "H2",
+    "L4",
+    "H1",
+    "M2",
+    "M4",
+    "H1",
+    "M4",
+    "L2",
+    "W",
+    "L4",
+    "L1",
+    "M2",
+    "L1",
+    "L3",
+    "L1",
+    "L1",
+    "L2",
+    "L3",
+    "W",
+    "M3",
+    "M4",
+    "M3",
+    "M3",
+    "L2",
+    "L2",
+    "M1",
+    "H2",
+    "L4",
+    "M1",
+    "M4",
+    "M1",
+    "L2",
+    "L2",
+    "M1",
+    "M3",
+    "M2",
+    "M1",
+    "L1",
+    "L4",
+    "L4",
+    "L3",
+    "L3",
+    "W",
+    "M2",
+    "H2",
+    "M2",
+    "W",
+    "L1",
+    "L4",
+    "M4",
+    "H1"
+   ],
+   [
+    "M2",
+    "L2",
+    "M3",
+    "M4",
+    "L2",
+    "M4",
+    "H2",
+    "H2",
+    "L1",
+    "W",
+    "M1",
+    "L3",
+    "L1",
+    "H1",
+    "M2",
+    "M3",
+    "M3",
+    "L1",
+    "M4",
+    "M1",
+    "L2",
+    "L1",
+    "M2",
+    "L3",
+    "L4",
+    "M2",
+    "M1",
+    "W",
+    "W",
+    "M1",
+    "L4",
+    "H2",
+    "H1",
+    "M4",
+    "M3",
+    "L2",
+    "L2",
+    "M4",
+    "L4",
+    "L4",
+    "L2",
+    "L3",
+    "M3",
+    "L4",
+    "H1",
+    "L1",
+    "L1",
+    "W",
+    "L3",
+    "L3",
+    "M1",
+    "L3",
+    "L4",
+    "M2"
+   ],
+   [
+    "L3",
+    "M1",
+    "M2",
+    "L4",
+    "L3",
+    "M1",
+    "M1",
+    "H2",
+    "M3",
+    "L2",
+    "M3",
+    "H1",
+    "L1",
+    "L3",
+    "M4",
+    "H2",
+    "H2",
+    "M2",
+    "H1",
+    "L1",
+    "M4",
+    "L1",
+    "M4",
+    "L3",
+    "L2",
+    "M4",
+    "L1",
+    "L2",
+    "M2",
+    "M2",
+    "L1",
+    "L4",
+    "L3",
+    "M1",
+    "L2",
+    "L4",
+    "W",
+    "L2",
+    "L2",
+    "M1",
+    "L3",
+    "W",
+    "L4",
+    "H1",
+    "M4",
+    "M2",
+    "M3",
+    "L1",
+    "L4",
+    "W",
+    "M3",
+    "W",
+    "L4",
+    "M3"
+   ],
+   [
+    "L4",
+    "M3",
+    "M1",
+    "M2",
+    "M1",
+    "W",
+    "L3",
+    "M1",
+    "M4",
+    "L2",
+    "M2",
+    "M3",
+    "M3",
+    "L4",
+    "W",
+    "L4",
+    "M2",
+    "L1",
+    "H1",
+    "L1",
+    "L2",
+    "H1",
+    "L3",
+    "H1",
+    "L1",
+    "H2",
+    "L3",
+    "L4",
+    "L1",
+    "M4",
+    "M4",
+    "M2",
+    "L4",
+    "M4",
+    "L2",
+    "M1",
+    "M1",
+    "M3",
+    "M3",
+    "W",
+    "L3",
+    "L4",
+    "M4",
+    "L3",
+    "H2",
+    "L2",
+    "H2",
+    "L1",
+    "W",
+    "L2",
+    "L1",
+    "L3",
+    "L2",
+    "M2"
+   ]
+  ],
+  "big_strip": [
+   "L2",
+   "L4",
+   "L4",
+   "L3",
+   "M1",
+   "L2",
+   "L1",
+   "M4",
+   "M3",
+   "M4",
+   "L1",
+   "L1",
+   "L3",
+   "L3",
+   "M2",
+   "L4",
+   "H2",
+   "M1",
+   "W",
+   "M4",
+   "H1",
+   "H1",
+   "L2",
+   "M2",
+   "M2",
+   "L4",
+   "M3",
+   "L3",
+   "L1",
+   "H2",
+   "M1",
+   "M3",
+   "L2"
+  ],
+  "report": {
+   "spins": 500000,
+   "staked": 50000000,
+   "plain": 10602704,
+   "featured": 11795872,
+   "repeatExtra": 1398400,
+   "instant": 2531300,
+   "trail": 0,
+   "free": 7864084,
+   "battle": 6207976,
+   "voyage": 0,
+   "expedition": 6476064,
+   "hits": 202558,
+   "trails": 0,
+   "frees": 1646,
+   "battles": 1439,
+   "voyages": 0,
+   "expeditions": 1373,
+   "featureSpins": 100162,
+   "prizepots": 0,
+   "max": 1567.04,
+   "featureCounts": {
+    "wilds": 35012,
+    "upgrade": 29873,
+    "repeat": 7812,
+    "colossal": 8717,
+    "instant": 3869,
+    "multiplier": 17530,
+    "wildReels": 6833
+   },
+   "rtp": {
+    "plain": 21.205408,
+    "featured": 23.591744,
+    "repeat": 2.7968,
+    "instant": 5.0626,
+    "trail": 0,
+    "free": 15.728168,
+    "battle": 12.4548339512,
+    "voyage": 0,
+    "expedition": 12.622397055600002,
+    "jackpot": 3.7500000000000004,
+    "trailSampled": 0,
+    "battleSampled": 12.415952,
+    "voyageSampled": 0,
+    "expeditionSampled": 12.952128,
+    "game": 93.46195100679999,
+    "total": 97.21195100679999
+   },
+   "buy": {
+    "n": 100000,
+    "rtp": 99.77916222222223,
+    "mean": 44.900622999999996,
+    "max": 1847.52,
+    "prizepots": 0,
+    "rolls": 0
+   },
+   "bosses": 1888,
+   "battleRun": 50000,
+   "expeditionRun": {
+    "n": 50000,
+    "mean": 45.966486,
+    "ended": 19858,
+    "wormholes": 3697,
+    "finals": 30142
+   },
+   "sd": 8.365776628346838,
+   "exact": 27.274347103285695
+  },
+  "settings": "297bc02a8e3c",
+  "check": {
+   "sample": 200,
+   "exact": 27.2743,
+   "python_30k": {
+    "plain": 20.79,
+    "featured": 23.5,
+    "repeat_extra": 2.91,
+    "instant": 6.95,
+    "trail": 0.0,
+    "free": 16.53,
+    "battle": 11.39,
+    "voyage": 0.0,
+    "expedition": 9.87,
+    "game": 91.95,
+    "jackpot": 3.75,
+    "total": 95.7
+   }
+  },
+  "frozen_at": "2026-10-21T08:14:22"
+ },
+ "rules": [
+  "Wild stands in for everything except Bonus scatter and Free-spins scatter. Pays left to right on 25 lines; the longest match on each line pays.",
+  "Random features can hit any spin, some before the reels stop and some after.",
+  "3+ Bonus scatter: RED ALERT or DELTA QUADRANT, at random. 3+ Free-spins scatter: 3 combo free games. Buy Bonus (45x the bet): RED ALERT or DELTA QUADRANT, at ra",
+  "Upgrades: A, K \u2192 EMH \u00b7 Q, J \u2192 Tuvok \u00b7 Janeway, Seven, TranswarpConduit \u2192 Wormhole \u00b7 EMH \u2192 TranswarpConduit \u00b7 Tuvok \u2192 Seven"
+ ],
+ "signed_off": {
+  "at": "2026-10-21T08:14:48",
+  "settings": "297bc02a8e3c"
+ }
+}
