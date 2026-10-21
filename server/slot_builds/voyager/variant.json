@@ -1,0 +1,1674 @@
+{
+ "id": "voyager",
+ "name": "Voyager",
+ "symbols": {
+  "W": "Wild",
+  "BS": "Bonus scatter",
+  "FS": "Free-spins scatter",
+  "H1": "Wormhole",
+  "H2": "TranswarpConduit",
+  "M1": "Janeway",
+  "M2": "Seven",
+  "M3": "EMH",
+  "M4": "Tuvok",
+  "L1": "A",
+  "L2": "K",
+  "L3": "Q",
+  "L4": "J"
+ },
+ "strips": [
+  [
+   "L2",
+   "M1",
+   "M3",
+   "H1",
+   "M2",
+   "L2",
+   "M4",
+   "L4",
+   "M1",
+   "H2",
+   "L4",
+   "L4",
+   "M3",
+   "M2",
+   "L3",
+   "H2",
+   "H1",
+   "L3",
+   "M2",
+   "L1",
+   "M4",
+   "M1",
+   "M2",
+   "L1",
+   "M3",
+   "L1",
+   "M4",
+   "L3",
+   "L1",
+   "M4",
+   "L2",
+   "L2",
+   "L4",
+   "L2",
+   "M1",
+   "M1",
+   "FS",
+   "M3",
+   "L4",
+   "L4",
+   "H2",
+   "M4",
+   "L1",
+   "L1",
+   "H1",
+   "M2",
+   "M3",
+   "BS",
+   "L3",
+   "L2",
+   "L3",
+   "L3"
+  ],
+  [
+   "M3",
+   "H2",
+   "H1",
+   "L2",
+   "M4",
+   "W",
+   "L2",
+   "M2",
+   "L4",
+   "L3",
+   "H1",
+   "M3",
+   "M1",
+   "W",
+   "M4",
+   "L2",
+   "L3",
+   "M3",
+   "L3",
+   "H2",
+   "W",
+   "M4",
+   "L1",
+   "L1",
+   "L4",
+   "M1",
+   "M1",
+   "L1",
+   "M3",
+   "L4",
+   "W",
+   "L3",
+   "L2",
+   "H2",
+   "M2",
+   "M2",
+   "L3",
+   "L4",
+   "L4",
+   "M3",
+   "L2",
+   "L1",
+   "M2",
+   "M4",
+   "BS",
+   "L4",
+   "M1",
+   "L1",
+   "L2",
+   "M4",
+   "L3",
+   "L1",
+   "M2",
+   "FS",
+   "M1",
+   "H1"
+  ],
+  [
+   "L4",
+   "L1",
+   "L1",
+   "L3",
+   "M4",
+   "L3",
+   "L1",
+   "W",
+   "L4",
+   "W",
+   "L4",
+   "L3",
+   "H2",
+   "M1",
+   "L3",
+   "L2",
+   "M3",
+   "L4",
+   "L3",
+   "M4",
+   "FS",
+   "M2",
+   "H2",
+   "H2",
+   "M3",
+   "L3",
+   "M3",
+   "H1",
+   "L4",
+   "L1",
+   "BS",
+   "L2",
+   "L1",
+   "M2",
+   "L4",
+   "M4",
+   "L2",
+   "W",
+   "M1",
+   "L2",
+   "H1",
+   "M1",
+   "M1",
+   "L1",
+   "W",
+   "M2",
+   "L2",
+   "BS",
+   "L2",
+   "H1",
+   "M1",
+   "M4",
+   "M3",
+   "M2",
+   "M2",
+   "M4",
+   "M3"
+  ],
+  [
+   "M1",
+   "BS",
+   "L4",
+   "H2",
+   "L1",
+   "W",
+   "M2",
+   "L1",
+   "L4",
+   "M3",
+   "M4",
+   "M2",
+   "W",
+   "H1",
+   "L3",
+   "L1",
+   "H1",
+   "W",
+   "M3",
+   "L1",
+   "H2",
+   "L4",
+   "L1",
+   "L2",
+   "M3",
+   "W",
+   "M4",
+   "M3",
+   "L1",
+   "L2",
+   "FS",
+   "M4",
+   "M3",
+   "M2",
+   "M4",
+   "H2",
+   "L4",
+   "L2",
+   "M1",
+   "L4",
+   "L2",
+   "L2",
+   "L3",
+   "M1",
+   "L2",
+   "M1",
+   "H1",
+   "L3",
+   "L3",
+   "M2",
+   "L3",
+   "M4",
+   "L4",
+   "L3",
+   "M1",
+   "M2"
+  ],
+  [
+   "L4",
+   "L3",
+   "M1",
+   "L3",
+   "L1",
+   "M4",
+   "M3",
+   "H2",
+   "L2",
+   "L1",
+   "L3",
+   "M2",
+   "H1",
+   "L2",
+   "M1",
+   "L2",
+   "M3",
+   "L3",
+   "L3",
+   "M1",
+   "FS",
+   "W",
+   "L1",
+   "L2",
+   "L1",
+   "M2",
+   "L4",
+   "L4",
+   "L3",
+   "M3",
+   "L4",
+   "M3",
+   "W",
+   "M2",
+   "L1",
+   "M1",
+   "H1",
+   "L4",
+   "M2",
+   "H1",
+   "W",
+   "M4",
+   "M1",
+   "L4",
+   "L2",
+   "H2",
+   "L2",
+   "M2",
+   "M4",
+   "M4",
+   "W",
+   "M4",
+   "L1",
+   "M3",
+   "BS",
+   "H2"
+  ]
+ ],
+ "free_strips": [
+  [
+   "H2",
+   "H1",
+   "L1",
+   "M2",
+   "H2",
+   "L1",
+   "M1",
+   "M2",
+   "L2",
+   "M2",
+   "L2",
+   "M1",
+   "L2",
+   "M2",
+   "L2",
+   "L4",
+   "M3",
+   "L4",
+   "M4",
+   "L3",
+   "H1",
+   "L2",
+   "L3",
+   "L4",
+   "M4",
+   "L1",
+   "L2",
+   "L3",
+   "M4",
+   "L1",
+   "L3",
+   "H1",
+   "M1",
+   "L3",
+   "M2",
+   "M3",
+   "M4",
+   "M4",
+   "M3",
+   "L4",
+   "M1",
+   "L3",
+   "M3",
+   "L1",
+   "M3",
+   "L4",
+   "H2",
+   "L1",
+   "M1",
+   "L4"
+  ],
+  [
+   "L3",
+   "M3",
+   "L3",
+   "H2",
+   "L4",
+   "H1",
+   "M2",
+   "M4",
+   "H1",
+   "M4",
+   "L2",
+   "W",
+   "L4",
+   "L1",
+   "M2",
+   "L1",
+   "L3",
+   "L1",
+   "L1",
+   "L2",
+   "L3",
+   "W",
+   "M3",
+   "M4",
+   "M3",
+   "M3",
+   "L2",
+   "L2",
+   "M1",
+   "H2",
+   "L4",
+   "M1",
+   "M4",
+   "M1",
+   "L2",
+   "L2",
+   "M1",
+   "M3",
+   "M2",
+   "M1",
+   "L1",
+   "L4",
+   "L4",
+   "L3",
+   "L3",
+   "W",
+   "M2",
+   "H2",
+   "M2",
+   "W",
+   "L1",
+   "L4",
+   "M4",
+   "H1"
+  ],
+  [
+   "M2",
+   "L2",
+   "M3",
+   "M4",
+   "L2",
+   "M4",
+   "H2",
+   "H2",
+   "L1",
+   "W",
+   "M1",
+   "L3",
+   "L1",
+   "H1",
+   "M2",
+   "M3",
+   "M3",
+   "L1",
+   "M4",
+   "M1",
+   "L2",
+   "L1",
+   "M2",
+   "L3",
+   "L4",
+   "M2",
+   "M1",
+   "W",
+   "W",
+   "M1",
+   "L4",
+   "H2",
+   "H1",
+   "M4",
+   "M3",
+   "L2",
+   "L2",
+   "M4",
+   "L4",
+   "L4",
+   "L2",
+   "L3",
+   "M3",
+   "L4",
+   "H1",
+   "L1",
+   "L1",
+   "W",
+   "L3",
+   "L3",
+   "M1",
+   "L3",
+   "L4",
+   "M2"
+  ],
+  [
+   "L3",
+   "M1",
+   "M2",
+   "L4",
+   "L3",
+   "M1",
+   "M1",
+   "H2",
+   "M3",
+   "L2",
+   "M3",
+   "H1",
+   "L1",
+   "L3",
+   "M4",
+   "H2",
+   "H2",
+   "M2",
+   "H1",
+   "L1",
+   "M4",
+   "L1",
+   "M4",
+   "L3",
+   "L2",
+   "M4",
+   "L1",
+   "L2",
+   "M2",
+   "M2",
+   "L1",
+   "L4",
+   "L3",
+   "M1",
+   "L2",
+   "L4",
+   "W",
+   "L2",
+   "L2",
+   "M1",
+   "L3",
+   "W",
+   "L4",
+   "H1",
+   "M4",
+   "M2",
+   "M3",
+   "L1",
+   "L4",
+   "W",
+   "M3",
+   "W",
+   "L4",
+   "M3"
+  ],
+  [
+   "L4",
+   "M3",
+   "M1",
+   "M2",
+   "M1",
+   "W",
+   "L3",
+   "M1",
+   "M4",
+   "L2",
+   "M2",
+   "M3",
+   "M3",
+   "L4",
+   "W",
+   "L4",
+   "M2",
+   "L1",
+   "H1",
+   "L1",
+   "L2",
+   "H1",
+   "L3",
+   "H1",
+   "L1",
+   "H2",
+   "L3",
+   "L4",
+   "L1",
+   "M4",
+   "M4",
+   "M2",
+   "L4",
+   "M4",
+   "L2",
+   "M1",
+   "M1",
+   "M3",
+   "M3",
+   "W",
+   "L3",
+   "L4",
+   "M4",
+   "L3",
+   "H2",
+   "L2",
+   "H2",
+   "L1",
+   "W",
+   "L2",
+   "L1",
+   "L3",
+   "L2",
+   "M2"
+  ]
+ ],
+ "big_strip": [
+  "L2",
+  "L4",
+  "L4",
+  "L3",
+  "M1",
+  "L2",
+  "L1",
+  "M4",
+  "M3",
+  "M4",
+  "L1",
+  "L1",
+  "L3",
+  "L3",
+  "M2",
+  "L4",
+  "H2",
+  "M1",
+  "W",
+  "M4",
+  "H1",
+  "H1",
+  "L2",
+  "M2",
+  "M2",
+  "L4",
+  "M3",
+  "L3",
+  "L1",
+  "H2",
+  "M1",
+  "M3",
+  "L2"
+ ],
+ "rates": {
+  "wilds": 0.07,
+  "wildReels": 0.014,
+  "colossal": 0.02,
+  "multiplier": 0.035,
+  "upgrade": 0.06,
+  "repeat": 0.04,
+  "instant": 0.008
+ },
+ "free_rates": {
+  "wilds": 0.6,
+  "wildReels": 0.32,
+  "colossal": 0.3,
+  "multiplier": 0.5,
+  "upgrade": 0.45,
+  "repeat": 0.35,
+  "instant": 0.25
+ },
+ "wild_counts": [
+  [
+   1,
+   40
+  ],
+  [
+   2,
+   30
+  ],
+  [
+   3,
+   20
+  ],
+  [
+   4,
+   10
+  ]
+ ],
+ "wild_reel_counts": [
+  [
+   1,
+   70
+  ],
+  [
+   2,
+   25
+  ],
+  [
+   3,
+   5
+  ]
+ ],
+ "colossal_sizes": [
+  [
+   2,
+   60
+  ],
+  [
+   3,
+   30
+  ],
+  [
+   4,
+   10
+  ]
+ ],
+ "multipliers": [
+  [
+   2,
+   50
+  ],
+  [
+   3,
+   25
+  ],
+  [
+   4,
+   15
+  ],
+  [
+   5,
+   10
+  ]
+ ],
+ "repeats": [
+  [
+   2,
+   60
+  ],
+  [
+   3,
+   25
+  ],
+  [
+   4,
+   10
+  ],
+  [
+   5,
+   5
+  ]
+ ],
+ "instants": [
+  [
+   1,
+   30
+  ],
+  [
+   2,
+   25
+  ],
+  [
+   3,
+   15
+  ],
+  [
+   5,
+   12
+  ],
+  [
+   10,
+   9
+  ],
+  [
+   20,
+   5
+  ],
+  [
+   50,
+   2.5
+  ],
+  [
+   100,
+   1
+  ],
+  [
+   200,
+   0.5
+  ]
+ ],
+ "trail": {
+  "length": 120,
+  "prizepot": 2000,
+  "counts": {
+   "snake": 20,
+   "heart": 2,
+   "forward": 3,
+   "back": 3,
+   "lightning": 2,
+   "crate": 3
+  },
+  "upgrade_chance": 0.2,
+  "double_chance": 0.4,
+  "coins": [
+   [
+    1,
+    30
+   ],
+   [
+    2,
+    26
+   ],
+   [
+    3,
+    17
+   ],
+   [
+    5,
+    12
+   ],
+   [
+    10,
+    8
+   ],
+   [
+    20,
+    4.5
+   ],
+   [
+    50,
+    2.2
+   ],
+   [
+    100,
+    0.9
+   ],
+   [
+    200,
+    0.4
+   ]
+  ],
+  "crate_radius": [
+   [
+    1,
+    50
+   ],
+   [
+    2,
+    35
+   ],
+   [
+    3,
+    15
+   ]
+  ]
+ },
+ "buy_cost": 45,
+ "free_games": 3,
+ "routes": {
+  "BS": [
+   "battle",
+   "expedition"
+  ],
+  "FS": [
+   "free"
+  ],
+  "buy": [
+   "battle",
+   "expedition"
+  ]
+ },
+ "pays": {
+  "W": [
+   20,
+   40,
+   120
+  ],
+  "H1": [
+   20,
+   40,
+   120
+  ],
+  "H2": [
+   20,
+   40,
+   100
+  ],
+  "M1": [
+   16,
+   24,
+   60
+  ],
+  "M2": [
+   16,
+   24,
+   60
+  ],
+  "M3": [
+   12,
+   20,
+   48
+  ],
+  "M4": [
+   12,
+   20,
+   48
+  ],
+  "L1": [
+   4,
+   8,
+   20
+  ],
+  "L2": [
+   4,
+   8,
+   20
+  ],
+  "L3": [
+   4,
+   8,
+   20
+  ],
+  "L4": [
+   4,
+   8,
+   20
+  ]
+ },
+ "upgrades": {
+  "L1": "M3",
+  "L2": "M3",
+  "L3": "M4",
+  "L4": "M4",
+  "M1": "H1",
+  "M2": "H1",
+  "M3": "H2",
+  "M4": "M2",
+  "H2": "H1"
+ },
+ "features": [
+  "wilds",
+  "wildReels",
+  "colossal",
+  "multiplier",
+  "upgrade",
+  "repeat",
+  "instant"
+ ],
+ "battle": {
+  "waves": [
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "shields": 3,
+  "return_fire": [
+   0.15,
+   0.2,
+   0.25,
+   0.3,
+   0.34
+  ],
+  "prizes": [
+   [
+    0.2,
+    30
+   ],
+   [
+    0.4,
+    26
+   ],
+   [
+    0.6,
+    18
+   ],
+   [
+    1,
+    12
+   ],
+   [
+    2,
+    8
+   ],
+   [
+    5,
+    4
+   ],
+   [
+    10,
+    1.5
+   ],
+   [
+    25,
+    0.5
+   ]
+  ],
+  "spins_chance": 0.015,
+  "spins": [
+   [
+    1,
+    60
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    10
+   ]
+  ],
+  "clear": [
+   2,
+   4,
+   6,
+   12,
+   25
+  ],
+  "boss_hits": 6,
+  "boss_fire": 0.3,
+  "boss": [
+   [
+    100,
+    50
+   ],
+   [
+    200,
+    30
+   ],
+   [
+    300,
+    12
+   ],
+   [
+    500,
+    6
+   ],
+   [
+    1000,
+    2
+   ]
+  ]
+ },
+ "voyage": {
+  "legs": 6,
+  "kinds": [
+   [
+    "treasure",
+    34
+   ],
+   [
+    "wreck",
+    30
+   ],
+   [
+    "skull",
+    20
+   ],
+   [
+    "port",
+    16
+   ]
+  ],
+  "coves": 1,
+  "treasure": [
+   [
+    3,
+    30
+   ],
+   [
+    4,
+    25
+   ],
+   [
+    5,
+    20
+   ],
+   [
+    8,
+    12
+   ],
+   [
+    12,
+    8
+   ],
+   [
+    20,
+    4
+   ],
+   [
+    40,
+    1
+   ]
+  ],
+  "relics": [
+   [
+    1,
+    50
+   ],
+   [
+    2,
+    35
+   ],
+   [
+    3,
+    15
+   ]
+  ],
+  "item_chance": 0.55,
+  "key_chance": 0.3,
+  "skull": [
+   [
+    8,
+    30
+   ],
+   [
+    12,
+    30
+   ],
+   [
+    20,
+    20
+   ],
+   [
+    30,
+    12
+   ],
+   [
+    60,
+    6
+   ],
+   [
+    120,
+    2
+   ]
+  ],
+  "sink": 0.24,
+  "cove": [
+   [
+    10,
+    40
+   ],
+   [
+    15,
+    30
+   ],
+   [
+    25,
+    20
+   ],
+   [
+    50,
+    10
+   ]
+  ],
+  "relic_value": 1,
+  "artefact_price": 3,
+  "key_price": 2,
+  "spins_price": 4,
+  "spins_games": 1,
+  "chest": 12,
+  "parts": [
+   4,
+   5,
+   8,
+   12
+  ],
+  "legend": 90
+ },
+ "expedition": {
+  "lengths": [
+   [
+    4,
+    1
+   ],
+   [
+    5,
+    1
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "levels": [
+   {
+    "weight": 1,
+    "hazard": 3,
+    "scale": 1,
+    "final": 20
+   },
+   {
+    "weight": 1,
+    "hazard": 7,
+    "scale": 1.7,
+    "final": 22
+   },
+   {
+    "weight": 1,
+    "hazard": 12,
+    "scale": 2.6,
+    "final": 24
+   }
+  ],
+  "ramp": 2.5,
+  "kinds": [
+   [
+    "credits",
+    52
+   ],
+   [
+    "mult",
+    9
+   ],
+   [
+    "tech",
+    15
+   ],
+   [
+    "special",
+    6
+   ]
+  ],
+  "credits": [
+   [
+    1,
+    40
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    15
+   ],
+   [
+    5,
+    9
+   ],
+   [
+    8,
+    4
+   ],
+   [
+    15,
+    2
+   ]
+  ],
+  "mults": [
+   [
+    1,
+    80
+   ],
+   [
+    2,
+    20
+   ]
+  ],
+  "techs": [
+   [
+    "scanner",
+    1
+   ],
+   [
+    "shuttle",
+    1
+   ],
+   [
+    "shields",
+    1
+   ]
+  ],
+  "specials": [
+   [
+    "artefact",
+    50
+   ],
+   [
+    "wormhole",
+    25
+   ],
+   [
+    "spins",
+    25
+   ]
+  ],
+  "artefact": [
+   [
+    10,
+    40
+   ],
+   [
+    20,
+    30
+   ],
+   [
+    40,
+    20
+   ],
+   [
+    100,
+    10
+   ]
+  ],
+  "wormhole": 2,
+  "spins": [
+   [
+    1,
+    60
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    10
+   ]
+  ]
+ },
+ "art": {},
+ "theme": {
+  "colours": {
+   "gold": "#9fdcff",
+   "goldHi": "#e6f6ff",
+   "goldLo": "#2c5a85",
+   "edge": "#5f9ec4",
+   "cream": "#e4f2ff",
+   "muted": "#7fa3bf",
+   "ink": "#04101c",
+   "shade": "#030a14",
+   "win": "#ffd27a",
+   "spin": "#5f9ec4",
+   "alert": "#c8453a"
+  },
+  "fonts": {
+   "display": "display.ttf",
+   "ui": "ui.ttf"
+  },
+  "frame": {
+   "style": "glass",
+   "colour": "#9fdcff"
+  },
+  "deck": {
+   "style": "glass",
+   "colour": null
+  },
+  "skin": {
+   "name": "Voyager LCARS",
+   "base": "lcars",
+   "palette": {
+    "hl": "#9fe3ff",
+    "a": "#4a7cab",
+    "b": "#6aa5cf",
+    "c": "#a6d3dc",
+    "d": "#22446a",
+    "warn": "#f5a623",
+    "glass": "#08131f",
+    "grand": "#f2a33a",
+    "major": "#b98fd6",
+    "minor": "#7fc4c9",
+    "mini": "#6f9fd8"
+   },
+   "glass": {
+    "opacity": 0.55,
+    "sheen": 0.12,
+    "edge": 1.5,
+    "blur": 14
+   },
+   "parts": {
+    "meter": {
+     "shape": "tab",
+     "fill": "tier",
+     "text": "goldHi"
+    },
+    "panel": {
+     "shape": "elbow",
+     "top": "a",
+     "bottom": "c",
+     "spine": [
+      "b",
+      "d",
+      "c"
+     ],
+     "fill": "glass",
+     "edge": "hl",
+     "title": "hl"
+    },
+    "frame": {
+     "shape": "elbow",
+     "top": "a",
+     "bottom": "c",
+     "edge": "hl",
+     "fill": "glass"
+    },
+    "box": {
+     "shape": "pill",
+     "fill": "glass",
+     "edge": "b",
+     "label": "c",
+     "value": "goldHi"
+    },
+    "button": {
+     "shape": "pill",
+     "fill": "b",
+     "on": "warn",
+     "text": "ink"
+    },
+    "spin": {
+     "shape": "pill",
+     "fill": "hl",
+     "text": "ink"
+    },
+    "deck": {
+     "shape": "elbow",
+     "fill": "d",
+     "edge": "hl",
+     "accent": "a"
+    }
+   },
+   "decor": [
+    {
+     "id": "rd-l",
+     "kind": "readout",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 22,
+     "y": 91,
+     "w": 170,
+     "h": 13,
+     "colour": "hl",
+     "cells": [
+      2,
+      5,
+      2,
+      2
+     ],
+     "colours": [
+      "b",
+      "a",
+      "c",
+      "b"
+     ],
+     "text_colour": "ink",
+     "tick": 2.5,
+     "seed": 3
+    },
+    {
+     "id": "reg",
+     "kind": "text",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 200,
+     "y": 87,
+     "w": 140,
+     "h": 20,
+     "colour": "warn",
+     "text": "NCC-74656",
+     "font": "display",
+     "size": 17,
+     "align": "left"
+    },
+    {
+     "id": "bar-l",
+     "kind": "bar",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 346,
+     "y": 92,
+     "w": 138,
+     "h": 10,
+     "colour": "d",
+     "round": "right"
+    },
+    {
+     "id": "sd",
+     "kind": "text",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 796,
+     "y": 87,
+     "w": 230,
+     "h": 20,
+     "colour": "c",
+     "text": "STARDATE {stardate}",
+     "font": "display",
+     "size": 17,
+     "align": "left"
+    },
+    {
+     "id": "rd-r",
+     "kind": "readout",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 1040,
+     "y": 91,
+     "w": 218,
+     "h": 13,
+     "colour": "hl",
+     "cells": [
+      5,
+      2,
+      3,
+      2
+     ],
+     "colours": [
+      "a",
+      "b",
+      "d",
+      "c"
+     ],
+     "text_colour": "ink",
+     "tick": 3,
+     "seed": 9
+    }
+   ],
+   "texts": {
+    "spin": "ENGAGE",
+    "features": "TACTICAL SUBSYSTEMS",
+    "buy": "BUY BONUS",
+    "tagline": "ALL HANDS STAND BY",
+    "cashout": "BEAM OUT"
+   }
+  },
+  "win": {
+   "wild": {
+    "preset": "glow",
+    "strength": 1.0,
+    "colour": "#9fe3ff"
+   },
+   "high": {
+    "preset": "shine",
+    "strength": 1.0,
+    "colour": "#9fe3ff"
+   },
+   "mid": {
+    "preset": "pulse",
+    "strength": 1.0,
+    "colour": "#9fe3ff"
+   },
+   "low": {
+    "preset": "pulse",
+    "strength": 1.0,
+    "colour": "#9fe3ff"
+   },
+   "scatter": {
+    "preset": "bounce",
+    "strength": 1.0,
+    "colour": "#9fe3ff"
+   }
+  },
+  "labels": false,
+  "texts": {
+   "tagline": "ALL HANDS STAND BY",
+   "trail": "TRAIL BONUS",
+   "launcher": "THE LAUNCHER",
+   "hint": "fire to move along the trail",
+   "free": "COMBO FREE GAMES",
+   "battle": "RED ALERT",
+   "battle_hint": "tap a ship to fire",
+   "enemy": "ENEMY SHIP",
+   "boss": "FLAGSHIP",
+   "voyage_name": "DEAD MAN'S MAP",
+   "voyage_hint": "choose your next island",
+   "voyage_start": "TORTUGA",
+   "voyage_final": "ISLA DE MUERTA",
+   "voyage_treasure_name": "TREASURE ISLAND",
+   "voyage_wreck_name": "SHIPWRECK",
+   "voyage_skull_name": "SKULL ISLAND",
+   "voyage_port_name": "PORT ROYAL",
+   "voyage_cove_name": "HIDDEN COVE",
+   "voyage_relic": "RELIC",
+   "voyage_chest_name": "LEGENDARY TREASURE",
+   "voyage_legend_name": "THE LEGEND",
+   "voyage_artefacts": [
+    "COMPASS",
+    "MEDALLION",
+    "SPYGLASS",
+    "CUTLASS"
+   ],
+   "expedition_name": "DELTA QUADRANT",
+   "expedition_hint": "choose a route",
+   "expedition_planet_hint": "choose a planet to explore",
+   "expedition_start": "VOYAGER",
+   "expedition_final": "TRANSWARP CONDUIT",
+   "expedition_sector": "SECTOR",
+   "expedition_credits_name": "CREDITS",
+   "expedition_mult_name": "MULTIPLIER",
+   "expedition_scanner_name": "SCANNER",
+   "expedition_shuttle_name": "SHUTTLE",
+   "expedition_shields_name": "SHIELDS",
+   "expedition_artefact_name": "ANCIENT ARTEFACT",
+   "expedition_wormhole_name": "WORMHOLE",
+   "expedition_spins_name": "FREE GAMES",
+   "expedition_levels": [
+    "LOW",
+    "MODERATE",
+    "SEVERE"
+   ],
+   "expedition_hazards": [
+    "BORG CUBE",
+    "KAZON RAIDERS",
+    "HIROGEN HUNTERS",
+    "SPECIES 8472",
+    "SPATIAL ANOMALY"
+   ],
+   "bonus_line": "3+ BONUS SCATTER",
+   "free_line": "3+ FREE-SPINS SCATTER",
+   "feature_names": {
+    "wilds": "RANDOM WILDS",
+    "wildReels": "WILD REELS",
+    "colossal": "COLOSSAL REELS",
+    "multiplier": "MULTIPLIER",
+    "upgrade": "SYMBOL UPGRADE",
+    "repeat": "REPEAT WIN",
+    "instant": "INSTANT WIN"
+   }
+  },
+  "rules": [
+   "Wild stands in for everything except Bonus scatter and Free-spins scatter. Pays left to right on 25 lines; the longest match on each line pays.",
+   "Random features can hit any spin, some before the reels stop and some after.",
+   "3+ Bonus scatter: RED ALERT or DELTA QUADRANT, at random. 3+ Free-spins scatter: 3 combo free games. Buy Bonus (45x the bet): RED ALERT or DELTA QUADRANT, at ra",
+   "Upgrades: A, K \u2192 EMH \u00b7 Q, J \u2192 Tuvok \u00b7 Janeway, Seven, TranswarpConduit \u2192 Wormhole \u00b7 EMH \u2192 TranswarpConduit \u00b7 Tuvok \u2192 Seven"
+  ],
+  "cabinet": {
+   "body": "#22446a",
+   "trim": "#9fe3ff",
+   "title": "#f5a623",
+   "lines": [
+    "VOYAGER"
+   ]
+  },
+  "background": true
+ },
+ "extras": {
+  "assets": {
+   "W": "Wild (W)",
+   "BS": "Bonus scatter (BS)",
+   "FS": "Free-spins scatter (FS)",
+   "H1": "Wormhole (H1)",
+   "H2": "TranswarpConduit (H2)",
+   "M1": "Janeway (M1)",
+   "M2": "Seven (M2)",
+   "M3": "EMH (M3)",
+   "M4": "Tuvok (M4)",
+   "L1": "A (L1)",
+   "L2": "K (L2)",
+   "L3": "Q (L3)",
+   "L4": "J (L4)",
+   "armadillo": "The mascot: flies down Wild Reels and walks the bonus trail",
+   "barrel": "The Instant Win prize",
+   "cylinder": "The bonus launcher (shows 1 to 6 shots)",
+   "t_coin": "Trail space: coins",
+   "t_gold": "Trail: the prizepot at the end",
+   "t_snake": "Trail space: the hazard (costs a heart or ends the bonus)",
+   "t_heart": "Trail space: a heart (saves you from one hazard)",
+   "t_forward": "Trail space: forward / back",
+   "t_lightning": "Trail space: lightning roll",
+   "t_crate": "Trail space: collect coins nearby",
+   "t_upgrade": "Trail space: moves doubled",
+   "t_double": "Trail space: all coins doubled",
+   "b_hero": "Battle: your ship",
+   "b_enemy": "Battle: an enemy ship (cloaks, fires back, reveals prizes)",
+   "b_boss": "Battle: the boss ship after the last wave",
+   "v_ship": "Voyage: your ship, sailing the map",
+   "v_treasure": "Voyage island: Treasure Island (a sure prize)",
+   "v_wreck": "Voyage island: a Shipwreck (relics, maybe a key or an artefact)",
+   "v_skull": "Voyage island: Skull Island (a big prize, or it sinks you)",
+   "v_port": "Voyage island: Port Royal (trade relics), and the start port",
+   "v_cove": "Voyage island: a Hidden Cove (a key opens it)",
+   "v_final": "Voyage: the final island",
+   "v_chest": "Voyage: the legendary treasure (a chest with four locks)",
+   "v_relic": "Voyage: a relic",
+   "v_key": "Voyage: a key",
+   "v_art1": "Voyage: the first artefact",
+   "v_art2": "Voyage: the second artefact",
+   "v_art3": "Voyage: the third artefact",
+   "v_art4": "Voyage: the fourth artefact",
+   "x_ship": "Expedition: your ship, on the star chart",
+   "x_planet": "Expedition: an unexplored planet (what every planet shows until it's revealed)",
+   "x_credits": "Expedition planet: credits",
+   "x_mult": "Expedition planet: a multiplier",
+   "x_scanner": "Expedition tech: the Scanner (shows the next sector)",
+   "x_shuttle": "Expedition tech: the Shuttle (explores a second planet)",
+   "x_shields": "Expedition tech: Shields (absorb a hazard)",
+   "x_artefact": "Expedition special: an ancient artefact (a big prize)",
+   "x_wormhole": "Expedition special: a Wormhole (straight to the final destination)",
+   "x_spins": "Expedition special: free games",
+   "x_hazard": "Expedition: a hazard (ends the expedition)",
+   "x_final": "Expedition: the final destination",
+   "bg": "Background",
+   "bg_glass": "Background, behind glass"
+  },
+  "sounds": {},
+  "design": "voyager",
+  "built_at": "2026-10-21T08:52:34"
+ }
+}

@@ -1,0 +1,1300 @@
+{
+ "id": "pirates_of_the_carribean",
+ "name": "Pirates Of The Carribean",
+ "symbols": {
+  "W": "Wild 2",
+  "BS": "Bonus 1",
+  "FS": "Scatter 1",
+  "H1": "Jack Sparrow",
+  "H2": "Skeleton",
+  "M1": "Map",
+  "M2": "Barrel",
+  "M3": "Bell",
+  "M4": "Hat",
+  "L1": "Ace",
+  "L2": "King",
+  "L3": "Queen",
+  "L4": "Jack"
+ },
+ "strips": [
+  [
+   "M4",
+   "L2",
+   "L4",
+   "H2",
+   "M2",
+   "L1",
+   "L1",
+   "L4",
+   "L1",
+   "M4",
+   "L3",
+   "M2",
+   "L4",
+   "H1",
+   "M2",
+   "L2",
+   "M4",
+   "H1",
+   "M2",
+   "M3",
+   "L1",
+   "M4",
+   "M1",
+   "M3",
+   "L4",
+   "L2",
+   "L1",
+   "H2",
+   "L3",
+   "M1",
+   "M4",
+   "L3",
+   "L2",
+   "BS",
+   "M3",
+   "M1",
+   "M1",
+   "H1",
+   "M3",
+   "L4",
+   "L4",
+   "M1",
+   "L1",
+   "L1",
+   "L2",
+   "H2",
+   "M2",
+   "M3",
+   "FS",
+   "L3",
+   "L2",
+   "L3",
+   "L3"
+  ],
+  [
+   "L4",
+   "L2",
+   "M1",
+   "M1",
+   "M4",
+   "L1",
+   "W",
+   "L2",
+   "L1",
+   "L4",
+   "M1",
+   "L3",
+   "L2",
+   "M4",
+   "W",
+   "M3",
+   "H1",
+   "L3",
+   "M3",
+   "BS",
+   "M4",
+   "W",
+   "L4",
+   "H2",
+   "M3",
+   "L1",
+   "M1",
+   "L1",
+   "L2",
+   "L3",
+   "L4",
+   "W",
+   "L3",
+   "L2",
+   "H2",
+   "M2",
+   "M2",
+   "L3",
+   "L4",
+   "M2",
+   "M3",
+   "L3",
+   "L1",
+   "M3",
+   "M4",
+   "FS",
+   "H1",
+   "M2",
+   "L1",
+   "L2",
+   "M4",
+   "L4",
+   "L1",
+   "M2",
+   "H1",
+   "M1",
+   "H2"
+  ],
+  [
+   "L4",
+   "L2",
+   "L1",
+   "L3",
+   "L1",
+   "L3",
+   "L1",
+   "W",
+   "L4",
+   "W",
+   "BS",
+   "L4",
+   "M1",
+   "M2",
+   "L3",
+   "L2",
+   "M4",
+   "L4",
+   "L3",
+   "M4",
+   "H1",
+   "M2",
+   "H2",
+   "M1",
+   "M3",
+   "L4",
+   "M3",
+   "H1",
+   "L4",
+   "L1",
+   "H1",
+   "L2",
+   "L2",
+   "M2",
+   "BS",
+   "M4",
+   "L2",
+   "W",
+   "M1",
+   "L3",
+   "H2",
+   "M1",
+   "M1",
+   "L1",
+   "W",
+   "M2",
+   "L2",
+   "FS",
+   "L3",
+   "H2",
+   "M2",
+   "L1",
+   "M4",
+   "M3",
+   "M3",
+   "M4",
+   "M3"
+  ],
+  [
+   "M1",
+   "L3",
+   "BS",
+   "H2",
+   "L1",
+   "W",
+   "M2",
+   "L1",
+   "L4",
+   "M3",
+   "M4",
+   "M2",
+   "W",
+   "H1",
+   "L3",
+   "L1",
+   "H2",
+   "W",
+   "M3",
+   "L1",
+   "H2",
+   "L4",
+   "L2",
+   "L2",
+   "M4",
+   "W",
+   "M4",
+   "M3",
+   "L1",
+   "L3",
+   "H1",
+   "L1",
+   "M3",
+   "M2",
+   "M4",
+   "M1",
+   "L4",
+   "L2",
+   "M1",
+   "L4",
+   "L2",
+   "L2",
+   "L3",
+   "M2",
+   "L2",
+   "M1",
+   "H1",
+   "L3",
+   "L3",
+   "M3",
+   "FS",
+   "M4",
+   "L4",
+   "L4",
+   "M1",
+   "M2"
+  ],
+  [
+   "L4",
+   "L3",
+   "M1",
+   "L3",
+   "L1",
+   "M4",
+   "M3",
+   "H2",
+   "L2",
+   "L1",
+   "L3",
+   "M2",
+   "H1",
+   "L2",
+   "M2",
+   "L2",
+   "M3",
+   "H1",
+   "L4",
+   "FS",
+   "L3",
+   "W",
+   "L2",
+   "L3",
+   "L1",
+   "M3",
+   "BS",
+   "L4",
+   "L3",
+   "M4",
+   "L4",
+   "M3",
+   "W",
+   "M2",
+   "L1",
+   "M1",
+   "H2",
+   "L4",
+   "M2",
+   "H1",
+   "W",
+   "M4",
+   "M1",
+   "L4",
+   "L2",
+   "M1",
+   "L2",
+   "M2",
+   "L1",
+   "M4",
+   "W",
+   "M4",
+   "L1",
+   "M3",
+   "M1",
+   "H2"
+  ]
+ ],
+ "free_strips": [
+  [
+   "L1",
+   "H2",
+   "M2",
+   "H1",
+   "L4",
+   "M1",
+   "L4",
+   "M2",
+   "M2",
+   "L2",
+   "M1",
+   "L2",
+   "L4",
+   "L2",
+   "M4",
+   "L2",
+   "L4",
+   "L3",
+   "L4",
+   "M3",
+   "L3",
+   "H1",
+   "L2",
+   "L1",
+   "L3",
+   "M4",
+   "L1",
+   "L2",
+   "L3",
+   "L1",
+   "L1",
+   "L3",
+   "H1",
+   "M1",
+   "L3",
+   "M2",
+   "M3",
+   "M4",
+   "M4",
+   "M3",
+   "H2",
+   "M1",
+   "M3",
+   "M3",
+   "L1",
+   "M4",
+   "M2",
+   "H2",
+   "L1",
+   "M1",
+   "L4"
+  ],
+  [
+   "L2",
+   "L3",
+   "L3",
+   "L1",
+   "L2",
+   "M4",
+   "M3",
+   "L3",
+   "H2",
+   "H1",
+   "L1",
+   "L1",
+   "W",
+   "L4",
+   "H1",
+   "L3",
+   "L1",
+   "L2",
+   "M2",
+   "L4",
+   "L2",
+   "M3",
+   "W",
+   "L4",
+   "M4",
+   "M3",
+   "M3",
+   "L1",
+   "M2",
+   "M1",
+   "L3",
+   "L3",
+   "M1",
+   "M4",
+   "M1",
+   "L2",
+   "L2",
+   "L4",
+   "M3",
+   "M2",
+   "M1",
+   "L1",
+   "M1",
+   "L4",
+   "L4",
+   "H2",
+   "W",
+   "M2",
+   "H2",
+   "M2",
+   "W",
+   "L1",
+   "M4",
+   "M4",
+   "H1"
+  ],
+  [
+   "M2",
+   "L2",
+   "M3",
+   "M4",
+   "L2",
+   "M4",
+   "H2",
+   "H2",
+   "L1",
+   "W",
+   "M1",
+   "L3",
+   "L1",
+   "H1",
+   "M2",
+   "M3",
+   "M3",
+   "L1",
+   "M4",
+   "M1",
+   "L2",
+   "L1",
+   "M2",
+   "L3",
+   "L4",
+   "M2",
+   "M1",
+   "W",
+   "W",
+   "M1",
+   "L4",
+   "H2",
+   "H1",
+   "M4",
+   "M3",
+   "L2",
+   "L2",
+   "M4",
+   "L4",
+   "L4",
+   "L2",
+   "L3",
+   "M3",
+   "L4",
+   "H1",
+   "L1",
+   "L1",
+   "W",
+   "L3",
+   "L3",
+   "M1",
+   "L3",
+   "L4",
+   "M2"
+  ],
+  [
+   "L3",
+   "M1",
+   "M2",
+   "L4",
+   "L3",
+   "M1",
+   "M1",
+   "H2",
+   "M3",
+   "L2",
+   "M3",
+   "H1",
+   "L1",
+   "L3",
+   "M4",
+   "H2",
+   "H2",
+   "M2",
+   "H1",
+   "L1",
+   "M4",
+   "L1",
+   "M4",
+   "L3",
+   "L2",
+   "M4",
+   "L1",
+   "L2",
+   "M2",
+   "M2",
+   "L1",
+   "L4",
+   "L3",
+   "M1",
+   "L2",
+   "L4",
+   "W",
+   "L2",
+   "L2",
+   "M1",
+   "L3",
+   "W",
+   "L4",
+   "H1",
+   "M4",
+   "M2",
+   "M3",
+   "L1",
+   "L4",
+   "W",
+   "M3",
+   "W",
+   "L4",
+   "M3"
+  ],
+  [
+   "L4",
+   "M3",
+   "M1",
+   "M2",
+   "M1",
+   "W",
+   "L3",
+   "M1",
+   "M4",
+   "L2",
+   "M2",
+   "M3",
+   "M3",
+   "L4",
+   "W",
+   "L4",
+   "M2",
+   "L1",
+   "H1",
+   "L1",
+   "L2",
+   "H1",
+   "L3",
+   "H1",
+   "L1",
+   "H2",
+   "L3",
+   "L4",
+   "L1",
+   "M4",
+   "M4",
+   "M2",
+   "L4",
+   "M4",
+   "L2",
+   "M1",
+   "M1",
+   "M3",
+   "M3",
+   "W",
+   "L3",
+   "L4",
+   "M4",
+   "L3",
+   "H2",
+   "L2",
+   "H2",
+   "L1",
+   "W",
+   "L2",
+   "L1",
+   "L3",
+   "L2",
+   "M2"
+  ]
+ ],
+ "big_strip": [
+  "L2",
+  "L4",
+  "L4",
+  "L3",
+  "M1",
+  "L2",
+  "L1",
+  "M4",
+  "M3",
+  "M4",
+  "L1",
+  "L1",
+  "L3",
+  "L3",
+  "M2",
+  "L4",
+  "H2",
+  "M1",
+  "W",
+  "M4",
+  "H1",
+  "H1",
+  "L2",
+  "M2",
+  "M2",
+  "L4",
+  "M3",
+  "L3",
+  "L1",
+  "H2",
+  "M1",
+  "M3",
+  "L2"
+ ],
+ "rates": {
+  "wilds": 0.07,
+  "wildReels": 0.014,
+  "colossal": 0.02,
+  "multiplier": 0.035,
+  "upgrade": 0.06,
+  "repeat": 0.04,
+  "instant": 0.008
+ },
+ "free_rates": {
+  "wilds": 0.6,
+  "wildReels": 0.32,
+  "colossal": 0.3,
+  "multiplier": 0.5,
+  "upgrade": 0.45,
+  "repeat": 0.35,
+  "instant": 0.25
+ },
+ "wild_counts": [
+  [
+   1,
+   40
+  ],
+  [
+   2,
+   30
+  ],
+  [
+   3,
+   20
+  ],
+  [
+   4,
+   10
+  ]
+ ],
+ "wild_reel_counts": [
+  [
+   1,
+   70
+  ],
+  [
+   2,
+   25
+  ],
+  [
+   3,
+   5
+  ]
+ ],
+ "colossal_sizes": [
+  [
+   2,
+   60
+  ],
+  [
+   3,
+   30
+  ],
+  [
+   4,
+   10
+  ]
+ ],
+ "multipliers": [
+  [
+   2,
+   50
+  ],
+  [
+   3,
+   25
+  ],
+  [
+   4,
+   15
+  ],
+  [
+   5,
+   10
+  ]
+ ],
+ "repeats": [
+  [
+   2,
+   60
+  ],
+  [
+   3,
+   25
+  ],
+  [
+   4,
+   10
+  ],
+  [
+   5,
+   5
+  ]
+ ],
+ "instants": [
+  [
+   1,
+   30
+  ],
+  [
+   2,
+   25
+  ],
+  [
+   3,
+   15
+  ],
+  [
+   5,
+   12
+  ],
+  [
+   10,
+   9
+  ],
+  [
+   20,
+   5
+  ],
+  [
+   50,
+   2.5
+  ],
+  [
+   100,
+   1
+  ],
+  [
+   200,
+   0.5
+  ]
+ ],
+ "trail": {
+  "length": 120,
+  "prizepot": 2000,
+  "counts": {
+   "snake": 20,
+   "heart": 2,
+   "forward": 3,
+   "back": 3,
+   "lightning": 2,
+   "crate": 3
+  },
+  "upgrade_chance": 0.2,
+  "double_chance": 0.4,
+  "coins": [
+   [
+    1,
+    30
+   ],
+   [
+    2,
+    26
+   ],
+   [
+    3,
+    17
+   ],
+   [
+    5,
+    12
+   ],
+   [
+    10,
+    8
+   ],
+   [
+    20,
+    4.5
+   ],
+   [
+    50,
+    2.2
+   ],
+   [
+    100,
+    0.9
+   ],
+   [
+    200,
+    0.4
+   ]
+  ],
+  "crate_radius": [
+   [
+    1,
+    50
+   ],
+   [
+    2,
+    35
+   ],
+   [
+    3,
+    15
+   ]
+  ]
+ },
+ "buy_cost": 45,
+ "free_games": 3,
+ "routes": {
+  "BS": [
+   "voyage"
+  ],
+  "FS": [
+   "free"
+  ],
+  "buy": [
+   "voyage"
+  ]
+ },
+ "pays": {
+  "W": [
+   20,
+   40,
+   119
+  ],
+  "H1": [
+   20,
+   40,
+   119
+  ],
+  "H2": [
+   20,
+   40,
+   99
+  ],
+  "M1": [
+   16,
+   24,
+   59
+  ],
+  "M2": [
+   16,
+   24,
+   59
+  ],
+  "M3": [
+   12,
+   20,
+   48
+  ],
+  "M4": [
+   12,
+   20,
+   48
+  ],
+  "L1": [
+   4,
+   8,
+   20
+  ],
+  "L2": [
+   4,
+   8,
+   20
+  ],
+  "L3": [
+   4,
+   8,
+   20
+  ],
+  "L4": [
+   4,
+   8,
+   20
+  ]
+ },
+ "upgrades": {
+  "L1": "M3",
+  "L2": "M3",
+  "L3": "M4",
+  "L4": "M4",
+  "M1": "H2",
+  "M2": "H2",
+  "M3": "M1",
+  "M4": "M2",
+  "H2": "H1"
+ },
+ "features": [
+  "wilds",
+  "wildReels",
+  "colossal",
+  "multiplier",
+  "upgrade",
+  "repeat",
+  "instant"
+ ],
+ "battle": {
+  "waves": [
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "shields": 3,
+  "return_fire": [
+   0.15,
+   0.2,
+   0.25,
+   0.3,
+   0.34
+  ],
+  "prizes": [
+   [
+    0.2,
+    30
+   ],
+   [
+    0.4,
+    26
+   ],
+   [
+    0.6,
+    18
+   ],
+   [
+    1,
+    12
+   ],
+   [
+    2,
+    8
+   ],
+   [
+    5,
+    4
+   ],
+   [
+    10,
+    1.5
+   ],
+   [
+    25,
+    0.5
+   ]
+  ],
+  "spins_chance": 0.015,
+  "spins": [
+   [
+    1,
+    60
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    10
+   ]
+  ],
+  "clear": [
+   2,
+   4,
+   6,
+   12,
+   25
+  ],
+  "boss_hits": 6,
+  "boss_fire": 0.3,
+  "boss": [
+   [
+    100,
+    50
+   ],
+   [
+    200,
+    30
+   ],
+   [
+    300,
+    12
+   ],
+   [
+    500,
+    6
+   ],
+   [
+    1000,
+    2
+   ]
+  ]
+ },
+ "voyage": {
+  "legs": 6,
+  "kinds": [
+   [
+    "treasure",
+    34
+   ],
+   [
+    "wreck",
+    30
+   ],
+   [
+    "skull",
+    20
+   ],
+   [
+    "port",
+    16
+   ]
+  ],
+  "coves": 1,
+  "treasure": [
+   [
+    3,
+    30
+   ],
+   [
+    4,
+    25
+   ],
+   [
+    5,
+    20
+   ],
+   [
+    8,
+    12
+   ],
+   [
+    12,
+    8
+   ],
+   [
+    20,
+    4
+   ],
+   [
+    40,
+    1
+   ]
+  ],
+  "relics": [
+   [
+    1,
+    50
+   ],
+   [
+    2,
+    35
+   ],
+   [
+    3,
+    15
+   ]
+  ],
+  "item_chance": 0.55,
+  "key_chance": 0.3,
+  "skull": [
+   [
+    8,
+    30
+   ],
+   [
+    12,
+    30
+   ],
+   [
+    20,
+    20
+   ],
+   [
+    30,
+    12
+   ],
+   [
+    60,
+    6
+   ],
+   [
+    120,
+    2
+   ]
+  ],
+  "sink": 0.24,
+  "cove": [
+   [
+    10,
+    40
+   ],
+   [
+    15,
+    30
+   ],
+   [
+    25,
+    20
+   ],
+   [
+    50,
+    10
+   ]
+  ],
+  "relic_value": 1,
+  "artefact_price": 3,
+  "key_price": 2,
+  "spins_price": 4,
+  "spins_games": 1,
+  "chest": 12,
+  "parts": [
+   4,
+   5,
+   8,
+   12
+  ],
+  "legend": 90
+ },
+ "art": {},
+ "theme": {
+  "colours": {
+   "gold": "#f4c94f",
+   "goldHi": "#fff1b0",
+   "goldLo": "#9a6614",
+   "edge": "#d9a54a",
+   "cream": "#f6ead0",
+   "muted": "#b89b74",
+   "ink": "#2b1004",
+   "shade": "#1a0b03",
+   "win": "#ffe27a",
+   "spin": "#f0b43a",
+   "alert": "#7d130c"
+  },
+  "fonts": {
+   "display": "display.ttf",
+   "ui": "ui.ttf"
+  },
+  "frame": {
+   "style": "wood",
+   "colour": "#c9a24a"
+  },
+  "deck": {
+   "style": "wood",
+   "colour": null
+  },
+  "win": {
+   "wild": {
+    "preset": "glow",
+    "strength": 1.0,
+    "colour": "#ffe27a"
+   },
+   "high": {
+    "preset": "shine",
+    "strength": 1.0,
+    "colour": "#ffe27a"
+   },
+   "mid": {
+    "preset": "pulse",
+    "strength": 1.0,
+    "colour": "#ffe27a"
+   },
+   "low": {
+    "preset": "pulse",
+    "strength": 1.0,
+    "colour": "#ffe27a"
+   },
+   "scatter": {
+    "preset": "bounce",
+    "strength": 1.0,
+    "colour": "#ffe27a"
+   }
+  },
+  "labels": false,
+  "texts": {
+   "tagline": "GOOD LUCK",
+   "trail": "TRAIL BONUS",
+   "launcher": "THE LAUNCHER",
+   "hint": "fire to move along the trail",
+   "free": "COMBO FREE GAMES",
+   "battle": "RED ALERT",
+   "battle_hint": "tap a ship to fire",
+   "enemy": "ENEMY SHIP",
+   "boss": "FLAGSHIP",
+   "voyage_name": "DEAD MAN'S MAP",
+   "voyage_hint": "choose your next island",
+   "voyage_start": "TORTUGA",
+   "voyage_final": "ISLA DE MUERTA",
+   "voyage_treasure_name": "TREASURE ISLAND",
+   "voyage_wreck_name": "SHIPWRECK",
+   "voyage_skull_name": "SKULL ISLAND",
+   "voyage_port_name": "PORT ROYAL",
+   "voyage_cove_name": "HIDDEN COVE",
+   "voyage_relic": "RELIC",
+   "voyage_chest_name": "LEGENDARY TREASURE",
+   "voyage_legend_name": "THE LEGEND",
+   "voyage_artefacts": [
+    "COMPASS",
+    "MEDALLION",
+    "SPYGLASS",
+    "CUTLASS"
+   ],
+   "bonus_line": "3+ BONUS 1",
+   "free_line": "3+ SCATTER 1"
+  },
+  "rules": [
+   "Wild 2 stands in for everything except Scatter 1. Pays left to right on 25 lines; the longest match on each line pays.",
+   "Random features can hit any spin, some before the reels stop and some after.",
+   "3+ Scatter 1: 3 combo free games.",
+   "Upgrades: Ace, King \u2192 Bell \u00b7 Queen, Jack \u2192 Hat \u00b7 Map, Barrel \u2192 Skeleton \u00b7 Bell \u2192 Map \u00b7 Hat \u2192 Barrel \u00b7 Skeleton \u2192 Jack Sparrow"
+  ],
+  "cabinet": {
+   "body": "#5e3417",
+   "trim": "#978872",
+   "title": "#e8a33a",
+   "lines": [
+    "PIRATES"
+   ]
+  },
+  "background": true
+ },
+ "extras": {
+  "assets": {
+   "W": "Wild 2 (W)",
+   "BS": "Bonus 1 (BS)",
+   "FS": "Scatter 1 (FS)",
+   "H1": "Jack Sparrow (H1)",
+   "H2": "Skeleton (H2)",
+   "M1": "Map (M1)",
+   "M2": "Barrel (M2)",
+   "M3": "Bell (M3)",
+   "M4": "Hat (M4)",
+   "L1": "Ace (L1)",
+   "L2": "King (L2)",
+   "L3": "Queen (L3)",
+   "L4": "Jack (L4)",
+   "armadillo": "The mascot: flies down Wild Reels and walks the bonus trail",
+   "barrel": "The Instant Win prize",
+   "cylinder": "The bonus launcher (shows 1 to 6 shots)",
+   "t_coin": "Trail space: coins",
+   "t_gold": "Trail: the prizepot at the end",
+   "t_snake": "Trail space: the hazard (costs a heart or ends the bonus)",
+   "t_heart": "Trail space: a heart (saves you from one hazard)",
+   "t_forward": "Trail space: forward / back",
+   "t_lightning": "Trail space: lightning roll",
+   "t_crate": "Trail space: collect coins nearby",
+   "t_upgrade": "Trail space: moves doubled",
+   "t_double": "Trail space: all coins doubled",
+   "b_hero": "Battle: your ship",
+   "b_enemy": "Battle: an enemy ship (cloaks, fires back, reveals prizes)",
+   "b_boss": "Battle: the boss ship after the last wave",
+   "v_ship": "Voyage: your ship, sailing the map",
+   "v_treasure": "Voyage island: Treasure Island (a sure prize)",
+   "v_wreck": "Voyage island: a Shipwreck (relics, maybe a key or an artefact)",
+   "v_skull": "Voyage island: Skull Island (a big prize, or it sinks you)",
+   "v_port": "Voyage island: Port Royal (trade relics), and the start port",
+   "v_cove": "Voyage island: a Hidden Cove (a key opens it)",
+   "v_final": "Voyage: the final island",
+   "v_chest": "Voyage: the legendary treasure (a chest with four locks)",
+   "v_relic": "Voyage: a relic",
+   "v_key": "Voyage: a key",
+   "v_art1": "Voyage: the first artefact",
+   "v_art2": "Voyage: the second artefact",
+   "v_art3": "Voyage: the third artefact",
+   "v_art4": "Voyage: the fourth artefact",
+   "logo": "Logo",
+   "bg": "Background"
+  },
+  "floor": {
+   "spot": "west_of_armadillo",
+   "bank": "single",
+   "count": 1
+  },
+  "sounds": {},
+  "design": "pirates_of_the_carribean",
+  "built_at": "2026-10-20T18:46:22"
+ }
+}

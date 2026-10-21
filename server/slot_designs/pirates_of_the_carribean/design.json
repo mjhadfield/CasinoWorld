@@ -1,0 +1,2818 @@
+{
+ "name": "Pirates Of The Carribean",
+ "concept": {
+  "brief": "",
+  "style": "",
+  "tiers": {
+   "high": 2,
+   "mid": 4,
+   "low": 4
+  },
+  "target_rtp": 91.5,
+  "volatility": "medium"
+ },
+ "categories": [
+  {
+   "id": "royals",
+   "title": "Royals",
+   "role": "low",
+   "kind": "royal",
+   "required": 4
+  },
+  {
+   "id": "set1",
+   "title": "Symbol set 1 \u00b7 high pays",
+   "role": "high",
+   "kind": "character",
+   "required": 2
+  },
+  {
+   "id": "set2",
+   "title": "Symbol set 2 \u00b7 mid pays",
+   "role": "mid",
+   "kind": "object",
+   "required": 4
+  },
+  {
+   "id": "specials",
+   "title": "Specials \u00b7 wild & scatters",
+   "role": "specials",
+   "kind": "special",
+   "required": 3
+  },
+  {
+   "id": "bonus",
+   "title": "Bonus screens",
+   "role": null,
+   "kind": "object",
+   "required": null
+  }
+ ],
+ "symbols": [
+  {
+   "id": "ace",
+   "name": "Ace",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/ace.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "base": "ref/ace.png",
+   "keep": true,
+   "choice": "cut/ace_1.png",
+   "binned": [
+    "cut/ace_2.png",
+    "cut/ace_3.png"
+   ]
+  },
+  {
+   "id": "king",
+   "name": "King",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/king.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/king_1.png",
+   "binned": [
+    "cut/king_2.png",
+    "cut/king_3.png"
+   ]
+  },
+  {
+   "id": "queen",
+   "name": "Queen",
+   "category": "royals",
+   "kind": "object",
+   "key": "green",
+   "prompt": "",
+   "refs": [
+    "ref/queen.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "keep": true,
+   "binned": [
+    "cut/queen_2.png",
+    "cut/queen_3.png"
+   ]
+  },
+  {
+   "id": "jack",
+   "name": "Jack",
+   "category": "royals",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/jack.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "keep": true,
+   "binned": [
+    "cut/jack_2.png",
+    "cut/jack_3.png"
+   ]
+  },
+  {
+   "id": "map",
+   "name": "Map",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/map.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/map_3.png",
+   "takes": 1,
+   "base": "ref/map.png",
+   "first_takes": 1
+  },
+  {
+   "id": "barrel",
+   "name": "Barrel",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/barrel.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/barrel_1.png",
+   "binned": [
+    "cut/barrel_2.png"
+   ]
+  },
+  {
+   "id": "bell",
+   "name": "Bell",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/bell.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "keep": true,
+   "choice": "cut/bell_1.png",
+   "binned": [
+    "cut/bell_2.png"
+   ]
+  },
+  {
+   "id": "hat",
+   "name": "Hat",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/hat.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/hat_3.png",
+   "binned": [
+    "cut/hat_2.png"
+   ]
+  },
+  {
+   "id": "coin",
+   "name": "Coin",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/coin.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "choice": "cut/coin_1.png",
+   "binned": [
+    "cut/coin_2.png"
+   ],
+   "hide": true
+  },
+  {
+   "id": "parrot",
+   "name": "Parrot",
+   "category": "set2",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/parrot.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": false,
+   "binned": [
+    "cut/parrot_1.png",
+    "cut/parrot_2.png"
+   ],
+   "hide": true
+  },
+  {
+   "id": "jack_sparrow",
+   "name": "Jack Sparrow",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/jack_sparrow.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "keep": true,
+   "choice": "bust/jack_sparrow_1",
+   "binned": [
+    "bust/jack_sparrow_2",
+    "bust/jack_sparrow_3"
+   ],
+   "reiterate": false,
+   "takes": 1,
+   "base": "ref/jack_sparrow.png",
+   "history": [
+    {
+     "from": "ref/jack_sparrow.png",
+     "note": ""
+    },
+    {
+     "from": "ref/jack_sparrow.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "woman",
+   "name": "Woman",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/woman.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "choice": "bust/woman_1",
+   "binned": [
+    "bust/woman_2",
+    "bust/woman_3"
+   ],
+   "hide": true
+  },
+  {
+   "id": "skeleton",
+   "name": "Skeleton",
+   "category": "set1",
+   "kind": "character",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/skeleton.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "red",
+   "keep": true,
+   "choice": "bust/skeleton_2",
+   "binned": [
+    "bust/skeleton_1",
+    "bust/skeleton_3"
+   ],
+   "reiterate": false,
+   "takes": 1,
+   "base": "ref/skeleton.png",
+   "history": [
+    {
+     "from": "ref/skeleton.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "pirate_ship",
+   "name": "Pirate Ship",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/pirate_ship.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "choice": "cut/pirate_ship_3.png"
+  },
+  {
+   "id": "treasure_chest",
+   "name": "Treasure Chest",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/treasure_chest.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "choice": "cut/treasure_chest_1.png",
+   "binned": [
+    "cut/treasure_chest_2.png",
+    "cut/treasure_chest_3.png"
+   ],
+   "reiterate": false,
+   "takes": 1,
+   "base": null
+  },
+  {
+   "id": "wild_1",
+   "name": "Wild 1",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/wild_1.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": false,
+   "choice": "cut/wild_1_1.png",
+   "binned": [
+    "cut/wild_1_2.png"
+   ],
+   "hide": true
+  },
+  {
+   "id": "wild_2",
+   "name": "Wild 2",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/wild_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "keep": true,
+   "choice": "cut/wild_2_3.png",
+   "binned": [
+    "cut/wild_2_1.png",
+    "cut/wild_2_2.png"
+   ]
+  },
+  {
+   "id": "bonus_1",
+   "name": "Bonus 1",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/bonus_1.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "base": "ref/bonus_1.png",
+   "note": "Maintain the \"BONUS\" text exactly as it is on the reference image",
+   "history": [
+    {
+     "from": "ref/bonus_1.png",
+     "note": "Maintain the \"BONUS\" text exactly as it is on the reference image."
+    }
+   ],
+   "binned": [
+    "cut/bonus_1_1.png",
+    "cut/bonus_1_5.png",
+    "cut/bonus_1_6.png"
+   ],
+   "choice": "cut/bonus_1_4.png"
+  },
+  {
+   "id": "scatter_1",
+   "name": "Scatter 1",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/scatter_1.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": true,
+   "choice": "cut/scatter_1_1.png",
+   "binned": [
+    "cut/scatter_1_2.png"
+   ]
+  },
+  {
+   "id": "scatter_2",
+   "name": "Scatter 2",
+   "category": "specials",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/scatter_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "keep": false,
+   "choice": "cut/scatter_2_2.png",
+   "binned": [
+    "cut/scatter_2_1.png",
+    "cut/scatter_2_3.png"
+   ],
+   "hide": true
+  },
+  {
+   "id": "voyage_your_ship",
+   "name": "Voyage: your ship",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "choice": "cut/voyage_your_ship_1.png",
+   "reiterate": false,
+   "takes": 1,
+   "note": "",
+   "history": [
+    {
+     "from": "raw/voyage_your_ship_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "island",
+   "name": "Island",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/island.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "raw/island_1.png",
+     "note": ""
+    },
+    {
+     "from": "raw/island_1.png",
+     "note": "Another version the same as this but with skulls scattered around the island and one fell tree"
+    },
+    {
+     "from": "raw/island_1.png",
+     "note": "Another version the same as this but with skulls scattered around the island and one fell tree"
+    }
+   ],
+   "note": "Another version the same as this but with skulls scattered around the island and one fell tree",
+   "binned": [
+    "cut/island_2.png",
+    "cut/island_3.png",
+    "cut/island_5.png"
+   ],
+   "choice": "cut/island_1.png"
+  },
+  {
+   "id": "island_2",
+   "name": "Island 2",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "hue": "gold",
+   "refs": [
+    "ref/island.png"
+   ],
+   "added": true,
+   "choice": "cut/island_2_1.png"
+  },
+  {
+   "id": "cove",
+   "name": "Cove",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/cove.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "raw/cove_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "port",
+   "name": "Port",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/port.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "choice": "cut/port_1.png",
+   "history": [
+    {
+     "from": "raw/port_1.png",
+     "note": ""
+    }
+   ],
+   "note": ""
+  },
+  {
+   "id": "city",
+   "name": "City",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/city.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "choice": "cut/city_1.png",
+   "history": [
+    {
+     "from": "raw/city_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "shipwreck",
+   "name": "Shipwreck",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/shipwreck.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "raw/shipwreck_1.png",
+     "note": ""
+    },
+    {
+     "from": "raw/shipwreck_1.png",
+     "note": "An intact player ship based on this sunken shipwreck. Larger, with intact sails, upright facing to the right"
+    }
+   ],
+   "note": "An intact player ship based on this sunken shipwreck. Larger, with intact sails, upright facing to the right",
+   "binned": [
+    "cut/shipwreck_5.png"
+   ]
+  },
+  {
+   "id": "shipwreck_2",
+   "name": "Shipwreck 2",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "hue": "gold",
+   "refs": [
+    "ref/shipwreck.png"
+   ],
+   "added": true,
+   "choice": "cut/shipwreck_2_1.png"
+  },
+  {
+   "id": "key",
+   "name": "Key",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/key.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "choice": "cut/key_1.png",
+   "history": [
+    {
+     "from": "raw/key_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "relic",
+   "name": "Relic",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/relic.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "choice": "cut/relic_1.png",
+   "history": [
+    {
+     "from": "raw/relic_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "artefact_1",
+   "name": "artefact 1",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/artefact_1.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "choice": "cut/artefact_1_1.png",
+   "history": [
+    {
+     "from": "raw/artefact_1_1.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "artefact_2",
+   "name": "artefact 2",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/artefact_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "ref/artefact_2.png",
+     "note": ""
+    },
+    {
+     "from": "ref/artefact_2.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "artefact_3",
+   "name": "artefact 3",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/artefact_3.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "ref/artefact_3.png",
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "artefact_3_2",
+   "name": "artefact 3",
+   "category": "bonus",
+   "kind": "object",
+   "key": "magenta",
+   "prompt": "",
+   "refs": [
+    "ref/artefact_3_2.png"
+   ],
+   "added": true,
+   "pending_new": false,
+   "hue": "gold",
+   "reiterate": false,
+   "takes": 1,
+   "history": [
+    {
+     "from": "ref/artefact_3_2.png",
+     "note": ""
+    }
+   ]
+  }
+ ],
+ "jobs": [
+  {
+   "id": 8,
+   "symbol": "bell",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bell_1",
+    "bell_2",
+    "bell_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/bell.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 9,
+   "symbol": "hat",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "hat_1",
+    "hat_2",
+    "hat_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/hat.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 10,
+   "symbol": "coin",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "coin_1",
+    "coin_2",
+    "coin_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/coin.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 11,
+   "symbol": "parrot",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "parrot_1",
+    "parrot_2",
+    "parrot_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/parrot.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 12,
+   "symbol": "jack_sparrow",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_jack_sparrow_1",
+    "bust_jack_sparrow_2",
+    "bust_jack_sparrow_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/jack_sparrow.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 13,
+   "symbol": "woman",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_woman_1",
+    "bust_woman_2",
+    "bust_woman_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/woman.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 14,
+   "symbol": "skeleton",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bust_skeleton_1",
+    "bust_skeleton_2",
+    "bust_skeleton_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/skeleton.png",
+   "text": "",
+   "out": "character",
+   "action": "new"
+  },
+  {
+   "id": 15,
+   "symbol": "pirate_ship",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "pirate_ship_1",
+    "pirate_ship_2",
+    "pirate_ship_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/pirate_ship.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 16,
+   "symbol": "treasure_chest",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "treasure_chest_1",
+    "treasure_chest_2",
+    "treasure_chest_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/treasure_chest.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 17,
+   "symbol": "wild_1",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "wild_1_1",
+    "wild_1_2",
+    "wild_1_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/wild_1.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 18,
+   "symbol": "wild_2",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "wild_2_1",
+    "wild_2_2",
+    "wild_2_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/wild_2.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 19,
+   "symbol": "bonus_1",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_1_1",
+    "bonus_1_2",
+    "bonus_1_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/bonus_1.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 20,
+   "symbol": "bonus_2",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_2_1",
+    "bonus_2_2",
+    "bonus_2_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/bonus_2.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 21,
+   "symbol": "scatter_1",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "scatter_1_1",
+    "scatter_1_2",
+    "scatter_1_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/scatter_1.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 22,
+   "symbol": "scatter_2",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "scatter_2_1",
+    "scatter_2_2",
+    "scatter_2_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/scatter_2.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 23,
+   "symbol": "bonus_1",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bonus_1_4",
+    "bonus_1_5",
+    "bonus_1_6"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/bonus_1.png",
+   "text": "Maintain the \"BONUS\" text exactly as it is on the reference image.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 24,
+   "symbol": null,
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bg_1",
+    "bg_2",
+    "bg_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "I pirate ship on the sea",
+   "out": "background",
+   "action": "background"
+  },
+  {
+   "id": 25,
+   "symbol": null,
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "bg_4",
+    "bg_5",
+    "bg_6"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "An ocean",
+   "out": "background",
+   "action": "background"
+  },
+  {
+   "id": 26,
+   "symbol": "voyage_your_ship",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_your_ship_1",
+    "voyage_your_ship_2",
+    "voyage_your_ship_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "A pirate ship",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 27,
+   "symbol": "voyage_treasure_island",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_treasure_island_1",
+    "voyage_treasure_island_2",
+    "voyage_treasure_island_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Treasure island",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 28,
+   "symbol": "voyage_shipwreck",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_shipwreck_1",
+    "voyage_shipwreck_2",
+    "voyage_shipwreck_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Shipwreck",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 29,
+   "symbol": "voyage_skull_island",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_skull_island_1",
+    "voyage_skull_island_2",
+    "voyage_skull_island_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Skull island",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 30,
+   "symbol": "voyage_port_royal",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_port_royal_1",
+    "voyage_port_royal_2",
+    "voyage_port_royal_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "port island",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 31,
+   "symbol": "voyage_hidden_cove",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_hidden_cove_1",
+    "voyage_hidden_cove_2",
+    "voyage_hidden_cove_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "hidden cove",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 32,
+   "symbol": "voyage_final_island",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_final_island_1",
+    "voyage_final_island_2",
+    "voyage_final_island_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Final cove",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 33,
+   "symbol": "voyage_relic",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "voyage_relic_1",
+    "voyage_relic_2",
+    "voyage_relic_3"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "ancient relic",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 40,
+   "symbol": "voyage_treasure_island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "voyage_treasure_island_4"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Treasure island. A game icon for: a floating island where there is buried treasure.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 41,
+   "symbol": "voyage_treasure_island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "voyage_treasure_island_5"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Treasure island. DO NOT GENERATE ANY TEXT. A game icon for: a floating island where there is buried treasure.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 42,
+   "symbol": "voyage_treasure_island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "voyage_treasure_island_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/voyage_treasure_island_5.png",
+   "text": "DO NOT GENERATE ANY TEXT. A game icon for: a grassy floating island where there is the potential for buried treasure",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 43,
+   "symbol": "voyage_shipwreck",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "voyage_shipwreck_4"
+   ],
+   "error": "",
+   "how": "text",
+   "src": null,
+   "text": "Shipwreck. DO NOT GENERATE ANY TEXT. A game icon for: a floating shipwreck.",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 44,
+   "symbol": "port",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "port_1",
+    "port_2",
+    "port_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/port.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 45,
+   "symbol": "cove",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "cove_1",
+    "cove_2",
+    "cove_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/cove.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 46,
+   "symbol": "island",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "island_1",
+    "island_2",
+    "island_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/island.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 47,
+   "symbol": "city",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "city_1",
+    "city_2",
+    "city_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/city.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 48,
+   "symbol": "shipwreck",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "shipwreck_1",
+    "shipwreck_2",
+    "shipwreck_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/shipwreck.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 49,
+   "symbol": "key",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "key_1",
+    "key_2",
+    "key_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/key.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 50,
+   "symbol": "relic",
+   "status": "done",
+   "done": 3,
+   "count": 3,
+   "made": [
+    "relic_1",
+    "relic_2",
+    "relic_3"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/relic.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  },
+  {
+   "id": 51,
+   "symbol": "island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "island_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/island_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 52,
+   "symbol": "cove",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "cove_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/cove_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 53,
+   "symbol": "port",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "port_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/port_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 54,
+   "symbol": "city",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "city_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/city_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 55,
+   "symbol": "shipwreck",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "shipwreck_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/shipwreck_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 56,
+   "symbol": "key",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "key_4"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/key_1.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 60,
+   "symbol": "artefact_3",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "artefact_3_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/artefact_3.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 61,
+   "symbol": "artefact_3_2",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "artefact_3_2_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/artefact_3_2.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 62,
+   "symbol": "artefact_2",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "artefact_2_1"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/artefact_2.png",
+   "text": "",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 63,
+   "symbol": "island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "island_5"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/island_1.png",
+   "text": "Another version the same as this but with skulls scattered around the island and one fell tree",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 64,
+   "symbol": "shipwreck",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "shipwreck_5"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/shipwreck_1.png",
+   "text": "An intact player ship based on this sunken shipwreck. Larger, with intact sails, upright facing to the right",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 65,
+   "symbol": "jack_sparrow",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "bust_jack_sparrow_4"
+   ],
+   "error": "",
+   "how": "redraw",
+   "src": "ref/jack_sparrow.png",
+   "text": "",
+   "out": "character",
+   "action": "reiterate"
+  },
+  {
+   "id": 66,
+   "symbol": "island",
+   "status": "done",
+   "done": 1,
+   "count": 1,
+   "made": [
+    "island_6"
+   ],
+   "error": "",
+   "how": "variation",
+   "src": "raw/island_1.png",
+   "text": "Another version the same as this but with skulls scattered around the island and one fell tree",
+   "out": "object",
+   "action": "reiterate"
+  },
+  {
+   "id": 67,
+   "symbol": "map",
+   "status": "failed",
+   "done": 0,
+   "count": 1,
+   "made": [],
+   "error": "docker exec failed",
+   "how": "redraw",
+   "src": "ref/map.png",
+   "text": "",
+   "out": "object",
+   "action": "new"
+  }
+ ],
+ "steps": {
+  "concept": "done",
+  "art": "done",
+  "ladder": "done",
+  "scene": "done",
+  "features": "done",
+  "bonuses": "done",
+  "sprites": "done",
+  "sounds": "done",
+  "maths": "done",
+  "mockup": "done",
+  "build": "done"
+ },
+ "ladder": {
+  "slots": {
+   "L1": "ace",
+   "L2": "king",
+   "L3": "queen",
+   "L4": "jack",
+   "H1": "jack_sparrow",
+   "H2": "skeleton",
+   "M1": "map",
+   "M2": "barrel",
+   "M3": "bell",
+   "M4": "hat",
+   "W": "wild_2",
+   "BS": "bonus_1",
+   "FS": "scatter_1"
+  },
+  "upgrades": {
+   "L1": "M3",
+   "L2": "M3",
+   "L3": "M4",
+   "L4": "M4",
+   "M1": "H2",
+   "M2": "H2",
+   "M3": "M1",
+   "M4": "M2",
+   "H2": "H1"
+  }
+ },
+ "scene": {
+  "logo": {
+   "top": "#fff1b0",
+   "bottom": "#d39a26",
+   "outline": "#2b1004",
+   "font": "Cinzel-SemiBold.ttf",
+   "emblem": null,
+   "lines": [
+    "PIRATES"
+   ],
+   "file": "scene/logo_6.png"
+  },
+  "background": "scene/bg_5.png",
+  "skins": {
+   "classic": {
+    "name": "Classic",
+    "by": "house",
+    "base": "classic",
+    "note": "",
+    "frame": {
+     "style": "wood",
+     "colour": "#c9a24a"
+    },
+    "deck": {
+     "style": "wood",
+     "colour": null
+    },
+    "colours": {
+     "gold": "#f4c94f",
+     "goldHi": "#fff1b0",
+     "goldLo": "#9a6614",
+     "edge": "#d9a54a",
+     "cream": "#f6ead0",
+     "muted": "#b89b74",
+     "ink": "#2b1004",
+     "shade": "#1a0b03",
+     "win": "#ffe27a",
+     "spin": "#f0b43a",
+     "alert": "#7d130c"
+    },
+    "palette": {},
+    "glass": {},
+    "parts": {},
+    "decor": [],
+    "fonts": {
+     "display": "Rye-Regular.ttf",
+     "ui": "BarlowCondensed-Bold.ttf"
+    },
+    "texts": {}
+   }
+  },
+  "skin": "classic"
+ },
+ "art_slots": {
+  "barrel": "sym:treasure_chest",
+  "armadillo": "sym:wild_2",
+  "v_ship": "sym:shipwreck_2",
+  "v_treasure": "sym:island",
+  "v_wreck": "sym:shipwreck",
+  "v_skull": "sym:island_2",
+  "v_port": "sym:port",
+  "v_cove": "sym:cove",
+  "v_final": "sym:city",
+  "v_chest": "sym:treasure_chest",
+  "v_relic": "sym:relic",
+  "v_key": "sym:key",
+  "v_art1": "sym:artefact_1",
+  "v_art2": "sym:artefact_2",
+  "v_art3": "sym:artefact_3",
+  "v_art4": "sym:artefact_3_2"
+ },
+ "bonuses": {
+  "trail": {
+   "enabled": false
+  },
+  "voyage": {
+   "enabled": true,
+   "name": "DEAD MAN'S MAP",
+   "hint": "choose your next island",
+   "start": "TORTUGA",
+   "final": "ISLA DE MUERTA",
+   "treasure_name": "TREASURE ISLAND",
+   "wreck_name": "SHIPWRECK",
+   "skull_name": "SKULL ISLAND",
+   "port_name": "PORT ROYAL",
+   "cove_name": "HIDDEN COVE",
+   "relic": "RELIC",
+   "chest_name": "LEGENDARY TREASURE",
+   "legend_name": "THE LEGEND",
+   "artefacts": [
+    "COMPASS",
+    "MEDALLION",
+    "SPYGLASS",
+    "CUTLASS"
+   ],
+   "legs": 6,
+   "kinds": [
+    [
+     "treasure",
+     34
+    ],
+    [
+     "wreck",
+     30
+    ],
+    [
+     "skull",
+     20
+    ],
+    [
+     "port",
+     16
+    ]
+   ],
+   "coves": 1,
+   "treasure": [
+    [
+     3,
+     30
+    ],
+    [
+     4,
+     25
+    ],
+    [
+     5,
+     20
+    ],
+    [
+     8,
+     12
+    ],
+    [
+     12,
+     8
+    ],
+    [
+     20,
+     4
+    ],
+    [
+     40,
+     1
+    ]
+   ],
+   "relics": [
+    [
+     1,
+     50
+    ],
+    [
+     2,
+     35
+    ],
+    [
+     3,
+     15
+    ]
+   ],
+   "skull": [
+    [
+     8,
+     30
+    ],
+    [
+     12,
+     30
+    ],
+    [
+     20,
+     20
+    ],
+    [
+     30,
+     12
+    ],
+    [
+     60,
+     6
+    ],
+    [
+     120,
+     2
+    ]
+   ],
+   "cove": [
+    [
+     10,
+     40
+    ],
+    [
+     15,
+     30
+    ],
+    [
+     25,
+     20
+    ],
+    [
+     50,
+     10
+    ]
+   ],
+   "item_chance": 0.55,
+   "key_chance": 0.3,
+   "sink": 0.24,
+   "artefact_price": 3,
+   "key_price": 2,
+   "spins_price": 4,
+   "spins_games": 1,
+   "relic_value": 1,
+   "chest": 12,
+   "legend": 90,
+   "parts": [
+    4,
+    5,
+    8,
+    12
+   ]
+  }
+ },
+ "specs": [
+  {
+   "id": 1,
+   "kind": "bonus",
+   "name": "Dead Man's Map",
+   "description": "Game flow:\n1. The player receives a map showing a branching path through several islands.\n2. At each island, the player chooses between two or three destinations.\n3. Each destination triggers a different encounter:\n   - Treasure Island: collect a guaranteed treasure.\n   - Shipwreck: search for relics and potentially discover a special item.\n   - Skull Island: face a dangerous encounter with a larger possible reward.\n   - Port Royal: exchange collected relics for supplies or bonuses.\n4. Some locations provide keys, maps, or artefacts that unlock alternative routes.\n5. The player eventually reaches the final island, where collected items determine which parts of the legendary treasure can be claimed.",
+   "timing": "from scatters",
+   "art": "",
+   "status": "spec"
+  }
+ ],
+ "sprites": {
+  "cabinet": {
+   "trim": "#978872",
+   "body": "#5e3417"
+  }
+ },
+ "maths": {
+  "pays": {
+   "W": [
+    20,
+    40,
+    119
+   ],
+   "H1": [
+    20,
+    40,
+    119
+   ],
+   "H2": [
+    20,
+    40,
+    99
+   ],
+   "M1": [
+    16,
+    24,
+    59
+   ],
+   "M2": [
+    16,
+    24,
+    59
+   ],
+   "M3": [
+    12,
+    20,
+    48
+   ],
+   "M4": [
+    12,
+    20,
+    48
+   ],
+   "L1": [
+    4,
+    8,
+    20
+   ],
+   "L2": [
+    4,
+    8,
+    20
+   ],
+   "L3": [
+    4,
+    8,
+    20
+   ],
+   "L4": [
+    4,
+    8,
+    20
+   ]
+  },
+  "counts": [
+   {
+    "W": 0,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 7,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "BS": 2
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "BS": 1
+   },
+   {
+    "W": 4,
+    "FS": 1,
+    "H1": 3,
+    "H2": 3,
+    "M1": 5,
+    "M2": 5,
+    "M3": 5,
+    "M4": 5,
+    "L1": 6,
+    "L2": 6,
+    "L3": 6,
+    "L4": 6,
+    "BS": 1
+   }
+  ],
+  "big_counts": {
+   "W": 1,
+   "H1": 2,
+   "H2": 2,
+   "M1": 3,
+   "M2": 3,
+   "M3": 3,
+   "M4": 3,
+   "L1": 4,
+   "L2": 4,
+   "L3": 4,
+   "L4": 4
+  },
+  "strips": [
+   [
+    "M4",
+    "L2",
+    "L4",
+    "H2",
+    "M2",
+    "L1",
+    "L1",
+    "L4",
+    "L1",
+    "M4",
+    "L3",
+    "M2",
+    "L4",
+    "H1",
+    "M2",
+    "L2",
+    "M4",
+    "H1",
+    "M2",
+    "M3",
+    "L1",
+    "M4",
+    "M1",
+    "M3",
+    "L4",
+    "L2",
+    "L1",
+    "H2",
+    "L3",
+    "M1",
+    "M4",
+    "L3",
+    "L2",
+    "BS",
+    "M3",
+    "M1",
+    "M1",
+    "H1",
+    "M3",
+    "L4",
+    "L4",
+    "M1",
+    "L1",
+    "L1",
+    "L2",
+    "H2",
+    "M2",
+    "M3",
+    "FS",
+    "L3",
+    "L2",
+    "L3",
+    "L3"
+   ],
+   [
+    "L4",
+    "L2",
+    "M1",
+    "M1",
+    "M4",
+    "L1",
+    "W",
+    "L2",
+    "L1",
+    "L4",
+    "M1",
+    "L3",
+    "L2",
+    "M4",
+    "W",
+    "M3",
+    "H1",
+    "L3",
+    "M3",
+    "BS",
+    "M4",
+    "W",
+    "L4",
+    "H2",
+    "M3",
+    "L1",
+    "M1",
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "W",
+    "L3",
+    "L2",
+    "H2",
+    "M2",
+    "M2",
+    "L3",
+    "L4",
+    "M2",
+    "M3",
+    "L3",
+    "L1",
+    "M3",
+    "M4",
+    "FS",
+    "H1",
+    "M2",
+    "L1",
+    "L2",
+    "M4",
+    "L4",
+    "L1",
+    "M2",
+    "H1",
+    "M1",
+    "H2"
+   ],
+   [
+    "L4",
+    "L2",
+    "L1",
+    "L3",
+    "L1",
+    "L3",
+    "L1",
+    "W",
+    "L4",
+    "W",
+    "BS",
+    "L4",
+    "M1",
+    "M2",
+    "L3",
+    "L2",
+    "M4",
+    "L4",
+    "L3",
+    "M4",
+    "H1",
+    "M2",
+    "H2",
+    "M1",
+    "M3",
+    "L4",
+    "M3",
+    "H1",
+    "L4",
+    "L1",
+    "H1",
+    "L2",
+    "L2",
+    "M2",
+    "BS",
+    "M4",
+    "L2",
+    "W",
+    "M1",
+    "L3",
+    "H2",
+    "M1",
+    "M1",
+    "L1",
+    "W",
+    "M2",
+    "L2",
+    "FS",
+    "L3",
+    "H2",
+    "M2",
+    "L1",
+    "M4",
+    "M3",
+    "M3",
+    "M4",
+    "M3"
+   ],
+   [
+    "M1",
+    "L3",
+    "BS",
+    "H2",
+    "L1",
+    "W",
+    "M2",
+    "L1",
+    "L4",
+    "M3",
+    "M4",
+    "M2",
+    "W",
+    "H1",
+    "L3",
+    "L1",
+    "H2",
+    "W",
+    "M3",
+    "L1",
+    "H2",
+    "L4",
+    "L2",
+    "L2",
+    "M4",
+    "W",
+    "M4",
+    "M3",
+    "L1",
+    "L3",
+    "H1",
+    "L1",
+    "M3",
+    "M2",
+    "M4",
+    "M1",
+    "L4",
+    "L2",
+    "M1",
+    "L4",
+    "L2",
+    "L2",
+    "L3",
+    "M2",
+    "L2",
+    "M1",
+    "H1",
+    "L3",
+    "L3",
+    "M3",
+    "FS",
+    "M4",
+    "L4",
+    "L4",
+    "M1",
+    "M2"
+   ],
+   [
+    "L4",
+    "L3",
+    "M1",
+    "L3",
+    "L1",
+    "M4",
+    "M3",
+    "H2",
+    "L2",
+    "L1",
+    "L3",
+    "M2",
+    "H1",
+    "L2",
+    "M2",
+    "L2",
+    "M3",
+    "H1",
+    "L4",
+    "FS",
+    "L3",
+    "W",
+    "L2",
+    "L3",
+    "L1",
+    "M3",
+    "BS",
+    "L4",
+    "L3",
+    "M4",
+    "L4",
+    "M3",
+    "W",
+    "M2",
+    "L1",
+    "M1",
+    "H2",
+    "L4",
+    "M2",
+    "H1",
+    "W",
+    "M4",
+    "M1",
+    "L4",
+    "L2",
+    "M1",
+    "L2",
+    "M2",
+    "L1",
+    "M4",
+    "W",
+    "M4",
+    "L1",
+    "M3",
+    "M1",
+    "H2"
+   ]
+  ],
+  "free_strips": [
+   [
+    "L1",
+    "H2",
+    "M2",
+    "H1",
+    "L4",
+    "M1",
+    "L4",
+    "M2",
+    "M2",
+    "L2",
+    "M1",
+    "L2",
+    "L4",
+    "L2",
+    "M4",
+    "L2",
+    "L4",
+    "L3",
+    "L4",
+    "M3",
+    "L3",
+    "H1",
+    "L2",
+    "L1",
+    "L3",
+    "M4",
+    "L1",
+    "L2",
+    "L3",
+    "L1",
+    "L1",
+    "L3",
+    "H1",
+    "M1",
+    "L3",
+    "M2",
+    "M3",
+    "M4",
+    "M4",
+    "M3",
+    "H2",
+    "M1",
+    "M3",
+    "M3",
+    "L1",
+    "M4",
+    "M2",
+    "H2",
+    "L1",
+    "M1",
+    "L4"
+   ],
+   [
+    "L2",
+    "L3",
+    "L3",
+    "L1",
+    "L2",
+    "M4",
+    "M3",
+    "L3",
+    "H2",
+    "H1",
+    "L1",
+    "L1",
+    "W",
+    "L4",
+    "H1",
+    "L3",
+    "L1",
+    "L2",
+    "M2",
+    "L4",
+    "L2",
+    "M3",
+    "W",
+    "L4",
+    "M4",
+    "M3",
+    "M3",
+    "L1",
+    "M2",
+    "M1",
+    "L3",
+    "L3",
+    "M1",
+    "M4",
+    "M1",
+    "L2",
+    "L2",
+    "L4",
+    "M3",
+    "M2",
+    "M1",
+    "L1",
+    "M1",
+    "L4",
+    "L4",
+    "H2",
+    "W",
+    "M2",
+    "H2",
+    "M2",
+    "W",
+    "L1",
+    "M4",
+    "M4",
+    "H1"
+   ],
+   [
+    "M2",
+    "L2",
+    "M3",
+    "M4",
+    "L2",
+    "M4",
+    "H2",
+    "H2",
+    "L1",
+    "W",
+    "M1",
+    "L3",
+    "L1",
+    "H1",
+    "M2",
+    "M3",
+    "M3",
+    "L1",
+    "M4",
+    "M1",
+    "L2",
+    "L1",
+    "M2",
+    "L3",
+    "L4",
+    "M2",
+    "M1",
+    "W",
+    "W",
+    "M1",
+    "L4",
+    "H2",
+    "H1",
+    "M4",
+    "M3",
+    "L2",
+    "L2",
+    "M4",
+    "L4",
+    "L4",
+    "L2",
+    "L3",
+    "M3",
+    "L4",
+    "H1",
+    "L1",
+    "L1",
+    "W",
+    "L3",
+    "L3",
+    "M1",
+    "L3",
+    "L4",
+    "M2"
+   ],
+   [
+    "L3",
+    "M1",
+    "M2",
+    "L4",
+    "L3",
+    "M1",
+    "M1",
+    "H2",
+    "M3",
+    "L2",
+    "M3",
+    "H1",
+    "L1",
+    "L3",
+    "M4",
+    "H2",
+    "H2",
+    "M2",
+    "H1",
+    "L1",
+    "M4",
+    "L1",
+    "M4",
+    "L3",
+    "L2",
+    "M4",
+    "L1",
+    "L2",
+    "M2",
+    "M2",
+    "L1",
+    "L4",
+    "L3",
+    "M1",
+    "L2",
+    "L4",
+    "W",
+    "L2",
+    "L2",
+    "M1",
+    "L3",
+    "W",
+    "L4",
+    "H1",
+    "M4",
+    "M2",
+    "M3",
+    "L1",
+    "L4",
+    "W",
+    "M3",
+    "W",
+    "L4",
+    "M3"
+   ],
+   [
+    "L4",
+    "M3",
+    "M1",
+    "M2",
+    "M1",
+    "W",
+    "L3",
+    "M1",
+    "M4",
+    "L2",
+    "M2",
+    "M3",
+    "M3",
+    "L4",
+    "W",
+    "L4",
+    "M2",
+    "L1",
+    "H1",
+    "L1",
+    "L2",
+    "H1",
+    "L3",
+    "H1",
+    "L1",
+    "H2",
+    "L3",
+    "L4",
+    "L1",
+    "M4",
+    "M4",
+    "M2",
+    "L4",
+    "M4",
+    "L2",
+    "M1",
+    "M1",
+    "M3",
+    "M3",
+    "W",
+    "L3",
+    "L4",
+    "M4",
+    "L3",
+    "H2",
+    "L2",
+    "H2",
+    "L1",
+    "W",
+    "L2",
+    "L1",
+    "L3",
+    "L2",
+    "M2"
+   ]
+  ],
+  "big_strip": [
+   "L2",
+   "L4",
+   "L4",
+   "L3",
+   "M1",
+   "L2",
+   "L1",
+   "M4",
+   "M3",
+   "M4",
+   "L1",
+   "L1",
+   "L3",
+   "L3",
+   "M2",
+   "L4",
+   "H2",
+   "M1",
+   "W",
+   "M4",
+   "H1",
+   "H1",
+   "L2",
+   "M2",
+   "M2",
+   "L4",
+   "M3",
+   "L3",
+   "L1",
+   "H2",
+   "M1",
+   "M3",
+   "L2"
+  ],
+  "report": {
+   "spins": 500000,
+   "staked": 50000000,
+   "plain": 10440276,
+   "featured": 11933000,
+   "repeatExtra": 1378428,
+   "instant": 2604700,
+   "trail": 0,
+   "free": 7468120,
+   "battle": 0,
+   "voyage": 12394716,
+   "hits": 206724,
+   "trails": 0,
+   "frees": 1615,
+   "battles": 0,
+   "voyages": 2697,
+   "featureSpins": 100131,
+   "prizepots": 0,
+   "max": 2394.56,
+   "featureCounts": {
+    "wilds": 34836,
+    "upgrade": 30049,
+    "repeat": 7908,
+    "multiplier": 17344,
+    "wildReels": 6921,
+    "instant": 3852,
+    "colossal": 8650
+   },
+   "rtp": {
+    "plain": 20.880552,
+    "featured": 23.866,
+    "repeat": 2.756856,
+    "instant": 5.2094,
+    "trail": 0,
+    "free": 14.93624,
+    "battle": 0,
+    "voyage": 24.40041232128,
+    "jackpot": 3.7500000000000004,
+    "trailSampled": 0,
+    "battleSampled": 0,
+    "voyageSampled": 24.789432,
+    "game": 92.04946032128001,
+    "total": 95.79946032128001
+   },
+   "buy": {
+    "n": 100000,
+    "rtp": 100.09565955555556,
+    "mean": 45.0430468,
+    "max": 286,
+    "prizepots": 0,
+    "rolls": 0
+   },
+   "voyageRun": {
+    "n": 50000,
+    "mean": 45.2362112,
+    "finals": 36991,
+    "legends": 450,
+    "sunk": 13009
+   },
+   "sd": 7.524184186305748,
+   "exact": 26.77864108064172
+  },
+  "settings": "599ce50732d3",
+  "check": {
+   "sample": 200,
+   "exact": 26.7786,
+   "python_30k": {
+    "plain": 21.12,
+    "featured": 22.76,
+    "repeat_extra": 2.95,
+    "instant": 4.63,
+    "trail": 0.0,
+    "free": 22.03,
+    "battle": 0.0,
+    "voyage": 23.71,
+    "game": 97.19,
+    "jackpot": 3.75,
+    "total": 100.94
+   }
+  },
+  "frozen_at": "2026-10-20T18:41:44"
+ },
+ "rules": [
+  "Wild 2 stands in for everything except Scatter 1. Pays left to right on 25 lines; the longest match on each line pays.",
+  "Random features can hit any spin, some before the reels stop and some after.",
+  "3+ Scatter 1: 3 combo free games.",
+  "Upgrades: Ace, King \u2192 Bell \u00b7 Queen, Jack \u2192 Hat \u00b7 Map, Barrel \u2192 Skeleton \u00b7 Bell \u2192 Map \u00b7 Hat \u2192 Barrel \u00b7 Skeleton \u2192 Jack Sparrow"
+ ],
+ "signed_off": {
+  "at": "2026-10-20T18:41:46",
+  "settings": "599ce50732d3"
+ }
+}
