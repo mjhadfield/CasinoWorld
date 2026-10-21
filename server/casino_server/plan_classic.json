@@ -1,0 +1,396 @@
+{
+ "note": "The hand-built floor as it was at git tag classic-floor (2026-10-21), as two blueprints.",
+ "rooms": [
+  {
+   "doors": [
+    {
+     "at": 700,
+     "id": "d1",
+     "kind": "door",
+     "side": "bottom",
+     "width": 88
+    },
+    {
+     "at": 830,
+     "id": "d2",
+     "kind": "archway",
+     "side": "right",
+     "width": 100
+    }
+   ],
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "h": 1160,
+   "id": "classic_floor",
+   "items": [
+    {
+     "asset": "table:three_card_poker",
+     "id": "tcp_1",
+     "props": {
+      "label": "Three Card Poker"
+     },
+     "rot": 0,
+     "x": 300,
+     "y": 290
+    },
+    {
+     "asset": "table:blackjack",
+     "id": "bj_1",
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 0,
+     "x": 700,
+     "y": 290
+    },
+    {
+     "asset": "table:pai_gow_fortune",
+     "id": "pgf_1",
+     "props": {
+      "label": "Fortune Pai Gow"
+     },
+     "rot": 0,
+     "x": 300,
+     "y": 630
+    },
+    {
+     "asset": "table:pai_gow_face_up",
+     "id": "pgu_1",
+     "props": {
+      "label": "Face Up Pai Gow"
+     },
+     "rot": 0,
+     "x": 700,
+     "y": 630
+    },
+    {
+     "asset": "table:mississippi_stud",
+     "id": "ms_1",
+     "props": {
+      "label": "Mississippi Stud"
+     },
+     "rot": 0,
+     "x": 1100,
+     "y": 290
+    },
+    {
+     "asset": "table:ultimate_texas_holdem",
+     "id": "uth_1",
+     "props": {
+      "label": "Ultimate Texas Hold'em"
+     },
+     "rot": 0,
+     "x": 1100,
+     "y": 630
+    },
+    {
+     "asset": "table:let_it_ride",
+     "id": "lir_1",
+     "props": {
+      "label": "Let It Ride"
+     },
+     "rot": 0,
+     "x": 300,
+     "y": 970
+    },
+    {
+     "asset": "table:high_card_flush",
+     "id": "hcf_1",
+     "props": {
+      "label": "High Card Flush"
+     },
+     "rot": 0,
+     "x": 700,
+     "y": 970
+    },
+    {
+     "asset": "table:baccarat",
+     "id": "bac_1",
+     "props": {
+      "label": "Baccarat"
+     },
+     "rot": 0,
+     "x": 1100,
+     "y": 970
+    },
+    {
+     "asset": "table:roulette",
+     "id": "rou_1",
+     "props": {
+      "label": "Roulette"
+     },
+     "rot": 0,
+     "x": 1500,
+     "y": 290
+    },
+    {
+     "asset": "table:craps",
+     "id": "crp_1",
+     "props": {
+      "label": "Craps"
+     },
+     "rot": 0,
+     "x": 1560,
+     "y": 630
+    },
+    {
+     "asset": "slot",
+     "facing": "down",
+     "id": "b1_1",
+     "props": {
+      "variant": "startrek"
+     },
+     "x": 1459,
+     "y": 985
+    },
+    {
+     "asset": "slot",
+     "facing": "down",
+     "id": "b1_2",
+     "props": {
+      "variant": "startrek"
+     },
+     "x": 1425,
+     "y": 985
+    },
+    {
+     "asset": "slot",
+     "facing": "down",
+     "id": "b1_3",
+     "props": {
+      "variant": "voyager"
+     },
+     "x": 1493,
+     "y": 985
+    },
+    {
+     "asset": "slot",
+     "facing": "down",
+     "id": "b1_4",
+     "props": {
+      "variant": "voyager"
+     },
+     "x": 1527,
+     "y": 985
+    },
+    {
+     "asset": "slot",
+     "facing": "right",
+     "id": "b1_5",
+     "props": {
+      "variant": "pirates_of_the_carribean"
+     },
+     "x": 1561,
+     "y": 972
+    },
+    {
+     "asset": "slot",
+     "facing": "left",
+     "id": "b1_6",
+     "props": {
+      "variant": "armadillo"
+     },
+     "x": 1391,
+     "y": 972
+    }
+   ],
+   "name": "Classic floor",
+   "patches": [],
+   "paths": {
+    "points": [
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "aisle_e",
+      "weight": 1,
+      "x": 1830,
+      "y": 430
+     },
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "aisle_mid",
+      "weight": 1,
+      "x": 500,
+      "y": 400
+     },
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "aisle_w",
+      "weight": 1,
+      "x": 70,
+      "y": 400
+     },
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "corner_e",
+      "weight": 1,
+      "x": 1830,
+      "y": 1110
+     },
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "corner_w",
+      "weight": 1,
+      "x": 70,
+      "y": 1110
+     },
+     {
+      "kind": "arrival",
+      "linger": 0,
+      "name": "entrance",
+      "weight": 1,
+      "x": 700,
+      "y": 1110
+     }
+    ],
+    "zones": []
+   },
+   "placed": false,
+   "w": 1900,
+   "walls": {
+    "sign": "HADFIELD CASINO",
+    "sign_at": 950,
+    "style": "crimson"
+   },
+   "x": 0,
+   "y": 0
+  },
+  {
+   "doors": [],
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "h": 1160,
+   "id": "classic_pit",
+   "items": [
+    {
+     "asset": "table:blackjack",
+     "id": "bj_2",
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 180,
+     "x": 322,
+     "y": 435
+    },
+    {
+     "asset": "table:blackjack",
+     "id": "bj_3",
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 180,
+     "x": 678,
+     "y": 435
+    },
+    {
+     "asset": "table:blackjack",
+     "id": "bj_4",
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 0,
+     "x": 322,
+     "y": 764
+    },
+    {
+     "asset": "table:blackjack",
+     "id": "bj_5",
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 0,
+     "x": 678,
+     "y": 764
+    },
+    {
+     "asset": "podium",
+     "facing": "down",
+     "id": "i1",
+     "props": {},
+     "x": 500,
+     "y": 614
+    },
+    {
+     "asset": "npc",
+     "facing": "down",
+     "id": "i2",
+     "props": {
+      "look": "dealer",
+      "name": "Pit Boss"
+     },
+     "x": 500,
+     "y": 600
+    }
+   ],
+   "name": "Classic pit",
+   "patches": [],
+   "paths": {
+    "points": [
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "pit_n",
+      "weight": 1,
+      "x": 500,
+      "y": 200
+     },
+     {
+      "kind": "wander",
+      "linger": 0,
+      "name": "pit_s",
+      "weight": 1,
+      "x": 500,
+      "y": 1030
+     }
+    ],
+    "zones": [
+     {
+      "h": 6,
+      "kind": "npc_block",
+      "w": 36,
+      "x": 482,
+      "y": 478
+     },
+     {
+      "h": 6,
+      "kind": "npc_block",
+      "w": 36,
+      "x": 482,
+      "y": 715
+     },
+     {
+      "h": 243,
+      "kind": "npc_block",
+      "w": 6,
+      "x": 156,
+      "y": 478
+     },
+     {
+      "h": 243,
+      "kind": "npc_block",
+      "w": 6,
+      "x": 838,
+      "y": 478
+     }
+    ]
+   },
+   "placed": false,
+   "w": 1000,
+   "walls": {
+    "sign": "BLACKJACK",
+    "sign_at": 500,
+    "style": "crimson"
+   },
+   "x": 1900,
+   "y": 0
+  }
+ ]
+}

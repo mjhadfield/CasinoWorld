@@ -1,35 +1,49 @@
 """
-The casino floor as the server sees it: which tables exist, and the named
-spots NPCs walk between. The server needs no geometry -- each name here must
-exist as a Marker2D in the client's casino_floor.tscn (group "floor_points"),
-and the client works out paths and positions. A Godot check asserts the two
-lists match.
+The casino floor as the server sees it: the tables, the named points NPCs walk between, where each seat's player
+stands and how far it is between places. All of it comes from the live floor plan (plan.install fills it in at
+startup and on a publish); the client builds the same floor from the plan the welcome sends.
 """
 
-TABLES = {
-    "tcp_1": {"game": "three_card_poker", "name": "Three Card Poker", "seats": 6},
-    "bj_1": {"game": "blackjack", "name": "Blackjack", "seats": 6},
-    "bj_2": {"game": "blackjack", "name": "Blackjack", "seats": 6},   # the Blackjack pit room: bj_2, bj_3 face bj_4, bj_5 across the pit
-    "bj_3": {"game": "blackjack", "name": "Blackjack", "seats": 6},
-    "bj_4": {"game": "blackjack", "name": "Blackjack", "seats": 6},
-    "bj_5": {"game": "blackjack", "name": "Blackjack", "seats": 6},
-    "ms_1": {"game": "mississippi_stud", "name": "Mississippi Stud", "seats": 6},
-    "pgf_1": {"game": "pai_gow_fortune", "name": "Fortune Pai Gow", "seats": 6},
-    "pgu_1": {"game": "pai_gow_face_up", "name": "Face Up Pai Gow", "seats": 6},
-    "uth_1": {"game": "ultimate_texas_holdem", "name": "Ultimate Texas Hold'em", "seats": 6},
-    "lir_1": {"game": "let_it_ride", "name": "Let It Ride", "seats": 5},     # five, spread out for room
-    "hcf_1": {"game": "high_card_flush", "name": "High Card Flush", "seats": 5},
-    "bac_1": {"game": "baccarat", "name": "Baccarat", "seats": 6},
-    "rou_1": {"game": "roulette", "name": "Roulette", "seats": 6},
-    "crp_1": {"game": "craps", "name": "Craps", "seats": 8},
-}
-# Slot cabinets (one seat each) join TABLES from the slot banks the admin page's Floor tab makes (slot_banks.py).
+import json
+from pathlib import Path
+
+# Every table game there is (its name), on the floor or not: from the plan's catalogue (tools/plan_catalogue.gd).
+GAMES = {g: c["name"] for g, c in json.loads((Path(__file__).resolve().parent / "plan_catalogue.json").read_text())["games"].items()}
+
+TABLES: dict = {}    # table id -> {"game", "name", "seats"} (slot cabinets: "variant" too, one seat each)
 SLOTS_FOR_HUMANS = 2   # NPCs leave at least this many slot cabinets free
 
-ENTRANCE = "entrance"
+POINTS: dict = {}    # "room/name" -> {"x", "y", "kind": spawn|arrival|wander, "weight", "linger", "room"}
+SEATS: dict = {}     # table id -> [(x, y) where each seat's player stands to sit down]
+SPAWN = ""           # the point players appear at
+ROUTES = None        # plan.Routes: walking distances through the doorways
 
-# Places NPCs wander to between games: spots in the aisles between the tables, on the
-# main floor and either side of the Blackjack pit (the floor has no decor to visit yet).
-WANDER_POINTS = ["aisle_w", "aisle_mid", "aisle_e", "corner_w", "corner_e", "pit_n", "pit_s"]
 
-ALL_POINTS = [ENTRANCE] + WANDER_POINTS
+def arrivals() -> list[str]:
+    """Where NPCs come in (and go out)."""
+    return [k for k, p in POINTS.items() if p["kind"] == "arrival"]
+
+
+def wander_points() -> list[str]:
+    return [k for k, p in POINTS.items() if p["kind"] == "wander"]
+
+
+def position(target: str) -> tuple | None:
+    """A walk target's place on the floor: "point:<room>/<name>" or "seat:<table>:<seat>"."""
+    if target.startswith("point:"):
+        p = POINTS.get(target[6:])
+        return (p["x"], p["y"]) if p else None
+    if target.startswith("seat:"):
+        _, table, seat = target.rsplit(":", 2) if target.count(":") >= 2 else (None, None, None)
+        stands = SEATS.get(table or "")
+        try:
+            return tuple(stands[int(seat)]) if stands else None
+        except (IndexError, ValueError):
+            return None
+    return None
+
+
+def distance(a: tuple | None, b: tuple | None) -> float | None:
+    if a is None or b is None or ROUTES is None:
+        return None
+    return ROUTES.distance(a, b)

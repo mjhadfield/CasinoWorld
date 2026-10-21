@@ -1,7 +1,7 @@
 # Slots: Armadillo Goes West, and built slots
 
-One-seat cabinets in slot banks, made and placed on the admin page's Floor tab: a bank is any mix of slots, each
-cabinet facing any way, anywhere clear on the floor (cabinet ids are the bank's id and a number, `b1_3`). Slots
+One-seat cabinets placed on the admin page's Floor plan tab: any slot, facing any way, anywhere clear on the floor
+(cabinet ids are `slot_` and a number; the classic floor's are `b1_1`..). Slots
 built with the admin page's Slot design wizard play by the same rules below as Armadillo, with their own
 tiers, pays, features, bonus settings, look and words. A built slot can also switch a bonus off, start it from
 either scatter, and say whether Buy Bonus gives it; a scatter or Buy Bonus with more than one bonus plays one of them

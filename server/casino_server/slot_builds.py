@@ -11,7 +11,7 @@ dev instance):
 
 install() runs in the app's lifespan, before the casino and the sound board start: it registers the variants
 (slots/variants VARIANTS) and gives each its sound set (sounds.py). A build puts no cabinets on the floor: the
-admin page's Floor tab does that (slot_banks.py). Everything install adds is removed first, so it can run again
+admin page's Floor plan tab does that (plan.py). Everything install adds is removed first, so it can run again
 (tests do, with their own folder).
 """
 import datetime

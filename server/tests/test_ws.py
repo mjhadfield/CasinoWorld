@@ -38,7 +38,7 @@ def test_join_sends_everything_and_token_remembers_player(client):
         assert {t["table"] for t in tables} == {"tcp_1", "bj_1"}
         assert tables[0]["phase"] == "betting" and len(tables[0]["seats"]) == 6
         spawn = recv_until(ws, "entity_spawn")
-        assert spawn["entity"]["id"] == welcome["entity_id"] and spawn["at"] == "entrance"
+        assert spawn["entity"]["id"] == welcome["entity_id"] and spawn["at"] == "point:classic_floor/spawn"
         token, player_id = welcome["token"], welcome["player"]["id"]
     with client.websocket_connect("/ws") as ws:
         welcome, *_ = join(ws, token)

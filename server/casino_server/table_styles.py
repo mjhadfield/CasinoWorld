@@ -18,7 +18,7 @@ House is saved the first time it's asked for and can be changed but not deleted.
 import copy
 import re
 
-from casino_server import floor
+from casino_server import floor, plan
 
 KEY = "table_styles"
 HOUSE_ID = "house"
@@ -200,10 +200,12 @@ def _kind(kind: str) -> dict:
 
 
 def styled_tables(kind: str = "cards") -> dict:
-    """The tables of a kind: {table_id: {name, game, layout}}."""
+    """The tables of a kind, on the floor or in a blueprint in the floor plan's library (a room taken off the floor
+    keeps its tables' styles): {table_id: {name, game, layout, on_floor}}."""
     games = _kind(kind)["games"]
-    return {tid: {"name": t["name"], "game": t["game"], "layout": LAYOUTS[t["game"]]}
-            for tid, t in floor.TABLES.items() if t.get("game") in games}
+    every = {**plan.every_table(), **floor.TABLES}
+    return {tid: {"name": t["name"], "game": t["game"], "layout": LAYOUTS[t["game"]], "on_floor": tid in floor.TABLES}
+            for tid, t in every.items() if t.get("game") in games}
 
 
 def _get(design: dict, path: str):

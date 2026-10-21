@@ -102,14 +102,21 @@ A Godot 4.7 project exported to the web.
   five-royal variant with a shared bonus scatter spin for spin).
 - **Built slots** (`slot_builds.py`) join at startup, before the casino is made: their variants, their sound sets
   (`sounds.refresh_sets` rebuilds the sets in place), and their art and fonts in the art manifest.
-- **Slot banks** (`slot_banks.py`, `<data>/slot_banks.json`) put the cabinets on the floor: a bank is any mix of
-  slots, each cabinet facing any way, made and dragged into place on the admin page's Floor tab. At startup, after
-  the built slots, each cabinet whose slot is loaded becomes a one-seat table in `floor.TABLES` (its id is its table
-  id, kept through moves and re-slotting). Saving checks the banks against `floor_map.json` (the room, the tables'
-  footprints and the floor points, measured from the client scene by `tools/floor_map.gd`) and each cabinet's
-  shape; the floor changes when the server restarts (the tab's Apply). The welcome message lists every cabinet, and
-  the client adds, remakes or removes its own to match. Both `install()`s undo their last run first, so tests can
-  run them again.
+- **The floor plan** (`plan.py`, `<data>/plan/`) is the casino's layout as data: rooms side by side on one plan,
+  each with its walls, floor, doors and archways, the tables, slot cabinets and pieces placed in it, and the NPCs'
+  points (spawn, arrival, wander, with weights and linger times) and no-go zones. The admin page's Floor plan tab
+  edits a draft (`draft.json`); publishing copies it to `live.json` (the last 20 publishes kept in `history/`).
+  At startup, after the built slots, `plan.install` fills `floor.py` from the live plan's placed rooms: every table
+  and cabinet (an item's id is its table id, given by the server and never reused), the points, each seat's
+  standing spot and the doorways (`plan.Routes`, for how long an NPC's walk takes). A publish that only moves things
+  installs at once and sends everyone `world`; one that adds or removes tables restarts the server. The checks
+  (`plan.problems`: things off the floor or in each other's way, doors that don't line up, seats and points nobody
+  can walk to, by a flood fill over the plan) use the tables' and cabinet's shapes in `plan_catalogue.json`,
+  measured from the client's scenes by `tools/plan_catalogue.gd`. The first run seeds the lobby (live) and the
+  classic floor and pit (`plan_classic.json`, the old hand-built floor) as unplaced blueprints. The welcome sends
+  the placed rooms (`plan.world`), and a preview (`join` with `preview`) gets the draft's instead. Settings kept by
+  table id (table styles) count every table in the plan, placed or not, and the sound sets cover every game, so
+  taking a room off the floor loses neither.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
   every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
   The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the

@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
-from casino_server import slot_banks, slot_builds, slot_design_art
+from casino_server import plan, slot_builds, slot_design_art
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -62,13 +62,14 @@ def _build_roster_looks(store: Store, looks: LookCache):
 async def lifespan(app: FastAPI):
     data_dir = Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR))
     # Slots built with the Slot design wizard load first (CASINO_SLOT_BUILDS_DIR moves them, for tests and the dev
-    # instance), then the slot banks put cabinets of them on the floor, so the casino, the sound board and the art
-    # board all see them.
+    # instance), then the floor plan puts its tables and cabinets on the floor, so the casino, the sound board and
+    # the art board all see them.
     builds_dir = Path(os.environ.get("CASINO_SLOT_BUILDS_DIR") or slot_builds.DEFAULT_DIR)
     built = slot_builds.install(builds_dir)
     if built:
         print("built slots: " + ", ".join(built))
-    slot_banks.install(data_dir)
+    plan.install(plan.load_live(data_dir))
+    plan_board = plan.PlanBoard(data_dir, builds_dir)
     store = Store(data_dir / "casino.sqlite")
     for p in store.players():
         if p["stored_as"] != "integer":
@@ -84,7 +85,10 @@ async def lifespan(app: FastAPI):
     app.state.casino = casino
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
-    app.state.slot_banks = slot_banks.SlotBankBoard(data_dir, builds_dir)
+    app.state.plan = plan_board
+    plan_board.on_draft = lambda _draft: casino.preview_changed()
+    plan_board.on_publish = lambda _live: casino.broadcast_world()
+    casino.preview_world = lambda room_id: plan.preview_world(plan_board.draft(), room_id)
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
     app.state.slot_design.sounds = app.state.sounds
@@ -410,38 +414,61 @@ def slot_art_file(variant: str, source: str, request: Request):
     return FileResponse(path, media_type=kind, headers={"Cache-Control": cache})
 
 
-# ------------------------------------------------------------------ slot banks (the admin page's Floor tab)
-def _bank_call(fn, *args):
+# ------------------------------------------------------------------ the floor plan (the admin page's Floor plan tab)
+# (The changes run on the event loop, not the threadpool: a publish changes the floor the NPCs are walking.)
+def _plan_call(fn, *args):
     try:
-        return fn(*args)
-    except slot_banks.BankError as e:
+        return JSONResponse(fn(*args), headers=NO_STORE)
+    except plan.PlanConflict as e:
+        raise HTTPException(409, str(e))
+    except plan.PlanError as e:
         raise HTTPException(400, str(e))
 
 
-@app.get("/api/slot-banks")
-def slot_banks_view(request: Request):
-    return JSONResponse(request.app.state.slot_banks.view(), headers=NO_STORE)
+@app.get("/api/plan")
+async def plan_view(request: Request):
+    return _plan_call(request.app.state.plan.view)
 
 
-@app.put("/api/slot-banks")
-async def slot_banks_save(request: Request):
-    body = await _json_body(request, "{banks: [...]}")
-    return _bank_call(request.app.state.slot_banks.save, body)
+@app.get("/api/plan/catalogue")
+async def plan_catalogue(request: Request):
+    return _plan_call(plan.catalogue, request.app.state.plan.builds_dir)
 
 
-@app.post("/api/slot-banks/apply")
-def slot_banks_apply(request: Request):
-    return {"message": _bank_call(request.app.state.slot_banks.apply)}
+@app.put("/api/plan/draft")
+async def plan_save(request: Request):
+    body = await _json_body(request, "{rooms: [...], spawn, base_rev}")
+    return _plan_call(request.app.state.plan.save, body, body.get("base_rev"))
 
 
-# The Floor tab's script (slot_banks_web/), never cached, so an edit shows on reload.
-SLOT_BANKS_WEB = Path(__file__).resolve().parent / "slot_banks_web"
+@app.post("/api/plan/publish")
+async def plan_publish(request: Request):
+    return _plan_call(request.app.state.plan.publish)
 
 
-@app.get("/slot-banks-ui/{rel:path}")
-def slot_banks_ui(rel: str):
-    path = (SLOT_BANKS_WEB / rel).resolve()
-    if not path.is_relative_to(SLOT_BANKS_WEB) or not path.is_file():
+@app.post("/api/plan/discard")
+async def plan_discard(request: Request):
+    return _plan_call(request.app.state.plan.discard)
+
+
+@app.get("/api/plan/history")
+async def plan_history(request: Request):
+    return _plan_call(request.app.state.plan.history)
+
+
+@app.post("/api/plan/rollback/{hid}")
+async def plan_rollback(request: Request, hid: str):
+    return _plan_call(request.app.state.plan.rollback, hid)
+
+
+# The Floor plan tab's scripts (plan_web/), never cached, so an edit shows on reload.
+PLAN_WEB = Path(__file__).resolve().parent / "plan_web"
+
+
+@app.get("/plan-ui/{rel:path}")
+def plan_ui(rel: str):
+    path = (PLAN_WEB / rel).resolve()
+    if not path.is_relative_to(PLAN_WEB) or not path.is_file():
         raise HTTPException(404, "No such file")
     return FileResponse(path, headers=NO_STORE)
 

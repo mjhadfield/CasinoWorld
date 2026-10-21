@@ -35,7 +35,7 @@ import random
 import time
 from dataclasses import dataclass, field
 
-from casino_server import floor, roster
+from casino_server import floor, plan, roster
 from casino_server.engines import baccarat as bac
 from casino_server.engines import blackjack as bj
 from casino_server.engines import craps as cr
@@ -75,6 +75,8 @@ class Npc:
     state: str = "new"      # walking | loitering | seated | leaving
     until: float = 0.0      # when the current walk/loiter ends
     target: str = ""
+    at: tuple | None = None          # where they are (or are walking to) on the floor
+    door: str = ""                   # the arrival point they came in by (and leave by)
     table: str | None = None
     seat: int | None = None
     bet_at: float | None = None
@@ -140,7 +142,7 @@ class NpcDirector:
         if dealers is not None:
             dealers.tick(now)
         here = sum(1 for n in self.npcs.values() if not n.ended)
-        if here < self.population and now >= self._next_spawn:
+        if here < self.population and now >= self._next_spawn and self._room_to_play():
             record = self._pick_visitor()
             if record:
                 self.spawn(record, now)
@@ -148,6 +150,22 @@ class NpcDirector:
         for npc in list(self.npcs.values()):
             self._step(npc, now)
         self._keep_craps_busy(now)
+
+    def _room_to_play(self) -> bool:
+        """Somewhere to come in and a seat to take: else nobody visits (an empty floor plan, or a full house)."""
+        if not floor.arrivals():
+            return False
+        for runner in self.casino.tables.values():
+            free = len(runner.machine.free_seats())
+            if free > (floor.SLOTS_FOR_HUMANS if runner.machine.game == slots.GAME_KEY else RESERVED_FOR_HUMANS):
+                return True
+        return False
+
+    def _weighted(self, keys: list[str]) -> str:
+        weights = [max(0.0, float(floor.POINTS[k]["weight"])) for k in keys]
+        if sum(weights) <= 0:
+            weights = [1.0] * len(keys)
+        return self.rng.choices(keys, weights)[0]
 
     # ------------------------------------------------------------------ the craps table
     def _craps_table(self) -> str | None:
@@ -190,6 +208,9 @@ class NpcDirector:
         return self.rng.choices(free, weights)[0]
 
     def spawn(self, record: dict, now: float) -> Npc:
+        doors = floor.arrivals()
+        if not doors:
+            raise ValueError("NPCs have nowhere to come in: the floor plan has no arrival point.")
         self._serial += 1
         prof = roster.profile(record, self.rng)
         look = self._look(record)
@@ -201,7 +222,9 @@ class NpcDirector:
         npc.favourites = prof.lucky or tuple(self.rng.sample(range(37), self.rng.randint(2, 4)))
         npc.plan = ["wander"] * self.rng.randint(0, 2) + ["play"] + ["wander"] * self.rng.randint(0, 1) + ["leave"]
         self.npcs[npc.entity_id] = npc
-        self.casino.world.add(Entity(npc.entity_id, "npc", npc.name, look), at=floor.ENTRANCE)
+        npc.door = self._weighted(doors)
+        npc.at = floor.position(f"point:{npc.door}")
+        self.casino.world.add(Entity(npc.entity_id, "npc", npc.name, look), at=f"point:{npc.door}")
         self._next_step(npc, now)
         return npc
 
@@ -227,8 +250,13 @@ class NpcDirector:
         self.casino.world.remove(npc.entity_id)
 
     def _walk(self, npc: Npc, target: str, now: float, state: str = "walking"):
-        duration = self.rng.uniform(5.0, 9.0) * self.pace
+        """Send them walking: as long as the walk takes at an easy pace, through the doorways (each client paths it)."""
+        to = floor.position(target)
+        far = floor.distance(npc.at, to)
+        seconds = far / (plan.NPC_SPEED * self.rng.uniform(0.85, 1.15)) if far is not None else self.rng.uniform(5.0, 9.0)
+        duration = max(1.0, seconds) * self.pace
         npc.state, npc.target, npc.until = state, target, now + duration
+        npc.at = to if to is not None else npc.at
         self.casino.world.walk(npc.entity_id, target, duration)
 
     def _next_step(self, npc: Npc, now: float):
@@ -243,11 +271,19 @@ class NpcDirector:
                 npc.plan.insert(0, "play")
             step = "wander"
         if step == "wander":
-            options = [p for p in floor.WANDER_POINTS if p != npc.target]
-            self._walk(npc, f"point:{self.rng.choice(options)}", now)
+            options = [p for p in floor.wander_points() if f"point:{p}" != npc.target]
+            if options:
+                self._walk(npc, f"point:{self._weighted(options)}", now)
+            else:   # nowhere else to go: a while longer where they are
+                npc.state, npc.until = "loitering", now + self.rng.uniform(2.0, 7.0) * self.pace
         else:
             self.end_visit(npc, npc.ended or "done")
-            self._walk(npc, f"point:{floor.ENTRANCE}", now, state="leaving")
+            doors = floor.arrivals()
+            if not doors:   # (the way they came in is gone, and there's no other)
+                return self._despawn(npc)
+            door = npc.door if npc.door in doors else min(
+                doors, key=lambda k: floor.distance(npc.at, floor.position(f"point:{k}")) or 0.0)
+            self._walk(npc, f"point:{door}", now, state="leaving")
 
     def _head_for_seat(self, npc: Npc, now: float, only: str | None = None) -> bool:
         claimed = {(n.table, n.seat) for n in self.npcs.values() if n.state == "walking" and n.table}
@@ -360,7 +396,8 @@ class NpcDirector:
                 return self._despawn(npc)
             if npc.table is not None:
                 return self._arrive_at_seat(npc, now)
-            npc.state, npc.until = "loitering", now + self.rng.uniform(2.0, 7.0) * self.pace
+            linger = floor.POINTS.get(npc.target[6:], {}).get("linger", 0) if npc.target.startswith("point:") else 0
+            npc.state, npc.until = "loitering", now + (self.rng.uniform(2.0, 7.0) + linger) * self.pace
         elif npc.state == "loitering" and now >= npc.until:
             self._next_step(npc, now)
         elif npc.state == "seated":

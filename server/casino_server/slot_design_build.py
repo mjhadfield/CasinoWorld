@@ -5,8 +5,8 @@ build() writes the design into its build folder (slot_builds.py explains the lay
 maths, from slot_design_steps.variant_from_design) with its theme (the chosen scene's skin, colours and fonts, win animations, words,
 rules screen, floor cabinet), every picture the game draws, the two fonts and its sounds, and an IDEAS.md of any
 new feature or bonus it described (those need building in code). install() then restarts the live server, which
-loads it; a dev instance is restarted by hand instead. Its cabinets go on the floor from the admin page's Floor
-tab (slot_banks.py), in any bank, mixed with other slots.
+loads it; a dev instance is restarted by hand instead. Its cabinets go on the floor from the admin page's
+Floor plan tab (plan.py), anywhere, mixed with other slots.
 """
 import dataclasses
 import datetime
@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from casino_server import slot_banks, slot_builds
+from casino_server import plan, slot_builds
 from casino_server.slot_design_art import web_font
 from casino_server.slot_design_scene import bake_glass, look
 from casino_server.slot_design_steps import (FONTS_DIR, EXPEDITION_WORDS, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view, features_view,
@@ -36,7 +36,7 @@ class BuildMixin:
                 built = {"at": v.get("extras", {}).get("built_at"), "loaded": d.id in slot_builds.BUILT}
             except (ValueError, OSError):
                 built = {"at": None, "loaded": False}
-        on_floor = sum(c["variant"] == d.id for b in slot_banks.LOADED["banks"] for c in b.get("cabinets", []))
+        on_floor = plan.cabinets_on_floor(d.id)
         return {"built": built, "on_floor": on_floor, "live": slot_builds.is_live(),
                 "ideas": d.data.get("specs", []), "signed_off": bool(d.data.get("signed_off"))}
 

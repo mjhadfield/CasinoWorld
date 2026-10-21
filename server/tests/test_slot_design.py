@@ -1061,7 +1061,7 @@ def test_sign_off_locks_how_it_pays(board):
 
 # ------------------------------------------------------------------ Build (Phase 8)
 def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch):
-    from casino_server import floor, slot_banks, slot_builds, sounds
+    from casino_server import floor, plan, slot_builds, sounds
     from casino_server.slots.variant import from_json
     from casino_server.slots.variants import VARIANTS
     c, d = board
@@ -1086,28 +1086,32 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
     assert v.theme["colours"]["gold"] == "#9fdcff" and v.extras["assets"]["bg_glass"]
     assert sorted(p.name for p in (out / "fonts").iterdir()) == ["display.ttf", "ui.ttf"]
     assert "Red Alert" in (out / "IDEAS.md").read_text()
-    assert "floor" not in v.extras   # where it stands is the slot banks' business
+    assert "floor" not in v.extras   # where it stands is the floor plan's business
     assert c.post("/api/slot-design/demo/install").status_code == 400   # a test instance: restart it by hand
-    # built but not loaded yet, it can already go in a bank: four in a row beside Armadillo's bank
-    view = c.get("/api/slot-banks").json()
-    assert {s["id"]: s["loaded"] for s in view["slots"]} == {"armadillo": True, "demo": False}
-    row = {"name": "Demo row", "x": 1650, "y": 860, "cabinets": [{"dx": dx, "dy": 0, "facing": "down", "variant": "demo"} for dx in (-51, -17, 17, 51)]}
-    r = c.put("/api/slot-banks", json={"banks": view["banks"] + [row]})
+    # built but not loaded yet, it can already go on the floor plan: four in a row above Armadillo's bank
+    assert set(c.get("/api/plan/catalogue").json()["slots"]) == {"armadillo", "demo"}
+    draft = c.get("/api/plan").json()["draft"]
+    room = next(r for r in draft["rooms"] if r["id"] == "classic_floor")
+    room["items"] += [{"asset": "slot", "x": 1650 + dx, "y": 860, "facing": "down", "props": {"variant": "demo"}} for dx in (-51, -17, 17, 51)]
+    r = c.put("/api/plan/draft", json={**draft, "base_rev": draft["rev"]})
     assert r.status_code == 200, r.text
-    assert [x["id"] for x in r.json()["banks"][1]["cabinets"]] == ["b1_1", "b1_2", "b1_3", "b1_4"] and r.json()["pending"] == 4
+    new = [i["id"] for r in r.json()["draft"]["rooms"] for i in r["items"] if i["props"].get("variant") == "demo"]
+    assert new == ["slot_11", "slot_12", "slot_13", "slot_14"] and r.json()["restart"] and r.json()["can_publish"]
+    r = c.post("/api/plan/publish")
+    assert r.status_code == 200 and r.json()["restart"] and "restart it" in r.json()["message"]
     # restarting loads it: its cabinets, its sound set, its art and fonts
     with TestClient(app) as c2:
-        assert "demo" in VARIANTS and [t for t, cfg in floor.TABLES.items() if cfg.get("variant") == "demo"] == ["b1_1", "b1_2", "b1_3", "b1_4"]
+        assert "demo" in VARIANTS and [t for t, cfg in floor.TABLES.items() if cfg.get("variant") == "demo"] == ["slot_11", "slot_12", "slot_13", "slot_14"]
         assert c2.get("/api/slot-design/demo").json()["build"]["on_floor"] == 4
         assert "slots.demo" in sounds.SETS and sounds.FACTORY["slots.demo"]["reel_stop"]["files"]
         man = c2.get("/api/slots/art/manifest").json()
         assert set(man["variants"]["demo"]) >= {"H1", "BS", "armadillo"} and set(man["fonts"]["demo"]) == {"display", "ui"}
         assert c2.get(man["variants"]["demo"]["H1"]).headers["content-type"] == "image/png"
         assert c2.get(man["fonts"]["demo"]["ui"]).headers["content-type"] == "font/ttf"
-        cab = [x for x in slot_banks.cabinets() if x["variant"] == "demo"]
-        assert [x["id"] for x in cab] == ["b1_1", "b1_2", "b1_3", "b1_4"] and (cab[0]["x"], cab[0]["y"]) == (1599, 860)
+        cab = [i for r in plan.world(plan.live())["rooms"] for i in r["items"] if i["props"].get("variant") == "demo"]
+        assert [x["id"] for x in cab] == ["slot_11", "slot_12", "slot_13", "slot_14"] and (cab[0]["x"], cab[0]["y"]) == (1599, 860)
         assert {x["facing"] for x in cab} == {"down"} and cab[0]["cabinet"] == v.theme["cabinet"]
-        m = c2.app.state.casino.tables["b1_1"].machine
+        m = c2.app.state.casino.tables["slot_11"].machine
         rules = m.rules()
         assert rules["variant"] == "demo" and rules["theme"]["texts"]["trail"] == "TRAIL BONUS" and rules["pays"]["H1"] == [20, 40, 120]
         from casino_server.slots import jackpots
@@ -1122,5 +1126,5 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
             assert ws.receive_json()["type"] == "hello"
             ws.send_json({"type": "join", "token": ""})
             welcome = next(m for m in iter(ws.receive_json, None) if m.get("type") == "welcome")
-            assert [x["id"] for x in welcome["cabinets"]][-4:] == ["b1_1", "b1_2", "b1_3", "b1_4"]
+            assert [i["id"] for r in welcome["world"]["rooms"] for i in r["items"] if i["asset"] == "slot"][-4:] == ["slot_11", "slot_12", "slot_13", "slot_14"]
     slot_builds.install(tmp_path / "nothing")   # leave the module state as the other tests expect

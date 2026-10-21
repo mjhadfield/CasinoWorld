@@ -8,9 +8,9 @@ Sound sets
 The sounds are a tree of sets, each inheriting from the one above:
 
     casino                      the whole casino: the interface, the room, cards and chips
-      blackjack, roulette, ...  one per table game (from floor.TABLES)
+      blackjack, roulette, ...  one per table game (floor.GAMES)
       slots                     every slot machine
-        slots.armadillo         one per slot machine (its variant)
+        slots.armadillo         one per slot machine (its variant, slots/variants.py)
 
 A moment (MOMENTS) is defined in one set, its `home`, and can be given its own sounds
 in any set below that whose game uses it: Blackjack can have its own card deal,
@@ -39,6 +39,7 @@ import subprocess
 from pathlib import Path
 
 from casino_server import floor
+from casino_server.slots.variants import VARIANTS
 
 LIBRARY_DIR = Path(__file__).resolve().parents[1] / "sound_library"
 PLAYABLE = {".ogg", ".mp3", ".wav"}          # what the Godot client can load at runtime
@@ -49,15 +50,13 @@ GAIN_RANGE = (-30.0, 12.0)
 
 # ------------------------------------------------------------------ the sets
 def _sets() -> dict:
+    """A set for every game the casino has, on the floor or not (so a table taken off the floor keeps its sounds)."""
     sets = {"casino": {"name": "Whole casino", "parent": None, "group": ""}}
-    games = [cfg for cfg in floor.TABLES.values()]
-    for cfg in games:
-        if cfg["game"] != "slots":
-            sets.setdefault(cfg["game"], {"name": cfg["name"], "parent": "casino", "group": "Table games"})
+    for game, name in floor.GAMES.items():
+        sets[game] = {"name": name, "parent": "casino", "group": "Table games"}
     sets["slots"] = {"name": "Every slot machine", "parent": "casino", "group": "Slot machines"}
-    for cfg in games:
-        if cfg["game"] == "slots":
-            sets.setdefault("slots." + cfg["variant"], {"name": cfg["name"], "parent": "slots", "group": "Slot machines"})
+    for vid, v in VARIANTS.items():
+        sets["slots." + vid] = {"name": v.name, "parent": "slots", "group": "Slot machines"}
     return sets
 
 

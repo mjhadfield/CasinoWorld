@@ -24,6 +24,7 @@ class Session:
         self.table: str | None = None  # table id while seated
         self.seat: int | None = None
         self.away = False  # tab hidden: nothing is sent until the client asks to `resync`
+        self.preview: str | None = None  # a floor-plan preview (the room it shows): no body, no tables, not "joined"
 
     def push(self, msg: dict):
         if self._loop and threading.get_ident() != self._loop_thread:   # (an admin request in the threadpool)

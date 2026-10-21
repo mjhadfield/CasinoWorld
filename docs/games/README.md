@@ -14,7 +14,7 @@ How the floor works and what every table has in common. Each game's rules are in
 | Baccarat | `bac_1` | [baccarat.md](baccarat.md) |
 | Roulette | `rou_1` | [roulette.md](roulette.md) |
 | Craps | `crp_1` | [craps.md](craps.md) |
-| Slots (Armadillo Goes West and built slots) | `b1_1`.. (the slot banks) | [slots.md](slots.md), and the design record in `docs/slots/` |
+| Slots (Armadillo Goes West and built slots) | `slot_1`.. (the floor plan) | [slots.md](slots.md), and the design record in `docs/slots/` |
 
 ## The floor
 

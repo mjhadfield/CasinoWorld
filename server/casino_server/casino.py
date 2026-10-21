@@ -11,14 +11,14 @@ import asyncio
 import sys
 import time
 
-from casino_server import PROTOCOL_VERSION, floor, seating, slot_banks, table_styles
+from casino_server import PROTOCOL_VERSION, floor, plan, seating, table_styles
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
 from casino_server.npc import NpcDirector
 from casino_server.participants import HumanParticipant
 from casino_server.session import Session
-from casino_server.store import Store
+from casino_server.store import Player, Store
 from casino_server.slots.jackpots import SlotProgressives
 from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, mississippi_stud, pai_gow,
                                   roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
@@ -67,6 +67,7 @@ class Casino:
         self.dealers = DealerRoster(self, rng, clock, pace=npc_pace)
         self._tasks: list[asyncio.Task] = []
         self._serial = 0
+        self.preview_world = None   # room id -> the draft's world for a preview (app.py sets it: plan.PlanBoard)
 
     def _machine_extras(self, cfg: dict) -> dict:
         """What a machine needs beyond the common arguments (a slot cabinet: its variant and
@@ -102,7 +103,20 @@ class Casino:
 
     # ------------------------------------------------------------------ outbound helpers
     def joined_sessions(self):
-        return [s for s in self.sessions if s.player is not None]
+        return [s for s in self.sessions if s.player is not None and s.preview is None]
+
+    def broadcast_world(self):
+        """The live floor plan changed (a publish that needed no restart): everyone rebuilds the floor."""
+        self.broadcast_all({"type": "world", "world": plan.world(plan.live())})
+
+    def preview_changed(self):
+        """The draft was saved: every preview shows it again."""
+        for s in self.sessions:
+            if s.preview is not None and self.preview_world is not None:
+                try:
+                    s.push({"type": "world", "world": self.preview_world(s.preview)})
+                except plan.PlanError as e:
+                    s.error(str(e))
 
     def send_wallet(self, session: Session):
         session.push({"type": "wallet", "balance": self.store.balance(session.player.id)})
@@ -128,6 +142,8 @@ class Casino:
         if kind == "ping":
             return session.push({"type": "pong", "t": msg.get("t")})
         if kind == "join":
+            if msg.get("preview"):
+                return self._join_preview(session, str(msg.get("token") or ""), str(msg["preview"]))
             return self._join(session, str(msg.get("token") or ""))
         if kind == "away":
             session.away = True
@@ -136,6 +152,8 @@ class Casino:
             return self._resync(session)
         if session.player is None:
             return session.error("Send `join` first.")
+        if session.preview is not None:
+            return   # (a preview only looks)
         handler = {
             "set_name": self._set_name, "move": self._move, "sit": self._sit, "stand": self._stand_msg,
             "bet": self._table_action, "clear_bets": self._table_action, "rebet": self._table_action, "auto_rebet": self._table_action,
@@ -169,15 +187,36 @@ class Casino:
         session.push(self.world.snapshot())
         for runner in self.tables.values():
             session.push(runner.snapshot_for(session))
-        self.world.add(Entity(session.entity_id, "player", player.name, PLAYER_LOOK), at=floor.ENTRANCE)
+        self.world.add(Entity(session.entity_id, "player", player.name, PLAYER_LOOK), at=f"point:{floor.SPAWN}")
+
+    def _join_preview(self, session: Session, token: str, room_id: str):
+        """A floor-plan preview (the admin page's Preview button): the draft's floor to walk round alone, with the
+        tables shown but not dealt. It has no body on the floor and isn't sent the casino's goings-on."""
+        if session.player is not None:
+            return session.error("Already joined.")
+        if self.preview_world is None:
+            return session.error("Previews aren't available here.")
+        player = (self.store.player_by_token(token) if token else None) or Player(0, "", "Preview", 0)
+        session.player, session.preview = player, room_id
+        session.entity_id = "preview"
+        self._welcome(session, needs_name=False)
+        session.push({"type": "wallet", "balance": player.balance})
 
     def _welcome(self, session: Session, needs_name: bool | None = None):
         player = session.player
         if needs_name is None:
             needs_name = player.name.startswith("Guest ")
+        if session.preview is not None:
+            try:
+                world = self.preview_world(session.preview)
+            except plan.PlanError as e:
+                session.error(str(e))
+                world = plan.world(plan.live())
+        else:
+            world = plan.world(plan.live())
         session.push({"type": "welcome", "player": {"id": player.id, "name": player.name},
                       "token": player.token, "entity_id": session.entity_id, "look": PLAYER_LOOK,
-                      "needs_name": needs_name, "cabinets": slot_banks.cabinets(),
+                      "needs_name": needs_name, "world": world, "preview": session.preview,
                       "seating": seating.load(self.store), "table_styles": table_styles.load_all(self.store)})
 
     def _resync(self, session: Session):
@@ -188,6 +227,8 @@ class Casino:
         if session.player is None:  # hidden before joining: the hello it dropped
             return session.push({"type": "hello", "protocol": PROTOCOL_VERSION})
         self._welcome(session)      # (in case it was hidden between `join` and `welcome`)
+        if session.preview is not None:
+            return
         self.send_wallet(session)
         session.push(self.jackpot.snapshot())
         session.push(self.slot_jackpots.snapshot())

@@ -1,4 +1,4 @@
-# Casino World protocol (v3)
+# Casino World protocol (v4)
 
 Messages are JSON objects with a `type` field, carried over a WebSocket at `/ws`.
 The server is authoritative, so the client sends intents and renders what comes back.
@@ -8,7 +8,9 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Connecting
 1. The server sends `hello` {`protocol`}.
 2. The client replies `join` {`token`}. On a device's first visit the token is `""`; after that
-   it's the one saved from `welcome`.
+   it's the one saved from `welcome`. A floor-plan preview (the admin page's Preview button, `/?preview=<room>`)
+   sends `join` {`token`, `preview`: room id} instead: it gets only `welcome` (with the draft's floor) and `wallet`,
+   has no body on the floor, isn't sent the casino's goings-on, and everything else it sends is ignored.
 3. The server sends, in order:
    - `welcome`
    - `wallet`
@@ -20,7 +22,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Client → server
 | type | fields | meaning |
 |---|---|---|
-| `join` | `token` | Identify, or create a new player. Must come first. |
+| `join` | `token`, `preview` (optional room id) | Identify, or create a new player. Must come first. With `preview`, a look round the floor plan's draft instead (see Connecting). |
 | `set_name` | `name` | Choose a display name, up to 16 characters. The reply is a fresh `welcome`, and everyone gets `entity_update`. |
 | `move` | `x`, `y`, `dir`, `anim` | Your avatar's position on the floor, sent about 10 times a second while moving. It's ignored while you're seated. |
 | `sit` | `table`, `seat` | Sit at a seat (0–5; seat 0 is first base, the dealer's left). |
@@ -45,11 +47,11 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Server → client
 | type | fields | when |
 |---|---|---|
-| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `cabinets`, `seating`, `table_styles` | The reply to `join` and `set_name`. `cabinets` lists every slot cabinet on the floor (the slot banks, slot_banks.py; none are in the floor scene): [{`id`, `variant`, `name`, `x`, `y`, `facing`, `cabinet` (its look: `body`, `trim`, `title`, `lines`; empty for Armadillo)}]; the client adds the ones it doesn't have, remakes any that moved or changed, and removes the rest. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
+| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `world`, `preview`, `seating`, `table_styles` | The reply to `join` and `set_name`. `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
 | `wallet` | `balance` | Sent on join and after each money-moving table event, straight after that event. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. |
-| `entity_spawn` | `entity`, `at` | Someone arrived. `at` is a floor point name, used while `x` is null. |
+| `entity_spawn` | `entity`, `at` | Someone arrived. `at` is where, as a walk target (`point:<room>/<name>`: a player at the spawn point, an NPC at the arrival point it came in by), used while `x` is null. |
 | `entity_move` | `id`, `x`, `y`, `dir`, `anim` | Another player moved. |
 | `entity_walk` | `id`, `target`, `duration` | An NPC heads for `point:<name>` or `seat:<table>:<n>`. The client paths them there in `duration` seconds. |
 | `entity_update` | `id`, `name`?, `look`? | Someone renamed, or an NPC was restyled on the admin page (a `look` id starting `x_` is a server-built sheet at `/looks/<id>.png`). |
@@ -60,6 +62,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `notice` / `error` | `message` | Information, or a rejected action. |
 | `pong` | `t` | The reply to `ping`. |
 | `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `wallet`, `jackpot`, `world_snapshot` and one `table_state` per table, as on join. Before joining, it's followed by `hello` instead. |
+| `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables restarts the server instead), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
 | `seating` | `seating` | The seating styles changed on the admin page (as in `welcome`). The client redraws every chair. |
 | `table_styles` | `table_styles` | The table styles or their placement changed on the admin page (as in `welcome`, every kind). The client redraws every table: the card tables with their machines, chips and cards, Roulette with its wheel, Craps with its dice. |
@@ -216,7 +219,7 @@ The craps `table_state` adds `point`, `shooter`, `want_dice`, `history` (last 12
 (where the dice lie until they're fetched); seats add `locked` and `working`.
 
 ### Slot cabinets (`event.kind`)
-Cabinets (the slot banks' `b1_1`.., slot_banks.py) each have one seat and no dealer (`on_duty` is
+Cabinets (`slot_1`.., placed on the floor plan, plan.py) each have one seat and no dealer (`on_duty` is
 null). Grid cells are numbered `reel * 4 + row` (row 0 at the top); a reel shows `strip[stop]` on its top row.
 
 A cabinet's `rules` (on `seated`) carry the variant's whole catalogue: `variant`, `name`, `symbols` (tier -> name),
@@ -291,6 +294,36 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 | `GET` / `PUT /api/npc-settings` | Floor `population`, `cooldown_min` and `bust_cooldown_min` ([lo, hi] minutes), `regular_cooldown` (a multiplier), `dealer_shift_min`, `dealer_stagger_min`. |
 | `GET /api/players` | Each player's lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
 | `GET /credits` | LPC art credits for every layer the designer can use. |
+
+## The world
+`world` (in `welcome` and the `world` message) is `{rev, spawn, rooms, walls, styles}`, plus `start` {`x`, `y`} in a
+preview (where to put the viewer). `walls` gives the wall sizes ({`top` 70, `side` 8, `bottom` 10}) and `styles` the
+wall looks by style id ({`name`, `paper`, `stripe`, `wainscot`, `trim`, `edge`} colours). Each room is
+{`id`, `name`, `x`, `y`, `w`, `h` (on the plan, walls included), `floor` {`texture`, `tint`}, `patches`,
+`walls` {`style`, `sign`, `sign_at`}, `openings`, `items`, `points`, `zones`}. Everything in a room is placed from
+its top-left corner.
+- `openings`: its doorways, its own and its neighbours' through its walls: {`side`, `at` (the middle, along the
+  wall), `width`, `kind` (`door` | `archway`), `to` (the room beyond, or null for a shut outside door), `door`,
+  `owner`}.
+- `items`: {`id`, `asset`, `x`, `y`, `rot` (tables) or `facing`, `props`}. A table (`table:<game>`, its id the
+  table id) also has `game`, `name`, `seats`; a slot cabinet (`slot`) `name` and `cabinet` (its look: `body`,
+  `trim`, `title`, `lines`; empty for Armadillo); built-in pieces are `podium` and `npc` (props `look`, `name`).
+- `points`: {`name`, `x`, `y`, `kind` (`spawn` | `arrival` | `wander`), `weight`, `linger`}. NPC walks go to
+  `point:<room>/<name>`.
+- `zones`: {`x`, `y`, `w`, `h`, `kind`}: `block` keeps everyone out, `npc_block` only NPCs (their paths).
+
+## Floor plan HTTP API (the admin page's Floor plan tab)
+See `casino_server/plan.py`. Errors are 400 with the reason (409 when the draft was saved from another tab since).
+
+| method & path | does |
+|---|---|
+| `GET /api/plan` | `draft` (the whole plan), `problems` [{`room`, `item`, `message`, `placed`}], `live_rev`, `pending` (the placed rooms the draft changes, by name), `restart` (publishing would restart the casino), `can_publish`, `live`. |
+| `GET /api/plan/catalogue` | What can be placed: `games` (each with its `rotations` and its shapes `at` each turn: `rect`, `body`, `stands`), `cabinet` (shapes by facing), `pieces`, `assets`, `walls`, `floors`, `slots`, and the kinds of point, zone and door. |
+| `PUT /api/plan/draft` | The draft `{rooms, spawn, base_rev}`. New rooms, doors and things come without ids and are given them. Saved even with problems. Previews are sent the new draft. Returns as `GET`. |
+| `POST /api/plan/publish` | The draft goes live, if its placed rooms have no problems. Without new or removed tables everyone gets `world`; otherwise the casino restarts (only the live server; a dev instance says to restart it). `{message, restart, ...view}`. |
+| `POST /api/plan/discard` | The draft goes back to the live plan. |
+| `GET /api/plan/history` | The last 20 publishes: [{`id`, `rooms`, `tables`}], newest first. |
+| `POST /api/plan/rollback/{id}` | Puts that publish back in the draft (publish it to use it). |
 
 ## Sound HTTP API (the admin page's Sounds tab)
 Plain HTTP on the same server, used by the admin page and the game. See `casino_server/sounds.py`. A `set` is

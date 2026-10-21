@@ -281,7 +281,7 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
 ## Code map
 - **server/casino_server/**
   - `app.py`: the FastAPI app; `casino.py`: sessions and message routing; `world.py`: everyone on the floor.
-  - `floor.py`: the table list, the slot bank and the floor point names.
+  - `floor.py`: what's on the floor now (tables, points, seats, walking distances), filled from the live floor plan.
   - `tables/base.py`: seating, betting, Ready and the clock, shared by every table machine.
   - `tables/<game>.py`: the timed table machines, which are pure and emit events;
     `tables/slot_machine.py` is a cabinet. `tables/runner.py` drives one in real time.
@@ -298,8 +298,9 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
     designs in `server/slot_designs/`), its
     UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
-  - `slot_banks.py`: the slot banks on the floor (the Floor tab, its UI in `slot_banks_web/`), checked against
-    `floor_map.json` (written by `tools/floor_map.gd`).
+  - `plan.py`: the floor plan (rooms, doors, everything placed, NPC paths; draft, publish, history, checks), the
+    Floor plan tab's API; its UI in `plan_web/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
+    tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints.
 - **client/**
   - `scenes/world/`: the floor (`casino_floor`), avatars, the rooms (`room`) and the pit's podium (`pit_podium`).
   - `scripts/seating.gd`: draws the chairs and craps standing spots and plays the sit-down, from the seating styles.

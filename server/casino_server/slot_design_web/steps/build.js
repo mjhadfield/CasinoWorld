@@ -1,6 +1,6 @@
 // Step 11, Build: the signed-off slot becomes a game the casino plays. Build writes its build folder
 // (server/slot_builds/<id>/), and Install restarts the casino to load it: its art, fonts and sounds reach every game.
-// Its cabinets go on the floor from the Floor tab, in any bank, mixed with other slots. New feature or bonus ideas
+// Its cabinets go on the floor from the Floor plan tab, anywhere, mixed with other slots. New feature or bonus ideas
 // are listed for building.
 let C;
 
@@ -14,7 +14,7 @@ function draw(body) {
     try {
       await C.api("POST", `/api/slot-design/${C.did}/build`);
       await C.refresh();
-      C.status(b.live ? "Built. Install restarts the casino to bring it in; then put it on the floor from the Floor tab." : "Built into this instance's folder.", "ok");
+      C.status(b.live ? "Built. Install restarts the casino to bring it in; then put it on the floor from the Floor plan tab." : "Built into this instance's folder.", "ok");
     } catch (e) { C.status(e.message, "warn"); go.disabled = false; }
   }});
   const install = el("button", {type: "button", className: "primary", textContent: "Install: restart the casino", disabled: !b.built || !b.live, onclick: async () => {
@@ -24,7 +24,7 @@ function draw(body) {
   }});
   body.replaceChildren(
     el("p", {className: "lead"}, "The signed-off slot becomes a game the casino plays. Its cabinets go on the floor from the ",
-      el("a", {href: "#floor", textContent: "Floor tab"}), ": any number, in any bank, beside other slots."),
+      el("a", {href: "#plan", textContent: "Floor plan tab"}), ": any number, anywhere, beside other slots."),
     b.signed_off ? null : el("div", {className: "card"}, el("span", {className: "tag warn", textContent: "Not signed off"}),
       el("p", {className: "hint"}, "Sign it off on ", el("a", {href: `#design/${C.did}/mockup`, textContent: "Mockup & sign-off"}), " first.")),
     el("div", {className: "wz-cards"},
@@ -32,7 +32,7 @@ function draw(body) {
         el("p", {className: "hint", textContent: "Writes the slot's maths, pictures, fonts and sounds into its build folder."}),
         el("div", {className: "controls"}, go),
         el("p", {className: "hint"}, b.on_floor ? `On the floor: ${b.on_floor} cabinet${b.on_floor === 1 ? "" : "s"}. ` : "No cabinets on the floor yet. ",
-          el("a", {href: "#floor", textContent: "Place them on the Floor tab"}), ".")),
+          el("a", {href: "#plan", textContent: "Place them on the Floor plan tab"}), ".")),
       el("div", {className: "card"}, el("h3", {textContent: "Install"}),
         b.built ? el("p", {className: "hint", textContent: `Built ${String(b.built.at || "").replace("T", " ")}. ${b.built.loaded ? "The casino has loaded it." : "Not loaded yet."}`})
           : el("p", {className: "hint", textContent: "Build it first."}),
