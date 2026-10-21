@@ -1,0 +1,1100 @@
+<title>Table Styles</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&family=Cormorant+SC:wght@600;700&family=Josefin+Sans:wght@600;700&family=Montserrat:wght@600;700&display=swap">
+<style>
+/* Layout: a style builder. Presets along the top, the table stage on the left with its game and view
+   switches, every swappable component down a control rail on the right; stacks on phones.
+   One deliberate dark look: a casino back office, felt-dark with brass. */
+:root {
+  --bg: #0b1210;
+  --panel: #121b18;
+  --panel-2: #17221e;
+  --line: #24312c;
+  --ink: #efe6d2;
+  --muted: #9aa69c;
+  --gold: #e2b85a;
+  --gold-ink: #2a1606;
+  --fixed: #46e0ff;
+  --warn: #f08a6a;
+  --display: "Cormorant SC", "Cormorant", Georgia, serif;
+  --body: "Barlow", system-ui, sans-serif;
+  --label: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 4vw, 42px); line-height: 1.05; margin: 0;
+  letter-spacing: .02em; color: var(--gold); text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; color: var(--gold); text-wrap: balance; }
+header p, .note { margin: 0; color: var(--muted); max-width: 78ch; }
+.lbl { font-family: var(--label); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 12.5px; color: var(--muted); }
+
+/* presets */
+.presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.preset { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: grid; gap: 6px;
+  cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.preset:hover { border-color: #3b4a43; }
+.preset:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.preset[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.preset canvas { width: 100%; height: auto; display: block; border-radius: 6px; background: #1f3a3e; }
+.preset b { font-family: var(--display); font-size: 19px; color: var(--ink); font-weight: 700; line-height: 1.1; }
+.preset span { font-size: 13px; color: var(--muted); line-height: 1.35; }
+
+/* main */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+.stage { display: grid; gap: 10px; min-width: 0; }
+.bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bar .grow { flex: 1 1 auto; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { font: 600 13.5px/1 var(--label); letter-spacing: .04em; color: var(--muted); background: transparent; border: 0; border-radius: 6px;
+  padding: 7px 10px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); }
+.toggle { display: inline-flex; gap: 6px; align-items: center; font: 500 13.5px var(--label); letter-spacing: .03em; color: var(--muted);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; user-select: none; }
+.toggle input { accent-color: var(--gold); margin: 0; }
+.toggle.fixed { color: var(--fixed); }
+.canvasbox { position: relative; background: #1f3a3e; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.canvasbox canvas { display: block; width: 100%; height: auto; }
+.chipnote { position: absolute; left: 10px; bottom: 10px; font: 600 12.5px var(--label); letter-spacing: .05em; padding: 4px 8px;
+  border-radius: 6px; background: rgba(10, 14, 12, .82); color: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 13.5px; }
+.legend i { display: inline-block; width: 18px; border-top: 2px dashed var(--fixed); vertical-align: middle; margin-right: 6px; }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare figure { margin: 0; display: grid; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; }
+.compare figure[aria-pressed="true"] { border-color: var(--gold); }
+.compare canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+.compare figcaption { display: grid; gap: 2px; }
+.compare figcaption b { font: 700 15px var(--label); letter-spacing: .05em; text-transform: uppercase; }
+.compare figcaption span { font-size: 13.5px; color: var(--muted); }
+
+/* control rail */
+.rail { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 0; overflow: hidden; }
+.slot { border-top: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 8px; }
+.slot:first-child { border-top: 0; }
+.slot h3 { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 15px var(--label); letter-spacing: .06em; text-transform: uppercase; }
+.slot h3 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); visibility: hidden; }
+.slot.changed h3 .dot { visibility: visible; }
+.slot h3 small { margin-left: auto; font: 500 12px var(--label); color: var(--muted); letter-spacing: .04em; text-transform: none; }
+.ctl { display: grid; gap: 4px; }
+.ctl > .lbl { font-size: 11.5px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.sw[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--bg) inset; }
+.swatches input[type="color"] { width: 30px; height: 26px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); padding: 1px; cursor: pointer; }
+.rail .seg { background: var(--panel-2); }
+.rail .seg button { padding: 6px 8px; font-size: 13px; }
+input[type="range"] { accent-color: var(--gold); width: 100%; }
+.save { padding: 14px; display: grid; gap: 8px; border-top: 1px solid var(--line); background: var(--panel-2); }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+.row input[type="text"] { flex: 1 1 140px; min-width: 0; font: 500 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+.btn { font: 700 13.5px/1 var(--label); letter-spacing: .06em; text-transform: uppercase; border-radius: 8px; padding: 9px 12px; cursor: pointer;
+  border: 1px solid var(--gold); background: var(--gold); color: var(--gold-ink); }
+.btn.ghost { background: transparent; color: var(--gold); }
+.btn:disabled { opacity: .5; cursor: default; }
+.saved { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.saved li { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.saved li button { margin-left: auto; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.2em; }
+
+.foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.foot section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; min-width: 0; }
+.foot ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: grid; gap: 3px; }
+.foot a { color: var(--gold); }
+.foot code { font-size: 12.5px; color: var(--ink); }
+
+@media (max-width: 1100px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .compare, .foot { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Table Styles</h1>
+    <p>Four directions for the card tables, drawn on the game's real geometry: the felt outline, card positions and betting spots come straight from the client, so nothing on the felt moves. Pick a preset, swap any component, then save the design you like or comment on it.</p>
+  </header>
+
+  <div class="presets" id="presets" role="group" aria-label="Style presets"></div>
+
+  <div class="main">
+    <div class="stage">
+      <div class="bar">
+        <div class="seg" id="games" role="group" aria-label="Game"></div>
+      </div>
+      <div class="bar">
+        <div class="seg" id="views" role="group" aria-label="View"></div>
+        <span class="grow"></span>
+        <label class="toggle"><input type="checkbox" id="optPlay" checked> Hand in play</label>
+        <label class="toggle"><input type="checkbox" id="optLit" checked> Jackpot lit</label>
+        <label class="toggle fixed"><input type="checkbox" id="optFixed"> Fixed layout</label>
+      </div>
+      <div class="canvasbox" id="stagebox"><canvas id="stage" aria-label="The table, drawn in the chosen style"></canvas><div class="chipnote" id="contrast" hidden></div></div>
+      <div class="legend" id="legend" hidden><span><i></i>Spots, cards, equipment and the chip tray exactly where the game puts them (exported from the client)</span></div>
+      <div class="bar">
+        <span class="lbl grow">The chip tray, two ways (Mike picks one)</span>
+        <button class="btn ghost" id="commentBtn" hidden>Comment on this view</button>
+      </div>
+      <div class="compare" id="compare">
+        <figure data-tray="ledge" role="button" tabindex="0">
+          <canvas id="cmpLedge"></canvas>
+          <figcaption><b>Dealer's ledge</b><span>The rail sweeps across the bay into one ledge, the bead follows it, and the well is cut into the wood. The felt only changes behind the dealer's cards.</span></figcaption>
+        </figure>
+        <figure data-tray="sunk" role="button" tabindex="0">
+          <canvas id="cmpSunk"></canvas>
+          <figcaption><b>Sunk into the table</b><span>Today's tray rectangle, but as a recess with a metal lip and no wooden box on top. The bay and rail stay as they are.</span></figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <aside class="rail" id="controls" aria-label="Components">
+      <div id="slots"></div>
+      <div class="save">
+        <span class="lbl">Save this design</span>
+        <div class="row"><input type="text" id="designName" placeholder="Name it, e.g. Pit 1 Mahogany" maxlength="60"><button class="btn" id="saveBtn">Save</button></div>
+        <div class="status" id="saveStatus">Saved designs appear here for everyone with the link, and I can read them back.</div>
+        <ul class="saved" id="savedList"></ul>
+        <div class="row"><button class="btn ghost" id="copyBtn">Copy settings</button><button class="btn ghost" id="resetBtn">Reset to preset</button></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="foot">
+    <section>
+      <h2>What stays put</h2>
+      <ul>
+        <li>The felt's outline, the rail's outer edge and collision: <code>CasinoTable.outline()</code> / <code>grown()</code>.</li>
+        <li>Every betting spot's centre and size, every card position, and the shuffler, shoe and discard rack positions.</li>
+        <li>The chip tray's place. The ledge only replaces the felt behind the dealer's cards; the gap to the cards stays 5.9.</li>
+        <li>Roulette and Craps keep today's look and chips until they're moved onto a style later.</li>
+      </ul>
+      <p class="note">Turn on <b>Fixed layout</b> to see those positions drawn over any design.</p>
+    </section>
+    <section>
+      <h2>Materials and licences</h2>
+      <ul id="credits"></ul>
+      <p class="note">Full record: <code>docs/table_styles/LICENSES.md</code>. The dealer sprite is the game's own LPC sheet (CC-BY-SA 3.0 / GPL 3.0, see <code>client/assets/sprites/CREDITS.md</code>).</p>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- the options
+const FELTS = [["Crimson", "#93141f"], ["Burgundy", "#6a1424"], ["Emerald", "#0f5b3f"], ["Forest", "#1d4a2a"], ["Navy", "#14284a"],
+  ["Teal", "#0f4a4f"], ["Royal blue", "#1a3f93"], ["Plum", "#4a1d47"], ["Charcoal", "#2b2f33"]];
+const LEATHERS = [["Black", "#1b1a1a"], ["Oxblood", "#4a1418"], ["Tan", "#7a4a26"], ["Navy", "#1a2234"], ["Bone", "#cfc3a8"]];
+const INKS = [["Cream", "#f1e4c4"], ["Champagne", "#e8d3a0"], ["Gold", "#d9b56a"], ["White", "#f4f4f2"], ["Silver", "#c9d0d6"]];
+const ACCENTS = [["Brass", "#c9a24a"], ["Gold", "#e0b84e"], ["Copper", "#c8794a"], ["Chrome", "#b9c3cb"], ["Ice", "#8fd3ff"], ["Jade", "#7fc8a9"]];
+const WOODS = {
+  mahogany: { label: "Mahogany", tex: "mahogany", tile: 58, warm: "rgba(150,60,25,.10)" },
+  walnut: { label: "Walnut", tex: "walnut", tile: 52, warm: "rgba(120,80,45,.12)" },
+  wenge: { label: "Wenge", tex: "wenge", tile: 46, warm: "rgba(90,50,30,.10)" },
+  rosewood: { label: "Rosewood", tex: "rosewood", tile: 64, warm: "rgba(150,70,30,.10)" },
+  ebony: { label: "Ebony lacquer", tex: "ebony", tile: 48, warm: "rgba(40,40,48,.25)", gloss: true },
+};
+const BEADS = { brass: ["#c9a24a", "#f3d78e"], gold: ["#d9b453", "#fff0b8"], chrome: ["#aeb7bf", "#ffffff"], none: null };
+const FONTS = { cinzel: ["Cinzel", 600, "Cinzel"], cormorant: ["Cormorant SC", 700, "Cormorant SC"], josefin: ["Josefin Sans", 600, "Josefin Sans (Deco)"], montserrat: ["Montserrat", 600, "Montserrat"] };
+const BACKS = { charcoal: "Charcoal & brass (today)", lattice: "Red lattice", sunburst: "Garnet sunburst", monogram: "Burgundy monogram", stripe: "Black & red stripe", emerald: "Emerald lattice" };
+const BACK_MAIN = { charcoal: "#34373c", lattice: "#8e1a22", sunburst: "#4d1616", monogram: "#5a1322", stripe: "#141414", emerald: "#145238" };
+
+const PRESETS = {
+  grand: { name: "Grand Mahogany", blurb: "Today's red and mahogany, done properly: real grain, a gilt line, the tray part of the rail.",
+    d: { felt: { colour: "#93141f", texture: "weave", vignette: 0.55 }, border: "gilt",
+      rail: { wood: "mahogany", armrest: "none", leather: "#1b1a1a", bead: "brass" }, tray: { mode: "ledge", finish: "wood" },
+      shuffler: "brass", shoe: "smoked", rack: "clear", spots: "printed",
+      print: { font: "cinzel", ink: "#f1e4c4", accent: "#c9a24a" }, back: "charcoal", jackpot: "gold", chips: "clay" } },
+  monte: { name: "Monte Carlo", blurb: "Emerald velvet, a black leather armrest on a walnut table, gold-foil printing.",
+    d: { felt: { colour: "#0f5b3f", texture: "velvet", vignette: 0.6 }, border: "double",
+      rail: { wood: "walnut", armrest: "player", leather: "#1b1a1a", bead: "gold" }, tray: { mode: "ledge", finish: "lid" },
+      shuffler: "gunmetal", shoe: "black", rack: "smoked", spots: "foil",
+      print: { font: "cormorant", ink: "#e8d3a0", accent: "#e0b84e" }, back: "monogram", jackpot: "gold", chips: "ceramic" } },
+  deco: { name: "Midnight Deco", blurb: "Navy felt, bookmatched rosewood, Deco framing on every spot and along the border.",
+    d: { felt: { colour: "#14284a", texture: "weave", vignette: 0.5 }, border: "deco",
+      rail: { wood: "rosewood", armrest: "none", leather: "#1a2234", bead: "gold" }, tray: { mode: "ledge", finish: "wood" },
+      shuffler: "brass", shoe: "wood", rack: "wood", spots: "deco",
+      print: { font: "josefin", ink: "#e8d3a0", accent: "#e0b84e" }, back: "sunburst", jackpot: "gold", chips: "clay" } },
+  vegas: { name: "Modern Vegas", blurb: "Royal-blue felt, black leather all round with chrome, a glowing edge, clean sans printing.",
+    d: { felt: { colour: "#1a3f93", texture: "weave", vignette: 0.35 }, border: "led",
+      rail: { wood: "ebony", armrest: "all", leather: "#1b1a1a", bead: "chrome" }, tray: { mode: "ledge", finish: "steel" },
+      shuffler: "black", shoe: "black", rack: "smoked", spots: "double",
+      print: { font: "montserrat", ink: "#f4f4f2", accent: "#8fd3ff" }, back: "stripe", jackpot: "led", chips: "ceramic" } },
+};
+
+const SLOTS = [
+  { id: "felt", label: "Felt", keys: ["felt"], ctl: [
+    { key: "felt.colour", type: "swatch", options: FELTS, custom: true, label: "Colour" },
+    { key: "felt.texture", type: "seg", options: [["weave", "Woven"], ["velvet", "Velvet"], ["plain", "Plain"]], label: "Cloth" },
+    { key: "felt.vignette", type: "range", label: "Darker towards the rail" }] },
+  { id: "border", label: "Border line", keys: ["border"], ctl: [
+    { key: "border", type: "seg", options: [["none", "None"], ["pinstripe", "Pinstripe"], ["gilt", "Gilt"], ["double", "Double"], ["deco", "Deco"], ["led", "LED glow"]] }] },
+  { id: "rail", label: "Rail", keys: ["rail"], ctl: [
+    { key: "rail.wood", type: "seg", options: Object.entries(WOODS).map(([k, v]) => [k, v.label]), label: "Wood" },
+    { key: "rail.armrest", type: "seg", options: [["none", "Bare wood"], ["player", "Leather armrest"], ["all", "Leather all round"]], label: "Padding" },
+    { key: "rail.leather", type: "swatch", options: LEATHERS, label: "Leather" },
+    { key: "rail.bead", type: "seg", options: [["brass", "Brass"], ["gold", "Gold"], ["chrome", "Chrome"], ["none", "None"]], label: "Bead where it meets the felt" }] },
+  { id: "tray", label: "Chip tray", keys: ["tray"], ctl: [
+    { key: "tray.mode", type: "seg", options: [["ledge", "Dealer's ledge"], ["sunk", "Sunk in"]], label: "Built in as" },
+    { key: "tray.finish", type: "seg", options: [["wood", "Felt-lined well"], ["steel", "Brushed steel"], ["lid", "Smoked lid"]], label: "Finish" }] },
+  { id: "print", label: "Printing", keys: ["print"], ctl: [
+    { key: "print.font", type: "seg", options: Object.entries(FONTS).map(([k, v]) => [k, v[2]]), label: "Lettering" },
+    { key: "print.ink", type: "swatch", options: INKS, custom: true, label: "Ink" },
+    { key: "print.accent", type: "swatch", options: ACCENTS, custom: true, label: "Accent (side bets)" }] },
+  { id: "spots", label: "Betting spots", keys: ["spots"], hint: "same centres and sizes", ctl: [
+    { key: "spots", type: "seg", options: [["printed", "Printed"], ["double", "Double ring"], ["foil", "Gold foil"], ["inlaid", "Inlaid"], ["deco", "Deco"]] }] },
+  { id: "jackpot", label: "Jackpot disc", keys: ["jackpot"], ctl: [
+    { key: "jackpot", type: "seg", options: [["clear", "Clear (today)"], ["gold", "Gold bezel"], ["led", "LED ring"]] }] },
+  { id: "equip", label: "Shuffler, shoe, rack", keys: ["shuffler", "shoe", "rack"], ctl: [
+    { key: "shuffler", type: "seg", options: [["gunmetal", "Gunmetal (today)"], ["black", "Gloss black LED"], ["brass", "Walnut & brass"]], label: "Shuffler" },
+    { key: "shoe", type: "seg", options: [["smoked", "Red smoked (today)"], ["black", "Black acrylic"], ["wood", "Wood"]], label: "Shoe (Blackjack)" },
+    { key: "rack", type: "seg", options: [["clear", "Clear (today)"], ["smoked", "Smoked"], ["wood", "Wood-backed"]], label: "Discard rack" }] },
+  { id: "back", label: "Card back", keys: ["back"], ctl: [
+    { key: "back", type: "seg", options: Object.entries(BACKS) }] },
+  { id: "chips", label: "Chips", keys: ["chips"], hint: "Roulette and Craps keep today's", ctl: [
+    { key: "chips", type: "seg", options: [["classic", "Today's"], ["clay", "Clay inlay"], ["ceramic", "Ceramic"]] }] },
+];
+
+const GAMES = [["tcp", "Three Card"], ["bj", "Blackjack"], ["pgf", "Pai Gow Fortune"], ["pgu", "Pai Gow Face Up"], ["ms", "Mississippi"],
+  ["uth", "Hold'em"], ["lir", "Let It Ride"], ["hcf", "High Card Flush"], ["bac", "Baccarat"]];
+const VIEWS = { seated: ["Seated", [-166, -188, 332, 242]], table: ["Whole table", [-182, -192, 364, 254]],
+  bay: ["Bay close-up", [-112, -160, 224, 70]], seat: ["One seat", [-16, -98, 82, 108]] };
+const CREDITS = [
+  ["wood_mahogany", "Dark Wood", "dark_wood", "Dimitrios Savva, Dario Barresi, Rico Cilliers"],
+  ["wood_walnut", "Lacquered Cherry Wood", "lacquered_cherry_wood", "Jenelle van Heerden, Rico Cilliers"],
+  ["wood_wenge", "Wood Table 001", "wood_table_001", "Dimitrios Savva, Rico Cilliers"],
+  ["wood_rosewood", "Rosewood Veneer 1", "rosewood_veneer1", "Jenelle van Heerden"],
+  ["wood_ebony", "Flamed Black Veneer", "flamed_black_veneer", "Jenelle van Heerden"],
+  ["leather_detail", "Leather White", "leather_white", "Rob Tuytel"],
+  ["leather_pebble", "Brown Leather", "brown_leather", "Rob Tuytel"],
+  ["felt_weave", "Terlenka", "terlenka", "colormass, Rico Cilliers"],
+  ["felt_velvet", "Velour Velvet", "velour_velvet", "colormass, Rico Cilliers"],
+];
+
+// ---------------------------------------------------------------- state
+let G = null;
+const TEX = {};
+const state = { preset: "grand", game: "tcp", view: "seated", play: true, lit: true, fixed: false, d: clone(PRESETS.grand.d) };
+try { const s = JSON.parse(localStorage.getItem("tableStyles.v1") || "null"); if (s && s.d && s.preset in PRESETS) Object.assign(state, s); } catch (e) {}
+function remember() { try { localStorage.setItem("tableStyles.v1", JSON.stringify(state)); } catch (e) {} }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function getKey(o, k) { return k.split(".").reduce((a, p) => a && a[p], o); }
+function setKey(o, k, v) { const p = k.split("."); const last = p.pop(); p.reduce((a, q) => a[q], o)[last] = v; }
+
+// ---------------------------------------------------------------- colour helpers
+function hex(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function rgba(c, a = 1) { const [r, g, b] = hex(c); return `rgba(${r},${g},${b},${a})`; }
+function mix(c, d, t) { const a = hex(c), b = hex(d); return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join(""); }
+function lighten(c, t) { return mix(c, "#ffffff", t); }
+function darken(c, t) { return mix(c, "#000000", t); }
+function lum(c) { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; const [r, g, b] = hex(c); return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); }
+function lab(c) {   // CIE Lab, for how far apart two colours look
+  const f = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }, [r, g, b] = hex(c).map(f);
+  const X = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, Y = r * 0.2126 + g * 0.7152 + b * 0.0722, Z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const t = v => v > 0.008856 ? Math.cbrt(v) : 7.787 * v + 16 / 116;
+  return [116 * t(Y) - 16, 500 * (t(X) - t(Y)), 200 * (t(Y) - t(Z))];
+}
+function distance(a, b) { const x = lab(a), y = lab(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); }
+
+// ---------------------------------------------------------------- geometry
+const RAIL = 7;
+const HW = 38, FIL = 9, CR = 4;   // the ledge: half width (the tray's), the fillets into the dealer's edge, its front corners
+function ye(x) { return -140 - 2 * (1 - Math.min(1, (x / 65) ** 2)); }   // CasinoTable._edge_y
+function arcPts(out, cx, cy, r, a0, a1, n = 10) { for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } }
+function trayFront() { const t = G.tables.tcp.tray; return t[1] + t[3]; }
+// The ledge's edge against the felt, from the dealer's edge on the left round to it on the right, grown by d into the felt.
+function tongue(d) {
+  const hw = HW + d, fy = trayFront() + d, f = Math.max(1, FIL - d), r = CR + d, yl = ye(-(hw + f));
+  const p = [];
+  arcPts(p, -(hw + f), yl + f, f, -90, 0);
+  arcPts(p, -hw + r, fy - r, r, 180, 90, 6);
+  arcPts(p, hw - r, fy - r, r, 90, 0, 6);
+  arcPts(p, hw + f, yl + f, f, 180, 270);
+  return p;
+}
+function feltPoly(mode) {
+  const o = G.outline;
+  if (mode !== "ledge") return o;
+  const lim = HW + FIL + 0.5;
+  let first = -1, last = -1;
+  o.forEach((p, i) => { if (p[1] < -110 && Math.abs(p[0]) < lim) { if (first < 0) first = i; last = i; } });
+  return [...o.slice(0, first), ...tongue(0), ...o.slice(last + 1)];
+}
+const grown = k => G.grown[k];
+function shift(pts, dx, dy) { return pts.map(p => [p[0] + dx, p[1] + dy]); }
+
+// ---------------------------------------------------------------- drawing primitives
+function path(ctx, pts, close = true) { ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); if (close) ctx.closePath(); }
+function fillPoly(ctx, pts, style) { ctx.beginPath(); path(ctx, pts); ctx.fillStyle = style; ctx.fill(); }
+function strokePoly(ctx, pts, style, w, close = true) { ctx.beginPath(); path(ctx, pts, close); ctx.strokeStyle = style; ctx.lineWidth = w; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke(); }
+function rrect(ctx, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function pat(ctx, key, units, m) {
+  const img = TEX[key]; const p = ctx.createPattern(img, "repeat");
+  let M = new DOMMatrix();
+  if (m) M = M.translate(m.x, m.y).rotate(m.deg).translate(-(m.s || 0), 0);
+  p.setTransform(M.scale(units / img.width));
+  return p;
+}
+function text(ctx, s, x, y, size, colour, D, opts = {}) {
+  const f = FONTS[opts.font || D.print.font];
+  ctx.save(); ctx.translate(x, y + size * 0.35); ctx.scale(0.1, 0.1);
+  ctx.font = `${opts.weight || f[1]} ${size * 10}px "${f[0]}", Georgia, serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  if (opts.foil) { const g = ctx.createLinearGradient(0, -size * 8, 0, size * 2); g.addColorStop(0, lighten(colour, 0.45)); g.addColorStop(0.55, colour); g.addColorStop(1, darken(colour, 0.35)); ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillText(s, 2, 3); ctx.fillStyle = g; }
+  else ctx.fillStyle = colour;
+  ctx.fillText(s, 0, 0); ctx.restore();
+}
+
+// ---------------------------------------------------------------- the table
+function drawCarpet(ctx, r) {
+  ctx.fillStyle = "#1f3a3e"; ctx.fillRect(r[0], r[1], r[2], r[3]);
+  ctx.fillStyle = pat(ctx, "carpet", 128); ctx.fillRect(r[0], r[1], r[2], r[3]);
+}
+function drawDealer(ctx) {
+  const img = TEX.dealer; if (!img) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 10 * 64, 64, 64, -32, -123 - 28 - 32, 64, 64);   // LPC row 10: facing down
+  ctx.imageSmoothingEnabled = true;
+}
+function railRegion(ctx, felt) { ctx.beginPath(); path(ctx, grown("7.5")); path(ctx, felt); ctx.clip("evenodd"); }
+
+function drawWood(ctx, D, felt) {
+  const W = WOODS[D.rail.wood];
+  ctx.fillStyle = "#2a160b"; ctx.fillRect(-200, -200, 400, 260);
+  ctx.fillStyle = pat(ctx, W.tex, W.tile); ctx.fillRect(-200, -200, 400, 260);
+  // Strips round the curve, so the grain follows the rail (the straight dealer's edge and the ledge run left to right).
+  const c = grown("3.5"); let s = 0;
+  for (let i = 0; i < c.length; i++) {
+    const p = c[i], q = c[(i + 1) % c.length];
+    const dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy);
+    if (len < 1e-6) continue;
+    if (!(Math.abs(p[0]) < 70 && p[1] < -118)) {
+      const tx = dx / len, ty = dy / len, nx = -ty, ny = tx, e = 0.35, w = 5.5;
+      const quad = [[p[0] - tx * e + nx * w, p[1] - ty * e + ny * w], [q[0] + tx * e + nx * w, q[1] + ty * e + ny * w],
+        [q[0] + tx * e - nx * w, q[1] + ty * e - ny * w], [p[0] - tx * e - nx * w, p[1] - ty * e - ny * w]];
+      fillPoly(ctx, quad, pat(ctx, W.tex, W.tile, { x: p[0], y: p[1], deg: Math.atan2(dy, dx) * 180 / Math.PI, s }));
+    }
+    s += len;
+  }
+  ctx.globalCompositeOperation = "screen"; ctx.fillStyle = W.warm; ctx.fillRect(-200, -200, 400, 260);
+  ctx.globalCompositeOperation = "source-over";
+  if (W.gloss) { strokePoly(ctx, shift(grown("4.0"), 0, -1.4), "rgba(255,255,255,.10)", 1.6); }
+}
+function drawLeather(ctx, D, felt, ledge) {
+  const c = D.rail.leather;
+  ctx.fillStyle = c; ctx.fillRect(-200, -200, 400, 260);
+  ctx.globalCompositeOperation = "soft-light"; ctx.fillStyle = pat(ctx, "leather", 22); ctx.fillRect(-200, -200, 400, 260);
+  ctx.globalCompositeOperation = "source-over";
+  // Padded: lit along its crown, falling away to both edges.
+  const hi = lum(c) > 0.3 ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.09)";
+  strokePoly(ctx, shift(grown("4.0"), 0, -0.6), hi, 3.2);
+  strokePoly(ctx, shift(grown("4.0"), 0, -0.9), hi, 1.2);
+  if (ledge) { const t = tongue(-3); ctx.beginPath(); path(ctx, t, false); ctx.strokeStyle = hi; ctx.lineWidth = 2.4; ctx.stroke(); }
+  // stitching just inside both edges
+  ctx.setLineDash([0.8, 0.6]);
+  strokePoly(ctx, grown("1.2"), rgba(lighten(c, 0.35), 0.55), 0.18);
+  strokePoly(ctx, grown("5.9"), rgba(lighten(c, 0.35), 0.55), 0.18);
+  ctx.setLineDash([]);
+}
+function drawRail(ctx, D, felt, ledge) {
+  ctx.save(); railRegion(ctx, felt);
+  const arm = D.rail.armrest;
+  if (arm !== "all") drawWood(ctx, D, felt);
+  if (arm !== "none") {
+    ctx.save();
+    if (arm === "player") { ctx.beginPath(); ctx.rect(-200, -94, 400, 160); ctx.clip(); }
+    drawLeather(ctx, D, felt, ledge && arm === "all");
+    ctx.restore();
+    if (arm === "player" && BEADS[D.rail.bead]) {   // end caps where the padding stops
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * 155.5, -94); ctx.lineTo(sx * 164, -94); ctx.strokeStyle = BEADS[D.rail.bead][0]; ctx.lineWidth = 0.7; ctx.stroke(); }
+    }
+  }
+  // the rounded profile: dark outer edge, a lit crown, a shadow where it meets the felt
+  strokePoly(ctx, grown("7.5"), "rgba(0,0,0,.6)", 1.3);
+  strokePoly(ctx, shift(grown("4.0"), 0, -1.0), "rgba(255,226,190,.10)", 2.4);
+  strokePoly(ctx, shift(grown("4.0"), 0, -1.2), "rgba(255,230,200,.20)", 0.6);
+  strokePoly(ctx, felt, "rgba(0,0,0,.5)", 1.8);
+  if (ledge) { ctx.beginPath(); path(ctx, tongue(-2.4), false); ctx.strokeStyle = "rgba(255,226,190,.12)"; ctx.lineWidth = 1.4; ctx.stroke(); }
+  ctx.restore();
+}
+function drawFelt(ctx, D, felt) {
+  ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip();
+  const c = D.felt.colour;
+  ctx.fillStyle = c; ctx.fillRect(-200, -200, 400, 260);
+  const g = ctx.createRadialGradient(0, -70, 0, 0, -70, 200);
+  g.addColorStop(0, rgba(lighten(c, 0.07), 1)); g.addColorStop(0.35, c); g.addColorStop(1, darken(c, 0.25 + 0.45 * D.felt.vignette));
+  ctx.fillStyle = g; ctx.fillRect(-200, -200, 400, 260);
+  if (D.felt.texture !== "plain") {
+    ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = D.felt.texture === "velvet" ? 0.85 : 0.7;
+    ctx.fillStyle = D.felt.texture === "velvet" ? pat(ctx, "velvet", 70) : pat(ctx, "weave", 16);
+    ctx.fillRect(-200, -200, 400, 260);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
+  strokePoly(ctx, felt, "rgba(0,0,0,.22)", 6);
+  strokePoly(ctx, felt, "rgba(0,0,0,.35)", 2.6);
+  ctx.restore();
+}
+function drawBorder(ctx, D, felt, ledge) {
+  const b = D.border; if (b === "none") return;
+  const ink = D.print.ink, acc = D.print.accent;
+  ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip();
+  if (ledge) {   // the line runs into the ledge rather than round it
+    const t = tongue(3); ctx.beginPath(); ctx.rect(-220, -220, 440, 300); path(ctx, [...t, [t[t.length - 1][0], -170], [t[0][0], -170]]); ctx.clip("evenodd");
+  }
+  if (b === "pinstripe") strokePoly(ctx, grown("-5.0"), rgba(ink, 0.7), 0.5);
+  if (b === "gilt") { strokePoly(ctx, shift(grown("-5.0"), 0, 0.25), "rgba(0,0,0,.4)", 0.8); strokePoly(ctx, grown("-5.0"), lighten(acc, 0.15), 0.65); strokePoly(ctx, shift(grown("-5.0"), 0, -0.15), "rgba(255,245,210,.5)", 0.2); }
+  if (b === "double") { strokePoly(ctx, grown("-4.0"), rgba(acc, 0.85), 0.55); strokePoly(ctx, grown("-6.0"), rgba(acc, 0.6), 0.3); }
+  if (b === "deco") {
+    strokePoly(ctx, grown("-3.5"), rgba(acc, 0.9), 0.6); strokePoly(ctx, grown("-6.0"), rgba(acc, 0.65), 0.3);
+    const p = grown("-4.75") || grown("-5.0"); let s = 0;
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i], q = p[(i + 1) % p.length], len = Math.hypot(q[0] - a[0], q[1] - a[1]);
+      if (Math.floor((s + len) / 34) > Math.floor(s / 34)) { const m = [(a[0] + q[0]) / 2, (a[1] + q[1]) / 2]; fillPoly(ctx, [[m[0], m[1] - 1.3], [m[0] + 1.0, m[1]], [m[0], m[1] + 1.3], [m[0] - 1.0, m[1]]], rgba(acc, 0.95)); }
+      s += len;
+    }
+  }
+  if (b === "led") { for (const [w, a] of [[5, 0.06], [3, 0.1], [1.6, 0.2], [0.6, 0.7]]) strokePoly(ctx, grown("-2.0"), rgba(acc, a), w); strokePoly(ctx, grown("-2.0"), "rgba(255,255,255,.55)", 0.2); }
+  ctx.restore();
+}
+function drawBead(ctx, D, felt) {
+  const b = BEADS[D.rail.bead]; if (!b) return;
+  strokePoly(ctx, felt, b[0], 0.75);
+  strokePoly(ctx, shift(felt, 0, -0.18), rgba(b[1], 0.55), 0.22);
+}
+
+// ---------------------------------------------------------------- chips
+const DENOMS = [[50000, "#d6389f", "#8f1f68"], [10000, "#1c1c1c", "#000000"], [2500, "#1f8a4c", "#125c32"], [500, "#d1362f", "#8f211d"], [100, "#1f6fd6", "#0d3c85"]];
+const COL = Object.fromEntries(DENOMS.map(d => [d[0], [d[1], d[2]]]));
+function breakdown(p) { const out = []; for (const [d] of DENOMS) while (p >= d && out.length < 8) { out.push(d); p -= d; } return out; }
+function chipLabel(p) { const l = p / 100; return l >= 1000 ? (l / 1000) + "k" : String(l); }
+function chipFace(ctx, kind, x, y, r, denom, label) {
+  const [c0, c1] = COL[denom];
+  const edge = denom === 10000 ? "#d8c9a0" : "#ffffff";
+  if (kind === "classic") {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c1; ctx.fill();
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.arc(x, y, r * 0.86, a, a + 0.4); ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = r * 0.2; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r * 0.66, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    chipText(ctx, label, x, y, r, "#ffffff");
+  } else if (kind === "clay") {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.3; ctx.beginPath(); ctx.arc(x, y, r * 0.84, a, a + 0.5); ctx.strokeStyle = edge; ctx.lineWidth = r * 0.28; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r * 0.84, a + 0.12, a + 0.38); ctx.strokeStyle = c1; ctx.lineWidth = r * 0.1; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 7); ctx.fillStyle = "#efe7d4"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 7); ctx.strokeStyle = c1; ctx.lineWidth = r * 0.07; ctx.stroke();
+    chipText(ctx, label, x, y, r, c1 === "#000000" ? "#1c1c1c" : c1);
+  } else {   // ceramic: printed fine rings and ticks, a glossy face
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = c0; ctx.fill();
+    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; ctx.beginPath(); ctx.arc(x, y, r * 0.88, a, a + 0.11); ctx.strokeStyle = i % 2 ? "rgba(255,255,255,.9)" : rgba(c1, 0.9); ctx.lineWidth = r * 0.16; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x, y, r * 0.72, 0, 7); ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = r * 0.04; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.58, 0, 7); ctx.fillStyle = "#f6f4ee"; ctx.fill();
+    chipText(ctx, label, x, y, r, c1 === "#000000" ? "#1c1c1c" : c0);
+    const g = ctx.createLinearGradient(x - r, y - r, x + r, y + r); g.addColorStop(0, "rgba(255,255,255,.28)"); g.addColorStop(0.5, "rgba(255,255,255,0)");
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = g; ctx.fill();
+  }
+}
+function chipText(ctx, label, x, y, r, colour) {
+  const size = r * (label.length <= 3 ? 0.62 : 0.46);
+  ctx.save(); ctx.translate(x, y + size * 0.36); ctx.scale(0.1, 0.1);
+  ctx.font = `700 ${size * 10}px "Barlow Condensed", "Arial Narrow", sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = colour;
+  ctx.fillText(label, 0, 0); ctx.restore();
+}
+function stack(ctx, D, amount, x, y) {
+  const chips = breakdown(amount), R = 6, L = 1.5;
+  ctx.save(); ctx.translate(x + 0.5, y + 1.2); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(0, 0, R + 0.5, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill(); ctx.restore();
+  for (let i = 0; i < chips.length - 1; i++) {
+    const [c0, c1] = COL[chips[i]];
+    ctx.beginPath(); ctx.arc(x, y - i * L, R, 0, 7); ctx.fillStyle = D.chips === "classic" ? c1 : c0; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y - i * L, R, 0.2, Math.PI - 0.2); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.35; ctx.stroke();
+    for (let k = 0; k < 4; k++) { const a = 0.35 + k * 0.7; ctx.beginPath(); ctx.arc(x, y - i * L, R - 0.2, a, a + 0.22); ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 0.6; ctx.stroke(); }
+  }
+  chipFace(ctx, D.chips, x, y - (chips.length - 1) * L, R, chips[chips.length - 1], chipLabel(amount));
+}
+function edgeChip(ctx, D, x, y, w, h, denom, k) {   // one chip on its edge in a tray channel, seen from above
+  const [c0, c1] = COL[denom];
+  ctx.fillStyle = c0; ctx.fillRect(x, y, w, h);
+  const stripe = 0.18 + 0.32 * (k % 2);
+  ctx.fillStyle = D.chips === "clay" ? "rgba(240,230,210,.85)" : "rgba(255,255,255,.8)";
+  for (const f of [stripe, stripe + 0.5]) ctx.fillRect(x + w * f, y, w * (D.chips === "ceramic" ? 0.07 : 0.12), h);
+  ctx.fillStyle = rgba(c1, 0.8); ctx.fillRect(x, y + h - 0.12, w, 0.12);
+}
+
+// ---------------------------------------------------------------- the chip tray
+const TRAY_DENOMS = [50000, 10000, 10000, 2500, 2500, 2500, 500, 500, 100, 100];
+const TRAY_FILL = [0.45, 1.0, 0.6, 0.0, 0.85, 1.0, 0.7, 0.0, 0.9, 0.35];
+function wellChannels(ctx, D, x, y, w, h, finish) {
+  const lining = finish === "steel" ? "#3b4147" : "#130806";
+  const ridge = finish === "steel" ? "#7d868f" : "#2a160b";
+  ctx.beginPath(); rrect(ctx, x, y, w, h, 1.4); ctx.fillStyle = ridge; ctx.fill();
+  const cw = w / 10;
+  for (let i = 0; i < 10; i++) {
+    const cx = x + i * cw + 0.3, ww = cw - 0.6;
+    ctx.beginPath(); rrect(ctx, cx, y, ww, h, 1.0); ctx.fillStyle = lining; ctx.fill();
+    const n = Math.round(TRAY_FILL[i] * Math.floor((h - 0.6) / 1.05));
+    for (let k = 0; k < n; k++) edgeChip(ctx, D, cx + 0.35, y + h - 0.3 - (k + 1) * 1.05, ww - 0.7, 0.93, TRAY_DENOMS[i], k);
+  }
+  for (const band of [3, 2, 1]) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(x, y, w, band); }   // the back wall's shadow
+  if (finish === "steel") { const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,.08)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.fillRect(x, y, w, h); }
+}
+function lid(ctx, x, y, w, h) {
+  ctx.beginPath(); rrect(ctx, x, y, w, h, 1.6); ctx.fillStyle = "rgba(25,18,16,.42)"; ctx.fill();
+  ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, 1.6); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(x + 18, y); ctx.lineTo(x + 12, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fillStyle = "rgba(255,255,255,.09)"; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + 22, y); ctx.lineTo(x + 25, y); ctx.lineTo(x + 19, y + h); ctx.lineTo(x + 16, y + h); ctx.closePath(); ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
+  ctx.restore();
+  ctx.beginPath(); rrect(ctx, x, y, w, h, 1.6); ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 0.3; ctx.stroke();
+  ctx.fillStyle = "#c9a24a"; ctx.fillRect(-1.6, y + h - 1.2, 3.2, 0.9);   // the lock
+}
+function drawTray(ctx, D, ledge) {
+  const t = G.tables.tcp.tray, fin = D.tray.finish;
+  const bead = BEADS[D.rail.bead] || ["#6d757c", "#cfd6dc"];
+  if (ledge) {
+    const x = -35.5, y = -132.2, w = 71, h = 7.9;
+    ctx.beginPath(); rrect(ctx, x - 0.6, y - 0.6, w + 1.2, h + 1.2, 2.0); ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fill();   // the cut
+    wellChannels(ctx, D, x, y, w, h, fin);
+    ctx.beginPath(); ctx.moveTo(x + 1.4, y + h + 0.35); ctx.lineTo(x + w - 1.4, y + h + 0.35); ctx.strokeStyle = "rgba(255,226,190,.28)"; ctx.lineWidth = 0.35; ctx.stroke();   // the front edge, lit
+    if (fin === "steel") { ctx.beginPath(); rrect(ctx, x - 0.4, y - 0.4, w + 0.8, h + 0.8, 1.8); ctx.strokeStyle = "#c3cad1"; ctx.lineWidth = 0.45; ctx.stroke(); }
+    if (fin === "lid") lid(ctx, x - 0.3, y - 0.3, w + 0.6, h + 0.6);
+  } else {
+    const [x, y, w, h] = t;
+    ctx.beginPath(); rrect(ctx, x - 0.5, y - 0.5, w + 1, h + 1, 2.8); ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fill();   // the gap round it
+    ctx.beginPath(); rrect(ctx, x, y, w, h, 2.4); ctx.fillStyle = bead[0]; ctx.fill();   // the lip
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "rgba(255,255,255,.35)"); g.addColorStop(0.4, "rgba(255,255,255,0)"); g.addColorStop(1, "rgba(0,0,0,.35)");
+    ctx.fillStyle = g; ctx.fill();
+    wellChannels(ctx, D, x + 1.3, y + 1.3, w - 2.6, h - 2.6, fin === "steel" ? "steel" : "wood");
+    if (fin === "lid") lid(ctx, x + 0.8, y + 0.8, w - 1.6, h - 1.6);
+  }
+}
+
+// ---------------------------------------------------------------- spots
+const SPOT_FILL = "rgba(0,0,0,.15)";
+function colourOf(D, role) { return role === "accent" ? D.print.accent : role === "jade" ? "#7fc8a9" : D.print.ink; }
+function shapePath(ctx, s, k = 0) {
+  ctx.beginPath();
+  const [x, y] = s.at;
+  if (s.shape === "circle") ctx.arc(x, y, Math.max(0.3, s.r - k), 0, Math.PI * 2);
+  else if (s.shape === "diamond") { const a = s.hw - k * 1.2, b = s.hh - k * 1.2; ctx.moveTo(x, y - b); ctx.lineTo(x + a, y); ctx.lineTo(x, y + b); ctx.lineTo(x - a, y); ctx.closePath(); }
+  else rrect(ctx, x - s.w / 2 + k, y - s.h / 2 + k, s.w - 2 * k, s.h - 2 * k, Math.max(0.2, (s.rad || 1.2) - k * 0.5));
+}
+function drawSpot(ctx, D, s) {
+  const style = D.spots, c = rgba(colourOf(D, s.ring), s.alpha ?? 1), w = s.width ?? 0.8, base = colourOf(D, s.ring);
+  if (style === "printed") {
+    shapePath(ctx, s); ctx.fillStyle = SPOT_FILL; ctx.fill(); shapePath(ctx, s, 0.4); ctx.strokeStyle = c; ctx.lineWidth = w; ctx.stroke();
+  } else if (style === "double") {
+    shapePath(ctx, s); ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fill();
+    shapePath(ctx, s, 0.3); ctx.strokeStyle = c; ctx.lineWidth = w * 0.55; ctx.stroke();
+    shapePath(ctx, s, 1.5); ctx.strokeStyle = rgba(base, (s.alpha ?? 1) * 0.75); ctx.lineWidth = w * 0.35; ctx.stroke();
+  } else if (style === "foil") {
+    shapePath(ctx, s); ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fill();
+    ctx.save(); ctx.translate(0, 0.25); shapePath(ctx, s, 0.45); ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = w + 0.25; ctx.stroke(); ctx.restore();
+    const r = s.r || Math.max(s.hh || 0, (s.h || 0) / 2), g = ctx.createLinearGradient(s.at[0], s.at[1] - r, s.at[0], s.at[1] + r);
+    g.addColorStop(0, rgba(lighten(base, 0.5), s.alpha ?? 1)); g.addColorStop(0.5, rgba(base, s.alpha ?? 1)); g.addColorStop(1, rgba(darken(base, 0.35), s.alpha ?? 1));
+    shapePath(ctx, s, 0.45); ctx.strokeStyle = g; ctx.lineWidth = w * 1.05; ctx.stroke();
+  } else if (style === "inlaid") {
+    shapePath(ctx, s); ctx.fillStyle = "rgba(0,0,0,.26)"; ctx.fill();
+    ctx.save(); shapePath(ctx, s); ctx.clip();
+    ctx.translate(0, -0.5); shapePath(ctx, s, -0.2); ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 1.8; ctx.stroke();
+    ctx.translate(0, 0.9); shapePath(ctx, s, -0.2); ctx.strokeStyle = "rgba(255,255,255,.09)"; ctx.lineWidth = 0.9; ctx.stroke();
+    ctx.restore();
+    shapePath(ctx, s, 0.35); ctx.strokeStyle = c; ctx.lineWidth = w * 0.5; ctx.stroke();
+  } else if (style === "deco") {
+    shapePath(ctx, s); ctx.fillStyle = "rgba(0,0,0,.14)"; ctx.fill();
+    shapePath(ctx, s, 0.3); ctx.strokeStyle = c; ctx.lineWidth = w * 0.55; ctx.stroke();
+    shapePath(ctx, s, 1.6); ctx.strokeStyle = rgba(base, (s.alpha ?? 1) * 0.6); ctx.lineWidth = 0.25; ctx.stroke();
+    const [x, y] = s.at;
+    const tips = s.shape === "circle" ? [[0, -s.r], [s.r, 0], [0, s.r], [-s.r, 0]].map(p => [x + p[0], y + p[1]])
+      : s.shape === "diamond" ? [] : [[x - s.w / 2, y - s.h / 2], [x + s.w / 2, y - s.h / 2], [x + s.w / 2, y + s.h / 2], [x - s.w / 2, y + s.h / 2]];
+    for (const [tx, ty] of tips) { ctx.beginPath(); ctx.moveTo(tx, ty - 0.9); ctx.lineTo(tx + 0.7, ty); ctx.lineTo(tx, ty + 0.9); ctx.lineTo(tx - 0.7, ty); ctx.closePath(); ctx.fillStyle = rgba(base, s.alpha ?? 1); ctx.fill(); }
+  }
+  if (s.inner) {   // a second ring inside (the main bet circles)
+    const inner = { ...s, r: s.inner.r }, ic = rgba(colourOf(D, s.inner.ring), s.inner.alpha ?? 0.8);
+    shapePath(ctx, inner); ctx.strokeStyle = style === "foil" ? rgba(lighten(colourOf(D, s.inner.ring), 0.15), 0.85) : ic; ctx.lineWidth = s.inner.width ?? 0.4; ctx.stroke();
+  }
+  if (s.lines) {
+    const tc = colourOf(D, s.textRing || s.ring), a = s.textAlpha ?? 1, size = s.size || 2, foil = style === "foil";
+    if (s.lines.length === 1) text(ctx, s.lines[0], s.at[0] + (s.dx || 0), s.at[1] + (s.dy || 0), size, rgba(tc, a), D, { foil: foil && a === 1 ? tc : false, font: s.font });
+    else s.lines.forEach((l, i) => text(ctx, l, s.at[0], s.at[1] + (i ? 1.3 : -1.3), size, rgba(tc, a), D, { foil: foil ? tc : false }));
+  }
+}
+function jackpotDisc(ctx, D, at, lit) {
+  const [x, y] = at, r = 7.5, kind = D.jackpot;
+  ctx.beginPath(); ctx.arc(x, y + 0.7, r + 0.5, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = "rgba(214,235,245,.28)"; ctx.fill();
+  if (lit) {
+    ctx.beginPath(); ctx.arc(x, y, r + 2.5, 0, 7); ctx.fillStyle = "rgba(255,26,26,.18)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r - 0.6, 0, 7); ctx.fillStyle = "rgba(255,31,38,.75)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fillStyle = "rgba(255,140,140,.45)"; ctx.fill();
+  }
+  if (kind === "clear") {
+    ctx.beginPath(); ctx.arc(x, y, r - 0.4, 0, 7); ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 0.8; ctx.stroke();
+  } else if (kind === "gold") {
+    const g = ctx.createLinearGradient(x, y - r, x, y + r); g.addColorStop(0, "#fff0b8"); g.addColorStop(0.45, "#d9b453"); g.addColorStop(1, "#7a5a1c");
+    ctx.beginPath(); ctx.arc(x, y, r - 0.5, 0, 7); ctx.strokeStyle = g; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r - 1.3, 0, 7); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.25; ctx.stroke();
+  } else {
+    const g = ctx.createLinearGradient(x, y - r, x, y + r); g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, "#9aa3ab"); g.addColorStop(1, "#4b535a");
+    ctx.beginPath(); ctx.arc(x, y, r - 0.5, 0, 7); ctx.strokeStyle = g; ctx.lineWidth = 1.1; ctx.stroke();
+    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; ctx.beginPath(); ctx.arc(x + Math.cos(a) * (r - 1.9), y + Math.sin(a) * (r - 1.9), 0.32, 0, 7);
+      ctx.fillStyle = lit ? "#ff5a5a" : "rgba(170,230,255,.75)"; ctx.fill(); }
+  }
+  ctx.beginPath(); ctx.arc(x, y, r - 2.0, Math.PI * 1.05, Math.PI * 1.55); ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 0.7; ctx.stroke();
+  text(ctx, "JACKPOT", x, y, 2, lit ? "#ffffff" : "rgba(255,255,255,.85)", D);
+}
+
+// ---------------------------------------------------------------- each game's printing (ports of the *_felt.gd files)
+function layout(game, T, D) {
+  const DY = G.dealer_y, sp = [], tx = [], ink = 1;
+  const title = (s, size = 9) => tx.push([s, 0, T.title_y, size, "ink", 1]);
+  const small = (s, x, dy) => tx.push([s, x, DY + dy, 3, "ink", 0.85]);
+  const circle = (at, ring, lines) => sp.push({ shape: "circle", at, r: 7.5, ring, lines, size: 2 });
+  const big = (at, r, lines, size, inner) => sp.push({ shape: "circle", at, r, ring: "ink", lines, size, width: 0.8, inner });
+  const box = (at, w, h, alpha, width = 0.5, ring = "ink", rad = 1.5) => sp.push({ shape: "box", at, w, h, rad, ring, alpha, width });
+  const jp = [];
+  const S = T.spots;
+  switch (game) {
+    case "tcp":
+      title("THREE CARD POKER");
+      for (const [s, x, d] of [["DEALER QUALIFIES", -62, -1.5], ["WITH QUEEN HIGH", -62, 3.5], ["PLAY MUST", 62, -1.5], ["EQUAL ANTE", 62, 3.5]]) small(s, x, d);
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.pair_plus.at, "accent", ["PAIR", "PLUS"]); circle(s.prime.at, "ink", ["PRIME"]);
+        sp.push({ shape: "diamond", at: s.ante.at, hw: 9, hh: 7.5, ring: "ink", lines: ["ANTE"], size: 3 });
+        sp.push({ shape: "box", at: s.play.at, w: 21, h: 12, rad: 1.2, ring: "ink", lines: ["PLAY"], size: 4 }); });
+      break;
+    case "bj":
+      title("BLACKJACK PAYS 3 TO 2"); small("STANDS ON 17s", 69, -1.5); small("INSURANCE 2:1", 69, 3.5);
+      S.forEach(s => { jp.push(s.jackpot.at);
+        sp.push({ shape: "diamond", at: s.top_three.at, hw: 8.5, hh: 7.5, ring: "accent", lines: ["TOP 3"], size: 2 });
+        circle(s.super_pairs.at, "accent", ["SUPER", "PAIRS"]); circle(s.twenty_one_plus_three.at, "ink", ["21+3"]);
+        big(s.bet.at, T.extra.bet_r, null, 0, { r: T.extra.bet_r - 2.2, ring: "accent", alpha: 0.8, width: 0.4 });
+        sp.push({ shape: "circle", at: s.insurance.at, r: 4.6, ring: "ink", alpha: 0.55, width: 0.4, lines: ["INS"], size: 2, textAlpha: 0.7 }); });
+      break;
+    case "pgf": case "pgu": {
+      title(game === "pgu" ? "FACE UP PAI GOW" : "FORTUNE PAI GOW");
+      const last = game === "pgu" ? "NO COMMISSION" : "5% COMMISSION";
+      for (const [s, d] of [["DEALER SETS", -6.5], ["BY HOUSE WAY", -1.5], [last, 3.5]]) small(s, -62, d);
+      S.forEach((s, i) => { jp.push(s.jackpot.at); circle(s.fortune.at, "accent", ["FORTUNE"]);
+        big(s.ante.at, T.extra.ante_r, ["ANTE"], 3, { r: T.extra.ante_r - 2.0, ring: "accent", alpha: 0.8, width: 0.4 });
+        const [lo, hi] = T.cards[i];
+        sp.push({ shape: "box", at: lo, w: T.extra.low_box[0], h: T.extra.low_box[1], rad: 1.5, ring: "ink", alpha: 0.8, width: 0.6, lines: ["LOW"], size: 2, dy: T.extra.low_box[1] / 2 - 3, textAlpha: 0.8 });
+        sp.push({ shape: "box", at: hi, w: T.extra.high_box[0], h: T.extra.high_box[1], rad: 1.5, ring: "ink", alpha: 0.8, width: 0.6, lines: ["HIGH"], size: 2, dy: T.extra.high_box[1] / 2 - 3, textAlpha: 0.8 }); });
+      break; }
+    case "ms":
+      title("MISSISSIPPI STUD");
+      for (const [s, x, d] of [["JACKS OR BETTER", -64, -1.5], ["PAYS EVERY BET", -64, 3.5], ["6s TO 10s", 64, -1.5], ["PUSH", 64, 3.5]]) small(s, x, d);
+      T.dealer_cards.forEach(at => box(at, 16, 22, 0.55));
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "accent", ["3 CARD", "BONUS"]);
+        big(s.ante.at, 9, ["ANTE"], 3, { r: 7.0, ring: "accent", alpha: 0.8, width: 0.4 });
+        ["third", "fourth", "fifth"].forEach((k, j) => sp.push({ shape: "circle", at: s[k].at, r: T.extra.street_r, ring: "ink", alpha: 0.9, width: 0.6, lines: [["3RD", "4TH", "5TH"][j]], size: 2 })); });
+      break;
+    case "uth":
+      title("ULTIMATE TEXAS HOLD'EM", 8); small("DEALER QUALIFIES", 64, -1.5); small("WITH A PAIR", 64, 3.5);
+      T.dealer_cards.forEach((at, k) => box(at, 15, 21, k >= 2 ? 0.5 : 0.35));
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.trips.at, "accent", ["TRIPS"]);
+        for (const k of ["ante", "blind"]) big(s[k].at, 8, [k.toUpperCase()], 3);
+        tx.push(["=", (s.ante.at[0] + s.blind.at[0]) / 2, s.ante.at[1], 4, "ink", 0.8]);
+        sp.push({ shape: "box", at: s.play.at, w: 21, h: 12, rad: 1.2, ring: "ink", lines: ["PLAY"], size: 4 }); });
+      break;
+    case "lir":
+      title("LET IT RIDE");
+      for (const [s, x, d] of [["PAIR OF 10s", -60, -1.5], ["OR BETTER PAYS", -60, 3.5], ["PULL BACK", 60, -1.5], ["1 AND 2", 60, 3.5]]) small(s, x, d);
+      T.dealer_cards.forEach(at => box(at, 16, 22, 0.55));
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "accent", ["BONUS"]); circle(s.three_card.at, "ink", ["3 CARD", "BONUS"]);
+        for (const [k, l] of [["bet1", "1"], ["bet2", "2"], ["ante", "£"]]) big(s[k].at, 7, [l], 6, { r: 5.2, ring: "accent", alpha: 0.7, width: 0.4 }); });
+      break;
+    case "hcf": {
+      title("HIGH CARD FLUSH");
+      for (const [s, x, d] of [["DEALER NEEDS", -64, -1.5], ["3-CARD 9-HIGH", -64, 3.5], ["RAISE 2X ON 5", 64, -1.5], ["3X ON 6 OR 7", 64, 3.5]]) small(s, x, d);
+      const L = T.dealer_cards[0], R = T.dealer_cards[6];
+      box([(L[0] + R[0]) / 2, L[1]], R[0] - L[0] + 17, 22, 0.45);
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.flush.at, "accent", ["FLUSH"]); circle(s.straight_flush.at, "ink", ["STRAIGHT", "FLUSH"]);
+        for (const k of ["ante", "raise"]) big(s[k].at, 8, [k.toUpperCase()], 3); });
+      break; }
+    case "bac": {
+      title("BACCARAT");
+      for (const [side, j] of [["player", 0], ["banker", 3]]) {
+        const L = T.dealer_cards[j], R = T.dealer_cards[j + 2], ring = side === "banker" ? "accent" : "ink";
+        sp.push({ shape: "box", at: [(L[0] + R[0]) / 2, L[1]], w: R[0] - L[0] + 17, h: 22, rad: 1.5, ring, alpha: 0.8, width: 0.6 });
+        tx.push([side.toUpperCase(), (L[0] + R[0]) / 2, L[1] + 14, 3, ring, 0.9]);
+      }
+      S.forEach((s, i) => { circle(s.player_dragon.at, "jade", ["P", "DRAGON"]); circle(s.tie.at, "ink", ["TIE"]); circle(s.banker_dragon.at, "jade", ["B", "DRAGON"]);
+        for (const k of ["banker", "player"]) {
+          const at = [T.chairs[i][0], k === "banker" ? T.extra.banker_y : T.extra.player_y], ring = k === "player" ? "ink" : "accent";
+          sp.push({ shape: "box", at, w: T.extra.box[0], h: T.extra.box[1], rad: 2, ring, lines: [k.toUpperCase()], size: 3, dx: 9 });
+        } });
+      break; }
+  }
+  return { sp, tx, jp };
+}
+
+// ---------------------------------------------------------------- cards
+const SUITS = { s: "♠", h: "♥", d: "♦", c: "♣" };
+function cardShape(ctx, x, y, w = 14, h = 20) { ctx.beginPath(); rrect(ctx, x - w / 2, y - h / 2, w, h, 0.9); }
+function cardBack(ctx, D, x, y, w = 14, h = 20) {
+  const k = D.back, main = BACK_MAIN[k];
+  cardShape(ctx, x, y, w, h); ctx.fillStyle = "#f4f2ec"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.3; ctx.stroke();
+  const ix = x - w / 2 + 1.3, iy = y - h / 2 + 1.3, iw = w - 2.6, ih = h - 2.6;
+  ctx.fillStyle = main; ctx.fillRect(ix, iy, iw, ih);
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+  const gold = "#c9a24a";
+  if (k === "charcoal" || k === "lattice" || k === "emerald") {
+    const lc = k === "charcoal" ? "rgba(255,255,255,.1)" : k === "lattice" ? "rgba(255,235,225,.55)" : "rgba(240,228,196,.5)", step = k === "charcoal" ? 3.4 : 1.6;
+    for (let t = -ih; t < iw + ih; t += step) { ctx.beginPath(); ctx.moveTo(ix + t, iy); ctx.lineTo(ix + t - ih, iy + ih); ctx.moveTo(ix + t - ih, iy); ctx.lineTo(ix + t, iy + ih); ctx.strokeStyle = lc; ctx.lineWidth = k === "charcoal" ? 0.3 : 0.18; ctx.stroke(); }
+    ctx.strokeStyle = k === "charcoal" ? rgba(gold, 0.85) : "rgba(255,255,255,.7)"; ctx.lineWidth = 0.4; ctx.strokeRect(ix + 1.3, iy + 1.3, iw - 2.6, ih - 2.6);
+  } else if (k === "sunburst") {
+    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 20, y + Math.sin(a) * 20); ctx.strokeStyle = rgba("#e0b84e", 0.45); ctx.lineWidth = 0.2; ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 3, y); ctx.lineTo(x, y + 4); ctx.lineTo(x - 3, y); ctx.closePath(); ctx.fillStyle = "#e0b84e"; ctx.fill();
+    ctx.strokeStyle = "#e0b84e"; ctx.lineWidth = 0.35; ctx.strokeRect(ix + 0.9, iy + 0.9, iw - 1.8, ih - 1.8); ctx.lineWidth = 0.18; ctx.strokeRect(ix + 1.7, iy + 1.7, iw - 3.4, ih - 3.4);
+  } else if (k === "monogram") {
+    ctx.strokeStyle = "#d9b453"; ctx.lineWidth = 0.35; ctx.strokeRect(ix + 1, iy + 1, iw - 2, ih - 2); ctx.lineWidth = 0.18; ctx.strokeRect(ix + 1.8, iy + 1.8, iw - 3.6, ih - 3.6);
+    ctx.beginPath(); ctx.arc(x, y, 3.3, 0, 7); ctx.strokeStyle = "#d9b453"; ctx.lineWidth = 0.3; ctx.stroke();
+    text(ctx, "CW", x, y, 3, "#e8cf86", D, { font: "cormorant" });
+  } else if (k === "stripe") {
+    ctx.fillStyle = "#c8202b"; ctx.beginPath(); ctx.moveTo(ix, iy + ih * 0.62); ctx.lineTo(ix + iw, iy + ih * 0.22); ctx.lineTo(ix + iw, iy + ih * 0.38); ctx.lineTo(ix, iy + ih * 0.78); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#c9d0d6"; ctx.lineWidth = 0.3; ctx.strokeRect(ix + 0.9, iy + 0.9, iw - 1.8, ih - 1.8);
+  }
+  ctx.restore();
+}
+function suitShape(ctx, suit, cx, cy, h, colour) {   // each part filled on its own, so overlaps never cancel out
+  ctx.fillStyle = colour;
+  const dot = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); };
+  const poly = pts => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); };
+  const stem = top => poly([[cx - h * 0.05, cy + top], [cx + h * 0.05, cy + top], [cx + h * 0.18, cy + h * 0.5], [cx - h * 0.18, cy + h * 0.5]]);
+  if (suit === "d") poly([[cx, cy - h / 2], [cx + h * 0.38, cy], [cx, cy + h / 2], [cx - h * 0.38, cy]]);
+  else if (suit === "h") { const r = h * 0.27; dot(cx - r * 0.92, cy - h * 0.2, r); dot(cx + r * 0.92, cy - h * 0.2, r); poly([[cx - h * 0.5, cy - h * 0.12], [cx + h * 0.5, cy - h * 0.12], [cx, cy + h * 0.48]]); }
+  else if (suit === "s") { const r = h * 0.26; dot(cx - r * 0.92, cy + h * 0.1, r); dot(cx + r * 0.92, cy + h * 0.1, r); poly([[cx - h * 0.48, cy + h * 0.04], [cx + h * 0.48, cy + h * 0.04], [cx, cy - h * 0.5]]); stem(h * 0.12); }
+  else { const r = h * 0.22; dot(cx, cy - h * 0.25, r); dot(cx - h * 0.25, cy + h * 0.04, r); dot(cx + h * 0.25, cy + h * 0.04, r); stem(-h * 0.05); }
+}
+function card(ctx, D, code, x, y, rot = 0) {
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot);
+  cardShape(ctx, 0.6, 0.8); ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fill();
+  if (code === "??") cardBack(ctx, D, 0, 0);
+  else {
+    cardShape(ctx, 0, 0); ctx.fillStyle = "#fbfaf5"; ctx.fill(); ctx.strokeStyle = "#b9b4a5"; ctx.lineWidth = 0.3; ctx.stroke();
+    const rank = code.slice(0, -1), suit = code.slice(-1), col = "hd".includes(suit) ? "#c62828" : "#1b1b1b";
+    for (const flip of [0, 1]) {
+      ctx.save(); if (flip) ctx.rotate(Math.PI);
+      ctx.save(); ctx.translate(-4.6, -6); ctx.scale(0.1, 0.1); ctx.font = `700 ${rank.length < 2 ? 40 : 30}px "Barlow", sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = col; ctx.fillText(rank, 0, 0); ctx.restore();
+      suitShape(ctx, suit, -4.6, -3.9, 2.5, col); ctx.restore();
+    }
+    suitShape(ctx, suit, 0, 0.6, 7, col);
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- equipment
+function shuffler(ctx, D, at) {
+  const [x, y] = at, kind = D.shuffler, bw = 24, bh = 18;
+  ctx.save(); ctx.translate(x, y);
+  ctx.beginPath(); rrect(ctx, -bw / 2 - 1.4, -bh / 2 - 1.4, bw + 2.8, bh + 2.8, 3.2); ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fill();
+  const body = kind === "black" ? ["#0b0c0e", "#1c1e22"] : kind === "brass" ? ["#24130a", "#3d2414"] : ["#1f2226", "#3a3e44"];
+  ctx.beginPath(); rrect(ctx, -bw / 2, -bh / 2, bw, bh, 2.6); ctx.fillStyle = body[0]; ctx.fill();
+  ctx.beginPath(); rrect(ctx, -bw / 2 + 0.7, -bh / 2 + 0.7, bw - 1.4, bh - 1.4, 2.1); ctx.fillStyle = body[1]; ctx.fill();
+  if (kind === "brass") { ctx.save(); ctx.clip(); ctx.fillStyle = pat(ctx, "walnut", 30); ctx.globalAlpha = 0.9; ctx.fillRect(-bw / 2, -bh / 2, bw, bh); ctx.restore();
+    ctx.beginPath(); rrect(ctx, -bw / 2 + 0.5, -bh / 2 + 0.5, bw - 1, bh - 1, 2.2); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke(); }
+  else if (kind === "gunmetal") for (let i = 0; i < 7; i++) { ctx.fillStyle = `rgba(255,255,255,${0.035 + 0.02 * (i % 2)})`; ctx.fillRect(-bw / 2 + 1.2, -bh / 2 + 1.5 + i * 2.4, bw - 2.4, 0.5); }
+  else { const g = ctx.createLinearGradient(-bw / 2, -bh / 2, bw / 2, bh / 2); g.addColorStop(0, "rgba(255,255,255,.16)"); g.addColorStop(0.35, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); rrect(ctx, -bw / 2, -bh / 2, bw, bh, 2.6); ctx.fill(); }
+  ctx.fillStyle = "#050607"; ctx.fillRect(-8.5, -bh / 2 + 1.6, 17, 1.6);   // intake
+  ctx.beginPath(); rrect(ctx, -9.5, -bh / 2 + 4.2, 19, 7.6, 1.2); ctx.fillStyle = "#12161b"; ctx.fill();   // smoked lid
+  ctx.fillStyle = "#23262c"; ctx.fillRect(-5.5, -bh / 2 + 5.6, 11, 4.8);
+  ctx.strokeStyle = "rgba(255,255,255,.16)"; ctx.lineWidth = 0.3; ctx.beginPath(); rrect(ctx, -9.5, -bh / 2 + 4.2, 19, 7.6, 1.2); ctx.stroke();
+  const ly = -bh / 2 + 12.8;
+  if (kind === "black") {
+    ctx.fillStyle = "#06080a"; ctx.fillRect(-9.8, ly, 13, 3.2);
+    ctx.save(); ctx.translate(-3.3, ly + 2.25); ctx.scale(0.1, 0.1); ctx.font = '600 20px "Montserrat", sans-serif'; ctx.textAlign = "center"; ctx.fillStyle = "#e9f6ff"; ctx.fillText("READY", 0, 0); ctx.restore();
+    for (const [w, a] of [[2.2, 0.15], [0.9, 0.9]]) { ctx.beginPath(); ctx.moveTo(-8, bh / 2 - 0.7); ctx.lineTo(8, bh / 2 - 0.7); ctx.strokeStyle = `rgba(110,200,255,${a})`; ctx.lineWidth = w; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(8, ly + 1.6, 1.1, 0, 7); ctx.fillStyle = "#6ec8ff"; ctx.fill();
+  } else {
+    ctx.fillStyle = kind === "brass" ? "#1b1206" : "#0b1a10"; ctx.fillRect(-9.8, ly, 12.5, 3.2);
+    ctx.save(); ctx.translate(-3.55, ly + 2.2); ctx.scale(0.1, 0.1); ctx.font = '700 20px "Barlow Condensed", sans-serif'; ctx.textAlign = "center"; ctx.fillStyle = kind === "brass" ? "#ffcf6e" : "#7dff9a"; ctx.fillText("READY", 0, 0); ctx.restore();
+    ctx.beginPath(); ctx.arc(8, ly + 1.6, 2.0, 0, 7); ctx.fillStyle = "rgba(56,224,106,.25)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(8, ly + 1.6, 1.1, 0, 7); ctx.fillStyle = "#38e06a"; ctx.fill();
+    if (kind === "brass") { ctx.beginPath(); ctx.arc(8, ly + 1.6, 1.5, 0, 7); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.4; ctx.stroke(); }
+  }
+  ctx.fillStyle = "#050607"; ctx.fillRect(-8, bh / 2 - 1.9, 16, 1.2);   // delivery slot
+  ctx.beginPath(); ctx.moveTo(-8.5, bh / 2 - 0.3); ctx.lineTo(8.5, bh / 2 - 0.3); ctx.strokeStyle = kind === "brass" ? "#c9a24a" : "#9aa1aa"; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.restore();
+}
+function shoe(ctx, D, at) {
+  const [x, y] = at, kind = D.shoe, bw = 28, bh = 16;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 1.2, bw, bh);
+  const edge = kind === "black" ? "#050505" : kind === "wood" ? "#1e0e06" : "#2a0508";
+  ctx.fillStyle = edge; ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
+  if (kind === "wood") { ctx.fillStyle = pat(ctx, "walnut", 34); ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
+  else { ctx.fillStyle = kind === "black" ? "rgba(20,20,22,.94)" : "rgba(107,15,25,.92)"; ctx.fillRect(-bw / 2 + 0.8, -bh / 2 + 0.8, bw - 1.6, bh - 1.6); }
+  const ix = -bw / 2 + 3.5, iy = -bh / 2 + 2.2, iw = bw - 5.5, ih = bh - 4.4, fill = 0.72;
+  ctx.fillStyle = "#ece8de"; ctx.fillRect(ix, iy, iw * fill, ih);
+  for (let i = 0; i < iw * fill / 0.7; i++) { ctx.fillStyle = "rgba(0,0,0,.1)"; ctx.fillRect(ix + i * 0.7, iy, 0.2, ih); }
+  ctx.fillStyle = BACK_MAIN[D.back]; ctx.fillRect(ix + iw * fill - 1.4, iy, 1.4, ih);
+  ctx.fillStyle = "#ffd23c"; ctx.fillRect(ix + iw * 0.3 - 0.4, iy - 1.2, 0.8, ih + 2.4);   // the cut card
+  ctx.fillStyle = kind === "wood" ? "rgba(30,15,5,.25)" : kind === "black" ? "rgba(0,0,0,.3)" : "rgba(89,5,15,.28)"; ctx.fillRect(ix, iy, iw, ih);
+  ctx.fillStyle = kind === "wood" ? "#c9a24a" : "#1a0204"; ctx.beginPath(); ctx.moveTo(-bw / 2, -bh / 2 + 2); ctx.lineTo(-bw / 2 + 3.5, -bh / 2 + 2.2); ctx.lineTo(-bw / 2 + 3.5, bh / 2 - 2.2); ctx.lineTo(-bw / 2, bh / 2 - 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = kind === "black" ? "rgba(200,210,220,.5)" : "rgba(255,255,255,.12)"; ctx.lineWidth = 0.4; ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+  ctx.restore();
+}
+function rack(ctx, D, at, n = 3) {
+  const [x, y] = at, kind = D.rack, w = 24, h = 18;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fillRect(-w / 2 + 0.6, -h / 2 + 1, w, h);
+  if (kind === "wood") { ctx.fillStyle = pat(ctx, "walnut", 30); ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = darken(D.felt.colour, 0.35); ctx.fillRect(-w / 2 + 1.4, -h / 2 + 1.4, w - 2.8, h - 1.4); }
+  else { ctx.fillStyle = kind === "smoked" ? "rgba(20,24,28,.45)" : "rgba(204,230,242,.16)"; ctx.fillRect(-w / 2, -h / 2, w, h); }
+  ctx.fillStyle = "#e8e4da"; ctx.fillRect(-10, -7 + 0.6 - 1.2, 20, 15.2);
+  for (let k = 0; k < n; k++) { ctx.save(); ctx.translate(Math.sin(k * 1.7) * 0.8, 0.6 - 1.2 + Math.cos(k * 2.3) * 0.6); ctx.rotate(Math.sin(k * 3.1) * 0.07); cardBack(ctx, D, 0, 0, 20, 14); ctx.restore(); }
+  const wall = kind === "wood" ? "#2a160b" : kind === "smoked" ? "rgba(40,46,52,.85)" : "rgba(230,245,255,.55)";
+  ctx.strokeStyle = wall; ctx.lineWidth = kind === "wood" ? 1.6 : 1.2;
+  ctx.beginPath(); ctx.moveTo(-w / 2, h / 2); ctx.lineTo(-w / 2, -h / 2); ctx.lineTo(w / 2, -h / 2); ctx.lineTo(w / 2, h / 2); ctx.stroke();
+  if (kind === "wood") { ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.3; ctx.beginPath(); ctx.moveTo(-w / 2 + 0.8, h / 2); ctx.lineTo(-w / 2 + 0.8, -h / 2 + 0.8); ctx.lineTo(w / 2 - 0.8, -h / 2 + 0.8); ctx.lineTo(w / 2 - 0.8, h / 2); ctx.stroke(); }
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(-w / 2, h / 2); ctx.lineTo(w / 2, h / 2); ctx.stroke();
+  ctx.restore();
+}
+function chair(ctx, at) {
+  const [x, y] = at;
+  ctx.save(); ctx.translate(x, y);
+  ctx.beginPath(); ctx.ellipse(0.6, 9, 11, 4, 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 5, 7.5, 3, 0, 0, 7); ctx.strokeStyle = "#b8913e"; ctx.lineWidth = 1.2; ctx.stroke();   // footring
+  ctx.fillStyle = "#8a6a28"; ctx.fillRect(-1, -2, 2, 8);
+  ctx.beginPath(); ctx.ellipse(0, -2, 9, 5, 0, 0, 7); ctx.fillStyle = "#2a2320"; ctx.fill(); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, -2.6, 6.5, 3, 0, 0, 7); ctx.fillStyle = "rgba(255,255,255,.07)"; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0.5, 9.5, 5.5, 0, 0.15, Math.PI - 0.15); ctx.strokeStyle = "#1a1412"; ctx.lineWidth = 2.6; ctx.stroke();   // the low back
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- a hand in play
+const SAMPLE = {
+  tcp: { main: "ante", side: "pair_plus", up: [["Qh", "Qs", "7d"]] },
+  bj: { main: "bet", side: "twenty_one_plus_three", up: [["Ac", "Kd"]] },
+  pgf: { main: "ante", side: "fortune" }, pgu: { main: "ante", side: "fortune" },
+  ms: { main: "ante", side: "bonus", up: [["9s", "9c"]] },
+  uth: { main: "ante", also: "blind", side: "trips", up: [["As", "Js"]] },
+  lir: { main: "bet1", also: "bet2", also2: "ante", side: "bonus", up: [["Th", "Td", "4c"]] },
+  hcf: { main: "ante", side: "flush", up: [["Ah", "Jh", "8h", "6h", "3h", "Kc", "2s"]] },
+  bac: { main: "player", side: "tie" },
+};
+function drawPlay(ctx, D, game, T) {
+  const s = SAMPLE[game], seats = T.seats === 5 ? [0, 2, 3] : [0, 2, 3, 5], amounts = [1000, 2500, 500, 1500];
+  // dealer's cards
+  if (game === "bac") { ["8d", "Ks", "??"].forEach((c, k) => k < 2 && card(ctx, D, c, ...T.dealer_cards[k])); ["4h", "3c"].forEach((c, k) => card(ctx, D, c, ...T.dealer_cards[3 + k])); }
+  else if (game === "uth") T.dealer_cards.forEach((p, k) => card(ctx, D, k < 2 ? "??" : ["Kh", "7s", "2d", "??", "??"][k - 2], ...p));
+  else if (game === "bj") { card(ctx, D, "9c", ...T.dealer_cards[0]); card(ctx, D, "??", ...T.dealer_cards[1]); }
+  else T.dealer_cards.forEach(p => card(ctx, D, "??", ...p));
+  seats.forEach((seat, j) => {
+    const S = T.spots[seat], you = seat === 2;
+    if (game === "pgf" || game === "pgu") {
+      const [lo, hi] = T.cards[seat];
+      if (you) { card(ctx, D, "Kd", lo[0], lo[1] - 1.5); card(ctx, D, "Ks", lo[0], lo[1] + 1.5);
+        ["Ah", "Qc", "Jd", "Ts", "9h"].forEach((c, k) => card(ctx, D, c, hi[0] - 4 + k * 2, hi[1], Math.PI / 2)); }
+      else for (let k = 0; k < 7; k++) card(ctx, D, "??", lo[0] + Math.sin(k * 2.1) * 0.6, lo[1] - k * 0.25);
+    } else if (T.cards[seat] && T.cards[seat].length) {
+      T.cards[seat].forEach((p, k) => card(ctx, D, you && s.up ? s.up[0][k] : "??", p[0], p[1]));
+    }
+    stack(ctx, D, amounts[j], ...S[s.main].at);
+    if (s.also) stack(ctx, D, amounts[j], ...S[s.also].at);
+    if (s.also2) stack(ctx, D, amounts[j], ...S[s.also2].at);
+    if (you || seat === 5) stack(ctx, D, 500, ...S[s.side].at);
+    if (S.jackpot && seat === 0) stack(ctx, D, 100, ...S.jackpot.at);
+  });
+}
+
+// ---------------------------------------------------------------- the fixed-layout overlay
+function drawFixed(ctx, T) {
+  ctx.save(); ctx.setLineDash([1.2, 0.8]); ctx.strokeStyle = "#46e0ff"; ctx.lineWidth = 0.35;
+  for (const S of T.spots) for (const k in S) { const [x, y] = S[k].at; ctx.beginPath(); ctx.arc(x, y, S[k].r, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - 1.2, y); ctx.lineTo(x + 1.2, y); ctx.moveTo(x, y - 1.2); ctx.lineTo(x, y + 1.2); ctx.stroke(); }
+  const r14 = p => ctx.strokeRect(p[0] - 7, p[1] - 10, 14, 20);
+  T.cards.forEach(cs => cs.forEach(r14)); T.dealer_cards.forEach(r14);
+  for (const k of ["shuffler", "discard"]) if (T[k]) ctx.strokeRect(T[k][0] - 12, T[k][1] - 9, 24, 18);
+  if (T.shoe) ctx.strokeRect(T.shoe[0] - 14, T.shoe[1] - 8, 28, 16);
+  ctx.strokeRect(...T.tray);
+  ctx.setLineDash([]); ctx.restore();
+}
+
+// ---------------------------------------------------------------- one picture
+function render(canvas, D, game, rect, opts = {}) {
+  const T = G.tables[game], cssW = canvas.clientWidth || canvas.width || 600;
+  const dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
+  canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(rect[3] * k * dpr);
+  if (!canvas.clientWidth) canvas.style.width = cssW + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
+  const ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
+  drawCarpet(ctx, rect);
+  drawDealer(ctx);
+  fillPoly(ctx, shift(grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
+  fillPoly(ctx, shift(grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
+  drawRail(ctx, D, felt, ledge);
+  drawFelt(ctx, D, felt);
+  drawBorder(ctx, D, felt, ledge);
+  drawBead(ctx, D, felt);
+  drawTray(ctx, D, ledge);
+  const L = layout(game, T, D);
+  for (const [s, x, y, size, role, a] of L.tx) text(ctx, s, x, y, size, rgba(colourOf(D, role), a), D, { foil: D.spots === "foil" && size >= 8 ? colourOf(D, role) : false });
+  L.sp.forEach(s => drawSpot(ctx, D, s));
+  L.jp.forEach((at, i) => jackpotDisc(ctx, D, at, opts.lit && i === 3));
+  if (T.discard) rack(ctx, D, T.discard);
+  if (opts.play) drawPlay(ctx, D, game, T);
+  if (T.shoe) shoe(ctx, D, T.shoe);
+  if (T.shuffler) shuffler(ctx, D, T.shuffler);
+  T.chairs.forEach(c => chair(ctx, c));
+  if (opts.fixed) drawFixed(ctx, T);
+}
+
+// ---------------------------------------------------------------- the page
+function viewRect() {
+  if (state.view !== "seat") return VIEWS[state.view][1];
+  const T = G.tables[state.game], x = T.chairs[2][0];
+  return [x - 41, -100, 82, 108];
+}
+function draw() {
+  render($("#stage"), state.d, state.game, viewRect(), { play: state.play, lit: state.lit, fixed: state.fixed });
+  const bay = VIEWS.bay[1];
+  render($("#cmpLedge"), { ...state.d, tray: { ...state.d.tray, mode: "ledge" } }, state.game, bay, { play: state.play });
+  render($("#cmpSunk"), { ...state.d, tray: { ...state.d.tray, mode: "sunk" } }, state.game, bay, { play: state.play });
+  document.querySelectorAll("#compare figure").forEach(f => f.setAttribute("aria-pressed", String(f.dataset.tray === state.d.tray.mode)));
+  $("#legend").hidden = !state.fixed;
+  const dist = distance(BACK_MAIN[state.d.back], state.d.felt.colour), warn = $("#contrast");
+  warn.hidden = dist >= 22; warn.textContent = "This card back is close to the felt's colour: face-down cards may blend in";
+  remember();
+}
+function drawPresets() {
+  document.querySelectorAll("#presets canvas").forEach(c => render(c, PRESETS[c.dataset.p].d, state.game, VIEWS.table[1], { play: true, lit: true }));
+}
+function $(s) { return document.querySelector(s); }
+
+function buildUI() {
+  const pres = $("#presets");
+  for (const [id, p] of Object.entries(PRESETS)) {
+    const b = document.createElement("button"); b.className = "preset"; b.type = "button"; b.dataset.p = id;
+    b.innerHTML = `<canvas data-p="${id}" aria-hidden="true"></canvas><b></b><span></span>`;
+    b.querySelector("b").textContent = p.name; b.querySelector("span").textContent = p.blurb;
+    b.addEventListener("click", () => { state.preset = id; state.d = clone(p.d); syncUI(); draw(); });
+    pres.appendChild(b);
+  }
+  const games = $("#games");
+  for (const [id, label] of GAMES) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.v = id;
+    b.addEventListener("click", () => { state.game = id; syncUI(); draw(); drawPresets(); }); games.appendChild(b); }
+  const views = $("#views");
+  for (const [id, [label]] of Object.entries(VIEWS)) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.v = id;
+    b.addEventListener("click", () => { state.view = id; syncUI(); draw(); }); views.appendChild(b); }
+  for (const [id, key] of [["optPlay", "play"], ["optLit", "lit"], ["optFixed", "fixed"]]) $("#" + id).addEventListener("change", e => { state[key] = e.target.checked; draw(); });
+  document.querySelectorAll("#compare figure").forEach(f => {
+    const pick = () => { state.d.tray.mode = f.dataset.tray; syncUI(); draw(); };
+    f.addEventListener("click", pick); f.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+  });
+
+  const host = $("#slots");
+  for (const slot of SLOTS) {
+    const el = document.createElement("div"); el.className = "slot"; el.dataset.slot = slot.id;
+    el.innerHTML = `<h3><span class="dot" title="Changed from the preset"></span><span></span>${slot.hint ? "<small></small>" : ""}</h3>`;
+    el.querySelector("h3 span:nth-child(2)").textContent = slot.label;
+    if (slot.hint) el.querySelector("small").textContent = slot.hint;
+    for (const c of slot.ctl) {
+      const box = document.createElement("div"); box.className = "ctl";
+      if (c.label) { const l = document.createElement("span"); l.className = "lbl"; l.textContent = c.label; box.appendChild(l); }
+      const id = "c_" + c.key.replace(".", "_");
+      if (c.type === "seg") {
+        const seg = document.createElement("div"); seg.className = "seg"; seg.role = "group"; seg.dataset.key = c.key;
+        for (const [v, label] of c.options) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.v = v; b.id = id + "_" + v;
+          b.addEventListener("click", () => { setKey(state.d, c.key, v); syncUI(); draw(); }); seg.appendChild(b); }
+        box.appendChild(seg);
+      } else if (c.type === "swatch") {
+        const sw = document.createElement("div"); sw.className = "swatches"; sw.dataset.key = c.key;
+        for (const [name, v] of c.options) { const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = v; b.title = name; b.setAttribute("aria-label", name); b.dataset.v = v;
+          b.addEventListener("click", () => { setKey(state.d, c.key, v); syncUI(); draw(); }); sw.appendChild(b); }
+        if (c.custom) { const inp = document.createElement("input"); inp.type = "color"; inp.id = id; inp.title = "Any colour"; inp.setAttribute("aria-label", c.label + ": any colour");
+          inp.addEventListener("input", () => { setKey(state.d, c.key, inp.value); syncUI(); draw(); }); sw.appendChild(inp); }
+        box.appendChild(sw);
+      } else if (c.type === "range") {
+        const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 1; r.step = 0.05; r.id = id; r.dataset.key = c.key;
+        r.addEventListener("input", () => { setKey(state.d, c.key, +r.value); syncUI(); draw(); }); box.appendChild(r);
+      }
+      el.appendChild(box);
+    }
+    host.appendChild(el);
+  }
+  $("#resetBtn").addEventListener("click", () => { state.d = clone(PRESETS[state.preset].d); syncUI(); draw(); });
+  $("#copyBtn").addEventListener("click", () => {
+    const json = JSON.stringify({ preset: state.preset, design: state.d }, null, 1);
+    navigator.clipboard.writeText(json).then(() => status("Settings copied."), () => status("Couldn't copy here: " + json));
+  });
+  const credits = $("#credits");
+  for (const [file, name, id, who] of CREDITS) { const li = document.createElement("li"); li.innerHTML = `<a target="_blank" rel="noopener"></a>, ${""}<span></span>: CC0`;
+    li.querySelector("a").href = "https://polyhaven.com/a/" + id; li.querySelector("a").textContent = name + " (Poly Haven)"; li.querySelector("span").textContent = who; credits.appendChild(li); }
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { draw(); drawPresets(); }, 120); });
+}
+function status(s) { $("#saveStatus").textContent = s; }
+function syncUI() {
+  document.querySelectorAll("#presets .preset").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === state.preset)));
+  document.querySelectorAll("#games button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === state.game)));
+  document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === state.view)));
+  $("#optPlay").checked = state.play; $("#optLit").checked = state.lit; $("#optFixed").checked = state.fixed;
+  document.querySelectorAll("#slots [data-key]").forEach(el => {
+    const v = getKey(state.d, el.dataset.key);
+    if (el.type === "range") el.value = v;
+    else el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+    const inp = el.querySelector('input[type="color"]'); if (inp && /^#[0-9a-f]{6}$/i.test(v)) inp.value = v;
+  });
+  const base = PRESETS[state.preset].d;
+  document.querySelectorAll("#slots .slot").forEach(el => {
+    const slot = SLOTS.find(s => s.id === el.dataset.slot);
+    el.classList.toggle("changed", slot.keys.some(k => JSON.stringify(state.d[k]) !== JSON.stringify(base[k])));
+  });
+}
+
+// ---------------------------------------------------------------- saving designs (the artifact's shared db)
+async function wireSaving() {
+  const save = $("#saveBtn"), list = $("#savedList");
+  save.disabled = true;
+  let db = null;
+  try { db = window.claude && await window.claude.use("db"); } catch (e) { db = null; }
+  if (!db) { status("Saving needs the page opened on claude.ai while signed in. Copy settings works anywhere."); return; }
+  status("Saved designs appear here for everyone with the link, and I can read them back.");
+  save.disabled = false;
+  const col = db.collection("designs");
+  col.onSnapshot(snap => {
+    list.replaceChildren();
+    snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt))).forEach(doc => {
+      const li = document.createElement("li"); const n = document.createElement("span"); n.textContent = doc.name || doc.id;
+      const b = document.createElement("button"); b.className = "btn ghost"; b.type = "button"; b.textContent = "Load";
+      b.addEventListener("click", () => { if (doc.design) { state.d = { ...clone(PRESETS[doc.preset in PRESETS ? doc.preset : "grand"].d), ...doc.design }; state.preset = doc.preset in PRESETS ? doc.preset : state.preset; syncUI(); draw(); status(`Loaded "${doc.name}".`); } });
+      li.append(n, b); list.appendChild(li);
+    });
+  }, () => status("Couldn't load saved designs just now."));
+  save.addEventListener("click", async () => {
+    const name = $("#designName").value.trim() || PRESETS[state.preset].name + " variant";
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "design";
+    save.disabled = true;
+    try { await col.doc(id).set({ name, preset: state.preset, design: clone(state.d), savedAt: new Date().toISOString() }); status(`Saved "${name}".`); $("#designName").value = ""; }
+    catch (e) { status("That didn't save (" + (e && e.code || "error") + "). Try again, or use Copy settings."); }
+    save.disabled = false;
+  });
+}
+async function wireComments() {
+  let c = null;
+  try { c = window.claude && await window.claude.use("comments"); } catch (e) { c = null; }
+  if (!c || !c.openComposer) return;
+  const b = $("#commentBtn"); b.hidden = false;
+  b.addEventListener("click", () => { c.openComposer({ element: $("#stagebox") }).catch(() => {}); });
+}
+
+// ---------------------------------------------------------------- start
+(async function start() {
+  try {
+    G = await fetch("geometry.json").then(r => r.json());
+    const files = { mahogany: "wood_mahogany.jpg", walnut: "wood_walnut.jpg", wenge: "wood_wenge.jpg", rosewood: "wood_rosewood.jpg", ebony: "wood_ebony.jpg",
+      leather: "leather_detail.png", weave: "felt_weave.png", velvet: "felt_velvet.png", carpet: "carpet.png", dealer: "dealer.png" };
+    await Promise.all(Object.entries(files).map(([k, f]) => new Promise(res => { const i = new Image(); i.onload = () => { TEX[k] = i; res(); }; i.onerror = res; i.src = "textures/" + f; })));
+    for (const k of ["walnut", "carpet", "weave", "velvet", "leather", "mahogany"]) if (!TEX[k]) { const c = document.createElement("canvas"); c.width = c.height = 4; TEX[k] = c; }
+    await Promise.all(Object.values(FONTS).map(f => document.fonts.load(`${f[1]} 20px "${f[0]}"`)).concat([document.fonts.load('700 20px "Barlow Condensed"'), document.fonts.load('700 20px "Barlow"')])).catch(() => {});
+    buildUI(); syncUI(); draw(); drawPresets();
+  } catch (e) {
+    document.querySelector(".stage").insertAdjacentHTML("afterbegin", '<p class="note">The table geometry didn\'t load, so there\'s nothing to draw. Reload the page.</p>');
+  }
+  wireSaving(); wireComments();
+})();
+</script>
