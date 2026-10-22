@@ -110,9 +110,9 @@ Every card table follows the same alignment rules:
 ## Turned tables
 
 A table on the floor can be turned (its `rot` on the floor plan; `plan_catalogue.json` says which turns each game
-takes, and only Blackjack takes 180 so far). For example, the far row of the classic Blackjack pit is turned, so its
-dealers stand with their backs to the pit. The table needs nothing of its
-own for this:
+takes: every card table takes 0 and 180, Roulette and Craps only 0). For example, the far row of the classic
+Blackjack pit is turned, so its dealers stand with their backs to the pit. The table needs nothing of its own for
+this, because it all lives in `FloorGame` and `CasinoTable`:
 - **To a walker** it's drawn as seen from that side. The felt's printing is upside down, and the players face
   you from behind it. The dealer has their back to you and stands on the floor at the felt's edge
   (`dealer_near_pos()`), in front of the table, not in the bay behind it. The chairs are drawn upright (`FloorGame.draw_chair`).

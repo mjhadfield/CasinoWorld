@@ -9,18 +9,18 @@ extends SceneTree
 const OUT := "res://../server/casino_server/plan_catalogue.json"
 const SITTER := Rect2(-12, -36, 24, 44)   # a chair and the player sitting on it, from the chair
 const DEALER_HEAD := 24.0                 # the dealer stands at the felt's top edge: their head clears it by this
-# game -> [scene, its properties, the turns it may have on the floor (degrees)]. Only Blackjack is proven turned
-# (the classic pit); the other card tables join it once each passes the layout audit upside down.
+# game -> [scene, its properties, the turns it may have on the floor (degrees)]. Every card table can be turned
+# round (the classic pit's far row is); Roulette and Craps have their own shapes and stay upright for now.
 const GAMES := {
-	"three_card_poker": ["res://scenes/table/tcp_table.tscn", {"game_label": "Three Card Poker"}, [0]],
+	"three_card_poker": ["res://scenes/table/tcp_table.tscn", {"game_label": "Three Card Poker"}, [0, 180]],
 	"blackjack": ["res://scenes/table/bj_table.tscn", {"game_label": "Blackjack"}, [0, 180]],
-	"pai_gow_fortune": ["res://scenes/table/pg_table.tscn", {"game_label": "Fortune Pai Gow"}, [0]],
-	"pai_gow_face_up": ["res://scenes/table/pg_table.tscn", {"game_label": "Face Up Pai Gow", "face_up": true}, [0]],
-	"mississippi_stud": ["res://scenes/table/ms_table.tscn", {"game_label": "Mississippi Stud"}, [0]],
-	"ultimate_texas_holdem": ["res://scenes/table/uth_table.tscn", {"game_label": "Ultimate Texas Hold'em"}, [0]],
-	"let_it_ride": ["res://scenes/table/lir_table.tscn", {"game_label": "Let It Ride"}, [0]],
-	"high_card_flush": ["res://scenes/table/hcf_table.tscn", {"game_label": "High Card Flush"}, [0]],
-	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0]],
+	"pai_gow_fortune": ["res://scenes/table/pg_table.tscn", {"game_label": "Fortune Pai Gow"}, [0, 180]],
+	"pai_gow_face_up": ["res://scenes/table/pg_table.tscn", {"game_label": "Face Up Pai Gow", "face_up": true}, [0, 180]],
+	"mississippi_stud": ["res://scenes/table/ms_table.tscn", {"game_label": "Mississippi Stud"}, [0, 180]],
+	"ultimate_texas_holdem": ["res://scenes/table/uth_table.tscn", {"game_label": "Ultimate Texas Hold'em"}, [0, 180]],
+	"let_it_ride": ["res://scenes/table/lir_table.tscn", {"game_label": "Let It Ride"}, [0, 180]],
+	"high_card_flush": ["res://scenes/table/hcf_table.tscn", {"game_label": "High Card Flush"}, [0, 180]],
+	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0, 180]],
 	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0]],
 	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0]],
 }

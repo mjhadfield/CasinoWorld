@@ -177,8 +177,7 @@ A Godot 4.7 project exported to the web.
 - Every room is built on every client and every table's events go to everyone; hidden rooms are only hidden. Past
   a few dozen tables the server should send each session only the tables in the rooms it can see.
 - Interactive objects on the floor plan: library pieces are decoration (and footprints); nothing responds to a click.
-- Turned card tables other than Blackjack (each needs the layout audit upside down, then a 180 in
-  `tools/plan_catalogue.gd`'s GAMES), and tables at 90°.
+- Roulette and Craps turned round, and any table at 90°.
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Customising your own look, chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.
