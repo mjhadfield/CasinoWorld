@@ -85,13 +85,20 @@ func _prepare() -> void:
 
 
 func run() -> void:
-	var images := await _paint([from_table, to_table])
+	var settled := _settled()
+	var images := await _paint([from_table, settled])
+	if settled != to_table:
+		settled.free()
 	if not _alive():
 		return _finish()
 	_old = ImageTexture.create_from_image(images[0])
 	_new = ImageTexture.create_from_image(images[1])
 	_old_parts = _parts(from_table)
+	for m in _markers:   # (its pieces are cut where its chairs finish, too)
+		m.node.position = m.to
 	_new_parts = _parts(to_table)
+	for m in _markers:
+		m.node.position = m.from
 	if anim == "dust":
 		_make_dust(images[0], images[1])
 	visible = true
@@ -100,6 +107,23 @@ func run() -> void:
 	tw.tween_method(_step, 0.0, 1.0, SECONDS[anim] / speed)
 	await tw.finished
 	_finish()
+
+
+## The new table as it ends up, to paint its printing from. Its spots line up with its chairs, and when the seat
+## count changes those start where the old ones were (_place_chairs): painted from it, the printing would land in
+## the old places and jump at the end. So then it's a fresh copy, off the floor, with its chairs where they finish
+## (only painted from: it never joins the tree, so it has no @onready nodes, and _paint finds its felt by path).
+func _settled() -> CasinoTable:
+	if _markers.is_empty():
+		return to_table
+	var t: CasinoTable = load(to_table.scene_file_path).instantiate()
+	t.table_id = to_table.table_id
+	t.is_master = true
+	t.master_game = to_table.master_game
+	t.game_label = to_table.game_label
+	if "face_up" in to_table:
+		t.set("face_up", to_table.get("face_up"))
+	return t
 
 
 func _alive() -> bool:
@@ -136,11 +160,12 @@ func _paint(tables: Array) -> Array:
 		vp.size = Vector2i(ceili(PRINT.size.x * PPU), ceili(PRINT.size.y * PPU))
 		vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-		var painter: TableFelt = t._felt.get_script().new()
+		var felt: Node2D = t.get_node("Felt")
+		var painter: TableFelt = felt.get_script().new()
 		painter.painting = true
 		painter.table_ref = t
 		painter.layer = "print"
-		painter.position = t._felt.position
+		painter.position = felt.position
 		vp.add_child(painter)
 		add_child(vp)
 		vp.canvas_transform = Transform2D(0.0, Vector2(PPU, PPU), 0.0, -PRINT.position * PPU)   # (once it's in the tree)
