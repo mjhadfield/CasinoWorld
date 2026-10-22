@@ -34,8 +34,8 @@ func _initialize() -> void:
 		var t = load(TABLES[key]).instantiate()
 		root.add_child(t)
 		await process_frame
-		if border.is_empty():
-			border = t.grown(-5.0, 48)
+		if border.is_empty():   # the 5-in border line, round the sunk tray (the tighter of the two)
+			border = t.get_node("Felt").border_edge(-5.0, false)
 		print("\n=== ", key, "  seats ", t.seat_count())
 		var tray: Rect2 = t.tray_rect()
 		print("  chip tray      ", fmt(tray))

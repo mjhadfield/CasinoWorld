@@ -22,6 +22,7 @@ const SHEEN := Color(1.0, 0.886, 0.745)
 
 var d: Dictionary   # the design being painted
 var _gradients := {}
+static var _borders := {}   # border_edge(), by tray mode and inset
 
 
 func _init() -> void:
@@ -121,6 +122,31 @@ static func felt_outline(ledge: bool) -> PackedVector2Array:
 	out.append_array(tongue(0.0))
 	out.append_array(o.slice(last + 1))
 	return out
+
+
+## The line a border follows, `by` into the felt from its edge as you see it: round the dealer's ledge, or
+## round the front of the sunk chip tray, so it's one unbroken line either way.
+static func border_edge(by: float, ledge: bool) -> PackedVector2Array:
+	var key := "%s/%.2f" % [ledge, by]
+	if not _borders.has(key):
+		var edge := felt_outline(ledge)
+		if not ledge:   # the felt less the tray (and the gap round its lip)
+			var biggest := 0.0
+			for part in Geometry2D.clip_polygons(edge, _rounded(CasinoTable.tray_box().grow(0.5), 2.8)):
+				var area := absf(_area(part))
+				if area > biggest:
+					biggest = area
+					edge = part
+		var polys := Geometry2D.offset_polygon(edge, by, Geometry2D.JOIN_ROUND)
+		_borders[key] = polys[0] if not polys.is_empty() else edge
+	return _borders[key]
+
+
+static func _area(pts: PackedVector2Array) -> float:
+	var a := 0.0
+	for i in pts.size():
+		a += pts[i].cross(pts[(i + 1) % pts.size()])
+	return a / 2.0
 
 
 static func _arc_pts(pts: PackedVector2Array, centre: Vector2, r: float, from_deg: float, to_deg: float, steps: int) -> void:
@@ -267,32 +293,27 @@ func _gradient(colour: Color, vignette: float) -> GradientTexture2D:
 	return _gradients[key]
 
 
-## The border line inside the rail. With a ledge it runs into the ledge rather than round it.
+## The border line inside the rail, one unbroken line round the chip tray whether it's on a ledge or sunk in.
 func _border(ledge: bool) -> void:
 	var b: String = d.border
 	if b == "none":
 		return
 	var ink := TableStyle.colour(d, "print.ink")
 	var acc := TableStyle.colour(d, "print.accent")
-	var cut := PackedVector2Array()
-	if ledge:
-		cut = tongue(3.0)
-		cut.append(Vector2(cut[cut.size() - 1].x, -170))
-		cut.append(Vector2(cut[0].x, -170))
-	var g := func(by: float) -> PackedVector2Array: return _grown(by)
+	var g := func(by: float) -> PackedVector2Array: return _border_path(by, ledge)
 	match b:
 		"pinstripe":
-			_line(g.call(-5.0), Color(ink, 0.7), 0.5, cut)
+			_loop(g.call(-5.0), Color(ink, 0.7), 0.5)
 		"gilt":
-			_line(_shifted(g.call(-5.0), Vector2(0, 0.25)), Color(0, 0, 0, 0.4), 0.8, cut)
-			_line(g.call(-5.0), acc.lightened(0.15), 0.65, cut)
-			_line(_shifted(g.call(-5.0), Vector2(0, -0.15)), Color(1, 0.96, 0.82, 0.5), 0.2, cut)
+			_loop(_shifted(g.call(-5.0), Vector2(0, 0.25)), Color(0, 0, 0, 0.4), 0.8)
+			_loop(g.call(-5.0), acc.lightened(0.15), 0.65)
+			_loop(_shifted(g.call(-5.0), Vector2(0, -0.15)), Color(1, 0.96, 0.82, 0.5), 0.2)
 		"double":
-			_line(g.call(-4.0), Color(acc, 0.85), 0.55, cut)
-			_line(g.call(-6.0), Color(acc, 0.6), 0.3, cut)
+			_loop(g.call(-4.0), Color(acc, 0.85), 0.55)
+			_loop(g.call(-6.0), Color(acc, 0.6), 0.3)
 		"deco":
-			_line(g.call(-3.5), Color(acc, 0.9), 0.6, cut)
-			_line(g.call(-6.0), Color(acc, 0.65), 0.3, cut)
+			_loop(g.call(-3.5), Color(acc, 0.9), 0.6)
+			_loop(g.call(-6.0), Color(acc, 0.65), 0.3)
 			var p: PackedVector2Array = g.call(-4.75)
 			var s := 0.0
 			for i in p.size():
@@ -301,25 +322,18 @@ func _border(ledge: bool) -> void:
 				var length := a.distance_to(q)
 				if floorf((s + length) / 34.0) > floorf(s / 34.0):
 					var m := (a + q) / 2
-					if cut.is_empty() or not Geometry2D.is_point_in_polygon(m, cut):
-						draw_colored_polygon(PackedVector2Array([m + Vector2(0, -1.3), m + Vector2(1.0, 0), m + Vector2(0, 1.3), m + Vector2(-1.0, 0)]), Color(acc, 0.95))
+					draw_colored_polygon(PackedVector2Array([m + Vector2(0, -1.3), m + Vector2(1.0, 0), m + Vector2(0, 1.3), m + Vector2(-1.0, 0)]), Color(acc, 0.95))
 				s += length
 		"led":
 			var led := TableStyle.colour(d, "led")
 			for wa in [[5.0, 0.06], [3.0, 0.1], [1.6, 0.2], [0.6, 0.7]]:
-				_line(g.call(-2.0), Color(led, wa[1]), wa[0], cut)
-			_line(g.call(-2.0), Color(1, 1, 1, 0.55), 0.2, cut)
+				_loop(g.call(-2.0), Color(led, wa[1]), wa[0])
+			_loop(g.call(-2.0), Color(1, 1, 1, 0.55), 0.2)
 
 
-## A closed line, less any of it inside `cut`.
-func _line(pts: PackedVector2Array, colour: Color, width: float, cut: PackedVector2Array) -> void:
-	if cut.is_empty():
-		_loop(pts, colour, width)
-		return
-	var closed := pts.duplicate()
-	closed.append(pts[0])
-	for piece in Geometry2D.clip_polyline_with_polygon(closed, cut):
-		draw_polyline(piece, colour, width, true)
+## The line a border `by` into the felt follows (Roulette's runs round its own outline).
+func _border_path(by: float, ledge: bool) -> PackedVector2Array:
+	return border_edge(by, ledge)
 
 
 func _bead(felt: PackedVector2Array) -> void:

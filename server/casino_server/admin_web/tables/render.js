@@ -194,7 +194,7 @@ function feltPoly(mode) {
 // The shape a table's rail and felt are drawn round (StyledFelt's _grown, _rail_w, _middle, _reach, _pad_area):
 // the card table's, or Roulette's or Craps' ("rou", "crp"). g(by) is the outline grown `by` out from the felt.
 const CARD_SHAPE = {
-  g: by => G.grown[Number.isInteger(by) ? by.toFixed(1) : String(by)], rail: RAIL, middle: [0, -70], reach: 400,
+  g: by => need(G.grown, Number.isInteger(by) ? by.toFixed(1) : String(by), "outline"), rail: RAIL, middle: [0, -70], reach: 400,
   box: [-200, -200, 400, 260], cards: true,
   pad: arm => arm === "player" ? [[-200, -94], [200, -94], [200, 66], [-200, 66]] : null,
 };
@@ -204,7 +204,9 @@ function shapeOf(key) {
     rail: T.rail, middle: key === "rou" ? [30, -60] : [0, -60], reach: key === "rou" ? 420 : 460, box: [-230, -160, 460, 200],
     pad: arm => arm === "dealer" ? T.pad : null };
 }
-const grown = k => G.grown[k];
+const grown = k => need(G.grown, k, "outline");
+// A line from geometry.json, or a clear error (a missing one once blanked everything drawn after it).
+function need(set, key, what) { const p = set && set[key]; if (!p) throw new Error(`geometry.json has no ${what} at ${key}: add it to tools/table_geometry.gd`); return p; }
 function shift(pts, dx, dy) { return pts.map(p => [p[0] + dx, p[1] + dy]); }
 
 // ---------------------------------------------------------------- drawing primitives
@@ -324,12 +326,10 @@ function drawFelt(ctx, S, D, felt) {
 }
 function drawBorder(ctx, S, D, felt, ledge) {
   const b = D.border; if (!b || b === "none") return;
-  const grown = by => S.g(+by);
+  // The card table's line runs unbroken round the chip tray, on its ledge or sunk in (StyledFelt.border_edge).
+  const grown = by => S.cards ? need(G.border[ledge ? "ledge" : "sunk"], (+by).toFixed(2), "border") : S.g(+by);
   const ink = D.print.ink, acc = D.print.accent;
   ctx.save(); ctx.beginPath(); path(ctx, felt); ctx.clip();
-  if (ledge) {   // the line runs into the ledge rather than round it
-    const t = tongue(3); ctx.beginPath(); ctx.rect(-220, -220, 440, 300); path(ctx, [...t, [t[t.length - 1][0], -170], [t[0][0], -170]]); ctx.clip("evenodd");
-  }
   if (b === "pinstripe") strokePoly(ctx, grown("-5.0"), rgba(ink, 0.7), 0.5);
   if (b === "gilt") { strokePoly(ctx, shift(grown("-5.0"), 0, 0.25), "rgba(0,0,0,.4)", 0.8); strokePoly(ctx, grown("-5.0"), lighten(acc, 0.15), 0.65); strokePoly(ctx, shift(grown("-5.0"), 0, -0.15), "rgba(255,245,210,.5)", 0.2); }
   if (b === "double") { strokePoly(ctx, grown("-4.0"), rgba(acc, 0.85), 0.55); strokePoly(ctx, grown("-6.0"), rgba(acc, 0.6), 0.3); }

@@ -21,6 +21,10 @@ func _grown(by: float) -> PackedVector2Array:
 	return RouTable.shape(by)
 
 
+func _border_path(by: float, _ledge: bool) -> PackedVector2Array:
+	return _grown(by)
+
+
 func _rail_w() -> float:
 	return RouTable.RAIL_W
 

@@ -43,6 +43,9 @@ How it's put together:
 - **The dealer's ledge** replaces the felt behind the dealer's cards with the rail, swept across the bay with
   fillets into the dealer's edge (`StyledFelt.tongue()`). The well is cut into it inside `tray_rect()`, so chips
   still fly to and from `tray_pos()`. The collision and outline are unchanged.
+- **The border line** is one unbroken line round the felt as you see it: round the ledge, or round the front of the
+  sunk tray (`StyledFelt.border_edge()`, the felt less the tray, inset). The designer takes the same lines from
+  `geometry.json` (`border`), which `tools/table_geometry.gd` writes for every inset a border uses.
 - **Tiles and fonts:**
   - The wood, leather and felt tiles in `client/assets/tiles/table/` come from Poly Haven (CC0), made by
     `tools/build_table_tiles.py`. The leather and felt ones are "shades": white where the scan is lighter, black

@@ -14,6 +14,7 @@ const TABLES := {
 	"mt": "res://scenes/table/master_table.tscn",   # (the Master Table blank: its crest, no spots)
 }
 const GROWN := [-8.0, -6.5, -6.0, -5.0, -4.0, -3.5, -2.0, -1.2, -0.9, -0.3, 1.2, 1.5, 3.5, 4.0, 5.9, 6.5, 7.0, 7.5, 11.0]
+const BORDER := [-2.0, -3.5, -4.0, -4.75, -5.0, -6.0]
 const OUT := ["../server/casino_server/admin_web/tables/geometry.json", "../docs/table_styles/mockup/geometry.json"]
 
 
@@ -51,6 +52,12 @@ func _initialize() -> void:
 	}
 	for g in GROWN:
 		data.grown[str(g)] = poly(c.grown(g, 24))
+	# The border lines, round the ledge or the sunk tray (StyledFelt.border_edge), keyed "%.2f".
+	var felt = c.get_node("Felt")
+	data["border"] = {"ledge": {}, "sunk": {}}
+	for by in BORDER:
+		for mode in data.border:
+			data.border[mode]["%.2f" % by] = poly(felt.border_edge(by, mode == "ledge"))
 	c.queue_free()
 	for key in TABLES:
 		var t = load(TABLES[key]).instantiate()

@@ -343,6 +343,11 @@ func seat_x(seat: int) -> float:
 ## and its rail, its back edge sunk into the rail, its front on the felt, well
 ## clear of the dealer's cards.
 func tray_rect() -> Rect2:
+	return tray_box()
+
+
+## The card tables' chip tray (tray_rect(), which Roulette and Craps give their own).
+static func tray_box() -> Rect2:
 	return Rect2(-(BAY_W + RAIL), bay_floor() - 5.0, (BAY_W + RAIL) * 2, 12)
 
 
