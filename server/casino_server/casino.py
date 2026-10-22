@@ -172,7 +172,7 @@ class Casino:
             if session.entity_id == entity_id:
                 session.table = session.seat = None
                 if reason == "inactive":
-                    session.push({"type": "notice", "message": "You sat out three hands, so you've been stood up."})
+                    session.push({"type": "notice", "message": "You sat out three hands at a busy table, so you've been stood up."})
                 elif reason == "idle":
                     session.push({"type": "notice", "message": "You left the machine idle for five minutes, so you've been stood up."})
 

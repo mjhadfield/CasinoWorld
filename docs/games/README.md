@@ -45,7 +45,8 @@ up, and turn back when they stand.
   page's Settings tab (a low-back stool in black leather on a brass frame, signed off on the seating mockup).
   Styles are stored by name with a table-to-style map, so a table can have its own later (`seating.py`).
 - **Standing up:** use **Stand up** (or **Esc**). Standing mid-hand folds it at Three Card Poker, or stands
-  your hands at Blackjack, after a confirmation. If you sit out three hands in a row, the table stands you up.
+  your hands at Blackjack, after a confirmation. If you sit out three hands in a row while the table has one
+  open seat or none, the table stands you up (at a quieter table you keep your seat until it fills up).
 
 ## Betting at the card tables
 

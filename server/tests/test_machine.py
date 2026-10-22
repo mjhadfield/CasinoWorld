@@ -295,19 +295,39 @@ def test_standing_mid_hand_folds_and_the_table_carries_on():
     assert m.seats[0].participant is None
 
 
-def test_inactive_human_is_stood_up_after_three_hands():
-    m = machine(CODES * 5)
-    ann, npc = FakeParticipant("Ann"), FakeParticipant("Bob", human=False)
-    m.sit(0, ann, 0), m.sit(1, npc, 0)
-    now = 0
-    for round_no in range(INACTIVE_ROUNDS):
+def sit_out_rounds(m, rounds, now=0):
+    """Seat 1 plays (and folds) `rounds` hands; returns (events of the last one, now)."""
+    for round_no in range(rounds):
         m.set_bets(1, {"ante": 100}, now)
         events = m.tick(now)
         m.decide(1, False, now)
         events += m.tick(now)
         now += 1
+    return events, now
+
+
+def test_inactive_human_is_stood_up_after_three_hands_at_a_full_table():
+    m = machine(CODES * 5)
+    ann = FakeParticipant("Ann")
+    m.sit(0, ann, 0)
+    for i in range(1, 5):  # five of six seats taken: one open
+        m.sit(i, FakeParticipant(f"NPC{i}", human=False), 0)
+    events, _ = sit_out_rounds(m, INACTIVE_ROUNDS)
     stood = find(events, "stood")
     assert stood and stood[0]["seat"] == 0 and stood[0]["reason"] == "inactive"
+
+
+def test_inactive_human_keeps_seat_while_two_or_more_are_open():
+    m = machine(CODES * 8)
+    ann = FakeParticipant("Ann")
+    m.sit(0, ann, 0)
+    for i in range(1, 4):  # four of six seats taken: two open
+        m.sit(i, FakeParticipant(f"NPC{i}", human=False), 0)
+    events, now = sit_out_rounds(m, INACTIVE_ROUNDS + 2)
+    assert m.seats[0].participant is ann and not find(events, "stood")
+    m.sit(4, FakeParticipant("NPC4", human=False), now)  # table fills to one open seat
+    events, _ = sit_out_rounds(m, 1, now)
+    assert find(events, "stood")[0]["seat"] == 0
 
 
 def test_rebet_and_jackpot_win():

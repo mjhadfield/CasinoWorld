@@ -19,7 +19,8 @@ screen).
 from dataclasses import dataclass, field
 
 CHIPS = [100, 500, 2_500, 10_000, 50_000]  # Casino v2's £1/£5/£25/£100/£500
-INACTIVE_ROUNDS = 3  # a human who sits out this many dealt rounds in a row is stood up
+INACTIVE_ROUNDS = 3  # a human who sits out this many dealt rounds in a row is stood up...
+INACTIVE_MAX_FREE = 1  # ...but only once the table has this many open seats or fewer
 
 
 class TableError(Exception):
@@ -287,7 +288,9 @@ class TableMachine:
     def _take_bets(self, now: float) -> tuple[list, dict]:
         """Betting closes: take each playing seat's upfront bets. Seats with no
         main bet (or that can't cover it) are cleared; humans sitting out a hand
-        that's going ahead are counted, and stood up after INACTIVE_ROUNDS.
+        that's going ahead are counted, and stood up after INACTIVE_ROUNDS -- but
+        only while INACTIVE_MAX_FREE or fewer seats are open, so nobody's moved on
+        from a quiet table. The count keeps going, so they go once it fills up.
         Returns (events, {seat: bets dict}) -- an empty dict if nobody's playing."""
         events = []
         playing = {}
@@ -306,7 +309,7 @@ class TableMachine:
         for i in self.humans_seated():
             if i not in playing:
                 self.seats[i].sat_out += 1
-                if self.seats[i].sat_out >= INACTIVE_ROUNDS:
+                if self.seats[i].sat_out >= INACTIVE_ROUNDS and len(self.free_seats()) <= INACTIVE_MAX_FREE:
                     events += self.stand(i, now, reason="inactive")
             else:
                 self.seats[i].sat_out = 0
