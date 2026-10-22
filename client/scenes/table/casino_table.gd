@@ -56,6 +56,7 @@ const SEAT_COUNT := 6
 @export var sign_side := ""
 
 var ready_seats := {}
+var auto_rebet_seats := {}  # seats with Auto rebet ticked (their spots don't glow: the bets go down by themselves)
 var in_hand := false      # the local player was dealt into this hand
 var jackpot_lights := {}  # seat -> "flash" (bet on the disc) | "solid" (locked in)
 var _timer_end := 0.0     # betting or decision countdown, in local seconds
@@ -493,6 +494,7 @@ func apply_snapshot(state: Dictionary) -> void:
 		_start_timer(float(state.timer))
 	var seats: Array = state.get("seats", [])
 	in_hand = false
+	auto_rebet_seats.clear()
 	for i in seats.size():
 		var s = seats[i]
 		if s == null:
@@ -500,6 +502,8 @@ func apply_snapshot(state: Dictionary) -> void:
 		occupants[i] = {"entity": s.entity, "name": s.name, "human": s.human}
 		if s.get("ready"):
 			ready_seats[i] = true
+		if s.get("auto_rebet"):
+			auto_rebet_seats[i] = true
 		var locked: bool = phase != "betting"
 		for spot in s.get("bets", {}):
 			if spot == "jackpot" and locked:
@@ -621,6 +625,7 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			var seat := int(ev.seat)
 			occupants.erase(seat)
 			ready_seats.erase(seat)
+			auto_rebet_seats.erase(seat)
 			if phase == "betting":
 				jackpot_lights.erase(seat)
 				for spot in _chips_for(seat).keys():
@@ -646,6 +651,13 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			return 0.0
 		"ready":
 			ready_seats[int(ev.seat)] = true
+			queue_redraw()
+			return 0.0
+		"auto_rebet":
+			if ev.on:
+				auto_rebet_seats[int(ev.seat)] = true
+			else:
+				auto_rebet_seats.erase(int(ev.seat))
 			queue_redraw()
 			return 0.0
 		"bets_closed":
@@ -1103,8 +1115,10 @@ func over_dealer(local: Vector2) -> bool:
 
 
 ## While you're sat with chips to put down, the spots waiting for them glow in the style's glow colour (SpotGlow).
+## Not with Auto rebet ticked: the bets go back down by themselves.
 func _draw_spot_glows(now: float) -> void:
-	var spots := glowing_spots() if mode == "seated" and my_seat >= 0 and phase == "betting" and pulse_spots() else []
+	var spots := glowing_spots() if (mode == "seated" and my_seat >= 0 and phase == "betting" and pulse_spots()
+			and not auto_rebet_seats.has(my_seat)) else []
 	for spot in _glow_since.keys():
 		if not spot in spots:
 			_glow_since.erase(spot)

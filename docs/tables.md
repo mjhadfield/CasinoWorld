@@ -92,7 +92,8 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **The spot glow** (`scenes/table/spot_glow.gd`, `SpotGlow`) is the light round the local player's spots while
   they can bet: first only the primary bets (`CasinoTable.primary_spots()`, the main bet by default; Baccarat's
   Banker and Player, Hold'em's Ante and Blind, Let It Ride's three), then, once one of them has chips on it, the
-  side bets still empty (`glowing_spots()`). It follows each spot's printed outline (`spot_shape()`: a circle of
+  side bets still empty (`glowing_spots()`). Nothing glows while the player has Auto rebet ticked
+  (`auto_rebet_seats`), since their bets go back down by themselves. It follows each spot's printed outline (`spot_shape()`: a circle of
   `SPOT_R` unless the game gives another, such as the Three Card Ante's diamond or Baccarat's boxes, which the felts
   also print from), with a breathing halo and a lit edge, in the style's `glow` colour. A
   click anywhere on a spot's shape lands on it. The designer's "Spot glow" plays the same (`drawGlow()` in render.js,
