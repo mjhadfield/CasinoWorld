@@ -117,7 +117,17 @@ Most of it lives in `FloorGame` and `CasinoTable`, so a card table needs nothing
   stands on the floor at the felt's edge (`dealer_near_pos()`), not in the bay with the felt hiding their feet. At
   90 the dealer's side is to our right, at 270 to our left; on its side (`FloorGame.sideways()`) the dealer draws
   over the rail at z 1, as a sitter does, since the felt's own place in the Y-sort can be either side of their feet.
-  The chairs are drawn upright (`FloorGame.draw_chair`).
+  The chairs are drawn upright (`FloorGame.draw_chair`), and they come in towards the table
+  (`CasinoTable.chair_tuck()`). Chairs and sitters are drawn upright from their feet, so at an upright table they
+  rise towards it and the sitter leans over the rail. Past an upside-down table's far side they'd rise away from it
+  and leave a gap, so there `chair_pos()` brings them in until the feet are 8.5 behind the rail (`tuck_far()`), and
+  on its side until a stool's edge is just clear of it (`tuck_side()`). Craps' standers come in the same way.
+  `seat_pos()` is the seat itself: `stand_pos()`, the server's seat points and NPC walks are measured from it, so
+  nothing moves on the floor's map, only on screen. When the way up changes, the chairs move and everyone sitting
+  moves with them (`FloorGame.move_sitters()`; `Seating` keeps `sitters` and puts a sitter in the chair's latest place
+  as a sit-down ends). Seen from in front, a stool's back hides its brass post.
+- **Light** comes from the top of the screen whichever way up a table shows: its shadow on the carpet falls down the
+  screen and its rail's crown is lit along the top (`TableFelt._lit()`; the felt repaints when the turn changes).
 - **Things placed about a sitter** follow the screen, not the table, because the sitter is always upright.
   That covers their chair, the ring round whoever's thinking and their Ready tick. They use
   `FloorGame.on_screen(offset)`, and `screen_turn()` says which way up the table shows right now. A table
@@ -136,16 +146,19 @@ Most of it lives in `FloorGame` and `CasinoTable`, so a card table needs nothing
 - **Positions** the floor and server use are in World's frame. Use `to_global()` for points on a table, never
   `global_position + offset`, as `focus_point()` does.
 - **Roulette and Craps** add a little of their own. Their results signs keep themselves upright about their foot,
-  like the people. At 90 the sign's usual end is the one nearest us, where it would stand in front of the table,
-  so it stands past the other end (`CasinoTable._stand_sign`). Roulette's dealer stands at the mouth of its
+  like the people. The floor plan's Sign picks the end it stands past (`props.sign`, "left" or "right" as the
+  players see it: `CasinoTable.sign_side`). Unpicked, it's the right-hand end, except at 90, where that end is the
+  one nearest us and the sign would stand in front of the table, so it stands past the other end
+  (`CasinoTable._stand_sign`). Roulette's dealer stands at the mouth of its
   shallower bay (`dealer_near_pos()` is `FELT_TOP`). At Craps the `dealer` is the stickman, who stands among the
   players and doesn't move; the boxman already stands just outside the bay's ledge, and draws over the rail on its
   side as the stickman does. The shooter's badge, "next shooter" and the standing spots go at a player's feet as
   the screen sees it, and the badge's text reads upright.
 
 `tools/plan_catalogue.gd` measures each game at every turn it takes: the collision outline, a sitter in every
-chair, any results sign at its full height, and the dealer (their head above the top edge upright, standing at the
-felt's edge when turned).
+chair (where `chair_pos()` puts it at that turn) and every dealer standing, plus where the chairs and dealers are so
+the Floor plan tab can draw them upright as the game does. A results sign gets its own footprint and base at each
+end, apart from the table's: merged in, a tall thin sign past one end would claim the table's whole width.
 
 ## The layout audit
 

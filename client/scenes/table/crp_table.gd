@@ -768,10 +768,20 @@ func stool_pos(seat: int) -> Vector2:
 	return chair_pos(seat) + on_screen(Vector2(0, 3))
 
 
-## The dealer here is the stickman, who stands among the players, so turning the table
-## doesn't move him; the boxman already stands just outside the bay's ledge.
+## The players stand at the rail, 34.5 below it: past its far side their feet come to 8 behind
+## it, and on its side to 14.5 beside it (see CasinoTable.chair_tuck()).
+func tuck_far() -> float:
+	return 26.5
+
+
+func tuck_side() -> float:
+	return 20.0
+
+
+## The dealer here is the stickman, who stands among the players, so turning the table moves
+## him only as far as them (chair_tuck()); the boxman already stands just outside the bay's ledge.
 func dealer_near_pos() -> Vector2:
-	return _dealer_home
+	return _dealer_home + chair_tuck()
 
 
 ## Beside a table on its side, the boxman draws over the rail as the stickman does.

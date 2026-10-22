@@ -30,6 +30,7 @@ var occupants := {}   # seat -> {entity, name, human}
 var chair_state := {}
 var chair_side := {}  # seat -> which side of it its sitter got on from (1 or -1), to get off the same way
 var _backs := {}      # seat -> its ChairBack (the back drawn over its sitter)
+var sitters := {}     # seat -> who's sitting there (the node that moves), so they move with the chairs
 ## Whether any of it is in the camera's view (a VisibleOnScreenNotifier2D round it says): off
 ## screen, nothing that's only for show is redrawn every frame (see breathes_now()).
 var on_screen_now := false
@@ -70,9 +71,22 @@ func seat_count() -> int:
 	return seats
 
 
-func chair_pos(seat: int) -> Vector2:
+## Where a seat is on the floor (its Seat marker): where its sitter's feet go while the table
+## shows upright, and what stand_pos() and the server's seat points are measured from.
+func seat_pos(seat: int) -> Vector2:
 	var marker := get_node_or_null("Seat%d" % seat) as Node2D
 	return marker.position if marker else Vector2.ZERO
+
+
+## Where a seat's chair stands and its sitter sits, as the screen shows it: seat_pos(), drawn in
+## towards the table by chair_tuck() while it shows upside down or on its side.
+func chair_pos(seat: int) -> Vector2:
+	return seat_pos(seat) + chair_tuck()
+
+
+## How far the chairs are drawn in from their seats, in the table's frame (see CasinoTable).
+func chair_tuck() -> Vector2:
+	return Vector2.ZERO
 
 
 ## A seat's stool: just behind the sitter as the screen sees it (as at a cabinet), so it
@@ -115,7 +129,7 @@ func stool_at(local: Vector2) -> int:
 
 ## Where someone stands after getting up from a seat.
 func stand_pos(seat: int) -> Vector2:
-	return chair_pos(seat) + Vector2(0, 22)
+	return seat_pos(seat) + Vector2(0, 22)
 
 
 ## The point the camera centres on when you're here.
@@ -240,6 +254,17 @@ func place_chair_backs() -> void:
 	for seat in _backs:
 		_backs[seat].position = chair_pos(seat) + Vector2(0, 0.5).rotated(-rotation)
 		_backs[seat].queue_redraw()
+
+
+## The chairs moved (the table shows a different way up): everyone sitting in them moves too,
+## except whoever's still sitting down or getting up (Seating puts them in the chair at the end).
+func move_sitters() -> void:
+	for seat in sitters.keys():
+		var who = sitters[seat]
+		if not is_instance_valid(who):
+			sitters.erase(seat)
+		elif not Seating.busy(who):
+			who.position = (who.get_parent() as Node2D).to_local(to_global(chair_pos(seat)))
 
 
 func free_seats() -> Array:

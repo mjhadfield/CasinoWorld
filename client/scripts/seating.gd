@@ -276,6 +276,8 @@ static func _back(ci, g: Dictionary, p: Dictionary, th: float, glow: bool, pulse
 	for f in ([0.5] if not lounge else [0.2, 0.4, 0.6, 0.8]):   # the stool's middle post; the lounge's stitching
 		var a: float = th - hs + 2.0 * hs * f
 		var outer := sin(a) > 0.0
+		if not outer and not lounge:
+			continue   # (the post holds the back from behind: from in front, the cushion hides it)
 		var b: Vector2 = pt.call(a, outer, false)
 		var t: Vector2 = pt.call(a, outer, true)
 		ci.draw_line(b - Vector2(0, 0.6), t + Vector2(0, 1.2),
@@ -392,6 +394,7 @@ static func sit_down(who: Node2D, av: Avatar, game: FloorGame, seat: int, animat
 	var tw := who.create_tween()
 	who.set_meta("seat_tween", tw)
 	who.set_meta("seat_chair", seat)
+	game.sitters[seat] = who
 	if not animate or who.position.distance_to(on_floor.call(c)) > 60.0:
 		who.position = on_floor.call(c)
 		av.dip = 0.0
@@ -400,7 +403,9 @@ static func sit_down(who: Node2D, av: Avatar, game: FloorGame, seat: int, animat
 		return tw
 	if pose != "sit" or st.sit == "glide":   # step in and stand (the craps rail), or glide on (no chair animation)
 		_step(tw, who, av, on_floor.call(c), clampf(who.position.distance_to(on_floor.call(c)) / WALK_SPEED, 0.15, 0.35))
-		tw.tween_callback(func(): av.set_action(pose, face))
+		tw.tween_callback(func():
+			who.position = on_floor.call(game.chair_pos(seat))   # (the chair moved meanwhile: the table turned on screen)
+			av.set_action(pose, face))
 		return tw
 	var rest := game.rest_theta(seat)
 	var bv := Vector2.from_angle(rest)
@@ -436,6 +441,7 @@ static func sit_down(who: Node2D, av: Avatar, game: FloorGame, seat: int, animat
 			av.set_action("sit", game.world_dir(facing_of(th))), side_theta, rest, 0.3 * k).set_trans(Tween.TRANS_SINE)
 	tw.tween_callback(func():
 		game.rest_chair(seat)
+		who.position = on_floor.call(game.chair_pos(seat))   # (the chair moved meanwhile: the table turned on screen)
 		av.set_action("sit", face))
 	return tw
 
@@ -449,6 +455,8 @@ static func stand_up(who: Node2D, av: Avatar, game: FloorGame, seat: int, done: 
 	var on_floor := func(p: Vector2) -> Vector2: return frame.to_local(game.to_global(p))
 	var c := game.chair_pos(seat)
 	var stand: Vector2 = on_floor.call(game.stand_pos(seat))
+	if game.sitters.get(seat) == who:
+		game.sitters.erase(seat)
 	var tw := who.create_tween()
 	who.set_meta("seat_tween", tw)
 	who.set_meta("seat_chair", seat)

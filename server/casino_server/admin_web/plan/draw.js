@@ -1,7 +1,7 @@
 // Drawing the floor plan on a canvas, in plan coordinates (the caller sets the transform): a room's floor and walls as
 // the game draws them (plan_room.gd), its doorways, and everything in it -- tables in their table styles (the Tables
 // tab's render.js), cabinets, pieces, standing figures and furniture -- plus the NPCs' points and zones.
-import { render, loadAssets } from "/admin-ui/tables/render.js";
+import { render, loadAssets, planShadow, planChair, planSpot, planDealer } from "/admin-ui/tables/render.js";
 import { CAT, shapes, kindOf, piece, gap, STOOLS } from "./geom.js";
 
 const images = {};
@@ -41,7 +41,7 @@ function tableThumb(game, tableId) {
   if (!thumbs[key]) {
     const rect = CAT.games[game].at["0"].rect, c = document.createElement("canvas");
     c.width = Math.ceil(rect[2] * 2);
-    try { render(c, design, CAT.games[game].prefix, rect, { bare: true }); } catch (e) { return null; }
+    try { render(c, design, CAT.games[game].prefix, rect, { bare: true, plan: true }); } catch (e) { return null; }
     thumbs[key] = { canvas: c, rect };
   }
   return thumbs[key];
@@ -191,16 +191,7 @@ export function drawItem(ctx, room, item, opts = {}) {
   if (!s) {
     ctx.fillStyle = "rgba(255,90,72,.4)"; ctx.fillRect(x - 16, y - 16, 32, 32);
   } else if (kind === "table") {
-    const game = item.asset.slice(6), t = tableThumb(game, item.id);
-    ctx.translate(x, y);
-    if (item.rot) ctx.rotate(item.rot * Math.PI / 180);
-    if (t) ctx.drawImage(t.canvas, t.rect[0], t.rect[1], t.rect[2], t.rect[3]);
-    else {
-      const b = CAT.games[game].at["0"].body;
-      ctx.fillStyle = "#1f5a3c"; ctx.fillRect(...b);
-      ctx.fillStyle = "#f3e6c4"; ctx.font = "600 18px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(item.props.label || game, b[0] + b[2] / 2, b[1] + b[3] / 2);
-    }
+    drawTable(ctx, item, x, y, s);
   } else if (kind === "slot") {
     const f = item.facing || "down", look = cabinetLook(item.props.variant);
     const art = { down: [-16, -64, 32, 64], up: [-16, -64, 32, 64], left: [-12, -64, 24, 64], right: [-12, -64, 24, 64] }[f];
@@ -230,8 +221,53 @@ export function drawItem(ctx, room, item, opts = {}) {
     ctx.strokeStyle = opts.bad ? "#ff5a48" : "#ffd36b";
     ctx.setLineDash(opts.bad ? [] : [6, 3]);
     ctx.strokeRect(...s.rect);
+    if (s.sign) ctx.strokeRect(...s.sign.rect);
     ctx.restore();
   }
+}
+
+/** A table as the game shows it: the table turned, its shadow still falling down the screen, and its chairs, dealers
+ *  and results sign upright where the catalogue says they stand at that turn (a dealer behind an upright table
+ *  first, the felt hiding their feet). */
+function drawTable(ctx, item, x, y, s) {
+  const game = item.asset.slice(6), g = CAT.games[game], t = tableThumb(game, item.id), rot = (item.rot || 0) * Math.PI / 180;
+  const at = g.at[String(item.rot || 0)] || g.at["0"], behind = c => !item.rot && c.at[1] < 0;
+  at.crew.filter(behind).forEach(c => planDealer(ctx, [x + c.at[0], y + c.at[1]], c.facing));
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  if (t) {
+    planShadow(ctx, g.prefix, [Math.sin(rot), Math.cos(rot)]);
+    ctx.drawImage(t.canvas, t.rect[0], t.rect[1], t.rect[2], t.rect[3]);
+  } else {
+    const b = g.at["0"].body;
+    ctx.fillStyle = "#1f5a3c"; ctx.fillRect(...b);
+    ctx.fillStyle = "#f3e6c4"; ctx.font = "600 18px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(item.props.label || game, b[0] + b[2] / 2, b[1] + b[3] / 2);
+  }
+  ctx.restore();
+  if (s.sign) drawSign(ctx, s.sign);
+  const upright = [...at.chairs.map(p => [p, null]), ...at.crew.filter(c => !behind(c)).map(c => [c.at, c.facing])].sort((a, b) => a[0][1] - b[0][1]);
+  for (const [p, facing] of upright) {
+    const q = [x + p[0], y + p[1]];
+    if (facing) planDealer(ctx, q, facing);
+    else if (game === "craps") planSpot(ctx, q);
+    else planChair(ctx, q, Math.PI / 2 + rot);
+  }
+}
+
+/** A results sign, upright from its foot: a dark board on a brass post. */
+function drawSign(ctx, sign) {
+  const [rx, ry, rw, rh] = sign.rect, [fx, fy] = sign.foot, top = ry + 2, board = rh * 0.62;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(fx, fy, 10, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#8a6a28"; ctx.fillRect(fx - 1.5, top + board, 3, fy - top - board);
+  ctx.fillStyle = "#3b2a12"; ctx.fillRect(fx - 7, fy - 3, 14, 4);
+  ctx.fillStyle = "#120406"; ctx.fillRect(rx + 1, top, rw - 2, board);
+  ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1.2; ctx.strokeRect(rx + 1, top, rw - 2, board);
+  ctx.fillStyle = "#ffd76a";
+  for (let k = 0; k < 8; k++) ctx.fillRect(rx + 6, top + 8 + k * (board - 14) / 8, k % 3 ? rw - 18 : rw - 12, 2);
+  ctx.restore();
 }
 
 const ROWS = { up: 4, left: 5, down: 6, right: 7 };   // a look's sheet: idle rows, up/left/down/right

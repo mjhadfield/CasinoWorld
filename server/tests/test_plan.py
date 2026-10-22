@@ -130,6 +130,29 @@ def test_things_in_each_others_way_off_the_floor_or_out_of_reach():
     assert "Lobby: NPCs can't reach Blackjack (bj_6)." in found and "Lobby: players can't reach Blackjack (bj_6)." not in found
 
 
+def test_a_turned_table_brings_its_chairs_in_and_a_results_sign_has_its_own_footprint():
+    p = lobby_only()
+    lobby = room(p, "lobby")
+    bj = {"id": "bj_6", "asset": "table:blackjack", "x": 512, "y": 400, "props": {"label": "Blackjack"}}
+    upright, turned = (plan.shapes(lobby, {**bj, "rot": r})["rect"][3] for r in (0, 180))
+    assert turned <= upright   # (its chairs come in behind its far rail)
+    # Roulette upside down, a blackjack table just beyond its far side: only the sign's own strip is in the way
+    rou = {"id": "rou_2", "asset": "table:roulette", "rot": 180, "x": 512, "y": 330, "props": {"label": "Roulette"}}
+    lobby["items"] = [rou, {**bj, "rot": 0, "x": 760, "y": 220}]
+    tables = lambda: [m for m in messages(p) if "(bj_6)" in m or "(rou_2)" in m]
+    assert tables() == []
+    assert plan.sign_side(rou) == "right" and plan.shapes(lobby, rou)["sign"]["rect"][0] < 512   # (turned: on our left)
+    rou["props"]["sign"] = "left"
+    assert tables() == ["Lobby: Roulette (rou_2) overlaps Blackjack (bj_6)."]
+    # the choice is kept for a table with a sign, and only a real end
+    raw = copy.deepcopy(p)
+    room(raw, "lobby")["items"][1]["props"]["sign"] = "left"
+    items = room(plan.clean(raw, p), "lobby")["items"]
+    assert items[0]["props"]["sign"] == "left" and "sign" not in items[1]["props"]
+    room(raw, "lobby")["items"][0]["props"]["sign"] = "middle"
+    assert "sign" not in room(plan.clean(raw, p), "lobby")["items"][0]["props"]
+
+
 def test_slot_cabinets_may_stand_back_to_back_but_not_on_each_other():
     p = lobby_only()
     lobby = room(p, "lobby")

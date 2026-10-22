@@ -49,6 +49,9 @@ const SEAT_COUNT := 6
 
 ## How the game is named on the floor ("Take a seat -- Three Card Poker").
 @export var game_label := "Three Card Poker"
+## Which end its results sign stands past, as the players see it: "left", "right", or "" (the
+## usual end: _stand_sign()). Only Roulette and Craps have one; the floor plan sets it.
+@export var sign_side := ""
 
 var ready_seats := {}
 var in_hand := false      # the local player was dealt into this hand
@@ -294,11 +297,32 @@ func _restyle_under(node: Node) -> void:
 
 
 # ------------------------------------------------------------------ geometry
-func chair_pos(seat: int) -> Vector2:
+func seat_pos(seat: int) -> Vector2:
 	var marker := get_node_or_null("Seat%d" % seat) as Node2D
 	if marker:
 		return marker.position
 	return Vector2(SEAT_GAP * 2.5 - seat * SEAT_GAP, CHAIR_Y)
+
+
+## The chairs drawn in towards the table while it shows upside down or on its side. Chairs and
+## their sitters are drawn upright from their feet, so at an upright table they rise towards it
+## (the sitter leans over the rail); past its far side they'd rise away from it, leaving a gap,
+## so there they come in until their feet are just behind the rail. On its side, in until the
+## stool's edge is just clear of it.
+func chair_tuck() -> Vector2:
+	if is_zero_approx(screen_turn()):
+		return Vector2.ZERO
+	return Vector2(0, -(tuck_side() if sideways() else tuck_far()))
+
+
+## How far in (see chair_tuck()): the seats are 30.5 below the rail, the feet come to 8.5 behind it.
+func tuck_far() -> float:
+	return 22.0
+
+
+## ...and on its side, to 14.5 beside it (a stool is 10 across from its middle, a sitter about 8).
+func tuck_side() -> float:
+	return 16.0
 
 
 ## Where a seat's column of spots and cards lines up.
@@ -498,17 +522,23 @@ func _turned_on_screen() -> void:
 	for node in _felt.find_children("*", "", true, false):
 		if node is ChipStack2D:
 			node.face_screen()
+	place_chair_backs()   # (the chairs come in or go out: chair_tuck())
+	move_sitters()
+	_felt.queue_redraw()  # (its shadow falls down the screen whichever way up it shows)
 	queue_redraw()
 
 
-## A results sign that stands on the floor past the table's right-hand end (Roulette, Craps),
-## with its `base` (collision). On a table turned a quarter turn clockwise that end is the one
-## nearest us, and the sign would stand in front of the table hiding it, so it stands past the
-## other end instead.
+## A results sign that stands on the floor past one end of the table (Roulette, Craps), with its
+## `base` (collision): the end `sign_side` says (the floor plan's choice), as the players see it.
+## Unchosen, it's the right-hand end -- except on a table turned a quarter turn clockwise, where
+## that end is the one nearest us and the sign would stand in front of the table hiding it.
 func _stand_sign(sign: Node2D, base: Node2D) -> void:
-	if is_equal_approx(wrapf(rotation, -PI, PI), PI / 2):
-		sign.position.x = -absf(sign.position.x)
-		base.position.x = -absf(base.position.x)
+	var side := sign_side
+	if side == "":
+		side = "left" if is_equal_approx(wrapf(rotation, -PI, PI), PI / 2) else "right"
+	var sx := -1.0 if side == "left" else 1.0
+	sign.position.x = sx * absf(sign.position.x)
+	base.position.x = sx * absf(base.position.x)
 
 
 ## Where the dealer stands while the table shows upside down or on its side: at the dealer's edge.

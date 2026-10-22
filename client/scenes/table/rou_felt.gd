@@ -51,8 +51,8 @@ func paint() -> void:
 	draw_set_transform(-position)
 	var r := RouTable.RAIL_W
 	# Its shadow on the carpet, the rail, the felt, the border and the bead.
-	draw_colored_polygon(_shifted(RouTable.shape(r + 4.0), Vector2(0, 3)), Color(0, 0, 0, 0.16))
-	draw_colored_polygon(_shifted(RouTable.shape(r + 1.5), Vector2(0, 2)), Color(0, 0, 0, 0.3))
+	draw_colored_polygon(_shifted(RouTable.shape(r + 4.0), _lit(Vector2(0, 3))), Color(0, 0, 0, 0.16))
+	draw_colored_polygon(_shifted(RouTable.shape(r + 1.5), _lit(Vector2(0, 2))), Color(0, 0, 0, 0.3))
 	var felt := RouTable.shape(0.0, true, 12)
 	_rail(felt, false)
 	_felt(felt)

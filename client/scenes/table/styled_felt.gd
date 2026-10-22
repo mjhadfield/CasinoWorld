@@ -75,8 +75,8 @@ func paint() -> void:
 	var ledge: bool = d.tray.mode == "ledge"
 	var felt := felt_outline(ledge)
 	# Its shadow on the carpet.
-	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 4.0), Vector2(0, 3)), Color(0, 0, 0, 0.16))
-	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 1.5), Vector2(0, 2)), Color(0, 0, 0, 0.3))
+	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 4.0), _lit(Vector2(0, 3))), Color(0, 0, 0, 0.16))
+	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 1.5), _lit(Vector2(0, 2))), Color(0, 0, 0, 0.3))
 	_rail(felt, ledge)
 	_felt(felt)
 	_border(ledge)
@@ -144,8 +144,8 @@ func _rail(felt: PackedVector2Array, ledge: bool) -> void:
 		_leather(outer, _pad_area(arm), ledge and arm == "all")
 	# The rounded profile: a dark outer edge, a lit crown, a shadow where it meets the felt.
 	_loop(outer, Color(0, 0, 0, 0.6), 1.3)
-	_loop(_shifted(_grown(_crown()), Vector2(0, -1.0)), Color(SHEEN, 0.10), 2.4)
-	_loop(_shifted(_grown(_crown()), Vector2(0, -1.2)), Color(1.0, 0.9, 0.784, 0.2), 0.6)
+	_loop(_shifted(_grown(_crown()), _lit(Vector2(0, -1.0))), Color(SHEEN, 0.10), 2.4)
+	_loop(_shifted(_grown(_crown()), _lit(Vector2(0, -1.2))), Color(1.0, 0.9, 0.784, 0.2), 0.6)
 	_loop(felt, Color(0, 0, 0, 0.5), 1.8)
 	if ledge:
 		draw_polyline(tongue(-2.4), Color(SHEEN, 0.12), 1.4, true)
@@ -189,7 +189,7 @@ func _wood(outer: PackedVector2Array) -> void:
 			draw_colored_polygon(quad, Color.WHITE, uv, tex)
 		s += length
 	if key == "ebony":   # lacquered: a gloss along the crown
-		_loop(_shifted(_grown(_crown()), Vector2(0, -1.4)), Color(1, 1, 1, 0.10), 1.6)
+		_loop(_shifted(_grown(_crown()), _lit(Vector2(0, -1.4))), Color(1, 1, 1, 0.10), 1.6)
 
 
 ## Padded leather, all round or just `area` of the rail (the players' side, or Craps' dealers' side): lit along
@@ -202,8 +202,8 @@ func _leather(outer: PackedVector2Array, area: PackedVector2Array, ledge_crest: 
 		draw_colored_polygon(part, col)
 		draw_colored_polygon(part, Color.WHITE, _uv(part, 22.0), TableStyle.LEATHER)
 	var hi := Color(1, 1, 1, 0.18 if col.get_luminance() > 0.3 else 0.09)
-	_band(_shifted(_grown(_crown()), Vector2(0, -0.6)), hi, 3.2, area)
-	_band(_shifted(_grown(_crown()), Vector2(0, -0.9)), hi, 1.2, area)
+	_band(_shifted(_grown(_crown()), _lit(Vector2(0, -0.6))), hi, 3.2, area)
+	_band(_shifted(_grown(_crown()), _lit(Vector2(0, -0.9))), hi, 1.2, area)
 	if ledge_crest:
 		draw_polyline(tongue(-3.0), hi, 2.4, true)
 	var thread := Color(col.lightened(0.35), 0.55)

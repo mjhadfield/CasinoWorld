@@ -99,6 +99,7 @@ func _place(item: Dictionary) -> void:
 		t.game_label = str(item.get("name", t.game_label))
 		if game == "pai_gow_face_up":
 			t.face_up = true
+		t.sign_side = str(item.get("props", {}).get("sign", ""))
 		t.position = at
 		t.rotation = deg_to_rad(float(item.get("rot", 0)))
 		t.add_to_group("navigation_obstacles")

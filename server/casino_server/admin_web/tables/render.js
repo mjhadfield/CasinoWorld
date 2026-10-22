@@ -231,15 +231,17 @@ function text(ctx, s, x, y, size, colour, D, opts = {}) {
 
 // ---------------------------------------------------------------- the table
 let bare = false;   // (opts.bare: no carpet behind the table -- the Floor plan tab draws tables on its own floors)
+let forPlan = false;   // (opts.plan: just the table -- the Floor plan tab adds its shadow, chairs and dealers upright
+                       // on screen however it's turned, as the game does: planShadow, planChair, planDealer)
 function drawCarpet(ctx, r) {
   if (bare) return;
   ctx.fillStyle = "#1f3a3e"; ctx.fillRect(r[0], r[1], r[2], r[3]);
   ctx.fillStyle = pat(ctx, "carpet", 128); ctx.fillRect(r[0], r[1], r[2], r[3]);
 }
-function drawDealer(ctx, at = [0, -123]) {
-  const img = TEX.dealer; if (!img) return;
+function drawDealer(ctx, at = [0, -123], row = 6) {
+  const img = TEX.dealer; if (!img || forPlan) return;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 6 * 64, 64, 64, at[0] - 32, at[1] - 28 - 32, 64, 64);   // the sheet's idle row, facing down
+  ctx.drawImage(img, 0, row * 64, 64, 64, at[0] - 32, at[1] - 28 - 32, 64, 64);   // the sheet's idle rows: 6 faces down
   ctx.imageSmoothingEnabled = true;
 }
 function railRegion(ctx, S, felt) { ctx.beginPath(); path(ctx, S.g(S.rail + 0.5)); path(ctx, felt); ctx.clip("evenodd"); }
@@ -770,6 +772,7 @@ function rack(ctx, D, at, n = 3) {
   ctx.restore();
 }
 function chair(ctx, at) {
+  if (forPlan) return;
   const [x, y] = at;
   ctx.save(); ctx.translate(x, y);
   ctx.beginPath(); ctx.ellipse(0.6, 9, 11, 4, 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
@@ -843,8 +846,10 @@ function metalOf(key) { const m = BEADS[key] || BEADS.brass; return [m[0], mix(m
 
 // The table's base: shadows, rail, felt, (border), bead.
 function drawBase(ctx, S, D, felt) {
-  fillPoly(ctx, shift(S.g(S.rail + 4), 0, 3), "rgba(0,0,0,.16)");
-  fillPoly(ctx, shift(S.g(S.rail + 1.5), 0, 2), "rgba(0,0,0,.3)");
+  if (!forPlan) {
+    fillPoly(ctx, shift(S.g(S.rail + 4), 0, 3), "rgba(0,0,0,.16)");
+    fillPoly(ctx, shift(S.g(S.rail + 1.5), 0, 2), "rgba(0,0,0,.3)");
+  }
   drawRail(ctx, S, D, felt, false);
   drawFelt(ctx, S, D, felt);
   drawBorder(ctx, S, D, felt, false);
@@ -1084,12 +1089,15 @@ export function render(canvas, D, game, rect, opts = {}) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
   bare = !!opts.bare;
+  forPlan = !!opts.plan;
   if (game === "rou" || game === "crp") { (game === "rou" ? drawRoulette : drawCraps)(ctx, D, rect, opts); return; }
   const S = CARD_SHAPE, ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
   drawCarpet(ctx, rect);
   drawDealer(ctx);
-  fillPoly(ctx, shift(grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
-  fillPoly(ctx, shift(grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
+  if (!forPlan) {
+    fillPoly(ctx, shift(grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
+    fillPoly(ctx, shift(grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
+  }
   drawRail(ctx, S, D, felt, ledge);
   drawFelt(ctx, S, D, felt);
   drawBorder(ctx, S, D, felt, ledge);
@@ -1105,4 +1113,47 @@ export function render(canvas, D, game, rect, opts = {}) {
   if (T.shuffler) shuffler(ctx, D, T.shuffler);
   T.chairs.forEach(c => chair(ctx, c));
   if (opts.fixed) drawFixed(ctx, T);
+}
+
+// ---------------------------------------------------------------- the Floor plan tab's pieces (render's opts.plan)
+/** A table's shadow on the floor, in its own coordinates: `down` is down the screen in them, so it falls the same
+ *  way however the table's turned (TableFelt._lit). */
+export function planShadow(ctx, game, down) {
+  const S = game === "rou" || game === "crp" ? shapeOf(game) : null;
+  const big = S ? S.g(S.rail + 4) : grown("11.0"), small = S ? S.g(S.rail + 1.5) : grown("7.5");
+  fillPoly(ctx, shift(big, down[0] * 3, down[1] * 3), "rgba(0,0,0,.16)");
+  fillPoly(ctx, shift(small, down[0] * 2, down[1] * 2), "rgba(0,0,0,.3)");
+}
+
+/** A stool at `at` (where its sitter's feet go), upright on screen, its back pointing `back` (radians on screen:
+ *  PI / 2 is towards us) -- drawn behind the seat when it's beyond it, in front when it's between it and us. */
+export function planChair(ctx, at, back) {
+  const [x, y] = at, near = Math.sin(back) > 0;
+  const backArc = () => {
+    ctx.beginPath(); ctx.ellipse(0, near ? 0.5 : -3, 9.5, 5.5, 0, back - Math.PI / 2 + 0.15, back + Math.PI / 2 - 0.15);
+    ctx.strokeStyle = "#1a1412"; ctx.lineWidth = 2.6; ctx.stroke();
+    if (!near) { ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.5; ctx.stroke(); }
+  };
+  ctx.save(); ctx.translate(x, y);
+  ctx.beginPath(); ctx.ellipse(0.6, 9, 11, 4, 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 5, 7.5, 3, 0, 0, 7); ctx.strokeStyle = "#b8913e"; ctx.lineWidth = 1.2; ctx.stroke();   // footring
+  ctx.fillStyle = "#8a6a28"; ctx.fillRect(-1, -2, 2, 8);
+  if (!near) backArc();
+  ctx.beginPath(); ctx.ellipse(0, -2, 9, 5, 0, 0, 7); ctx.fillStyle = "#2a2320"; ctx.fill(); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, -2.6, 6.5, 3, 0, 0, 7); ctx.fillStyle = "rgba(255,255,255,.07)"; ctx.fill();
+  if (near) backArc();
+  ctx.restore();
+}
+
+/** A craps player's standing spot at `at`: a brass-rimmed plate on the floor. */
+export function planSpot(ctx, at) {
+  ctx.save(); ctx.translate(at[0], at[1] + 4);
+  ctx.beginPath(); ctx.ellipse(0, 0, 11, 5.5, 0, 0, 7); ctx.fillStyle = "rgba(13,8,4,.82)"; ctx.fill();
+  ctx.strokeStyle = "#c99a3c"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+/** A dealer standing at `at`, facing `facing` on screen. */
+export function planDealer(ctx, at, facing = "down") {
+  const was = forPlan; forPlan = false; drawDealer(ctx, at, { up: 4, left: 5, down: 6, right: 7 }[facing] ?? 6); forPlan = was;
 }

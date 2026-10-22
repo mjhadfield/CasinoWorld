@@ -431,7 +431,9 @@ function refreshInspector() {
     if (kind === "table") {
       const rots = G.CAT.games[it.asset.slice(6)].rotations;
       rows.push(field("Name", text(it.props.label, v => { it.props.label = v; }, 32)));
-      if (rots.length > 1) rows.push(field("Turned", choose(String(it.rot || 0), rots.map(d => [String(d), d ? `${d}°` : "Upright"]), v => { it.rot = +v; })));
+      if (rots.length > 1) rows.push(field("Turned", choose(String(it.rot || 0), rots.map(d => [String(d), d ? `${d}°` : "Upright"]), v => { turnTo(it, +v); })));
+      if (G.CAT.games[it.asset.slice(6)].at["0"].sign)
+        rows.push(field("Sign", choose(G.signSide(it), ["right", "left"].map(side => [side, signEnd(it, side)]), v => { it.props.sign = v; })));
     } else {
       rows.push(field("Facing", choose(it.facing || "down", G.CAT.facings.map(f => [f, f]), v => { it.facing = v; })));
     }
@@ -627,11 +629,25 @@ function place() {
 function turn(it) {
   if (G.kindOf(it.asset) === "table") {
     const rots = G.CAT.games[it.asset.slice(6)].rotations;
-    it.rot = rots[(rots.indexOf(it.rot || 0) + 1) % rots.length];
+    turnTo(it, rots[(rots.indexOf(it.rot || 0) + 1) % rots.length]);
   } else {   // (a library piece turns only to the facings it has pictures for)
     const p = G.piece(it.asset), order = ["down", "left", "up", "right"].filter(f => !p || !p.facings || p.facings[f]);
     it.facing = order[(order.indexOf(it.facing || "down") + 1) % order.length];
   }
+}
+
+/** Turn a table to `rot` about its middle, so it stays where it was (it turns about its seats' row otherwise). */
+function turnTo(it, rot) {
+  const at = G.CAT.games[it.asset.slice(6)].at, mid = r => { const b = (at[String(r)] || at["0"]).body; return [b[0] + b[2] / 2, b[1] + b[3] / 2]; };
+  const [a, b] = [mid(it.rot || 0), mid(rot)];
+  if (typeof it.x === "number") { it.x = Math.round(it.x + a[0] - b[0]); it.y = Math.round(it.y + a[1] - b[1]); }
+  it.rot = rot;
+}
+
+/** Where a table's sign end (`side`, as its players see it) shows on the plan, turned as it is. */
+function signEnd(it, side) {
+  const k = ((it.rot || 0) / 90 + (side === "left" ? 2 : 0)) % 4;
+  return ["Right end", "Bottom end", "Left end", "Top end"][k];
 }
 
 function removeSelected() {
@@ -722,7 +738,7 @@ function hit(p) {
     for (let i = r.paths.points.length - 1; i >= 0; i--) { const q = r.paths.points[i]; if (Math.hypot(p[0] - r.x - q.x, p[1] - r.y - q.y) < 14) return { t: "point", i }; }
   }
   const order = r.items.map((it, i) => [i, it]).sort((a, b) => b[1].y - a[1].y);
-  for (const [i, it] of order) { const s = G.shapes(r, it); if (s && G.inside(p, s.rect)) return { t: "item", i }; }
+  for (const [i, it] of order) { const s = G.shapes(r, it); if (s && G.covers(s).some(c => G.inside(p, c))) return { t: "item", i }; }
   if (S.layers.paths) for (let i = r.paths.zones.length - 1; i >= 0; i--) { const z = r.paths.zones[i]; if (G.inside(p, [r.x + z.x, r.y + z.y, z.w, z.h])) return { t: "zone", i }; }
   for (let i = r.patches.length - 1; i >= 0; i--) { const q = r.patches[i]; if (G.inside(p, [r.x + q.x, r.y + q.y, q.w, q.h])) return { t: "patch", i }; }
   return null;
@@ -840,7 +856,7 @@ function up(e) {
   if (d.box && r) {
     const [a, b] = d.box, box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
     if (box[2] > 3 && box[3] > 3) {
-      r.items.forEach((it, i) => { const s = G.shapes(r, it); if (s && G.overlap(s.rect, box) && !S.sel.some(x => x.t === "item" && x.i === i)) S.sel.push({ t: "item", i }); });
+      r.items.forEach((it, i) => { const s = G.shapes(r, it); if (s && G.covers(s).some(c => G.overlap(c, box)) && !S.sel.some(x => x.t === "item" && x.i === i)) S.sel.push({ t: "item", i }); });
     }
     refresh();
     return;

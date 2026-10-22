@@ -37,7 +37,9 @@ export function shapes(room, item) {
     const g = CAT.games[item.asset.slice(6)];
     if (!g) return null;
     const a = g.at[String(item.rot || 0)] || g.at["0"];
-    return { kind, rect: at(a.rect, x, y), body: at(a.body, x, y), mount: "floor", stands: a.stands.map(p => [x + p[0], y + p[1]]) };
+    const out = { kind, rect: at(a.rect, x, y), body: at(a.body, x, y), mount: "floor", stands: a.stands.map(p => [x + p[0], y + p[1]]) };
+    if (a.sign) { const sg = a.sign[signSide(item)]; out.sign = { rect: at(sg.rect, x, y), body: at(sg.body, x, y), foot: [x + sg.foot[0], y + sg.foot[1]] }; }
+    return out;
   }
   if (kind === "slot") {
     const f = item.facing || "down", a = CAT.cabinet[f];
@@ -51,14 +53,24 @@ export function shapes(room, item) {
   return { kind, rect: at(rect, x, y), body: at(body, x, y), mount: p.mount || "floor", stands: [] };
 }
 
+/** Which end of a table its results sign stands past, as its players see it (plan.sign_side). */
+export function signSide(item) {
+  const side = (item.props || {}).sign;
+  if (side === "left" || side === "right") return side;
+  const a = (CAT.games[item.asset.slice(6)] || { at: {} }).at[String(item.rot || 0)] || {};
+  return a.sign_default || "right";
+}
+export const covers = s => s.sign ? [s.rect, s.sign.rect] : [s.rect];   // all it covers, its sign's too
+export const bodies = s => s.sign ? [s.body, s.sign.body] : [s.body];   // what it stands on, its sign's base too
+
 const SLACK = 2;
 function clash(a, b) {
   const hit = (r1, r2) => overlap(grow(r1, -SLACK), r2);
   if (a.kind === "slot" && b.kind === "slot")
     return hit(a.body, b.body) || hit(a.stool, b.body) || hit(a.body, b.stool) || hit(a.stool, b.stool);
   const seats = [a, b].filter(s => s.kind === "table" || s.kind === "slot");
-  if (seats.length === 2) return hit(a.rect, b.rect);
-  if (seats.length === 1) return hit(seats[0].rect, (seats[0] === a ? b : a).body);
+  if (seats.length === 2) return covers(a).some(r1 => covers(b).some(r2 => hit(r1, r2)));
+  if (seats.length === 1) { const o = (seats[0] === a ? b : a).body; return hit(seats[0].rect, o) || bodies(seats[0]).slice(1).some(r => hit(r, o)); }
   return hit(a.body, b.body);
 }
 
@@ -127,14 +139,14 @@ export function roomProblems(room) {
     if (!s) { out.push({ i, message: `${name} isn't in the library any more.` }); return; }
     if (s.mount === "wall") return;
     const within = (outer, r) => outer[0] <= r[0] && outer[1] <= r[1] && r[0] + r[2] <= outer[0] + outer[2] && r[1] + r[3] <= outer[1] + outer[3];
-    if (!within(inner, s.body) || !within(outline(room), s.rect)) { out.push({ i, message: `${name} is off the floor.` }); return; }
+    if (!bodies(s).every(b => within(inner, b)) || !covers(s).every(r => within(outline(room), r))) { out.push({ i, message: `${name} is off the floor.` }); return; }
     if (s.stands.some(p => !inside(p, inner))) { out.push({ i, message: `${name}'s players would stand in the wall.` }); return; }
     if (s.mount === "floor") floorThings.push([i, item, s]);
   });
   floorThings.forEach(([i, item, s], n) => {
     const other = floorThings.slice(n + 1).find(([, , s2]) => clash(s, s2));
     if (other) { out.push({ i, message: `${label(item)} overlaps ${label(other[1])}.` }); return; }
-    const blocker = floorThings.find(([j, , s2]) => j !== i && s.stands.some(p => inside(p, s2.body)));
+    const blocker = floorThings.find(([j, , s2]) => j !== i && s.stands.some(p => bodies(s2).some(b => inside(p, b))));
     if (blocker) out.push({ i, message: `${label(blocker[1])} stands where ${label(item)}'s players would.` });
   });
   return out;
@@ -167,7 +179,7 @@ export function npcReach(rooms) {
     mark(o.side === "top" || o.side === "bottom" ? [g[0] + 4, g[1] - 12, g[2] - 8, g[3] + 24] : [g[0] - 12, g[1] + 4, g[2] + 24, g[3] - 8], 1);
   }
   for (const r of rooms) {
-    for (const item of r.items) { const s = shapes(r, item); if (s && s.mount === "floor") mark(s.body, 0, -(AGENT - 4)); }
+    for (const item of r.items) { const s = shapes(r, item); if (s && s.mount === "floor") bodies(s).forEach(b => mark(b, 0, -(AGENT - 4))); }
     for (const z of r.paths.zones) mark([r.x + z.x, r.y + z.y, z.w, z.h], 0, -(AGENT - 4));
   }
   const starts = rooms.flatMap(r => r.paths.points.filter(p => p.kind === "arrival").map(p => [r.x + p.x, r.y + p.y]));

@@ -6,7 +6,7 @@ Single zero with La Partage. Signed off on the Roulette mockup (claude.ai artifa
 
 A long table rounded at the wheel end, with a bay where the dealer stands between the wheel and the layout.
 The float (for paying winners) is left of the bay and the chip hole (where losing chips go) is right of it.
-The results sign stands at the far end, showing the last 12, with reds right, blacks left and zero in the
+The results sign stands at the far end (or the other: the floor plan's Sign), showing the last 12, with reds right, blacks left and zero in the
 middle.
 
 ## Bets

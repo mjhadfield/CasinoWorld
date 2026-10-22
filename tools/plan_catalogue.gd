@@ -1,15 +1,18 @@
 extends SceneTree
 # The built-in pieces the floor plan places (plan.py, the admin page's Floor plan tab): every table game and the
 # slot cabinet, measured from their scenes. For each game, at each way it can turn: its footprint (its collision
-# outline, its chairs with someone sitting in each, any results sign, and the dealer: their head over the top edge
-# when upright, standing at the felt's edge when turned), its
-# body (just the collision outline: what blocks walking) and where each seat's player stands to sit down. Writes
-# server/casino_server/plan_catalogue.json; run it again whenever a table changes shape or a game is added.
+# outline, its chairs with someone sitting in each, and its dealers standing), its body (just the collision
+# outline: what blocks walking), where each seat's player stands to sit down, and -- for the Floor plan tab to draw
+# them the way the game shows them, upright on screen -- where its chairs and dealers are. A table with a results
+# sign (Roulette, Craps) also gets the sign's own footprint and base at each end it can stand past, apart from the
+# table's: the sign is tall and thin, and merged into the table's footprint it would claim the table's whole width.
+# Writes server/casino_server/plan_catalogue.json; run it again whenever a table changes shape or a game is added.
 #   cd client && CASINO_SERVER_URL=ws://127.0.0.1:9/ws godot --headless --path . -s ../tools/plan_catalogue.gd
 # (the server URL keeps the Net autoload off the live server)
 const OUT := "res://../server/casino_server/plan_catalogue.json"
 const SITTER := Rect2(-12, -36, 24, 44)   # a chair and the player sitting on it, from the chair
-const DEALER_HEAD := 24.0                 # the dealer stands at the felt's top edge: their head clears it by this
+const STANDER := Rect2(-12, -52, 24, 56)  # a dealer standing, from their feet
+const CABINET_TOP := 24.0   # a slot cabinet's art rises this far over its collision outline and its sitter
 const SIGN := Rect2(-17.6, -157.6, 35.2, 160)   # a results sign (Roulette, Craps), upright from its foot
 # game -> [scene, its properties, the turns it may have on the floor (degrees)]. Every table can be turned round
 # a quarter turn either way or upside down (the classic pit's far row is).
@@ -46,7 +49,7 @@ func shape_rect(n: Node) -> Rect2:
 
 func shapes(n: Node, out: Array) -> void:
 	for c in n.get_children():
-		if c.name == "SitZone":
+		if c.name == "SitZone" or c.name == "SignBase":   # (the sign's base is measured with the sign)
 			continue
 		if (c is CollisionPolygon2D and not c.polygon.is_empty()) or c is CollisionShape2D:
 			out.append(shape_rect(c))
@@ -58,6 +61,16 @@ func merged(rects: Array) -> Rect2:
 	for x in rects:
 		r = r.merge(x)
 	return r
+
+
+## The way someone facing `dir` on a table turned `turn` faces on screen.
+func screen_dir(dir: String, turn: float) -> String:
+	var dirs := {"down": Vector2.DOWN, "up": Vector2.UP, "left": Vector2.LEFT, "right": Vector2.RIGHT}
+	var v: Vector2 = dirs[dir].rotated(turn)
+	for d in dirs:
+		if v.distance_to(dirs[d]) < 0.5:
+			return d
+	return dir
 
 
 func rect_json(r: Rect2) -> Array:
@@ -75,23 +88,38 @@ func measure(path: String, props: Dictionary, degrees: int) -> Dictionary:
 		n.set(k, props[k])
 	n.rotation = deg_to_rad(degrees)
 	root.add_child(n)
+	await process_frame   # (and a frame for the table to see which way up it shows: its chairs and dealer move)
 	await process_frame
 	var body := []
 	shapes(n, body)
 	var all := body.duplicate()
 	var stands := []
+	var chairs := []
 	for seat in n.seat_count():
-		all.append(Rect2(n.to_global(n.chair_pos(seat)) + SITTER.position, SITTER.size))  # (sitters are upright)
+		var at: Vector2 = n.to_global(n.chair_pos(seat))
+		all.append(Rect2(at + SITTER.position, SITTER.size))  # (sitters are upright)
+		chairs.append(point_json(at))
 		stands.append(point_json(n.to_global(n.stand_pos(seat))))
+	var crew := []
+	for c in n.get_children():
+		if c is Node2D and c.has_method("set_action"):   # the dealer (and Craps' boxman): Avatars
+			var at: Vector2 = n.to_global(c.position)
+			all.append(Rect2(at + STANDER.position, STANDER.size))
+			crew.append({"at": point_json(at), "facing": screen_dir(str(c.facing), n.rotation)})
+	var out := {"rect": rect_json(merged(all)), "body": rect_json(merged(body)), "stands": stands,
+		"chairs": chairs, "crew": crew}
 	var sign := n.get_node_or_null("Sign") as Node2D
-	if sign:   # (it stands upright, past one end: on a table on its side it rises over whatever's beyond)
-		all.append(Rect2(n.to_global(sign.position) + SIGN.position, SIGN.size))
-	if degrees != 0:   # turned, the dealer stands at the felt's edge, upright: beside the table on its side
-		all.append(Rect2(n.to_global(n.dealer_near_pos()) + SITTER.position, SITTER.size))
-	var r := merged(all)
-	if degrees == 0:
-		r = r.grow_side(SIDE_TOP, DEALER_HEAD)
-	var out := {"rect": rect_json(r), "body": rect_json(merged(body)), "stands": stands}
+	if sign:   # (it stands upright past one end: on a table on its side it rises over whatever's beyond)
+		var base := n.get_node("Body/SignBase") as CollisionShape2D
+		var r: float = (base.shape as CircleShape2D).radius
+		out["sign"] = {}
+		for side in ["right", "left"]:
+			var sx := 1.0 if side == "right" else -1.0
+			var foot: Vector2 = n.to_global(Vector2(sx * absf(sign.position.x), sign.position.y))
+			var middle: Vector2 = n.to_global(Vector2(sx * absf(base.position.x), base.position.y))
+			out["sign"][side] = {"rect": rect_json(Rect2(foot + SIGN.position, SIGN.size)),
+				"body": rect_json(Rect2(middle - Vector2(r, r), Vector2(2 * r, 2 * r))), "foot": point_json(foot)}
+		out["sign_default"] = "left" if degrees == 90 else "right"   # (CasinoTable._stand_sign)
 	n.queue_free()
 	await process_frame
 	return out
@@ -109,7 +137,9 @@ func _initialize() -> void:
 		probe.free()
 	var cab := {}
 	for facing in ["down", "up", "left", "right"]:
-		cab[facing] = await measure(CABINET, {"facing": facing}, 0)
+		var m: Dictionary = await measure(CABINET, {"facing": facing}, 0)
+		var r: Array = m.rect
+		cab[facing] = {"rect": [r[0], r[1] - CABINET_TOP, r[2], r[3] + CABINET_TOP], "body": m.body, "stands": m.stands}
 	var f := FileAccess.open(OUT, FileAccess.WRITE)
 	f.store_string(JSON.stringify({"games": games, "cabinet": cab}, " ", false) + "\n")
 	f.close()

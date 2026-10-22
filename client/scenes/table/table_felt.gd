@@ -44,6 +44,13 @@ func _table() -> CasinoTable:
 	return table_ref if table_ref else get_parent() as CasinoTable
 
 
+## A light's offset `v` as the screen sees it (a shadow falling down the screen, a crown lit from
+## above), in the table's coordinates: on a table showing upside down it still falls down the screen.
+func _lit(v: Vector2) -> Vector2:
+	var t := _table()
+	return v.rotated(-t.screen_turn()) if t and t.is_inside_tree() else v
+
+
 func _draw() -> void:
 	if _cache:   # shown as FeltCache's picture: have it painted again instead
 		_cache.repaint()

@@ -29,7 +29,9 @@ one room's wall; where another room's wall runs along the same line, the opening
 An item's asset is "table:<game>" (its id is its table id: tcp_3, bj_6...), "slot" (a cabinet: props.variant; its id
 slot_<n>), a built-in piece ("podium", "npc": a figure standing there, props.look and props.name) or a piece of
 furniture from the asset library ("a:<id>", plan_assets.py). Ids are given by the server and never reused. Tables
-turn by `rot` (the catalogue says which turns each game takes); everything else faces one of FACINGS.
+turn by `rot` (the catalogue says which turns each game takes); everything else faces one of FACINGS. A table with a
+results sign (Roulette, Craps) has props.sign, the end it stands past as the players see it (SIGN_SIDES; unset, the
+usual end: sign_side()); the sign has its own shapes beside the table's (shapes()["sign"]).
 
 install() puts the live plan's placed rooms on the floor (floor.py): their tables and cabinets join floor.TABLES, and
 their points, seats and doors give the NPCs somewhere to go. Publishing changes the floor at once when only places
@@ -56,6 +58,7 @@ WALL_TOP, WALL_SIDE, WALL_BOTTOM = 70, 8, 10
 MIN_SIZE, MAX_SIZE = (320, 240), (8000, 8000)
 SIDES = ("top", "bottom", "left", "right")
 FACINGS = ("down", "up", "left", "right")
+SIGN_SIDES = ("right", "left")   # which end of a table its results sign stands past, as its players see it
 DOOR_KINDS = ("door", "archway")
 DOOR_WIDTH = (40, 600)
 POINT_KINDS = ("spawn", "arrival", "wander")
@@ -233,8 +236,12 @@ def shapes(room: dict, item: dict) -> dict | None:
         if game is None:
             return None
         at = game["at"].get(str(item.get("rot", 0))) or game["at"]["0"]
-        return {"kind": kind, "rect": _at(at["rect"], x, y), "body": _at(at["body"], x, y), "mount": "floor",
-                "stands": [(x + p[0], y + p[1]) for p in at["stands"]]}
+        out = {"kind": kind, "rect": _at(at["rect"], x, y), "body": _at(at["body"], x, y), "mount": "floor",
+               "stands": [(x + p[0], y + p[1]) for p in at["stands"]]}
+        if "sign" in at:   # its results sign, past the end props.sign says: drawn over what's beyond, standing on its base
+            sign = at["sign"][sign_side(item)]
+            out["sign"] = {"rect": _at(sign["rect"], x, y), "body": _at(sign["body"], x, y)}
+        return out
     if kind == "slot":
         at = CATALOGUE["cabinet"][item.get("facing", "down")]
         f = item.get("facing", "down")
@@ -248,6 +255,26 @@ def shapes(room: dict, item: dict) -> dict | None:
     rect = turned.get("rect") or p["rect"]
     body = turned.get("body") or p.get("body") or rect
     return {"kind": kind, "rect": _at(rect, x, y), "body": _at(body, x, y), "mount": p.get("mount", "floor"), "stands": []}
+
+
+def sign_side(item: dict) -> str:
+    """Which end of a table its results sign stands past, as its players see it: props.sign, or the usual end for
+    the way it's turned (the right, or the left on a quarter turn clockwise, where the right is nearest us)."""
+    side = item.get("props", {}).get("sign")
+    if side in SIGN_SIDES:
+        return side
+    game = CATALOGUE["games"].get(item["asset"][6:], {})
+    return (game.get("at", {}).get(str(item.get("rot", 0))) or {}).get("sign_default", "right")
+
+
+def _covers(s: dict) -> list:
+    """All a thing covers: its rect, and its sign's."""
+    return [s["rect"], s["sign"]["rect"]] if "sign" in s else [s["rect"]]
+
+
+def _bodies(s: dict) -> list:
+    """What it stands on: its body, and its sign's base."""
+    return [s["body"], s["sign"]["body"]] if "sign" in s else [s["body"]]
 
 
 def _solid(s: dict) -> bool:
@@ -264,11 +291,11 @@ def _clash(a: dict, b: dict) -> bool:
     if a["kind"] == "slot" and b["kind"] == "slot":
         return hit(a["body"], b["body"]) or hit(a["stool"], b["body"]) or hit(a["body"], b["stool"]) or hit(a["stool"], b["stool"])
     if a["kind"] in ("table", "slot") and b["kind"] in ("table", "slot"):
-        return hit(a["rect"], b["rect"])
+        return any(hit(r1, r2) for r1 in _covers(a) for r2 in _covers(b))
     seats = [s for s in (a, b) if s["kind"] in ("table", "slot")]
     if seats:
         other = b if seats[0] is a else a
-        return hit(seats[0]["rect"], other["body"])
+        return hit(seats[0]["rect"], other["body"]) or any(hit(r, other["body"]) for r in _bodies(seats[0])[1:])
     return hit(a["body"], b["body"])
 
 
@@ -505,6 +532,8 @@ def _clean_item(it, room_name: str, w: float, h: float, nxt: dict, known: dict, 
         rot = int(_num(it.get("rot", 0), "A table's turn", 0, 359))
         item["rot"] = rot if rot in rots else rots[0]
         item["props"]["label"] = _str(props.get("label"), 32) or CATALOGUE["games"][game]["name"]
+        if "sign" in CATALOGUE["games"][game]["at"]["0"] and props.get("sign") in SIGN_SIDES:
+            item["props"]["sign"] = props["sign"]
         prefix = PREFIX[game]
     else:
         item["facing"] = it.get("facing") if it.get("facing") in FACINGS else "down"
@@ -570,7 +599,7 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
             if not _contains(outline(room), s["rect"]) or s["rect"][1] + s["rect"][3] > room["y"] + WALL_TOP + 4:
                 out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} belongs on the back wall."})
             continue
-        if not _contains(inner, s["body"]) or not _contains(outline(room), s["rect"]):
+        if not all(_contains(inner, b) for b in _bodies(s)) or not all(_contains(outline(room), r) for r in _covers(s)):
             out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} is off the floor."})
             continue
         if any(not _inside(p, inner) for p in s["stands"]):
@@ -585,7 +614,7 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
                 break
         else:
             for other, s2 in floor_things:
-                if other is not item and any(_inside(p, s2["body"]) for p in s["stands"]):
+                if other is not item and any(_inside(p, b) for p in s["stands"] for b in _bodies(s2)):
                     out.append({"room": room["id"], "item": item["id"],
                                 "message": f"{name}: {_label(other)} stands where {_label(item)}'s players would."})
                     break
@@ -593,7 +622,7 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
         at = (room["x"] + p["x"], room["y"] + p["y"])
         if not _inside(at, _grow(inner, -AGENT)):
             out.append({"room": room["id"], "item": "point:" + p["name"], "message": f"{name}: the point {p['name']} is in the wall."})
-        elif any(_inside(at, _grow(s["body"], AGENT)) for _, s in floor_things):
+        elif any(_inside(at, _grow(b, AGENT)) for _, s in floor_things for b in _bodies(s)):
             out.append({"room": room["id"], "item": "point:" + p["name"], "message": f"{name}: something stands on the point {p['name']}."})
     for d in room["doors"]:
         lo, hi = d["at"] - d["width"] / 2, d["at"] + d["width"] / 2
@@ -658,7 +687,8 @@ def _reach_problems(rooms: list, ops: dict, spawn: str | None) -> list[dict]:
         for item in r["items"]:
             s = shapes(r, item)
             if s is not None and _solid(s):
-                mark(s["body"], 0, -(AGENT - 4))
+                for b in _bodies(s):
+                    mark(b, 0, -(AGENT - 4))
                 things.append((r, item, s))
         for z in r["paths"]["zones"]:
             if z["kind"] == "block":
