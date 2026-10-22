@@ -1,8 +1,8 @@
 @tool
 extends StyledFelt
 ## The Baccarat layout, printed on the table in its style: the title, the Player and Banker boxes for the coup's
-## cards, and for each seat the Player Dragon, Tie and Banker Dragon circles (the Dragons always jade, set apart
-## from the Banker's accent), then the Banker and Player boxes.
+## cards, and for each seat the Player Dragon, Tie and Banker Dragon circles (side bets), then the Banker and
+## Player boxes. Banker's box and hand take the primary colour, Player's the ink.
 
 
 func _draw_layout(t: CasinoTable) -> void:
