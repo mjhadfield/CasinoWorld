@@ -9,8 +9,8 @@ extends SceneTree
 const OUT := "res://../server/casino_server/plan_catalogue.json"
 const SITTER := Rect2(-12, -36, 24, 44)   # a chair and the player sitting on it, from the chair
 const DEALER_HEAD := 24.0                 # the dealer stands at the felt's top edge: their head clears it by this
-# game -> [scene, its properties, the turns it may have on the floor (degrees)]. Every card table can be turned
-# round (the classic pit's far row is); Roulette and Craps have their own shapes and stay upright for now.
+# game -> [scene, its properties, the turns it may have on the floor (degrees)]. Every table can be turned round
+# (the classic pit's far row is); none takes 90 or 270 yet.
 const GAMES := {
 	"three_card_poker": ["res://scenes/table/tcp_table.tscn", {"game_label": "Three Card Poker"}, [0, 180]],
 	"blackjack": ["res://scenes/table/bj_table.tscn", {"game_label": "Blackjack"}, [0, 180]],
@@ -21,8 +21,8 @@ const GAMES := {
 	"let_it_ride": ["res://scenes/table/lir_table.tscn", {"game_label": "Let It Ride"}, [0, 180]],
 	"high_card_flush": ["res://scenes/table/hcf_table.tscn", {"game_label": "High Card Flush"}, [0, 180]],
 	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0, 180]],
-	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0]],
-	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0]],
+	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0, 180]],
+	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0, 180]],
 }
 const CABINET := "res://scenes/slots/slot_cabinet.tscn"
 

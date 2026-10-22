@@ -45,6 +45,8 @@ func show_roll(rolls_so_far: Array) -> void:
 
 
 func _process(_delta: float) -> void:
+	if not Engine.is_editor_hint() and not is_zero_approx(global_rotation):
+		global_rotation = 0.0   # (it stands upright on screen about its foot however its table is turned)
 	if Time.get_ticks_msec() / 1000.0 - _arrived_at < 2.2:
 		queue_redraw()
 

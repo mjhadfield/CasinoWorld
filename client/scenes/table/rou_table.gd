@@ -349,6 +349,11 @@ func countdown_pos() -> Vector2:
 	return Vector2(32, -104)
 
 
+## Upside down, the dealer stands at the mouth of the bay, on the floor at the felt's top edge.
+func dealer_near_pos() -> Vector2:
+	return Vector2(_dealer_home.x, FELT_TOP)
+
+
 func _countdown_text(left: float) -> String:
 	if left <= 0:
 		return ""
@@ -602,7 +607,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _draw_game(now: float, _pulse: float) -> void:
 	# Each taken chair has its seat's chip colour on the floor round its base.
 	for seat in occupants:
-		draw_set_transform(chair_pos(seat) + Vector2(0, 0.8), 0, Vector2(1, 0.34))
+		draw_set_transform(chair_pos(seat) + on_screen(Vector2(0, 0.8)), 0, Vector2(1, 0.34))
 		draw_arc(Vector2.ZERO, 13.0, 0, TAU, 40, SEAT_COLOURS[seat % SEAT_COLOURS.size()], 1.8, true)
 		draw_set_transform(Vector2.ZERO)
 	# A ghost of your chip where it would go.

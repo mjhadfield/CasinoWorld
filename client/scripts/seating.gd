@@ -295,7 +295,7 @@ static func _quad(ci, q: Array, c: Color) -> void:
 # ------------------------------------------------------------------ craps standing spots
 ## A standing spot at the craps rail, at `at` on the floor: glowing while it's free and you're
 ## walking, wearing its player's `colour` (or null) once someone's there.
-static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pulse: float, colour: Variant) -> void:
+static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pulse: float, colour: Variant, turn := 0.0) -> void:
 	var brass: Array = METALS.brass
 	var taken := colour != null
 	var rim: Color = colour if taken else (Color(GOLD, 0.7 + 0.3 * pulse) if glow else brass[1])
@@ -323,8 +323,8 @@ static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pul
 				for fx in [-4.2, 4.2]:
 					ci.draw_colored_polygon(_ell(Vector2(fx, -2.5), 2.3, 4.4, 14), ink)
 					ci.draw_colored_polygon(_ell(Vector2(fx, 5.3), 1.9, 2.1, 12), ink)
-		"spotlight":   # a pool of light with a little standing figure in it
-			ci.draw_set_transform(at)
+		"spotlight":   # a pool of light with a little standing figure in it (upright on screen: `turn`)
+			ci.draw_set_transform(at, turn)
 			for i in 4:
 				var k := 1.0 - i / 4.0
 				ci.draw_colored_polygon(_ell(Vector2.ZERO, 19.0 * k, 8.0 * k), Color(1, 0.89, 0.63, (0.12 if glow else 0.055)))

@@ -764,7 +764,13 @@ func countdown_pos() -> Vector2:
 
 
 func stool_pos(seat: int) -> Vector2:
-	return chair_pos(seat) + Vector2(0, 3)
+	return chair_pos(seat) + on_screen(Vector2(0, 3))
+
+
+## The dealer here is the stickman, who stands among the players, so turning the table
+## doesn't move him; the boxman already stands just outside the bay's ledge.
+func dealer_near_pos() -> Vector2:
+	return _dealer_home
 
 
 func _countdown_text(left: float) -> String:
@@ -1194,8 +1200,8 @@ func _puck_moving() -> bool:
 func _draw_stool(seat: int, glow: bool, pulse: float) -> void:
 	if mode == "seated" and not occupants.has(seat):
 		return
-	Seating.draw_spot(self, chair_pos(seat) + Vector2(0, 4), str(Seating.style(table_id).craps_spot), glow, pulse,
-		SEAT_COLOURS[seat % SEAT_COLOURS.size()] if occupants.has(seat) else null)
+	Seating.draw_spot(self, chair_pos(seat) + on_screen(Vector2(0, 4)), str(Seating.style(table_id).craps_spot), glow, pulse,
+		SEAT_COLOURS[seat % SEAT_COLOURS.size()] if occupants.has(seat) else null, -screen_turn())
 
 
 func _draw_game(now: float, _pulse: float) -> void:
@@ -1209,18 +1215,18 @@ func _draw_game(now: float, _pulse: float) -> void:
 		draw_arc(p, PUCK_R - 0.7, 0, TAU, 32, Color("121010") if on else Color("f6f2e8"), 0.4, true)
 		_label(p + Vector2(0, 0.15), "ON" if on else "OFF", 2.2 if on else 1.8, Color("121010") if on else Color("f6f2e8"))
 	# The stickman's stick, out towards the dice.
-	var hand := dealer.position + Vector2(7, -1)
+	var hand := dealer.position + on_screen(Vector2(7, -1))
 	var tip := Vector2(9.5, -14) if phase != "throwing" else Vector2(7, -5)
 	draw_line(hand, tip, Color("d8c49a"), 0.9, true)
 	draw_polyline(PackedVector2Array([tip, tip + Vector2(2.4, -0.4), tip + Vector2(2.2, 2)]), Color("d8c49a"), 1.1, true)
 	# The shooter's badge, at their feet.
 	if shooter >= 0 and occupants.has(shooter):
-		var b := chair_pos(shooter) + Vector2(0, 17)
+		var b := chair_pos(shooter) + on_screen(Vector2(0, 17))
 		draw_colored_polygon(TableFelt._rounded(Rect2(b.x - 11, b.y - 2.8, 22, 5.6), 2.8), Color(0, 0, 0, 0.6))
-		_label(b + Vector2(0, 0.1), "SHOOTER", 3.0, Color("ecd08a"))
+		_label(b + on_screen(Vector2(0, 0.1)), "SHOOTER", 3.0, Color("ecd08a"), -screen_turn())
 	for seat in want_dice:
 		if occupants.has(seat) and seat != shooter:
-			_label(chair_pos(seat) + Vector2(0, 17), "next shooter", 2.8, Color("ecd08a"))
+			_label(chair_pos(seat) + on_screen(Vector2(0, 17)), "next shooter", 2.8, Color("ecd08a"), -screen_turn())
 	# A ghost of your chip where it would go.
 	if not hover.is_empty() and my_seat >= 0:
 		var at := spot_pos(my_seat, spot_for(hover.id)) - Vector2(0, 1.2)
@@ -1245,10 +1251,10 @@ func _disc(at: Vector2, radius: float, colour: Color) -> void:
 
 
 ## Text centred on a point at any size (fonts take whole sizes; the rest is scaled).
-func _label(at: Vector2, s: String, size: float, colour: Color) -> void:
+func _label(at: Vector2, s: String, size: float, colour: Color, turn := 0.0) -> void:
 	var px := maxi(1, ceili(size * 2))
 	var k := size / px
 	var w := Card2D.FONT.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	draw_set_transform(at, 0, Vector2(k, k))
+	draw_set_transform(at, turn, Vector2(k, k))
 	draw_string(Card2D.FONT, Vector2(-w / 2, px * 0.36), s, HORIZONTAL_ALIGNMENT_LEFT, -1, px, colour)
 	draw_set_transform(Vector2.ZERO)
