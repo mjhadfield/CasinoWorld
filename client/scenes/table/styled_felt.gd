@@ -523,8 +523,8 @@ func spot(s: Dictionary) -> void:
 		print_text(lines[1], centre + Vector2(0, 1.3), size, tc)
 
 
-## A spot's outline, `inset` in from its edge.
-func shape(s: Dictionary, inset: float) -> PackedVector2Array:
+## A spot's outline, `inset` in from its edge (out from it when negative).
+static func shape(s: Dictionary, inset: float) -> PackedVector2Array:
 	var at: Vector2 = s.at
 	match str(s.shape):
 		"circle":

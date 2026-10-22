@@ -33,8 +33,19 @@ func spot_radius(spot: String) -> float:
 	return 8.0 if spot in ["ante", "blind"] else SPOT_R + 1.0
 
 
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	if spot in ["ante", "blind"]:
+		return {"shape": "circle", "at": spot_pos(seat, spot), "r": 8.0}
+	return super(seat, spot)
+
+
 func main_spot() -> String:
 	return "ante"
+
+
+## The Blind goes down with the Ante.
+func primary_spots() -> Array:
+	return ["ante", "blind"]
 
 
 func max_cost(b: Dictionary) -> int:

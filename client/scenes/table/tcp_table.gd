@@ -30,6 +30,13 @@ func spot_radius(spot: String) -> float:
 	return SPOT_R + 1.0 if spot != "ante" else 10.5
 
 
+## The Ante is a diamond.
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	if spot == "ante":
+		return {"shape": "diamond", "at": spot_pos(seat, spot), "hw": 9.0, "hh": 7.5}
+	return super(seat, spot)
+
+
 func main_spot() -> String:
 	return "ante"
 

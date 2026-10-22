@@ -15,7 +15,7 @@ a tab for each kind of table, because they have different parts:
   Mississippi streets; primary for the bet every hand must have: the Ante, Blackjack's bet, Hold'em's Blind, Let It
   Ride's three, Baccarat's Banker box and hand; side for the bonus bets, Baccarat's Tie and Dragons; and the trim for
   the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
-  the betting spots' artwork; the Jackpot disc, the shuffler,
+  the betting spots' artwork and glow colour; the Jackpot disc, the shuffler,
   shoe and discard rack; the card backs (a design, its colour, and the card's colour round it) and fronts (Classic,
   Jumbo index, Vintage or Minimal, in red and black or four colours); the chairs' frame metal and upholstery; and
   chips.
@@ -89,6 +89,14 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   front). Craps has no tray piece: its rail is a deeper ledge across the floor of the boxman's bay
   (`CrapsTable.LEDGE`, part of `CrapsTable.shape()`), and the rack's well is cut straight into it, rimmed with the
   bead. **`felt_cache.gd` (`FeltCache`)** shows it as one picture.
+- **The spot glow** (`scenes/table/spot_glow.gd`, `SpotGlow`) is the light round the local player's spots while
+  they can bet: first only the primary bets (`CasinoTable.primary_spots()`, the main bet by default; Baccarat's
+  Banker and Player, Hold'em's Ante and Blind, Let It Ride's three), then, once one of them has chips on it, the
+  side bets still empty (`glowing_spots()`). It follows each spot's printed outline (`spot_shape()`: a circle of
+  `SPOT_R` unless the game gives another, such as the Three Card Ante's diamond or Baccarat's boxes, which the felts
+  also print from), with a breathing halo, a lit edge and a glint running round it, in the style's `glow` colour. A
+  click anywhere on a spot's shape lands on it. The designer's "Spot glow" plays the same (`drawGlow()` in render.js,
+  from the shapes and primaries `tools/table_geometry.gd` writes). Roulette and Craps don't glow (`pulse_spots()`).
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).

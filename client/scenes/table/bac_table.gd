@@ -28,8 +28,19 @@ func spot_radius(spot: String) -> float:
 	return 7.0 if spot in ["tie", "player_dragon", "banker_dragon"] else 7.5
 
 
+## Banker and Player are boxes across the seat (the chips go at the left end, the word at the right).
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	if spot in ["banker", "player"]:
+		return {"shape": "box", "at": Vector2(seat_x(seat), BANKER_Y if spot == "banker" else PLAYER_Y), "w": BOX.x, "h": BOX.y, "rad": 2.0}
+	return super(seat, spot)
+
+
 func main_spot() -> String:
 	return "player"
+
+
+func primary_spots() -> Array:
+	return ["banker", "player"]
 
 
 func has_main_bet(bets: Dictionary) -> bool:

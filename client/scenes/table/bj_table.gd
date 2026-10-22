@@ -46,6 +46,16 @@ func spot_radius(spot: String) -> float:
 	return BET_R if spot == "bet" else SPOT_R + 1.0
 
 
+## The betting circle is big, and Top 3 is a diamond.
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	match spot:
+		"bet":
+			return {"shape": "circle", "at": spot_pos(seat, spot), "r": BET_R}
+		"top_three":
+			return {"shape": "diamond", "at": spot_pos(seat, spot), "hw": 8.5, "hh": 7.5}
+	return super(seat, spot)
+
+
 func main_spot() -> String:
 	return "bet"
 

@@ -3,7 +3,7 @@
 // (table_styles.py); saving one restyles every table using it straight away. House is the default every table of
 // its kind uses unless it's given another; the presets are built in (save a copy to change one).
 // Three columns: styles and placement | the table, fitted to the window | the design's controls.
-import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, backColour } from "/admin-ui/tables/render.js";
+import { render, drawGlow, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, backColour } from "/admin-ui/tables/render.js";
 
 const BASE = "/admin-ui/tables/";
 const KIND_NAMES = { cards: "card table", roulette: "roulette table", craps: "craps table" };
@@ -12,12 +12,14 @@ let kind = "cards";        // which kind of table's styles are shown
 let data = null;           // GET /api/table-styles?kind=
 let cur = null;            // the style being edited: {id, name, design, builtin}
 let saved = "";            // its design as last saved, to tell when it's changed
-const VIEW = { cards: { game: "tcp", view: "seated", play: true, lit: true, fixed: false },
+const VIEW = { cards: { game: "tcp", view: "seated", play: true, lit: true, fixed: false, glow: false },
   roulette: { view: "table", play: true }, craps: { view: "table", play: true } };
 let view = VIEW.cards;     // the stage's settings, kept for each kind
 let placing = {};          // table id -> style id ("" for the default), as edited
 let placingDefault = "house";
 let seating = null;        // the Default seating style (Settings), for the chairs' shape
+let glowRun = null;        // the Spot glow preview while it's playing: {base (the table without it), rect, start, frame}
+const GLOW_STAGE = 3.5;    // seconds of the main bet glowing, then of the side bets once it's down
 const q = () => "?kind=" + kind;
 
 export function init(h) {
@@ -45,14 +47,14 @@ export async function load() {
   status("Table styles loaded.", "ok");
 }
 
-export function shown(on) { if (on && cur) drawStage(); }
+export function shown(on) { if (on && cur) drawStage(); else stopGlow(); }
 
 function setKind(k) {
   kind = k;
   view = VIEW[k];
   ctx.top.querySelectorAll("#ts-kinds button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === k)));
   const cards = k === "cards";
-  for (const sel of ["#ts-games", "#ts-lit-box", "#ts-fixed-box"]) ctx.$(sel).hidden = !cards;
+  for (const sel of ["#ts-games", "#ts-lit-box", "#ts-fixed-box", "#ts-glow-box"]) ctx.$(sel).hidden = !cards;
   ctx.$("#ts-default-label").textContent = `Default for every ${KIND_NAMES[k]}`;
   ctx.$("#ts-play-label").textContent = cards ? "Hand in play" : "Bets down";
   ctx.$("#ts-play").checked = view.play;
@@ -105,7 +107,7 @@ function build() {
       el("canvas", { id: "ts-stage" }),
       el("div", { className: "float tl" },
         el("div", { className: "seg", id: "ts-views", role: "group", "aria-label": "View" }),
-        toggle("ts-play", "Hand in play", "play"), toggle("ts-lit", "Jackpot lit", "lit"), toggle("ts-fixed", "Fixed layout", "fixed")),
+        toggle("ts-play", "Hand in play", "play"), toggle("ts-lit", "Jackpot lit", "lit"), toggle("ts-fixed", "Fixed layout", "fixed"), toggle("ts-glow", "Spot glow", "glow")),
       el("div", { className: "float bl ts-warn", id: "ts-warn", hidden: true }),
       el("div", { className: "float br hint", id: "ts-legend", hidden: true }, "Dashed: every spot, card and machine where the game puts it. Styles never move them.")),
     el("div", { className: "panel" },
@@ -369,13 +371,15 @@ function drawStage() {
   const rect = viewRect(), canvas = $("#ts-stage");
   fit(canvas, rect);
   if (kind !== "cards") {
+    stopGlow();
     render(canvas, cur.design, KINDS[kind].game, rect, { play: view.play, seating });
     $("#ts-legend").hidden = true;
     $("#ts-warn").hidden = true;
     syncButtons();
     return;
   }
-  render(canvas, cur.design, view.game, rect, { play: view.play, lit: view.lit, fixed: view.fixed, seating });
+  render(canvas, cur.design, view.game, rect, { play: view.play, lit: view.lit, fixed: view.fixed, seating, glow: view.glow });
+  if (view.glow) startGlow(canvas, rect); else stopGlow();
   if (ctx.view.querySelector('[data-slot="tray"]')?.open) for (const mode of ["ledge", "sunk"]) {
     render($("#ts-cmp-" + mode), { ...cur.design, tray: { ...cur.design.tray, mode } }, view.game, KINDS.cards.views.bay[1], { play: view.play });
   }
@@ -384,6 +388,32 @@ function drawStage() {
   warn.hidden = distance(backColour(cur.design), cur.design.felt.colour) >= 22;
   warn.textContent = "This card back is close to the felt's colour: face-down cards may blend in.";
   syncButtons();
+}
+
+// The Spot glow preview: what you see sitting down at seat 2 -- the main bet glowing, then a chip on it and the side
+// bets glowing -- over and over, drawn each frame over a copy of the table as it was just rendered.
+function startGlow(canvas, rect) {
+  const base = document.createElement("canvas");
+  base.width = canvas.width; base.height = canvas.height;
+  base.getContext("2d").drawImage(canvas, 0, 0);
+  const start = glowRun ? glowRun.start : performance.now() / 1000;
+  if (glowRun) cancelAnimationFrame(glowRun.frame);
+  glowRun = { base, rect, start, frame: 0 };
+  const tick = () => {
+    if (!glowRun || ctx.view.hidden) return stopGlow();
+    const t = performance.now() / 1000, g = ctx.$("#ts-stage").getContext("2d"), cycle = (t - glowRun.start) % (2 * GLOW_STAGE);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(glowRun.base, 0, 0);
+    const stage = cycle < GLOW_STAGE ? 0 : 1;
+    drawGlow(canvas, cur.design, view.game, glowRun.rect, t, stage, t - (cycle - stage * GLOW_STAGE));
+    glowRun.frame = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stopGlow() {
+  if (glowRun) cancelAnimationFrame(glowRun.frame);
+  glowRun = null;
 }
 
 // ---------------------------------------------------------------- saving

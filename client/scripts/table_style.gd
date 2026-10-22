@@ -19,7 +19,7 @@ const HOUSE := {
 	"shuffler": "black", "shufflerTint": "#cfccc4", "shufflerWood": "match",
 	"shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
 	"rack": "wood", "rackTint": "#12305e", "rackWood": "match",
-	"spots": "deco",
+	"spots": "deco", "glow": "#ffdf9e",
 	"print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
 	"back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
 	"jackpot": "led", "jackpotRim": "thin", "chips": "clay",

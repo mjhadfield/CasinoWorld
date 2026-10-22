@@ -78,6 +78,8 @@ var master_game := ""
 var master := {}
 var master_revert_end := 0.0      # back to the crest at this time (local seconds), or 0
 var _dealer_hot := false
+var _glows := {}                  # "seat/spot" -> SpotGlow.prepare(): each spot's glow outlines, worked out once
+var _glow_since := {}             # spot -> when it started glowing (local seconds), while it glows
 
 @onready var dealer: Avatar = $Dealer
 @onready var _felt: Node2D = $Felt
@@ -122,9 +124,22 @@ func spot_radius(_spot: String) -> float:
 	return SPOT_R + 1.0
 
 
+## A spot's printed outline, as StyledFelt.spot() takes it ("circle" r, "diamond" hw hh, or "box" w h rad, at
+## `at`): what it glows round and where a click lands on it. Most are a circle a chip just fits in; a game gives
+## its others.
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	return {"shape": "circle", "at": spot_pos(seat, spot), "r": SPOT_R}
+
+
 ## The bet that has to be down to play a hand, and spots that are a flat amount.
 func main_spot() -> String:
 	return ""
+
+
+## The bets a hand starts from (Baccarat's Banker and Player, Hold'em's Ante and Blind): they glow when you sit
+## down, and the side bets glow once one of them has chips on it.
+func primary_spots() -> Array:
+	return [main_spot()]
 
 
 func flat_spots() -> Dictionary:
@@ -212,9 +227,20 @@ func pending_cost(bets: Dictionary) -> int:
 	return total
 
 
-## Whether the spots pulse while you can bet (not on a layout of 157 spots).
+## Whether the spots glow while you can bet (not on a layout of 157 spots).
 func pulse_spots() -> bool:
 	return true
+
+
+## The local player's spots waiting for chips: the primary bets until one's down, then the side bets still empty.
+func glowing_spots() -> Array:
+	var chips := _chips_for(my_seat)
+	var down := func(spot: String) -> bool: return chips.has(spot) and int(chips[spot].amount) > 0
+	var spots := bet_spots()
+	var primary := primary_spots().filter(func(spot): return spot in spots)
+	if not primary.any(down):
+		return primary
+	return spots.filter(func(spot): return not spot in primary and not down.call(spot))
 
 
 func dealer_card_pos(index: int) -> Vector2:
@@ -998,13 +1024,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if mode == "seated" and my_seat >= 0:
 		for spot in bet_spots():
-			if p.distance_to(spot_pos(my_seat, spot)) < spot_radius(spot):
+			if _on_spot(p, spot):
 				if event.button_index == MOUSE_BUTTON_LEFT:
 					spot_clicked.emit(spot)
 				elif event.button_index == MOUSE_BUTTON_RIGHT:
 					spot_removed.emit(spot)
 				get_viewport().set_input_as_handled()
 				return
+
+
+## Whether `p` is on one of the local player's spots: near its middle, or anywhere on its printed shape.
+func _on_spot(p: Vector2, spot: String) -> bool:
+	if p.distance_to(spot_pos(my_seat, spot)) < spot_radius(spot):
+		return true
+	var s := spot_shape(my_seat, spot)
+	return s.shape != "circle" and Geometry2D.is_point_in_polygon(p, StyledFelt.shape(s, -1.0))
 
 
 # ------------------------------------------------------------------ overlays
@@ -1018,9 +1052,7 @@ func _draw() -> void:
 		_draw_stool(seat, seat in glowing, pulse)
 	if Engine.is_editor_hint():
 		return
-	if mode == "seated" and my_seat >= 0 and phase == "betting" and pulse_spots():
-		for spot in bet_spots():
-			draw_arc(spot_pos(my_seat, spot), spot_radius(spot), 0, TAU, 32, Color(1, 1, 1, 0.25 + 0.25 * pulse), 0.8, true)
+	_draw_spot_glows(now)
 	for seat in ready_seats:
 		var p := chair_pos(seat) + on_screen(Vector2(13, -12))
 		draw_circle(p, 3.5, Color("2e9e4f"))
@@ -1068,6 +1100,20 @@ func _countdown_x() -> float:
 ## Whether `local` is on the dealer (the figure standing up from their feet, as the screen shows them).
 func over_dealer(local: Vector2) -> bool:
 	return Rect2(-13, -52, 26, 50).has_point((local - dealer.position).rotated(screen_turn()))
+
+
+## While you're sat with chips to put down, the spots waiting for them glow in the style's glow colour (SpotGlow).
+func _draw_spot_glows(now: float) -> void:
+	var spots := glowing_spots() if mode == "seated" and my_seat >= 0 and phase == "betting" and pulse_spots() else []
+	for spot in _glow_since.keys():
+		if not spot in spots:
+			_glow_since.erase(spot)
+	var colour := TableStyle.colour(style(), "glow") if styled() else Color("ffdf9e")
+	for spot in spots:
+		var key := "%d/%s" % [my_seat, spot]
+		if not _glows.has(key):
+			_glows[key] = SpotGlow.prepare(spot_shape(my_seat, spot))
+		SpotGlow.draw(self, _glows[key], colour, now, _glow_since.get_or_add(spot, now))
 
 
 ## A ring around a seat's chair: who's thinking, with their time running down.

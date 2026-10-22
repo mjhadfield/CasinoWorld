@@ -32,7 +32,7 @@ HOUSE = {
     "shuffler": "black", "shufflerTint": "#cfccc4", "shufflerWood": "match",
     "shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
     "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
-    "spots": "deco",
+    "spots": "deco", "glow": "#ffdf9e",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
     "back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
     "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
@@ -49,7 +49,7 @@ _PRESET_BASE = {
     "shuffler": "black", "shufflerTint": "#3a3e44", "shufflerWood": "match",
     "shoe": "acrylic", "shoeTint": "#141416", "shoeWood": "match",
     "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
-    "spots": "double",
+    "spots": "double", "glow": "#ffdf9e",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
     "back": "emerald", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
     "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
@@ -81,7 +81,7 @@ BUILT_IN = {
     "monte": _preset("Monte Carlo", felt__colour="#0f5b3f", felt__vignette=0.6, border="double", led="#ffd28a",
                      rail__wood="walnut", rail__armrest="player", rail__bead="gold", tray__finish="lid",
                      shuffler="gunmetal", rack="smoked", rackTint="#1e2328", spots="foil",
-                     print__font="cormorant", print__ink="#e8d3a0", print__accent="#e0b84e",
+                     print__font="cormorant", print__ink="#e8d3a0", print__accent="#e0b84e", glow="#f0c75e",
                      back="monogram", jackpotRim="standard", chips="ceramic"),
     "deco": _preset("Midnight Deco", felt__colour="#14284a", felt__texture="weave", felt__vignette=0.5, border="deco",
                     led="#ffd28a", rail__wood="rosewood", rail__armrest="none", rail__leather="#1a2234",
@@ -91,7 +91,7 @@ BUILT_IN = {
     "vegas": _preset("Modern Vegas", felt__colour="#1a3f93", felt__texture="weave", felt__vignette=0.35, border="led",
                      led="#8fd3ff", rail__wood="ebony", rail__bead="chrome", tray__finish="steel",
                      shufflerTint="#1c1e22", rack="smoked", rackTint="#1e2328", spots="double",
-                     print__font="montserrat", print__ink="#f4f4f2", print__accent="#8fd3ff",
+                     print__font="montserrat", print__ink="#f4f4f2", print__accent="#8fd3ff", glow="#8fd3ff",
                      back="stripe", jackpot="led", jackpotRim="standard", chips="ceramic"),
 }
 
@@ -122,8 +122,9 @@ CHOICES = {
 }
 # The printing's colours: ink (titles, rules, follow-up bets like Play), primary (the bet every hand must have: the
 # Ante, Blackjack's bet), side (the optional bonus bets) and accent, the trim (gilt, double and deco borders, the
-# House chips, the Master Table's crest).
-COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.primary", "print.side", "print.accent",
+# House chips, the Master Table's crest). The glow is the light round the betting spots that are waiting for your
+# chips (the main bet, then the side bets).
+COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.primary", "print.side", "print.accent", "glow",
            "shufflerTint", "shoeTint", "rackTint", "backColour", "cardColour", "chairs.upholstery")
 RANGES = {"felt.vignette": (0.0, 1.0)}
 

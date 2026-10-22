@@ -27,6 +27,9 @@ export const INKS = [["Cream", "#f1e4c4"], ["Champagne", "#e8d3a0"], ["Gold", "#
 export const LEDS = [["Ice", "#8fd3ff"], ["Warm white", "#ffd28a"], ["Magenta", "#ff4fd8"], ["Red", "#ff3b3b"], ["Green", "#4dff9a"], ["Violet", "#9a7bff"]];
 export const TINTS = [["Red smoke", "#6b0f19"], ["Black", "#141416"], ["Smoke grey", "#1e2328"], ["Amber", "#7a4a0c"], ["Sapphire", "#12305e"], ["Bottle green", "#0f4a2c"]];
 export const HOUSINGS = [["Gunmetal", "#3a3e44"], ["Black", "#1c1e22"], ["Bronze", "#4a3a2a"], ["Navy", "#1f2a3d"], ["Burgundy", "#4a1a22"], ["Pearl", "#cfccc4"]];
+// The spot glow's colours (table_styles HOUSE's glow is Champagne).
+const GLOWS = [["Champagne", "#ffdf9e"], ["Warm white", "#fff2dc"], ["Gold", "#f0c75e"], ["Ice", "#8fd3ff"], ["Mint", "#7ef0c1"],
+  ["Rose", "#ff9db8"], ["Violet", "#b9a3ff"], ["Red", "#ff5a5a"]];
 export const ACCENTS = [["Brass", "#c9a24a"], ["Gold", "#e0b84e"], ["Copper", "#c8794a"], ["Chrome", "#b9c3cb"], ["Ice", "#8fd3ff"], ["Jade", "#7fc8a9"]];
 export const WOODS = {
   mahogany: { label: "Mahogany", tex: "mahogany", tile: 58 },
@@ -79,7 +82,8 @@ export const SLOTS = [
     { key: "print.side", type: "swatch", options: [...ACCENTS, ...INKS], custom: true, label: "Side bets (Pair Plus, 21+3, Tie, Dragons...)" },
     { key: "print.accent", type: "swatch", options: ACCENTS, custom: true, label: "Trim (gilt, double and deco borders, House chips, Master crest)" }] },
   { id: "spots", label: "Betting spots", keys: ["spots"], hint: "same centres and sizes", ctl: [
-    { key: "spots", type: "seg", options: [["printed", "Printed"], ["double", "Double ring"], ["foil", "Gold foil"], ["inlaid", "Inlaid"], ["deco", "Deco"]] }] },
+    { key: "spots", type: "seg", options: [["printed", "Printed"], ["double", "Double ring"], ["foil", "Gold foil"], ["inlaid", "Inlaid"], ["deco", "Deco"]] },
+    { key: "glow", type: "swatch", options: GLOWS, custom: true, label: "Glow round the spots waiting for your chips (the main bet, then the side bets): Spot glow above shows it" }] },
   { id: "jackpot", label: "Jackpot disc", keys: ["jackpot", "jackpotRim"], hint: "same size and place", ctl: [
     { key: "jackpot", type: "seg", options: [["clear", "Clear (today)"], ["gold", "Gold bezel"], ["led", "LED ring"]] },
     { key: "jackpotRim", type: "seg", options: [["thin", "Thin"], ["standard", "Standard"], ["heavy", "Heavy"]], label: "Rim thickness (grows inward)" }] },
@@ -961,6 +965,7 @@ const SAMPLE = {
   hcf: { main: "ante", side: "flush", up: [["Ah", "Jh", "8h", "6h", "3h", "Kc", "2s"]] },
   bac: { main: "player", side: "tie" },
 };
+let glowing = false;   // (opts.glow: seat 2 is betting, its spots glowing, so drawPlay leaves it empty)
 function drawPlay(ctx, D, game, T) {
   const s = SAMPLE[game], seats = T.seats === 5 ? [0, 2, 3] : [0, 2, 3, 5], amounts = [1000, 2500, 500, 1500];
   // dealer's cards
@@ -970,6 +975,7 @@ function drawPlay(ctx, D, game, T) {
   else T.dealer_cards.forEach(p => card(ctx, D, "??", ...p));
   seats.forEach((seat, j) => {
     const S = T.spots[seat], you = seat === 2;
+    if (you && glowing) return;   // (you're still betting: the spot glow's showing)
     if (game === "pgf" || game === "pgu") {
       const [lo, hi] = T.cards[seat];
       if (you) { card(ctx, D, "Kd", lo[0], lo[1] - 1.5); card(ctx, D, "Ks", lo[0], lo[1] + 1.5);
@@ -1255,6 +1261,7 @@ export function render(canvas, D, game, rect, opts = {}) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
   bare = !!opts.bare;
+  glowing = !!opts.glow;
   forPlan = !!opts.plan;
   if (opts.seating) seatShape = opts.seating;
   if (game === "rou" || game === "crp") { (game === "rou" ? drawRoulette : drawCraps)(ctx, D, rect, opts); return; }
@@ -1281,6 +1288,65 @@ export function render(canvas, D, game, rect, opts = {}) {
   if (T.shuffler) shuffler(ctx, D, T.shuffler);
   T.chairs.forEach(c => chair(ctx, c, D));
   if (opts.fixed) drawFixed(ctx, T);
+}
+
+// ---------------------------------------------------------------- the spot glow (SpotGlow.gd)
+// The light round the spots waiting for your chips, on seat 2 ("you"), drawn over a render() of the table: its
+// primary bets (stage 0), or once one has chips on it, its side bets (stage 1, the chips drawn). `t` is seconds,
+// `since` when the stage began (it fades in). The same halo, lit edge, wash and running glint as the game.
+const GLOW = { lap: 2.8, breath: 2.4, fade: 0.4, bands: 4, step: 0.85, tail: 0.3 };
+export function drawGlow(canvas, D, game, rect, t, stage, since) {
+  const T = G.tables[game];
+  if (!T || !T.spots || !T.spots[2]) return;
+  const ctx = canvas.getContext("2d"), k = canvas.width / rect[2], S = T.spots[2], primary = T.primary || [];
+  ctx.setTransform(k, 0, 0, k, -rect[0] * k, -rect[1] * k);
+  if (stage) for (const p of game === "bac" ? ["banker"] : primary) stack(ctx, D, 1000, ...S[p].at);
+  const names = Object.keys(S).filter(n => S[n].shape && primary.includes(n) !== !!stage);
+  let fade = Math.min(1, Math.max(0, (t - since) / GLOW.fade));
+  fade = fade * fade * (3 - 2 * fade);
+  const breath = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI / GLOW.breath), a = fade * (0.72 + 0.28 * breath);
+  const colour = D.glow || "#ffdf9e", bright = mix(colour, "#ffffff", 0.45);
+  for (const n of names) {
+    const s = S[n].shape, pts = outlinePts(s);
+    // The halo: Godot steps out from the edge in separate lines; here each band is a wide stroke outside the spot,
+    // the outer ones under the inner, so the alpha falls the same way.
+    ctx.save();
+    ctx.beginPath(); ctx.rect(s.at[0] - 60, s.at[1] - 60, 120, 120); path(ctx, pts); ctx.clip("evenodd");
+    const alpha = i => i >= GLOW.bands ? 0 : 0.34 * a * Math.pow(1 - i / GLOW.bands, 1.6) * (0.85 + 0.3 * breath);
+    for (let i = GLOW.bands - 1; i >= 0; i--) strokePoly(ctx, pts, rgba(colour, alpha(i) - alpha(i + 1)), 2 * (0.55 + i * GLOW.step + 0.55));
+    ctx.restore();
+    fillPoly(ctx, pts, rgba(colour, 0.08 * a));
+    strokePoly(ctx, pts, rgba(bright, 0.7 * a), 0.5);
+    // The glint: a bright head running clockwise round the edge from the top, with a fading tail.
+    const along = [0];
+    pts.forEach((p, i) => along.push(along[i] + Math.hypot(pts[(i + 1) % pts.length][0] - p[0], pts[(i + 1) % pts.length][1] - p[1])));
+    const total = along[along.length - 1], head = ((t / GLOW.lap) % 1) * total, tail = GLOW.tail * total;
+    const at = d => { d = ((d % total) + total) % total; let i = 0; while (i < pts.length - 1 && along[i + 1] < d) i++;
+      const q = pts[(i + 1) % pts.length], f = (d - along[i]) / ((along[i + 1] - along[i]) || 1); return [pts[i][0] + (q[0] - pts[i][0]) * f, pts[i][1] + (q[1] - pts[i][1]) * f]; };
+    ctx.lineCap = "round";
+    for (let j = 0; j < 18; j++) {
+      const p0 = at(head - tail + tail * j / 18), p1 = at(head - tail + tail * (j + 1) / 18), f = (j + 1) / 18;
+      ctx.beginPath(); ctx.moveTo(...p0); ctx.lineTo(...p1); ctx.strokeStyle = rgba(bright, fade * f * f); ctx.lineWidth = 0.9; ctx.stroke();
+    }
+    const tip = at(head);
+    circle(ctx, tip[0], tip[1], 1.9, rgba(bright, 0.22 * fade));
+    circle(ctx, tip[0], tip[1], 0.75, rgba("#ffffff", 0.9 * fade));
+  }
+}
+// A spot's outline as points, starting at its top and running clockwise (StyledFelt.shape, TableFelt._rounded).
+function outlinePts(s) {
+  const [x, y] = s.at;
+  let pts = [];
+  if (s.shape === "circle") for (let i = 0; i < 40; i++) { const a = 2 * Math.PI * i / 40; pts.push([x + Math.cos(a) * s.r, y + Math.sin(a) * s.r]); }
+  else if (s.shape === "diamond") pts = [[x, y - s.hh], [x + s.hw, y], [x, y + s.hh], [x - s.hw, y]];
+  else {
+    const r = Math.min(s.rad || 1.2, s.w / 2, s.h / 2), x0 = x - s.w / 2, y0 = y - s.h / 2, x1 = x + s.w / 2, y1 = y + s.h / 2;
+    for (const [cx, cy, a0] of [[x1 - r, y1 - r, 0], [x0 + r, y1 - r, Math.PI / 2], [x0 + r, y0 + r, Math.PI], [x1 - r, y0 + r, Math.PI * 1.5]])
+      for (let i = 0; i < 5; i++) { const a = a0 + Math.PI / 2 * i / 4; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  }
+  let top = 0;
+  pts.forEach((p, i) => { if (p[1] < pts[top][1] - 0.01) top = i; });
+  return pts.slice(top).concat(pts.slice(0, top));
 }
 
 // ---------------------------------------------------------------- the Floor plan tab's pieces (render's opts.plan)

@@ -30,8 +30,19 @@ func spot_radius(spot: String) -> float:
 	return 7.0 if spot in BASE else SPOT_R + 0.5
 
 
+func spot_shape(seat: int, spot: String) -> Dictionary:
+	if spot in BASE:
+		return {"shape": "circle", "at": spot_pos(seat, spot), "r": 7.0}
+	return super(seat, spot)
+
+
 func main_spot() -> String:
 	return "ante"
+
+
+## The three bets go down together.
+func primary_spots() -> Array:
+	return BASE
 
 
 func flat_spots() -> Dictionary:

@@ -25,6 +25,5 @@ func _draw_seat(t: CasinoTable, seat: int) -> void:
 	circle(t.spot_pos(seat, "tie"), "side", ["TIE"])
 	circle(t.spot_pos(seat, "banker_dragon"), "side", ["B", "DRAGON"])
 	for spot_name in ["banker", "player"]:
-		var y: float = BacTable.BANKER_Y if spot_name == "banker" else BacTable.PLAYER_Y
-		spot({"shape": "box", "at": Vector2(t.seat_x(seat), y), "w": BacTable.BOX.x, "h": BacTable.BOX.y, "rad": 2.0,
-			"ring": "ink" if spot_name == "player" else "primary", "lines": [spot_name.to_upper()], "size": 3, "dx": 9.0})
+		spot(t.spot_shape(seat, spot_name).merged({"ring": "ink" if spot_name == "player" else "primary",
+			"lines": [spot_name.to_upper()], "size": 3, "dx": 9.0}))

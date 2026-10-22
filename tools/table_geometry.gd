@@ -74,6 +74,7 @@ func _initialize() -> void:
 			"shoe": _node_pos(t, "Felt/Fixtures/Shoe"),
 			"discard": _node_pos(t, "Felt/Fixtures/DiscardRack"),
 			"chairs": [], "spots": [], "cards": [], "dealer_cards": [], "extra": {},
+			"primary": t.primary_spots().filter(func(s): return s in t.bet_spots()),   # (they glow first, the side bets after)
 		}
 		var names: Array = t.bet_spots().duplicate()
 		for extra in ["play", "raise", "blind", "third", "fourth", "fifth", "insurance"]:
@@ -84,6 +85,10 @@ func _initialize() -> void:
 			var spots := {}
 			for s in names:
 				spots[s] = {"at": v(t.spot_pos(seat, s)), "r": t.spot_radius(s)}
+				if s in t.bet_spots():   # its printed outline, for the designer's spot glow
+					var shape: Dictionary = t.spot_shape(seat, s).duplicate()
+					shape.at = v(shape.at)
+					spots[s]["shape"] = shape
 			tab.spots.append(spots)
 			var cards := []
 			match key:

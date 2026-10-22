@@ -240,10 +240,11 @@ sections:
     a design, because the live server saves over `design.json`.
 - **Tables:** how the tables look, with a tab for each kind: **Card Games**, **Roulette** and **Craps**, each
   with its own styles and placement. A designer draws a table in any style on the game's real layout, with every
-  part swappable. Card Games: pick the game, the view, a hand in play, the Jackpot lit, and "Fixed layout" to see
-  where the game puts every spot and card; the parts are the felt, border line, rail (wood, leather armrest or
+  part swappable. Card Games: pick the game, the view, a hand in play, the Jackpot lit, "Fixed layout" to see
+  where the game puts every spot and card, and "Spot glow" to watch seat 2's spots glow as they do when you sit
+  down (the main bet, then the side bets once it's down); the parts are the felt, border line, rail (wood, leather armrest or
   leather all round, the bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting
-  spots, Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
+  spots (and their glow colour), Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
   border, rail, printing, number colours, float, wheel and chairs. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to
