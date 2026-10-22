@@ -74,7 +74,9 @@ def refresh_sets():
     SETS.clear()
     SETS.update(_sets())
     TABLE_SETS.clear()
-    TABLE_SETS.update({tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else cfg["game"])
+    # (a Master Table plays the casino's own set until it has a game: then its game's -- casino.py sets that)
+    TABLE_SETS.update({tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else
+                             "casino" if cfg["game"] == "master_table" else cfg["game"])
                        for tid, cfg in floor.TABLES.items()})
     _TABLE_GAMES.clear()
     _TABLE_GAMES.update(k for k, s in SETS.items() if s["group"] == "Table games")

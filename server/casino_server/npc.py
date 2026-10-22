@@ -388,6 +388,40 @@ class NpcDirector:
         npc.look, npc.name = look, record["name"]
         self.casino.world.restyle(npc.entity_id, look=look, name=record["name"])
 
+    # ------------------------------------------------------------------ a Master Table changing game
+    def keeps_seat(self, participant, game: str) -> bool:
+        """Whether an NPC sitting at a Master Table stays for `game`: always for a favourite, otherwise half the
+        time (a Card counter only ever stays for Blackjack)."""
+        npc = getattr(participant, "npc", None)
+        if npc is None:
+            return True
+        if npc.prof.card_counter:
+            return game == bj.GAME_KEY
+        return game in npc.prof.favourite_games or self.rng.random() < 0.5
+
+    def reseated(self, table_id: str, mapping: list):
+        """A Master Table's seats were renumbered (`mapping`: for each new seat, the old seat it took over, or -1):
+        NPCs sitting there, or on their way to a seat there, follow. One walking to a seat that's gone looks again."""
+        machine = self.casino.tables[table_id].machine
+        now = self.clock()
+        for npc in list(self.npcs.values()):
+            if npc.table != table_id or npc.seat is None:
+                continue
+            if npc.state == "seated":
+                seat = machine.seat_of(npc.participant)
+                if seat is not None:
+                    npc.seat = seat
+                else:   # got up for the new game
+                    npc.table = npc.seat = None
+                    npc.bet_at = npc.decide_at = None
+                    self._next_step(npc, now)
+            elif npc.seat in mapping:
+                npc.seat = mapping.index(npc.seat)
+            else:   # on the way to a seat that's gone: look for another
+                npc.table = npc.seat = None
+                npc.plan.insert(0, "play")
+                npc.state, npc.until = "loitering", now
+
     # ------------------------------------------------------------------ per-tick behaviour
     def _step(self, npc: Npc, now: float):
         if npc.state in ("walking", "leaving") and now >= npc.until:

@@ -112,11 +112,11 @@ COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.accent", "s
 RANGES = {"felt.vignette": (0.0, 1.0)}
 
 CARD_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
-              "ultimate_texas_holdem", "let_it_ride", "high_card_flush", "baccarat")
+              "ultimate_texas_holdem", "let_it_ride", "high_card_flush", "baccarat", "master_table")
 # Which of the designer's layouts each game prints.
 LAYOUTS = {"three_card_poker": "tcp", "blackjack": "bj", "mississippi_stud": "ms", "pai_gow_fortune": "pgf",
            "pai_gow_face_up": "pgu", "ultimate_texas_holdem": "uth", "let_it_ride": "lir",
-           "high_card_flush": "hcf", "baccarat": "bac", "roulette": "rou", "craps": "crp"}
+           "high_card_flush": "hcf", "baccarat": "bac", "roulette": "rou", "craps": "crp", "master_table": "mt"}
 
 # ---------------------------------------------------------------- Roulette
 # How the roulette table looked before it took a style (TableFelt's Mahogany & Brass).

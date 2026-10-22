@@ -11,7 +11,7 @@ import asyncio
 import sys
 import time
 
-from casino_server import PROTOCOL_VERSION, floor, plan, seating, table_styles
+from casino_server import PROTOCOL_VERSION, floor, plan, seating, sounds, table_styles
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
@@ -21,8 +21,8 @@ from casino_server.session import Session
 from casino_server.store import Player, Store
 from casino_server.slots.jackpots import SlotProgressives
 from casino_server.slots.stats import SlotStats
-from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, mississippi_stud, pai_gow,
-                                  roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
+from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, master, mississippi_stud,
+                                  pai_gow, roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
 from casino_server.tables.base import TableError
 from casino_server.tables.runner import TableRunner
 from casino_server.world import Entity, World
@@ -39,7 +39,8 @@ MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackja
             "baccarat": baccarat.BaccaratMachine,
             "roulette": roulette.RouletteMachine,
             "craps": craps.CrapsMachine,
-            "slots": slot_machine.SlotMachine}
+            "slots": slot_machine.SlotMachine,
+            "master_table": master.MasterMachine}
 
 
 class Casino:
@@ -55,28 +56,47 @@ class Casino:
         self.clock = clock
         self.sessions: set[Session] = set()
         self.world = World(self, clock)
-        extra = {"deck_factory": deck_factory} if deck_factory else {}
+        self._speed = speed
+        self._deck_factory = deck_factory
         self.tables = {}
         for table_id, cfg in floor.TABLES.items():
-            machine_class = MACHINES[cfg["game"]]
-            # `speed` scales every timer (CASINO_SPEED); each game has its own Timings.
-            game_timings = None
-            if speed is not None:
-                game_timings = sys.modules[machine_class.__module__].Timings().scaled(speed)
-            machine = machine_class(table_id, cfg["seats"], game_timings, self.jackpot, **extra, **self._machine_extras(cfg))
-            self.tables[table_id] = TableRunner(table_id, self, machine, clock)
+            self.tables[table_id] = TableRunner(table_id, self, self._make_machine(table_id, cfg["game"], cfg["seats"], cfg), clock)
         self.npcs = NpcDirector(self, npc_population, rng, clock, pace=npc_pace, wall=wall)
         self.dealers = DealerRoster(self, rng, clock, pace=npc_pace)
         self._tasks: list[asyncio.Task] = []
         self._serial = 0
         self.preview_world = None   # room id -> the draft's world for a preview (app.py sets it: plan.PlanBoard)
 
-    def _machine_extras(self, cfg: dict) -> dict:
-        """What a machine needs beyond the common arguments (a slot cabinet: its variant and
-        the shared progressives)."""
-        if cfg["game"] == "slots":
+    def _make_machine(self, table_id: str, game: str, seats: int, cfg: dict | None = None):
+        machine_class = MACHINES[game]
+        # `speed` scales every timer (CASINO_SPEED); each game has its own Timings.
+        game_timings = None
+        if self._speed is not None:
+            game_timings = sys.modules[machine_class.__module__].Timings().scaled(self._speed)
+        extra = {"deck_factory": self._deck_factory} if self._deck_factory and game != master.GAME_KEY else {}
+        return machine_class(table_id, seats, game_timings, self.jackpot, **extra, **self._machine_extras(table_id, game, cfg or {}))
+
+    def _machine_extras(self, table_id: str, game: str, cfg: dict) -> dict:
+        """What a machine needs beyond the common arguments (a slot cabinet: its variant and the shared
+        progressives; a Master Table: how to make the games it becomes, its animation, and its seat points)."""
+        if game == "slots":
             return {"variant": cfg["variant"], "progressives": self.slot_jackpots, "stats": self.slot_stats}
+        if game == master.GAME_KEY:
+            def on_seats(n: int):   # (the floor's seat points as the live plan has them now: it may have moved)
+                stands = floor.TABLES.get(table_id, {}).get("stands", {})
+                if str(n) in stands:
+                    floor.SEATS[table_id] = [tuple(p) for p in stands[str(n)]]
+                runner = self.tables.get(table_id)
+                sounds.TABLE_SETS[table_id] = (runner.machine.current if runner else "") or "casino"
+
+            return {"make": lambda g, n: self._make_machine(table_id, g, n), "anim": cfg.get("anim", master.DEFAULT_ANIM),
+                    "speed": cfg.get("speed", master.DEFAULT_SPEED), "keeps": self._npc_keeps, "on_seats": on_seats}
         return {}
+
+    def _npc_keeps(self, participant, game: str) -> bool:
+        """At a Master Table changing game: whether an NPC sitting there stays for `game`."""
+        npcs = getattr(self, "npcs", None)
+        return npcs.keeps_seat(participant, game) if npcs is not None else True
 
     # ------------------------------------------------------------------ lifecycle
     async def start(self):
@@ -110,6 +130,11 @@ class Casino:
 
     def broadcast_world(self):
         """The live floor plan changed (a publish that needed no restart): everyone rebuilds the floor."""
+        for table_id, runner in self.tables.items():   # a Master Table's options, and its seat points where it stands now
+            if isinstance(runner.machine, master.MasterMachine) and table_id in floor.TABLES:
+                cfg = floor.TABLES[table_id]
+                runner.machine.anim, runner.machine.speed = cfg.get("anim", master.DEFAULT_ANIM), cfg.get("speed", master.DEFAULT_SPEED)
+                runner.machine.on_seats(len(runner.machine.seats))
         self.broadcast_all({"type": "world", "world": plan.world(plan.live())})
 
     def preview_changed(self):
@@ -128,6 +153,18 @@ class Casino:
         for session in self.joined_sessions():
             if session is not exclude:
                 session.push(msg)
+
+    def on_reseated(self, table_id: str, seats: dict, mapping: list):
+        """A Master Table changed game and its sitters moved seats (entity id -> seat; `mapping`: each new seat's old
+        one, or -1): the sessions, the world and the NPCs follow."""
+        for entity_id, seat in seats.items():
+            self.world.set_seat(entity_id, table_id, seat)
+            for session in self.sessions:
+                if session.entity_id == entity_id and session.table == table_id:
+                    session.seat = seat
+        npcs = getattr(self, "npcs", None)
+        if npcs is not None:
+            npcs.reseated(table_id, mapping)
 
     def on_stood(self, entity_id: str, table_id: str, reason: str):
         """A table stood someone up (they asked, timed out, or disconnected)."""
@@ -169,6 +206,7 @@ class Casino:
             "jackpot_pick": self._table_action, "battle_fire": self._table_action,
             "voyage_choose": self._table_action,
             "expedition_choose": self._table_action,
+            "choose_game": self._table_action, "game_vote": self._table_action, "cancel_game_change": self._table_action,
         }.get(kind)
         if handler is None:
             return session.error(f"Unknown message type: {kind}")
@@ -332,6 +370,14 @@ class Casino:
                 runner.act("take_dice", seat, bool(msg.get("on", True)))
             elif kind == "working":
                 runner.act("set_working", seat, bool(msg.get("on")))
+            elif kind in ("choose_game", "game_vote", "cancel_game_change") and not hasattr(runner.machine, "choose_game"):
+                raise TableError("That's for a Master Table.")
+            elif kind == "choose_game":
+                runner.act("choose_game", seat, str(msg.get("game", "")))
+            elif kind == "game_vote":
+                runner.act("game_vote", seat, bool(msg.get("accept")))
+            elif kind == "cancel_game_change":
+                runner.act("cancel_queued", seat)
             elif kind in ("spin", "buy_bonus", "trail_fire", "jackpot_pick", "battle_fire", "voyage_choose", "expedition_choose") and not hasattr(runner.machine, "spin"):
                 raise TableError("That's for the slot machines.")
             elif kind == "spin":

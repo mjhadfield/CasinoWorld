@@ -28,6 +28,8 @@ const GAMES := {
 	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0, 90, 180, 270]],
 	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0, 90, 180, 270]],
 	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0, 90, 180, 270]],
+	# (measured blank; it also gets the five-seat table's stands and chairs: Let It Ride and High Card Flush seat five)
+	"master_table": ["res://scenes/table/master_table.tscn", {"game_label": "Master Table"}, [0, 90, 180, 270]],
 }
 const CABINET := "res://scenes/slots/slot_cabinet.tscn"
 
@@ -135,6 +137,10 @@ func _initialize() -> void:
 		var probe: Node = load(spec[0]).instantiate()
 		games[game] = {"name": spec[1]["game_label"], "seats": probe.seats, "rotations": spec[2], "at": at}
 		probe.free()
+		if game == "master_table":
+			for deg in at:
+				at[deg]["stands5"] = games["let_it_ride"].at[deg].stands
+				at[deg]["chairs5"] = games["let_it_ride"].at[deg].chairs
 	var cab := {}
 	for facing in ["down", "up", "left", "right"]:
 		var m: Dictionary = await measure(CABINET, {"facing": facing}, 0)

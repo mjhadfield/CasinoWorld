@@ -50,6 +50,7 @@ from pathlib import Path
 
 from casino_server import floor, slot_builds, sounds
 from casino_server.slots.variants import VARIANTS
+from casino_server.tables import master
 
 CATALOGUE = json.loads((Path(__file__).resolve().parent / "plan_catalogue.json").read_text())
 CLASSIC = json.loads((Path(__file__).resolve().parent / "plan_classic.json").read_text())
@@ -79,7 +80,7 @@ COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 PREFIX = {"three_card_poker": "tcp", "blackjack": "bj", "pai_gow_fortune": "pgf", "pai_gow_face_up": "pgu",
           "mississippi_stud": "ms", "ultimate_texas_holdem": "uth", "let_it_ride": "lir", "high_card_flush": "hcf",
-          "baccarat": "bac", "roulette": "rou", "craps": "crp"}
+          "baccarat": "bac", "roulette": "rou", "craps": "crp", "master_table": "mt"}
 SLOT_PREFIX = "slot"
 ITEM_PREFIX = "i"
 
@@ -223,6 +224,14 @@ def piece(asset: str) -> dict | None:
     if asset.startswith("a:"):
         return ASSETS.get(asset[2:])
     return None
+
+
+def master_stands(room: dict, item: dict) -> dict:
+    """A Master Table's seat points as six seats and as five (Let It Ride, High Card Flush): {"6": [...], "5": [...]}."""
+    x, y = room["x"] + item["x"], room["y"] + item["y"]
+    game = CATALOGUE["games"][master.GAME_KEY]
+    at = game["at"].get(str(item.get("rot", 0))) or game["at"]["0"]
+    return {"6": [(x + p[0], y + p[1]) for p in at["stands"]], "5": [(x + p[0], y + p[1]) for p in at["stands5"]]}
 
 
 def shapes(room: dict, item: dict) -> dict | None:
@@ -534,6 +543,10 @@ def _clean_item(it, room_name: str, w: float, h: float, nxt: dict, known: dict, 
         item["props"]["label"] = _str(props.get("label"), 32) or CATALOGUE["games"][game]["name"]
         if "sign" in CATALOGUE["games"][game]["at"]["0"] and props.get("sign") in SIGN_SIDES:
             item["props"]["sign"] = props["sign"]
+        if game == master.GAME_KEY:   # how it changes game: its animation, and how fast
+            item["props"]["anim"] = props.get("anim") if props.get("anim") in master.ANIMS else master.DEFAULT_ANIM
+            speed = props.get("speed")
+            item["props"]["speed"] = float(speed) if isinstance(speed, (int, float)) and float(speed) in master.SPEEDS else master.DEFAULT_SPEED
         prefix = PREFIX[game]
     else:
         item["facing"] = it.get("facing") if it.get("facing") in FACINGS else "down"
@@ -779,6 +792,10 @@ def tables_of(plan: dict, placed_only: bool = True) -> dict:
                 if game in CATALOGUE["games"]:
                     out[item["id"]] = {"game": game, "name": item["props"].get("label") or CATALOGUE["games"][game]["name"],
                                        "seats": CATALOGUE["games"][game]["seats"], "room": room["id"]}
+                    if game == master.GAME_KEY:   # (and the seat points of both its tables: six seats and five)
+                        out[item["id"]].update(anim=item["props"].get("anim", master.DEFAULT_ANIM),
+                                               speed=item["props"].get("speed", master.DEFAULT_SPEED),
+                                               stands=master_stands(room, item))
             elif kind == "slot":
                 v = VARIANTS.get(item["props"].get("variant"))
                 if v is not None:

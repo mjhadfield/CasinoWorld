@@ -1,0 +1,73 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/table/master_table.gd" id="1_table"]
+[ext_resource type="Script" path="res://scenes/table/master_felt.gd" id="2_felt"]
+[ext_resource type="PackedScene" path="res://scenes/world/avatar.tscn" id="3_avatar"]
+[ext_resource type="Script" path="res://scenes/table/jackpot_lights.gd" id="4_lights"]
+[ext_resource type="Script" path="res://scenes/table/discard_rack.gd" id="5_discard"]
+[ext_resource type="Script" path="res://scenes/table/card_shuffler.gd" id="6_shuffler"]
+
+[node name="MasterTable" type="Node2D" groups=["tables"]]
+y_sort_enabled = true
+script = ExtResource("1_table")
+game_label = "Master Table"
+
+[node name="Dealer" parent="." instance=ExtResource("3_avatar")]
+position = Vector2(0, -123)
+look = "dealer"
+display_name = "Dealer"
+bubble_side = "right"
+
+[node name="Felt" type="Node2D" parent="."]
+texture_filter = 2
+texture_repeat = 2
+position = Vector2(0, -120)
+script = ExtResource("2_felt")
+
+[node name="Lights" type="Node2D" parent="Felt"]
+position = Vector2(0, 120)
+script = ExtResource("4_lights")
+
+[node name="Fixtures" type="Node2D" parent="Felt"]
+position = Vector2(0, 120)
+
+[node name="DiscardRack" type="Node2D" parent="Felt/Fixtures"]
+position = Vector2(-94, -106)
+script = ExtResource("5_discard")
+
+[node name="Dynamic" type="Node2D" parent="Felt"]
+position = Vector2(0, 120)
+
+[node name="Machines" type="Node2D" parent="Felt"]
+position = Vector2(0, 120)
+
+[node name="Shuffler" type="Node2D" parent="Felt/Machines"]
+position = Vector2(94, -106)
+script = ExtResource("6_shuffler")
+
+[node name="Seat0" type="Marker2D" parent="."]
+position = Vector2(122.5, 40.0)
+
+[node name="Seat1" type="Marker2D" parent="."]
+position = Vector2(73.5, 40.0)
+
+[node name="Seat2" type="Marker2D" parent="."]
+position = Vector2(24.5, 40.0)
+
+[node name="Seat3" type="Marker2D" parent="."]
+position = Vector2(-24.5, 40.0)
+
+[node name="Seat4" type="Marker2D" parent="."]
+position = Vector2(-73.5, 40.0)
+
+[node name="Seat5" type="Marker2D" parent="."]
+position = Vector2(-122.5, 40.0)
+
+[node name="Body" type="StaticBody2D" parent="."]
+
+[node name="Shape" type="CollisionPolygon2D" parent="Body"]
+
+[node name="SitZone" type="Area2D" parent="."]
+monitorable = false
+
+[node name="Shape" type="CollisionPolygon2D" parent="SitZone"]

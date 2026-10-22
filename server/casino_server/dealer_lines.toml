@@ -137,3 +137,16 @@ takes_dice = ["{name} takes the dice. The point is {point}.", "Dice to {name} --
 # A VIP sits down: the dealer knows them.
 [vip]
 greet = ["Welcome back, {name}.", "Good to see you, {name}.", "{name}! Your usual?", "Evening, {name}. Good luck."]
+
+# ---------------------------------------------------------------- the Master Table
+# {game} is the game's name ("Baccarat"), {name} a player's.
+[master]
+ask = ["Welcome! What would you like to play?", "Evening! What can I deal you?", "Take your pick -- what are we playing?"]
+ask_any = ["Ask me for any game.", "Any game you like -- just ask."]
+vote = ["{game}? Is everyone happy with that?", "Someone's asked for {game} -- all right with everyone?"]
+declined = ["{name} would rather stay at {game}.", "We'll stay on {game}, then."]
+after_hand = ["Right you are: {game} after this hand.", "{game} next, once this hand's done."]
+stay = ["We'll stay on {game}, then.", "Staying on {game}."]
+changing = ["{game} it is.", "{game} coming up.", "One {game} table, coming right up."]
+blank = ["That's the table closed for now.", "I'll clear the table, then."]
+no_room = ["Sorry -- {game} seats five, and every seat's taken now."]

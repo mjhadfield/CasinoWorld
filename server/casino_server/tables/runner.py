@@ -69,6 +69,10 @@ class TableRunner:
                     if seat in private:
                         body = {**copy.deepcopy(public), "mine": private[seat]}
                 session.push({"type": "table_event", "table": self.table_id, "event": body})
+            # A Master Table changed game: the whole table again, as each viewer may see it.
+            if event.get("_resnap"):
+                for session in self.casino.joined_sessions():
+                    session.push(self.snapshot_for(session))
             # Money moved by this event: new balances follow the event that explains them.
             for participant in event.get("_paid", []):
                 if participant.is_human and participant.session in self.casino.sessions:
@@ -81,6 +85,8 @@ class TableRunner:
         elif kind == "stood":
             self.casino.world.set_seat(event["entity"], None, None)
             self.casino.on_stood(event["entity"], self.table_id, event.get("reason", ""))
+        elif kind == "master_change":   # a Master Table's new game: everyone keeps their order, maybe in another seat
+            self.casino.on_reseated(self.table_id, event["_remap"], event["map"])
         elif kind == "jackpot_won":
             self.casino.broadcast_all(self.casino.jackpot.snapshot())
         elif kind == "slot_jackpot_won":
