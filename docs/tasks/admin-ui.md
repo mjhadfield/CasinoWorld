@@ -30,9 +30,9 @@ Slots shows per-machine figures (`slots/stats.py`).
 ## Done when
 - [x] Shell, theme, Display menu
 - [x] Settings, Players, Slots (+ per-machine stats), Sounds, NPCs
-- [ ] Tables: full-height three columns, kinds in the top bar
-- [ ] Floor plan: canvas fills its box, actions in the top bar, problems docked in the canvas
-- [ ] Slot design: steps rail, top-bar controls; Scene/Sprites/Mockup canvas pinned with controls beside it; Art as
+- [x] Tables: full-height three columns, kinds in the top bar
+- [x] Floor plan: canvas fills its box, actions in the top bar, problems docked in the canvas
+- [x] Slot design: steps rail, top-bar controls; Scene/Sprites/Mockup canvas pinned with controls beside it; Art as
       master and detail; Bonus games as list and detail; the other steps re-gridded
 - [ ] Mike signs off `/admin/next`
 - [ ] Swap:
@@ -43,9 +43,23 @@ Slots shows per-machine figures (`slots/stats.py`).
 - [ ] `tools/dev.sh test` passes
 
 ## Handoff
-- **State:** shell and the five small sections done and committed. Next: Tables, Floor plan, Slot design.
+- **State:** every section is built and live at https://192.168.0.66:8661/admin/next (the live server was restarted
+  for the routes and the slot figures). It's waiting on Mike's review, then the swap (Done when, above).
 - **Checked:**
-  - Playwright on the dev instance (`tools/dev.sh server`, port 8670) at 2560×1440: every section fits the window
-    (scrollHeight 1440), no console errors.
-  - The check script is in the session scratchpad (`next/check.py`); it's easy to rewrite.
-- **Questions for Mike:** none yet.
+  - Playwright on the dev instance at 2560×1440 and 1920×1080: every section and every Slot design step fits the
+    window, with no console errors.
+  - Behaviour spot checks:
+    - Art: tile picks the card; Prompts dialog
+    - step status toggle
+    - Bonus games: row picks its settings
+    - Tables: kind switch
+    - NPC save
+    - sound Use and Reset
+    - jackpot meter save
+    - Display skin and density
+    - menu collapse
+  - Read-only look at the live page with the Pirates design.
+- **Known:**
+  - The live floor is lobby-only, so Slots › Machines is empty until cabinets are placed and played.
+  - Machine figures count from the restart on 2026-10-22.
+- **Questions for Mike:** whatever the review turns up.
