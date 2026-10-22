@@ -1293,8 +1293,8 @@ export function render(canvas, D, game, rect, opts = {}) {
 // ---------------------------------------------------------------- the spot glow (SpotGlow.gd)
 // The light round the spots waiting for your chips, on seat 2 ("you"), drawn over a render() of the table: its
 // primary bets (stage 0), or once one has chips on it, its side bets (stage 1, the chips drawn). `t` is seconds,
-// `since` when the stage began (it fades in). The same halo, lit edge, wash and running glint as the game.
-const GLOW = { lap: 2.8, breath: 2.4, fade: 0.4, bands: 4, step: 0.85, tail: 0.3 };
+// `since` when the stage began (it fades in). The same halo, lit edge and wash as the game.
+const GLOW = { breath: 2.4, fade: 0.4, bands: 4, step: 0.85 };
 export function drawGlow(canvas, D, game, rect, t, stage, since) {
   const T = G.tables[game];
   if (!T || !T.spots || !T.spots[2]) return;
@@ -1317,23 +1317,9 @@ export function drawGlow(canvas, D, game, rect, t, stage, since) {
     ctx.restore();
     fillPoly(ctx, pts, rgba(colour, 0.08 * a));
     strokePoly(ctx, pts, rgba(bright, 0.7 * a), 0.5);
-    // The glint: a bright head running clockwise round the edge from the top, with a fading tail.
-    const along = [0];
-    pts.forEach((p, i) => along.push(along[i] + Math.hypot(pts[(i + 1) % pts.length][0] - p[0], pts[(i + 1) % pts.length][1] - p[1])));
-    const total = along[along.length - 1], head = ((t / GLOW.lap) % 1) * total, tail = GLOW.tail * total;
-    const at = d => { d = ((d % total) + total) % total; let i = 0; while (i < pts.length - 1 && along[i + 1] < d) i++;
-      const q = pts[(i + 1) % pts.length], f = (d - along[i]) / ((along[i + 1] - along[i]) || 1); return [pts[i][0] + (q[0] - pts[i][0]) * f, pts[i][1] + (q[1] - pts[i][1]) * f]; };
-    ctx.lineCap = "round";
-    for (let j = 0; j < 18; j++) {
-      const p0 = at(head - tail + tail * j / 18), p1 = at(head - tail + tail * (j + 1) / 18), f = (j + 1) / 18;
-      ctx.beginPath(); ctx.moveTo(...p0); ctx.lineTo(...p1); ctx.strokeStyle = rgba(bright, fade * f * f); ctx.lineWidth = 0.9; ctx.stroke();
-    }
-    const tip = at(head);
-    circle(ctx, tip[0], tip[1], 1.9, rgba(bright, 0.22 * fade));
-    circle(ctx, tip[0], tip[1], 0.75, rgba("#ffffff", 0.9 * fade));
   }
 }
-// A spot's outline as points, starting at its top and running clockwise (StyledFelt.shape, TableFelt._rounded).
+// A spot's outline as points (StyledFelt.shape, TableFelt._rounded).
 function outlinePts(s) {
   const [x, y] = s.at;
   let pts = [];
@@ -1344,9 +1330,7 @@ function outlinePts(s) {
     for (const [cx, cy, a0] of [[x1 - r, y1 - r, 0], [x0 + r, y1 - r, Math.PI / 2], [x0 + r, y0 + r, Math.PI], [x1 - r, y0 + r, Math.PI * 1.5]])
       for (let i = 0; i < 5; i++) { const a = a0 + Math.PI / 2 * i / 4; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
   }
-  let top = 0;
-  pts.forEach((p, i) => { if (p[1] < pts[top][1] - 0.01) top = i; });
-  return pts.slice(top).concat(pts.slice(0, top));
+  return pts;
 }
 
 // ---------------------------------------------------------------- the Floor plan tab's pieces (render's opts.plan)

@@ -94,7 +94,7 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   Banker and Player, Hold'em's Ante and Blind, Let It Ride's three), then, once one of them has chips on it, the
   side bets still empty (`glowing_spots()`). It follows each spot's printed outline (`spot_shape()`: a circle of
   `SPOT_R` unless the game gives another, such as the Three Card Ante's diamond or Baccarat's boxes, which the felts
-  also print from), with a breathing halo, a lit edge and a glint running round it, in the style's `glow` colour. A
+  also print from), with a breathing halo and a lit edge, in the style's `glow` colour. A
   click anywhere on a spot's shape lands on it. The designer's "Spot glow" plays the same (`drawGlow()` in render.js,
   from the shapes and primaries `tools/table_geometry.gd` writes). Roulette and Craps don't glow (`pulse_spots()`).
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
