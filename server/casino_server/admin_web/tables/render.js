@@ -169,6 +169,7 @@ export function distance(a, b) { const x = lab(a), y = lab(b); return Math.hypot
 
 // ---------------------------------------------------------------- geometry
 const RAIL = 7;
+const ARMREST_X = 141;   // "Leather armrest" runs along the players' straight front (StyledFelt.ARMREST_X)
 const HW = 38, FIL = 9, CR = 4;   // the ledge: half width (the tray's), the fillets into the dealer's edge, its front corners
 function ye(x) { return -140 - 2 * (1 - Math.min(1, (x / 65) ** 2)); }   // CasinoTable._edge_y
 function arcPts(out, cx, cy, r, a0, a1, n = 10) { for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } }
@@ -196,7 +197,7 @@ function feltPoly(mode) {
 const CARD_SHAPE = {
   g: by => need(G.grown, Number.isInteger(by) ? by.toFixed(1) : String(by), "outline"), rail: RAIL, middle: [0, -70], reach: 400,
   box: [-200, -200, 400, 260], cards: true,
-  pad: arm => arm === "player" ? [[-200, -94], [200, -94], [200, 66], [-200, 66]] : null,
+  pad: arm => arm === "player" ? [[-ARMREST_X, -20], [ARMREST_X, -20], [ARMREST_X, 66], [-ARMREST_X, 66]] : null,
 };
 function shapeOf(key) {
   const T = G[key];
@@ -296,7 +297,7 @@ function drawRail(ctx, S, D, felt, ledge) {
     drawLeather(ctx, S, D, ledge && arm === "all");
     ctx.restore();
     if (S.cards && arm === "player" && BEADS[D.rail.bead]) {   // end caps where the padding stops
-      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * 155.5, -94); ctx.lineTo(sx * 164, -94); ctx.strokeStyle = BEADS[D.rail.bead][0]; ctx.lineWidth = 0.7; ctx.stroke(); }
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * ARMREST_X, 0.5); ctx.lineTo(sx * ARMREST_X, 1 + RAIL + 0.5); ctx.strokeStyle = BEADS[D.rail.bead][0]; ctx.lineWidth = 0.7; ctx.stroke(); }
     }
   }
   // the rounded profile: dark outer edge, a lit crown, a shadow where it meets the felt

@@ -17,7 +17,9 @@ extends TableFelt
 const LEDGE_HW := 38.0
 const LEDGE_FILLET := 9.0
 const LEDGE_CORNER := 4.0
-const ARMREST_FROM := -94.0   # "Leather armrest": the padding runs round the players' side from here down
+## "Leather armrest": the padding runs along the players' straight front, stopping where the rail curves into
+## the player corners.
+const ARMREST_X := CasinoTable.HALF_W - CasinoTable.FRONT_CORNER.x
 const SHEEN := Color(1.0, 0.886, 0.745)
 
 var d: Dictionary   # the design being painted
@@ -59,7 +61,7 @@ func _straight(p: Vector2, half := 70.0) -> bool:
 func _pad_area(arm: String) -> PackedVector2Array:
 	if arm == "all":
 		return PackedVector2Array()
-	return PackedVector2Array([Vector2(-220, ARMREST_FROM), Vector2(220, ARMREST_FROM), Vector2(220, 80), Vector2(-220, 80)])
+	return PackedVector2Array([Vector2(-ARMREST_X, -20), Vector2(ARMREST_X, -20), Vector2(ARMREST_X, 80), Vector2(-ARMREST_X, 80)])
 
 
 ## The rail's crown, where it's lit.
@@ -178,9 +180,10 @@ func _rail(felt: PackedVector2Array, ledge: bool) -> void:
 	if ledge:
 		draw_polyline(tongue(-2.4), Color(SHEEN, 0.12), 1.4, true)
 	var b := TableStyle.bead(d)
-	if arm == "player" and not b.is_empty():   # end caps where the padding stops
+	if arm == "player" and not b.is_empty():   # end caps across the rail where the padding stops
+		var front := CasinoTable.FRONT
 		for sx in [-1.0, 1.0]:
-			draw_line(Vector2(sx * 155.5, ARMREST_FROM), Vector2(sx * 164.0, ARMREST_FROM), b[0], 0.7)
+			draw_line(Vector2(sx * ARMREST_X, front - 0.5), Vector2(sx * ARMREST_X, front + _rail_w() + 0.5), b[0], 0.7)
 
 
 ## Polished wood: one fill running left to right (the dealer's edge and the ledge), and strips laid round the
