@@ -369,11 +369,25 @@ function choose(value, options, set) {
   return el("select", { onchange: e => edit(() => set(e.target.value)) }, ...options.map(([v, t]) => el("option", { value: v, textContent: t, selected: v === value })));
 }
 function colour(value, set) { return el("input", { type: "color", value, onchange: e => edit(() => set(e.target.value)) }); }
+/** A texture's tint (multiplied in, so white is none): the colour, and None to take it off. */
+function tint(value, set) {
+  return el("span", { className: "pl-tint" }, colour(value, set),
+    el("button", { textContent: "None", disabled: value.toLowerCase() === "#ffffff", title: "No tint: the texture as it is", onclick: e => { e.preventDefault(); edit(() => set("#ffffff")); } }));
+}
+const PLAIN = "#3b2a20";   // a plain patch's colour to start with
+/** Floor textures to pick from; going from plain to a texture takes the plain colour off as a tint. */
+function texture(obj) {
+  return choose(obj.texture, Object.entries(G.CAT.floors).map(([k, f]) => [k, f.name]), v => {
+    if (obj.texture === "plain" && v !== "plain") obj.tint = "#ffffff";
+    else if (v === "plain" && obj.tint.toLowerCase() === "#ffffff") obj.tint = PLAIN;
+    obj.texture = v;
+  });
+}
+const pick = cat => Object.entries(G.CAT[cat]);
 
 function refreshInspector() {
   const ins = $("#pl-insp");
   if (!ins || S.mode === "assets") return;
-  const floors = Object.entries(G.CAT.floors).map(([k, f]) => [k, f.name]);
   if (S.mode === "plan") {
     const r = S.draft.rooms[S.pick];
     if (!r) { ins.replaceChildren(el("h3", { textContent: "The floor" }), el("p", { className: "hint", textContent: `${placed().length} rooms on the floor, ${S.draft.rooms.length - placed().length} in the library. Pick one to see it.` })); return; }
@@ -393,8 +407,8 @@ function refreshInspector() {
       field("Name", text(r.name, v => { r.name = v || r.name; })),
       field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: 320 })),
       field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: 240 })),
-      field("Floor", choose(r.floor.texture, floors, v => { r.floor.texture = v; })),
-      field("Floor tint", colour(r.floor.tint, v => { r.floor.tint = v; })),
+      field("Floor", texture(r.floor)),
+      field(r.floor.texture === "plain" ? "Floor colour" : "Floor tint", r.floor.texture === "plain" ? colour(r.floor.tint, v => { r.floor.tint = v; }) : tint(r.floor.tint, v => { r.floor.tint = v; })),
       field("Walls", choose(r.walls.style, Object.entries(G.CAT.walls.styles).map(([k, s]) => [k, s.name]), v => { r.walls.style = v; })),
       field("Sign", text(r.walls.sign, v => { r.walls.sign = v.toUpperCase(); }, 24)),
       field("Sign at", num(r.walls.sign_at, v => { r.walls.sign_at = v; })),
@@ -450,8 +464,22 @@ function refreshInspector() {
       field("Along", num(d.at, v => { d.at = v; })), del);
   } else if (t === "patch") {
     const p = r.patches[i];
-    ins.replaceChildren(...head("Floor patch"),
-      field("Floor", choose(p.texture, floors, v => { p.texture = v; })), field("Tint", colour(p.tint, v => { p.tint = v; })),
+    for (const [k, v] of Object.entries(newPatch({}))) if (p[k] === undefined) p[k] = structuredClone(v);   // (made before patches had a look)
+    const pat = p.pattern, bor = p.border, plain = p.texture === "plain";
+    ins.replaceChildren(...head("Floor patch", "Drag an edge or corner to resize it."),
+      field("Floor", texture(p)),
+      field(plain ? "Colour" : "Tint", plain ? colour(p.tint, v => { p.tint = v; }) : tint(p.tint, v => { p.tint = v; })),
+      field("Shape", choose(p.shape, pick("patch_shapes"), v => { p.shape = v; })),
+      p.shape === "rounded" ? field("Corner", num(p.radius, v => { p.radius = v; }, { min: 0, max: 400 })) : null,
+      field("Pattern", choose(pat.kind, pick("patch_patterns"), v => { pat.kind = v; })),
+      ...(pat.kind === "none" ? [] : [
+        field("Pattern colour", colour(pat.colour, v => { pat.colour = v; })),
+        field("Pattern size", num(pat.size, v => { pat.size = v; }, { min: 8, max: 512 })),
+        field("Opacity %", num(pat.opacity, v => { pat.opacity = v; }, { min: 0, max: 100, step: 5 }))]),
+      field("Border", choose(bor.style, pick("patch_borders"), v => { bor.style = v; })),
+      ...(bor.style === "none" ? [] : [
+        field("Border colour", colour(bor.colour, v => { bor.colour = v; })),
+        field("Border width", num(bor.width, v => { bor.width = v; }, { min: 1, max: 64 }))]),
       field("Across", num(p.x, v => { p.x = v; })), field("Down", num(p.y, v => { p.y = v; })),
       field("Width", num(p.w, v => { p.w = v; })), field("Height", num(p.h, v => { p.h = v; })), del);
   }
@@ -672,6 +700,11 @@ const RESIZE = { left: "ew-resize", right: "ew-resize", top: "ns-resize", bottom
                  "left top": "nwse-resize", "right bottom": "nwse-resize", "right top": "nesw-resize", "left bottom": "nesw-resize" };
 const grabCursor = g => RESIZE[g.edge || g.patch.sides.join(" ")];
 
+/** A plain patch over `box`, with its look's defaults (as plan.py's _patch fills them in). */
+const newPatch = box => ({ ...box, texture: "plain", tint: PLAIN, shape: "rect", radius: 24,
+                           pattern: { kind: "none", colour: "#000000", size: 32, opacity: 30 },
+                           border: { style: "none", colour: "#c9a24a", width: 6 } });
+
 /** Drag a patch's edges to `to` (room coordinates); the opposite edges stay where they were. */
 function resizePatch(q, was, sides, to, free) {
   const MIN = 8, x = snap(to[0], SNAP.item, free), y = snap(to[1], SNAP.item, free);
@@ -798,7 +831,7 @@ function up(e) {
     if (w > 4 && h > 4) {
       const box = { x: snap(x, SNAP.item), y: snap(y, SNAP.item), w: Math.max(8, snap(w, SNAP.item)), h: Math.max(8, snap(h, SNAP.item)) };
       if (d.make === "zone") { edit(() => r.paths.zones.push({ ...box, kind: S.zoneKind })); S.sel = [{ t: "zone", i: r.paths.zones.length - 1 }]; }
-      else { edit(() => r.patches.push({ ...box, texture: "plain", tint: "#3b2a20" })); S.sel = [{ t: "patch", i: r.patches.length - 1 }]; }
+      else { edit(() => r.patches.push(newPatch(box))); S.sel = [{ t: "patch", i: r.patches.length - 1 }]; }
     }
     S.tool = "select";
     refresh();
@@ -907,6 +940,8 @@ const CSS = `
   .pl-palette button:hover { background: var(--bg-2); }
   .pl-palette img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated; }
   .pl-swatch { width: 18px; height: 18px; border-radius: 4px; flex: none; }
+  .pl-tint { display: flex; gap: 6px; align-items: center; }
+  .pl-tint input { flex: 1; min-width: 0; }
   .pl-field { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 6px; align-items: center; font-size: var(--fs-s); color: var(--fg-muted); }
   .pl-field input, .pl-field select { width: 100%; min-width: 0; }
   .pl-buttons { display: flex; flex-wrap: wrap; gap: 6px; }

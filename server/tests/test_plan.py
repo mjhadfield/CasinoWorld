@@ -83,6 +83,25 @@ def test_new_rooms_get_ids_from_their_names():
     assert [r["id"] for r in p["rooms"]] == ["lobby", "the_bar", "the_bar_2"]
 
 
+def test_floor_patches_keep_their_look_and_fall_back_to_plain():
+    raw = lobby_only()
+    raw["rooms"][0]["patches"] = [
+        {"x": 100, "y": 200, "w": 160, "h": 96, "texture": "carpet", "tint": "#ffffff", "shape": "oval",
+         "pattern": {"kind": "diamonds", "colour": "#102030", "size": 24, "opacity": 45},
+         "border": {"style": "inlay", "colour": "#aa8844", "width": 10}},
+        {"x": 0, "y": 0, "w": 64, "h": 64, "shape": "star", "pattern": {"kind": "paisley"}, "border": "gold"},
+        {"x": 0, "y": 0, "w": 64, "h": 64}]   # (from before patches had a look)
+    rugs = plan.clean(raw, lobby_only())["rooms"][0]["patches"]
+    assert rugs[0]["shape"] == "oval" and rugs[0]["tint"] == "#ffffff"
+    assert rugs[0]["pattern"] == {"kind": "diamonds", "colour": "#102030", "size": 24, "opacity": 45}
+    assert rugs[0]["border"] == {"style": "inlay", "colour": "#aa8844", "width": 10}
+    for rug in rugs[1:]:
+        assert (rug["shape"], rug["pattern"]["kind"], rug["border"]["style"]) == ("rect", "none", "none")
+    raw["rooms"][0]["patches"] = [{"x": 0, "y": 0, "w": 64, "h": 64, "pattern": {"kind": "dots", "size": 2}}]
+    with pytest.raises(plan.PlanError):   # (a pattern that fine would be thousands of shapes)
+        plan.clean(raw, lobby_only())
+
+
 def test_malformed_plans_are_refused():
     old = lobby_only()
     for bad in ({}, {"rooms": [{"name": "x", "w": 10, "h": 10}]}, {"rooms": [{"name": "x", "w": 800, "h": 600, "doors": [{"side": "up"}]}]},

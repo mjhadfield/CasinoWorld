@@ -12,7 +12,10 @@ No folder: the first run seeds both with the lobby (live) and the classic floor 
 A plan: {"rev", "next": {prefix: serial}, "spawn": "room/point", "rooms": [room]}. A room:
   {"id", "name", "placed",           # unplaced: a blueprint in the library, not on the floor
    "x", "y", "w", "h",               # its place on the plan and its size, walls included (pixels)
-   "floor": {"texture", "tint"}, "patches": [{"x", "y", "w", "h", "texture", "tint"}],
+   "floor": {"texture", "tint"},     # tint multiplies the texture: #ffffff is none ("plain" is just the tint)
+   "patches": [{"x", "y", "w", "h", "texture", "tint", "shape": rect|rounded|oval, "radius",
+                "pattern": {"kind": none|stripes|diagonal|checks|diamonds|dots|grid, "colour", "size", "opacity"},
+                "border": {"style": none|line|double|inlay, "colour", "width"}}],
    "walls": {"style", "sign", "sign_at"},
    "doors": [{"id", "side": top|bottom|left|right, "at", "width", "kind": door|archway}],
    "items": [{"id", "asset", "x", "y", "rot", "facing", "props"}],
@@ -57,6 +60,11 @@ DOOR_KINDS = ("door", "archway")
 DOOR_WIDTH = (40, 600)
 POINT_KINDS = ("spawn", "arrival", "wander")
 ZONE_KINDS = ("npc_block", "block")
+# Floor patches: an outline, a pattern laid over the floor in a second colour, and a border inside the edge.
+PATCH_SHAPES = {"rect": "Rectangle", "rounded": "Rounded", "oval": "Oval"}
+PATCH_PATTERNS = {"none": "None", "stripes": "Stripes", "diagonal": "Diagonal stripes", "checks": "Checks",
+                  "diamonds": "Diamonds", "dots": "Dots", "grid": "Grid"}
+PATCH_BORDERS = {"none": "None", "line": "Line", "double": "Double line", "inlay": "Inlay"}
 HISTORY = 20
 AGENT = 9            # how far a walker keeps from anything (the client's nav agent radius)
 CELL = 8             # the reachability grid
@@ -391,6 +399,24 @@ def _colour(v, default="#ffffff") -> str:
     return v if isinstance(v, str) and COLOUR_RE.match(v) else default
 
 
+def _patch(p: dict, w: float, h: float) -> dict:
+    """One floor patch, checked; its look (shape, pattern, border) falls back to plain rather than failing."""
+    pat = p.get("pattern") if isinstance(p.get("pattern"), dict) else {}
+    bor = p.get("border") if isinstance(p.get("border"), dict) else {}
+    return {"x": _num(p.get("x"), "A patch's place", 0, w), "y": _num(p.get("y"), "A patch's place", 0, h),
+            "w": _num(p.get("w"), "A patch's size", 8, w), "h": _num(p.get("h"), "A patch's size", 8, h),
+            "texture": str(p.get("texture") or "plain"), "tint": _colour(p.get("tint")),
+            "shape": p.get("shape") if p.get("shape") in PATCH_SHAPES else "rect",
+            "radius": _num(p.get("radius", 24), "A patch's corner", 0, 400),
+            "pattern": {"kind": pat.get("kind") if pat.get("kind") in PATCH_PATTERNS else "none",
+                        "colour": _colour(pat.get("colour"), "#000000"),
+                        "size": _num(pat.get("size", 32), "A patch's pattern size", 8, 512),
+                        "opacity": _num(pat.get("opacity", 30), "A patch's pattern opacity", 0, 100)},
+            "border": {"style": bor.get("style") if bor.get("style") in PATCH_BORDERS else "none",
+                       "colour": _colour(bor.get("colour"), "#c9a24a"),
+                       "width": _num(bor.get("width", 6), "A patch's border width", 1, 64)}}
+
+
 def clean(raw, old: dict) -> dict:
     """The page's plan, checked for shape and given ids (new rooms, doors and items come without them; ids already
     given stay with their thing). Raises PlanError for anything malformed; problems with where things are come from
@@ -424,9 +450,7 @@ def clean(raw, old: dict) -> dict:
         for p in rr.get("patches") or []:
             if not isinstance(p, dict):
                 raise PlanError(f"{name}: a floor patch must be an object.")
-            room["patches"].append({"x": _num(p.get("x"), "A patch's place", 0, w), "y": _num(p.get("y"), "A patch's place", 0, h),
-                                    "w": _num(p.get("w"), "A patch's size", 8, w), "h": _num(p.get("h"), "A patch's size", 8, h),
-                                    "texture": str(p.get("texture") or "plain"), "tint": _colour(p.get("tint"))})
+            room["patches"].append(_patch(p, w, h))
         door_ids = set()
         for d in rr.get("doors") or []:
             if not isinstance(d, dict) or d.get("side") not in SIDES or d.get("kind") not in DOOR_KINDS:
@@ -1028,5 +1052,6 @@ def catalogue(builds_dir: Path | None = None) -> dict:
             "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
             "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
             "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
+            "patch_shapes": PATCH_SHAPES, "patch_patterns": PATCH_PATTERNS, "patch_borders": PATCH_BORDERS,
             "categories": ["Seating", "Tables & desks", "Bar & counters", "Plants", "Lighting", "Statues & fountains",
                            "Decor", "Rugs", "Wall decor", "Uploads"]}

@@ -107,7 +107,9 @@ sections:
     cursor turns to a resize arrow over either; a picked patch's edge wins over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
     in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or
-    everyone does) and Floor patch. "Where NPCs can walk" shades everywhere they can reach from their arrival
+    everyone does) and Floor patch (a rug or inlay: a texture, or plain colour; rectangle, rounded or oval; a pattern
+    of stripes, diagonals, checks, diamonds, dots or a grid in a second colour; a line, double line or inlay border.
+    A texture's tint has None to take it off). "Where NPCs can walk" shades everywhere they can reach from their arrival
     points. The inspector edits whatever's picked, or the room (name, size, floor and tint, wall style, sign).
   - Things in each other's way or off the floor show red at once; the server's problems list (seats or points
     nobody can reach, doors that don't line up) blocks Publish until it's clear.

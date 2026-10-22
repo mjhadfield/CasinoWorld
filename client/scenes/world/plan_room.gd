@@ -226,7 +226,7 @@ func _draw_floor(ci: CanvasItem) -> void:
 	var fl: Dictionary = data.get("floor", {})
 	_paint(ci, Rect2(Vector2.ZERO, rect.size), str(fl.get("texture", "carpet")), Color(str(fl.get("tint", "#ffffff"))))
 	for p in data.get("patches", []):
-		_paint(ci, Rect2(float(p.x), float(p.y), float(p.w), float(p.h)), str(p.get("texture", "plain")), Color(str(p.get("tint", "#ffffff"))))
+		_draw_patch(ci, p)
 
 
 func _paint(ci: CanvasItem, r: Rect2, texture: String, tint: Color) -> void:
@@ -235,6 +235,145 @@ func _paint(ci: CanvasItem, r: Rect2, texture: String, tint: Color) -> void:
 		ci.draw_rect(r, tint)
 	else:
 		ci.draw_texture_rect(tex, r, true, tint)
+
+
+## A floor patch: its floor inside its outline, the pattern over that, the border inside the edge. The admin's
+## plan/draw.js draws the same shapes.
+func _draw_patch(ci: CanvasItem, p: Dictionary) -> void:
+	var r := Rect2(float(p.x), float(p.y), float(p.w), float(p.h))
+	var texture := str(p.get("texture", "plain"))
+	var tint := Color(str(p.get("tint", "#ffffff")))
+	var shape := _patch_outline(r, p, 0.0)
+	if str(p.get("shape", "rect")) == "rect":
+		_paint(ci, r, texture, tint)
+	else:
+		var tex: Texture2D = CARPET if texture == "carpet" else PlanArt.floor_texture(texture)
+		var pts := _solid(shape)
+		if pts.size() < 3:
+			pass
+		elif tex == null:
+			ci.draw_colored_polygon(pts, tint)
+		else:   # (the floor layer repeats textures, so the UVs tile from the patch's corner)
+			var uvs := PackedVector2Array()
+			for q in pts:
+				uvs.append((q - r.position) / tex.get_size())
+			ci.draw_colored_polygon(pts, tint, uvs, tex)
+	var pat: Dictionary = p.get("pattern", {})
+	if str(pat.get("kind", "none")) != "none":
+		var colour := Color(str(pat.get("colour", "#000000")), float(pat.get("opacity", 30)) / 100.0)
+		for poly in _pattern_shapes(r.size, pat):
+			for i in poly.size():
+				poly[i] += r.position
+			if Array(poly).all(func(q: Vector2): return Geometry2D.is_point_in_polygon(q, shape)):
+				ci.draw_colored_polygon(poly, colour)
+			else:
+				for piece in Geometry2D.intersect_polygons(poly, shape):
+					ci.draw_colored_polygon(piece, colour)
+	var bor: Dictionary = p.get("border", {})
+	var width := float(bor.get("width", 6))
+	var colour := Color(str(bor.get("colour", "#c9a24a")))
+	var rings := []
+	match str(bor.get("style", "none")):
+		"line":
+			rings = [[0.0, width, colour]]
+		"double":
+			var t := maxf(1.0, width / 4.0)
+			rings = [[0.0, t, colour], [width - t, width, colour]]
+		"inlay":
+			rings = [[0.0, width, colour]]
+			if width >= 3.0:
+				rings += [[0.0, 1.0, colour.darkened(0.5)], [width - 1.0, width, colour.darkened(0.5)]]
+	for ring in rings:
+		var outer := _patch_outline(r, p, ring[0])
+		var inner := _patch_outline(r, p, ring[1])
+		for i in outer.size():
+			var j := (i + 1) % outer.size()
+			var quad := _solid(PackedVector2Array([outer[i], outer[j], inner[j], inner[i]]))
+			if quad.size() >= 3:
+				ci.draw_colored_polygon(quad, ring[2])
+
+
+## `pts` without repeats (a rounded corner of no radius is one point many times), so it triangulates; fewer than
+## three points left, or no area, is nothing to draw.
+func _solid(pts: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for q in pts:
+		if out.is_empty() or out[-1].distance_squared_to(q) > 0.0001:
+			out.append(q)
+	if out.size() > 1 and out[0].distance_squared_to(out[-1]) <= 0.0001:
+		out.remove_at(out.size() - 1)
+	var area := 0.0
+	for i in out.size():
+		area += out[i].cross(out[(i + 1) % out.size()])
+	return out if out.size() >= 3 and absf(area) > 0.01 else PackedVector2Array()
+
+
+## A patch's outline, `inset` in from its edge; the same number of points at any inset (so a border is quads).
+func _patch_outline(r: Rect2, p: Dictionary, inset: float) -> PackedVector2Array:
+	var x := r.position.x + inset
+	var y := r.position.y + inset
+	var w := maxf(0.0, r.size.x - 2.0 * inset)
+	var h := maxf(0.0, r.size.y - 2.0 * inset)
+	var out := PackedVector2Array()
+	match str(p.get("shape", "rect")):
+		"oval":
+			for i in 64:
+				var a := PI * i / 32.0
+				out.append(Vector2(x + w / 2.0 + w / 2.0 * cos(a), y + h / 2.0 + h / 2.0 * sin(a)))
+		"rounded":
+			var rad := maxf(0.0, minf(float(p.get("radius", 24)) - inset, minf(w / 2.0, h / 2.0)))
+			for c in [[x + w - rad, y + rad, -90.0], [x + w - rad, y + h - rad, 0.0], [x + rad, y + h - rad, 90.0], [x + rad, y + rad, 180.0]]:
+				for k in 7:
+					var a := deg_to_rad(c[2] + 15.0 * k)
+					out.append(Vector2(c[0] + rad * cos(a), c[1] + rad * sin(a)))
+		_:
+			out = PackedVector2Array([Vector2(x, y), Vector2(x + w, y), Vector2(x + w, y + h), Vector2(x, y + h)])
+	return out
+
+
+## The pattern's shapes over a patch of `size`, from its corner (they run past the edge; the outline clips them).
+func _pattern_shapes(size: Vector2, pat: Dictionary) -> Array[PackedVector2Array]:
+	var s := float(pat.get("size", 32))
+	var nx := ceili(size.x / s)
+	var ny := ceili(size.y / s)
+	var out: Array[PackedVector2Array] = []
+	match str(pat.kind):
+		"stripes":
+			for i in nx:
+				out.append(_box(i * s, 0, s / 2.0, size.y))
+		"diagonal":
+			var k := -size.y
+			while k < size.x:
+				out.append(PackedVector2Array([Vector2(k, 0), Vector2(k + s / 2.0, 0), Vector2(k + s / 2.0 + size.y, size.y), Vector2(k + size.y, size.y)]))
+				k += s
+		"checks":
+			for i in nx:
+				for j in range(i % 2, ny, 2):
+					out.append(_box(i * s, j * s, s, s))
+		"diamonds":
+			for i in nx + 1:
+				for j in ny + 1:
+					var c := Vector2(i * s, j * s)
+					out.append(PackedVector2Array([c + Vector2(0, -s / 2.0), c + Vector2(s / 2.0, 0), c + Vector2(0, s / 2.0), c + Vector2(-s / 2.0, 0)]))
+		"dots":
+			for i in nx:
+				for j in ny:
+					var dot := PackedVector2Array()
+					for k in 16:
+						dot.append(Vector2(i * s + s / 2.0, j * s + s / 2.0) + Vector2(cos(PI * k / 8.0), sin(PI * k / 8.0)) * s / 4.0)
+					out.append(dot)
+		"grid":   # (the uprights stop at the rails, so nothing's drawn twice)
+			var lw := maxf(1.0, roundf(s / 16.0))
+			for j in ny + 1:
+				out.append(_box(0, j * s - lw / 2.0, size.x, lw))
+			for i in nx + 1:
+				for j in ny:
+					out.append(_box(i * s - lw / 2.0, j * s + lw / 2.0, lw, s - lw))
+	return out
+
+
+func _box(x: float, y: float, w: float, h: float) -> PackedVector2Array:
+	return PackedVector2Array([Vector2(x, y), Vector2(x + w, y), Vector2(x + w, y + h), Vector2(x, y + h)])
 
 
 func _draw_walls(ci: CanvasItem) -> void:

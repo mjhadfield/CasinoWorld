@@ -73,13 +73,76 @@ function paint(ctx, r, texture, tint) {
   ctx.restore();
 }
 
+// ---------------------------------------------------------------- floor patches (plan_room.gd draws them the same way)
+/** A patch's outline as points, `inset` in from its edge; the same number of points at any inset. */
+function outline(x, y, w, h, p, inset = 0) {
+  x += inset; y += inset; w = Math.max(0, w - 2 * inset); h = Math.max(0, h - 2 * inset);
+  if (p.shape === "oval") return Array.from({ length: 64 }, (_, i) => { const a = Math.PI * i / 32; return [x + w / 2 + w / 2 * Math.cos(a), y + h / 2 + h / 2 * Math.sin(a)]; });
+  if (p.shape !== "rounded") return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  const r = Math.max(0, Math.min((p.radius ?? 24) - inset, w / 2, h / 2)), out = [];
+  for (const [cx, cy, a0] of [[x + w - r, y + r, -90], [x + w - r, y + h - r, 0], [x + r, y + h - r, 90], [x + r, y + r, 180]])
+    for (let k = 0; k <= 6; k++) { const a = (a0 + 15 * k) * Math.PI / 180; out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+  return out;
+}
+
+const rect = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+
+/** The pattern's shapes over a w×h patch, from its corner (they run past the edge; the outline clips them). */
+function patternShapes(w, h, pat) {
+  const s = pat.size, out = [], nx = Math.ceil(w / s), ny = Math.ceil(h / s);
+  if (pat.kind === "stripes") for (let i = 0; i < nx; i++) out.push(rect(i * s, 0, s / 2, h));
+  if (pat.kind === "diagonal") for (let k = -h; k < w; k += s) out.push([[k, 0], [k + s / 2, 0], [k + s / 2 + h, h], [k + h, h]]);
+  if (pat.kind === "checks") for (let i = 0; i < nx; i++) for (let j = i % 2; j < ny; j += 2) out.push(rect(i * s, j * s, s, s));
+  if (pat.kind === "diamonds") for (let i = 0; i <= nx; i++) for (let j = 0; j <= ny; j++) out.push([[i * s, j * s - s / 2], [i * s + s / 2, j * s], [i * s, j * s + s / 2], [i * s - s / 2, j * s]]);
+  if (pat.kind === "dots") for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++)
+    out.push(Array.from({ length: 16 }, (_, k) => [i * s + s / 2 + s / 4 * Math.cos(Math.PI * k / 8), j * s + s / 2 + s / 4 * Math.sin(Math.PI * k / 8)]));
+  if (pat.kind === "grid") {   // (the uprights stop at the rails, so nothing's drawn twice)
+    const lw = Math.max(1, Math.round(s / 16));
+    for (let j = 0; j <= ny; j++) out.push(rect(0, j * s - lw / 2, w, lw));
+    for (let i = 0; i <= nx; i++) for (let j = 0; j < ny; j++) out.push(rect(i * s - lw / 2, j * s + lw / 2, lw, s - lw));
+  }
+  return out;
+}
+
+/** A patch's border as rings between two insets, each [from, to, darker]. */
+function borderRings(b) {
+  const W = b.width;
+  if (b.style === "line") return [[0, W]];
+  if (b.style === "double") { const t = Math.max(1, W / 4); return [[0, t], [W - t, W]]; }
+  if (b.style === "inlay") return W >= 3 ? [[0, W], [0, 1, true], [W - 1, W, true]] : [[0, W]];
+  return [];
+}
+
+const darker = hex => "#" + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) / 2).toString(16).padStart(2, "0")).join("");
+
+function trace(ctx, pts) { ctx.moveTo(...pts[0]); for (const q of pts.slice(1)) ctx.lineTo(...q); ctx.closePath(); }
+
+function drawPatch(ctx, x, y, p) {
+  const shape = outline(x, y, p.w, p.h, p), pat = p.pattern || {}, bor = p.border || {};
+  ctx.save();
+  ctx.beginPath(); trace(ctx, shape); ctx.clip();
+  paint(ctx, [x, y, p.w, p.h], p.texture, p.tint);
+  if (pat.kind && pat.kind !== "none") {
+    ctx.globalAlpha = pat.opacity / 100; ctx.fillStyle = pat.colour;
+    ctx.beginPath();
+    for (const poly of patternShapes(p.w, p.h, pat)) trace(ctx, poly.map(([a, b]) => [x + a, y + b]));
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  for (const [a, b, dark] of borderRings(bor)) {
+    ctx.fillStyle = dark ? darker(bor.colour) : bor.colour;
+    ctx.beginPath(); trace(ctx, outline(x, y, p.w, p.h, p, a)); trace(ctx, outline(x, y, p.w, p.h, p, b)); ctx.fill("evenodd");
+  }
+  ctx.restore();
+}
+
 /** A room: floor, patches, walls, doorways. `ops` is its doorways (geom.openings). */
 export function drawRoom(ctx, room, ops, opts = {}) {
   const W = CAT.walls, st = W.styles[room.walls.style] || W.styles.crimson, { x, y, w, h } = room;
   ctx.save();
   if (opts.dim) ctx.globalAlpha = 0.45;
   paint(ctx, [x, y, w, h], room.floor.texture, room.floor.tint);
-  for (const p of room.patches) paint(ctx, [x + p.x, y + p.y, p.w, p.h], p.texture, p.tint);
+  for (const p of room.patches) drawPatch(ctx, x + p.x, y + p.y, p);
   // the back wall
   ctx.fillStyle = st.paper; ctx.fillRect(x, y, w, W.top);
   ctx.fillStyle = st.stripe;
