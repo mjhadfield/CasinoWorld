@@ -40,7 +40,7 @@ ACTIONS = {"set_bet", "set_bets", "clear_bets", "rebet", "set_auto_rebet", "read
 @dataclass
 class Timings:
     vote: float = 10.0     # others seated have this long to say no
-    revert: float = 60.0   # no person seated this long: back to the crest
+    revert: float = 30.0   # no person seated this long: back to the crest
     hold: float = 0.8      # on top of the animation, before betting opens on the new game
 
     def scaled(self, factor: float) -> "Timings":

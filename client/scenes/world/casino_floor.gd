@@ -1006,6 +1006,7 @@ func _master_node(old: CasinoTable, game: String, bare := false) -> CasinoTable:
 		t.set("face_up", true)
 	t.position = old.position
 	t.rotation = old.rotation
+	t.on_screen_now = old.on_screen_now   # (so its felt is painted at once, not when its notifier first fires)
 	if bare:
 		(t.get_node("Felt") as TableFelt).layer = "base"
 	t.add_to_group("navigation_obstacles")

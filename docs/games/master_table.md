@@ -48,7 +48,7 @@ The shuffler, shoe and discard rack glide to their new places or slide on and of
 
 ## Empty
 
-With no person seated, the table keeps its game for 60 seconds ("MASTER TABLE IN n" on the felt), so you can stand and
+With no person seated, the table keeps its game for 30 seconds ("MASTER TABLE IN n" on the felt), so you can stand and
 come back. Then the NPCs finish their hand and go, and it changes back to the crest. NPCs alone don't keep a game going.
 
 ## Sounds

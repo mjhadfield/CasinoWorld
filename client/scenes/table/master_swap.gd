@@ -101,6 +101,17 @@ func run() -> void:
 		m.node.position = m.from
 	if anim == "dust":
 		_make_dust(images[0], images[1])
+	# The old table's felt picture stays up until the new one's is painted (its first paint waits a frame or two):
+	# the tables' geometry is the same, so only the printing is seen to change.
+	for i in 30:
+		var cache := to_table._felt._cache
+		if cache and cache._scale > 0.0:
+			break
+		await get_tree().process_frame
+		if not _alive():
+			return _finish()
+	if from_table._felt._cache:
+		from_table._felt._cache.visible = false
 	visible = true
 	_bob()
 	var tw := create_tween()
@@ -138,8 +149,6 @@ func _ghost(t: CasinoTable) -> void:
 	t.mode = ""
 	for b in t._backs.values():
 		b.visible = false
-	if t._felt._cache:
-		t._felt._cache.visible = false
 	var lights := t.get_node_or_null("Felt/Lights") as CanvasItem
 	if lights:
 		lights.visible = false
