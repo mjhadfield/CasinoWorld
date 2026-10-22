@@ -50,3 +50,13 @@ def test_jackpot_settings_change_the_rate_and_grow_by_the_second(client):
     assert tier["rate"] == 0.005 and tier["per_second"] == 2.5
     assert client.put("/api/slots/jackpot-settings", json={"mini": {"rate": 0.5}}).status_code == 400
     assert client.put("/api/slots/jackpot-settings", json={"grand": {"per_second": -1}}).status_code == 400
+
+
+def test_overview_lists_each_machine_with_its_figures(client):
+    casino = client.app.state.casino
+    casino.slot_stats.record("armadillo", True, spins=3, staked=300, returned=120, bonuses=1)
+    casino.slot_stats.record("armadillo", False, spins=1, staked=100, returned=0)
+    [m] = client.get("/api/slots").json()["machines"]
+    assert m["variant"] == "armadillo" and m["cabinets"] == 10
+    assert (m["spins"], m["staked"], m["returned"], m["bonuses"]) == (4, 400, 120, 1)
+    assert m["human"]["spins"] == 3 and m["npc"]["staked"] == 100

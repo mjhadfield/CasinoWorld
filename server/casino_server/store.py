@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS npc_visits (
     games        TEXT    NOT NULL DEFAULT '{}',  -- JSON: game -> rounds
     reason       TEXT    NOT NULL                -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown'
 );
+CREATE TABLE IF NOT EXISTS slot_stats (
+    variant  TEXT    NOT NULL,
+    who      TEXT    NOT NULL,             -- 'human' | 'npc'
+    spins    INTEGER NOT NULL DEFAULT 0,
+    staked   INTEGER NOT NULL DEFAULT 0,   -- pence, spins and bought bonuses
+    returned INTEGER NOT NULL DEFAULT 0,   -- pence, every win, bonus and jackpot
+    bonuses  INTEGER NOT NULL DEFAULT 0,
+    jackpots INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (variant, who)
+);
 """
 
 
@@ -281,6 +291,21 @@ class Store:
 
     def set_json(self, key: str, value):
         self.set_meta(key, json.dumps(value))
+
+    # ------------------------------------------------------------------ slot machines' figures (slots/stats.py)
+    def add_slot_stats(self, counts: dict):
+        """Adds {(variant, who): {spins, staked, returned, bonuses, jackpots}} to the running totals."""
+        with self.db:
+            self.db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('slot_stats_since', ?)", (_now(),))
+            for (variant, who), c in counts.items():
+                self.db.execute(
+                    "INSERT INTO slot_stats (variant, who, spins, staked, returned, bonuses, jackpots) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(variant, who) DO UPDATE SET spins = spins + excluded.spins, staked = staked + excluded.staked, "
+                    "returned = returned + excluded.returned, bonuses = bonuses + excluded.bonuses, jackpots = jackpots + excluded.jackpots",
+                    (variant, who, c["spins"], c["staked"], c["returned"], c["bonuses"], c["jackpots"]))
+
+    def slot_stats(self) -> list[dict]:
+        return [dict(r) for r in self.db.execute("SELECT * FROM slot_stats ORDER BY variant, who")]
 
     # ------------------------------------------------------------------ meta
     def get_meta(self, key: str, default: str | None = None) -> str | None:

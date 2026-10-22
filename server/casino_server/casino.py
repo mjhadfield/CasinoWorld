@@ -20,6 +20,7 @@ from casino_server.participants import HumanParticipant
 from casino_server.session import Session
 from casino_server.store import Player, Store
 from casino_server.slots.jackpots import SlotProgressives
+from casino_server.slots.stats import SlotStats
 from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, mississippi_stud, pai_gow,
                                   roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
 from casino_server.tables.base import TableError
@@ -50,6 +51,7 @@ class Casino:
         roster.seed(store)            # the starting cast, the first time
         self.jackpot = jackpot or Jackpot(store)
         self.slot_jackpots = SlotProgressives(store, clock=clock)   # the slots' own Mini/Minor/Major/Grand
+        self.slot_stats = SlotStats(store)                           # each machine's figures (the admin page's Slots)
         self.clock = clock
         self.sessions: set[Session] = set()
         self.world = World(self, clock)
@@ -73,7 +75,7 @@ class Casino:
         """What a machine needs beyond the common arguments (a slot cabinet: its variant and
         the shared progressives)."""
         if cfg["game"] == "slots":
-            return {"variant": cfg["variant"], "progressives": self.slot_jackpots}
+            return {"variant": cfg["variant"], "progressives": self.slot_jackpots, "stats": self.slot_stats}
         return {}
 
     # ------------------------------------------------------------------ lifecycle
@@ -89,6 +91,7 @@ class Casino:
         self._tasks = []
         self.jackpot.save()
         self.slot_jackpots.save()
+        self.slot_stats.save()
 
     def connect(self, session: Session):
         self.sessions.add(session)

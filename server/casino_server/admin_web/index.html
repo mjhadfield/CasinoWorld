@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Casino World Admin</title>
+<script>
+  // The Display choices, before anything paints (shell.js changes them).
+  try { for (const k of ["skin", "density", "rail"]) { const v = localStorage.getItem("cw.admin." + k); if (v) document.documentElement.dataset[k] = v; } } catch (e) {}
+</script>
+<link rel="stylesheet" href="/admin-ui/theme.css">
+<link rel="stylesheet" href="/admin-ui/base.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><i>CW</i><b class="lbl">Casino World <span>Admin</span></b></div>
+    <nav class="nav" id="nav" aria-label="Sections">
+      <div class="grp">Build</div>
+      <a href="#plan" data-view="plan"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="15" height="15" rx="1.5"/><path d="M2.5 9h8v8.5M10.5 9V2.5M10.5 13h7"/></svg><span class="lbl">Floor plan</span></a>
+      <a href="#tables" data-view="tables"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6.5h15v5a6 6 0 0 1-6 6h-3a6 6 0 0 1-6-6z"/><circle cx="7" cy="11" r="1.3"/><circle cx="13" cy="11" r="1.3"/></svg><span class="lbl">Tables</span></a>
+      <a href="#design" data-view="design"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="2.5" width="13" height="15" rx="2"/><path d="M6 6h8v5H6zM8.7 6v5M11.3 6v5M7 14.5h6"/></svg><span class="lbl">Slot design</span></a>
+      <div class="grp">Floor</div>
+      <a href="#slots" data-view="slots"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 16.5V9M8 16.5V4M13 16.5v-5M17.5 16.5H2.5"/></svg><span class="lbl">Slots</span></a>
+      <a href="#npcs" data-view="npcs"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.5" cy="7" r="3"/><path d="M2.5 17c.5-3 2.5-4.5 5-4.5s4.5 1.5 5 4.5M13 4.2a3 3 0 0 1 0 5.6M14.5 12.7c1.6.6 2.6 2 3 4.3"/></svg><span class="lbl">NPCs</span></a>
+      <a href="#players" data-view="players"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="7" r="3.2"/><path d="M3.5 17.5c.6-3.6 3.2-5.3 6.5-5.3s5.9 1.7 6.5 5.3"/></svg><span class="lbl">Players</span></a>
+      <div class="grp">Setup</div>
+      <a href="#sounds" data-view="sounds"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8v4h3l4 3.5v-11L6 8zM13.5 7a4 4 0 0 1 0 6M15.8 4.8a7 7 0 0 1 0 10.4"/></svg><span class="lbl">Sounds</span></a>
+      <a href="#settings" data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6"/></svg><span class="lbl">Settings</span></a>
+    </nav>
+    <div class="rail-foot">
+      <a href="/" target="_blank" title="Open the game"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 3.5h5.5V9M16.5 3.5L9 11M14 12v4.5H3.5V6H8"/></svg><span class="lbl">Open the game</span></a>
+      <a href="/credits" target="_blank" title="Art credits"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M12.5 7.8a3 3 0 1 0 0 4.4"/></svg><span class="lbl">Art credits</span></a>
+      <button type="button" id="rail-toggle" title="Collapse the menu"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5l-5 5 5 5"/></svg><span class="lbl">Collapse</span></button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <h1 id="title"></h1>
+      <div class="top-ctl" id="top-ctl"></div>
+      <div class="menu-wrap">
+        <button type="button" class="ghost sq" id="display-btn" title="Display" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 0 0 14z" fill="currentColor"/></svg></button>
+        <div class="menu" id="display-menu" hidden>
+          <h4>Colours</h4>
+          <div class="skins" id="skins">
+            <button type="button" class="skin" data-skin="amethyst"><i style="background:linear-gradient(90deg,#121119 0 55%,#9b6dff 55%)"></i>Amethyst</button>
+            <button type="button" class="skin" data-skin="graphite"><i style="background:linear-gradient(90deg,#1b1b1e 0 55%,#a78bfa 55%)"></i>Graphite</button>
+          </div>
+          <h4>Density</h4>
+          <div class="seg" id="densities"><button type="button" data-density="compact">Compact</button><button type="button" data-density="comfortable">Comfortable</button></div>
+        </div>
+      </div>
+    </header>
+    <div class="views" id="views"></div>
+    <footer class="statusbar"><span id="status" role="status">Loading…</span><span class="grow"></span><span id="status-right"></span></footer>
+  </div>
+</div>
+<script type="module" src="/admin-ui/shell.js"></script>
+</body>
+</html>

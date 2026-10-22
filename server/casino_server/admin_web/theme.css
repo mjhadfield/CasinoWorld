@@ -1,0 +1,56 @@
+/* The admin page's theme: every colour, size and font the page uses, and nothing else. Re-theme here.
+   A skin is data-skin on <html> (Amethyst when unset); a density is data-density (Compact when unset).
+   The page remembers both (the Display menu in the top bar). */
+@font-face { font-family: "Instrument Sans"; src: url("fonts/InstrumentSans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+
+:root {
+  color-scheme: dark;
+  --font: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  /* Amethyst: violet-tinted near-blacks and a bright violet */
+  --bg-0: #0b0a10;            /* the page, inputs */
+  --bg-1: #121119;            /* panels, bars */
+  --bg-2: #191722;            /* buttons, cards on a panel */
+  --bg-3: #221f2e;            /* hover, menus */
+  --line: #2b2738;            /* dividers */
+  --line-2: #3a3550;          /* control borders */
+  --fg: #ebe8f4;
+  --fg-muted: #9b95ad;
+  --fg-faint: #6c6680;
+  --accent: #9b6dff;
+  --accent-strong: #b896ff;   /* text and icons in the accent */
+  --accent-ink: #0d0a16;      /* text on a solid accent */
+  --accent-soft: rgb(155 109 255 / .14);
+  --accent-line: rgb(155 109 255 / .45);
+  --ok: #5fd39a;
+  --caution: #f2b84b;
+  --danger: #ff6b7a;
+  --stage: #07060a;           /* behind previews, sprites and art */
+  --shadow: 0 12px 40px rgb(0 0 0 / .55);
+
+  /* Compact */
+  --fs: 13px; --fs-s: 12px; --fs-xs: 11px; --fs-h: 15px; --fs-big: 18px;
+  --ctl-h: 28px; --row-h: 30px; --bar-h: 44px; --ph-h: 34px;
+  --gap: 8px; --pad: 10px; --radius: 6px;
+
+  /* The names the older modules use (plan_web, slot_design_web, table_styles_web), mapped onto the tokens above */
+  --bg: var(--bg-0); --panel: var(--bg-1); --ink: var(--fg); --muted: var(--fg-muted);
+  --felt: var(--accent); --gold: var(--accent-strong); --target: var(--accent-soft); --warn: var(--danger);
+}
+
+/* Graphite: neutral greys and a softer lavender */
+:root[data-skin="graphite"] {
+  --bg-0: #0c0c0d; --bg-1: #131315; --bg-2: #1b1b1e; --bg-3: #252528; --line: #2d2d31; --line-2: #3c3c42;
+  --fg: #ececee; --fg-muted: #9d9da6; --fg-faint: #6d6d76;
+  --accent: #a78bfa; --accent-strong: #c4b1ff; --accent-ink: #0e0b18;
+  --accent-soft: rgb(167 139 250 / .13); --accent-line: rgb(167 139 250 / .45);
+  --stage: #08080a;
+}
+
+:root[data-density="comfortable"] {
+  --fs: 14px; --fs-s: 13px; --fs-xs: 12px; --fs-h: 16px; --fs-big: 20px;
+  --ctl-h: 32px; --row-h: 34px; --ph-h: 38px;
+  --gap: 10px; --pad: 12px;
+}

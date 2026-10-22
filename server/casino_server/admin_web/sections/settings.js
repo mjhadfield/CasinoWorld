@@ -1,0 +1,77 @@
+// Settings: how the floor runs (NPC population, cooldowns, dealer shifts) and the Default seating style, side by side.
+let H;
+
+export function init(h) {
+  H = h;
+  h.view.innerHTML = `
+  <div class="wb" style="grid-template-columns: minmax(0, 560px) minmax(0, 560px) minmax(0, 1fr)">
+    <form class="panel" id="settings-form">
+      <div class="ph">Floor <span class="grow"></span><button type="submit" class="primary">Save</button></div>
+      <div class="pb padded">
+        <div class="grid2">
+          <label class="field"><span>Punters on the floor</span><input type="number" id="s-population" min="0" max="30" step="1"></label>
+          <label class="field"><span>Regulars' cooldown (× normal)</span><input type="number" id="s-regular" min="0.05" max="1" step="0.05"></label>
+          <label class="field"><span>Cooldown after a visit (min)</span><span class="controls"><input type="number" id="s-cool-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-cool-hi" min="0" step="1" style="width:6em"></span></label>
+          <label class="field"><span>Cooldown after going bust (min)</span><span class="controls"><input type="number" id="s-bust-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-bust-hi" min="0" step="1" style="width:6em"></span></label>
+          <label class="field"><span>Dealer shift (min)</span><input type="number" id="s-shift" min="0.5" max="240" step="0.5"></label>
+          <label class="field"><span>Between tables' reliefs (min)</span><input type="number" id="s-stagger" min="0.5" max="240" step="0.5"></label>
+        </div>
+        <p class="hint">Changes apply straight away; cooldowns from the next visit that ends.</p>
+      </div>
+    </form>
+    <form class="panel" id="seating-form">
+      <div class="ph">Seating · Default style <span class="grow"></span><button type="submit" class="primary">Save</button></div>
+      <div class="pb padded">
+        <div class="grid2">
+          <label class="field"><span>Chair</span><select id="st-chair"><option value="stool">Low-back stool</option><option value="lounge">Lounge chair</option></select></label>
+          <label class="field"><span>Upholstery</span><input type="color" id="st-upholstery"></label>
+          <label class="field"><span>Frame</span><select id="st-frame"><option value="brass">Brass</option><option value="chrome">Chrome</option><option value="gunmetal">Gunmetal</option></select></label>
+          <label class="field"><span>Back height (×)</span><input type="number" id="st-back" min="0.6" max="1.4" step="0.05"></label>
+          <label class="field"><span>Size (×)</span><input type="number" id="st-size" min="0.85" max="1.15" step="0.05"></label>
+          <label class="field"><span>Sitting down</span><select id="st-sit"><option value="swivel">Swivel</option><option value="pull">Pull out</option><option value="glide">Glide (no chair animation)</option></select></label>
+          <label class="field"><span>Sit speed (×)</span><input type="number" id="st-sit_speed" min="0.5" max="1.5" step="0.1"></label>
+          <label class="field"><span>Slot screen opens</span><select id="st-slot_screen"><option value="after_sit">After the sit</option><option value="at_once">At once</option></select></label>
+          <label class="field"><span>Craps standing spot</span><select id="st-craps_spot"><option value="footprints">Footprints</option><option value="spotlight">Spotlight</option><option value="medallion">Medallion</option><option value="ring">Ring</option></select></label>
+        </div>
+        <p class="hint">Every table and slot cabinet uses this style; saving updates the floor straight away.</p>
+      </div>
+    </form>
+    <div class="panel flat"></div>
+  </div>`;
+  const $ = s => h.view.querySelector(s);
+  $("#settings-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    try {
+      await H.api("PUT", "/api/npc-settings", {population: +$("#s-population").value, regular_cooldown: +$("#s-regular").value,
+        cooldown_min: [+$("#s-cool-lo").value, +$("#s-cool-hi").value], bust_cooldown_min: [+$("#s-bust-lo").value, +$("#s-bust-hi").value],
+        dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value});
+      H.status("Settings saved.", "ok");
+    } catch (err) { H.status(err.message, "warn"); }
+  });
+  $("#seating-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = {};
+    for (const k of SEATING) body[k] = NUMBERS.includes(k) ? +$("#st-" + k).value : $("#st-" + k).value;
+    try {
+      await H.api("PUT", "/api/seating/styles/default", body);
+      H.status("Seating saved.", "ok");
+    } catch (err) { H.status(err.message, "warn"); }
+  });
+}
+
+const SEATING = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
+const NUMBERS = ["back", "size", "sit_speed"];
+
+export async function load() {
+  const $ = s => H.view.querySelector(s);
+  try {
+    const s = await H.api("GET", "/api/npc-settings");
+    $("#s-population").value = s.population; $("#s-regular").value = s.regular_cooldown;
+    $("#s-cool-lo").value = s.cooldown_min[0]; $("#s-cool-hi").value = s.cooldown_min[1];
+    $("#s-bust-lo").value = s.bust_cooldown_min[0]; $("#s-bust-hi").value = s.bust_cooldown_min[1];
+    $("#s-shift").value = s.dealer_shift_min; $("#s-stagger").value = s.dealer_stagger_min;
+    const st = (await H.api("GET", "/api/seating")).styles.default;
+    for (const k of SEATING) $("#st-" + k).value = st[k];
+    H.status("Settings loaded.");
+  } catch (e) { H.status("Couldn't load settings: " + e.message, "warn"); }
+}

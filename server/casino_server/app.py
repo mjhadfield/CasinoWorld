@@ -28,6 +28,8 @@ from casino_server import plan, plan_assets, slot_builds, slot_design_art
 from casino_server.slot_art import ArtError, SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
+from casino_server.slots import stats as slot_stats
+from casino_server.slots.variants import VARIANTS as SLOT_VARIANTS
 from casino_server.sounds import SoundBoard, SoundError
 from casino_server.store import Store
 
@@ -226,6 +228,23 @@ def admin_page():
     return FileResponse(MAINTENANCE_PAGE, headers=NO_STORE)
 
 
+# The new admin page (admin_web/), side by side with maintenance.html until it takes over.
+ADMIN_WEB = Path(__file__).resolve().parent / "admin_web"
+
+
+@app.get("/admin/next", response_class=HTMLResponse)
+def admin_next_page():
+    return FileResponse(ADMIN_WEB / "index.html", headers=NO_STORE)
+
+
+@app.get("/admin-ui/{rel:path}")
+def admin_ui(rel: str):
+    path = (ADMIN_WEB / rel).resolve()
+    if not path.is_relative_to(ADMIN_WEB) or not path.is_file():
+        raise HTTPException(404, "No such file")
+    return FileResponse(path, headers=NO_STORE)
+
+
 @app.get("/api/sounds")
 def sounds_overview(request: Request):
     return JSONResponse(request.app.state.sounds.overview(), headers=NO_STORE)
@@ -327,7 +346,29 @@ def slots_overview(request: Request):
     pg = casino.slot_jackpots
     tiers = [{**t, **pg.settings[t["id"]], "amount": pg.amount(t["id"])} for t in slot_jackpots.TIERS]
     return JSONResponse({"tiers": tiers, "cabinets": cabinets, "players": {"wagered": wagered, "returned": returned},
-                         "jackpot_rtp": 100 * pg.rtp()}, headers=NO_STORE)
+                         "jackpot_rtp": 100 * pg.rtp(), "machines": _slot_machines(casino, cabinets),
+                         "stats_since": casino.slot_stats.since()}, headers=NO_STORE)
+
+
+def _slot_machines(casino, cabinets: list) -> list:
+    """Each slot machine on the floor or with figures: its cabinets, and its spins, stakes, returns, bonuses and
+    jackpots in all and split between humans and NPCs (slots/stats.py)."""
+    blank = dict.fromkeys(slot_stats.FIELDS, 0)
+    out = {}
+    def machine(variant):
+        if variant not in out:
+            v = SLOT_VARIANTS.get(variant)
+            out[variant] = {"variant": variant, "name": v.name if v else variant, "cabinets": 0,
+                            **blank, "human": dict(blank), "npc": dict(blank)}
+        return out[variant]
+    for c in cabinets:
+        machine(c["variant"])["cabinets"] += 1
+    for r in casino.slot_stats.rows():
+        m = machine(r["variant"])
+        for k in slot_stats.FIELDS:
+            m[k] += r[k]
+            m[r["who"]][k] += r[k]
+    return sorted(out.values(), key=lambda m: (-m["cabinets"], m["name"]))
 
 
 @app.put("/api/slots/jackpot-settings")

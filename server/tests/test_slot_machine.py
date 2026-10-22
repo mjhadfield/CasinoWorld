@@ -471,3 +471,51 @@ def test_meters_grow_by_the_second_and_by_their_share_of_each_bet(tmp_path):
     again = jackpots.SlotProgressives(store, clock=lambda: t[0])   # the settings are kept
     assert again.settings["mini"] == {"rate": 0.01, "per_second": 10.0}
     assert again.rtp() == pytest.approx(jackpots.rtp() + 0.0075)
+
+
+def test_stats_count_spins_stakes_wins_bonuses_and_jackpots():
+    m, p = cabinet()
+    m.rig = {"trigger": "trail"}
+    m.spin(0, 100, now=0.0)
+    _, now = run(m, 0.0, until=lambda m: m.phase == "trail")
+    while m.phase == "trail":
+        now = max(now, m.trail_ready_at)
+        m.trail_fire(0, now=now)
+    run(m, now)
+    m.rig = {"jackpot": "mini"}
+    m.spin(0, 100, now=now + 5)
+    run(m, now + 5, until=lambda m: m.phase == "jackpot_pick")
+    for i in range(len(m.pick["seq"])):
+        m.jackpot_pick(0, i, now=now + 6)
+    [row] = m.stats.rows()
+    assert row["variant"] == "armadillo" and row["who"] == "human"
+    assert row["spins"] == 2 and row["staked"] == 200 and row["bonuses"] == 1 and row["jackpots"] == 1
+    assert row["returned"] == sum(a for a, n in p.log if a > 0)
+
+
+def test_stats_count_a_bought_bonus_as_staked_and_npcs_apart():
+    m, _ = cabinet()
+    m.stand(0, 0.0)
+    npc = FakeParticipant("Bot", balance=1_000_000, human=False)
+    m.sit(0, npc, 0.0)
+    m.buy_bonus(0, 100, now=1.0)
+    [row] = m.stats.rows()
+    assert row["who"] == "npc" and row["spins"] == 0 and row["bonuses"] == 1
+    assert row["staked"] == 100 * m.variant.buy_cost
+
+
+def test_stats_save_into_the_store_and_add_up(tmp_path):
+    from casino_server.slots.stats import SlotStats
+    store = Store(tmp_path / "s.sqlite")
+    clock = [0.0]
+    stats = SlotStats(store, clock=lambda: clock[0])
+    stats.record("armadillo", True, spins=1, staked=100, returned=40)
+    assert store.slot_stats() == []                  # not yet: saved every few seconds
+    clock[0] = 10.0
+    stats.record("armadillo", True, spins=1, staked=100, returned=0)
+    stats.record("armadillo", False, spins=1, staked=25, returned=50)
+    stats.save()
+    rows = {r["who"]: r for r in SlotStats(store).rows()}
+    assert rows["human"]["spins"] == 2 and rows["human"]["staked"] == 200 and rows["human"]["returned"] == 40
+    assert rows["npc"]["returned"] == 50
+    assert stats.since() is not None
