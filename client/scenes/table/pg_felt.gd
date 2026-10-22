@@ -18,7 +18,7 @@ func _draw_layout(t: CasinoTable) -> void:
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
 	jackpot_disc(t.spot_pos(seat, "jackpot"))
-	circle(t.spot_pos(seat, "fortune"), "accent", ["FORTUNE"])
+	circle(t.spot_pos(seat, "fortune"), "side", ["FORTUNE"])
 	var r: float = PaiGowTable.ANTE_R
 	big(t.spot_pos(seat, "ante"), r, ["ANTE"], 3, r - 2.0)
 	# The LOW box, upright, with the HIGH box lying sideways below it.

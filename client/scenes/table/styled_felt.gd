@@ -445,12 +445,12 @@ func ink() -> Color:
 	return TableStyle.colour(d, "print.ink")
 
 
+## The printing's colours by role: "ink" (titles, rules, follow-up bets like Play), "primary" (the bet every
+## hand must have), "side" (the optional bonus bets) and "accent" (the trim).
 func role_colour(role: String) -> Color:
 	match role:
-		"accent":
-			return TableStyle.colour(d, "print.accent")
-		"jade":
-			return TableStyle.JADE
+		"primary", "side", "accent":
+			return TableStyle.colour(d, "print." + role)
 	return ink()
 
 
@@ -474,7 +474,7 @@ func small(s: String, x: float, dy: float) -> void:
 
 
 ## A betting spot in the style's artwork. `s` says what it is:
-##   shape "circle" (r), "diamond" (hw, hh) or "box" (w, h, rad); at; ring "ink" | "accent" | "jade"; alpha; width
+##   shape "circle" (r), "diamond" (hw, hh) or "box" (w, h, rad); at; ring "ink" | "primary" | "side" | "accent"; alpha; width
 ##   inner {r, ring, alpha, width}: a second ring inside (the main bet circles)
 ##   lines: its words (one or two lines), size, dx/dy (moved from the centre), text_alpha
 func spot(s: Dictionary) -> void:
@@ -508,9 +508,9 @@ func spot(s: Dictionary) -> void:
 				draw_colored_polygon(PackedVector2Array([tip + Vector2(0, -0.9), tip + Vector2(0.7, 0), tip + Vector2(0, 0.9), tip + Vector2(-0.7, 0)]), c)
 	if s.has("inner"):
 		var inner: Dictionary = s.inner
-		var ic := Color(role_colour(inner.get("ring", "accent")), inner.get("alpha", 0.8))
+		var ic := Color(role_colour(inner.get("ring", "primary")), inner.get("alpha", 0.8))
 		if style == "foil":
-			ic = Color(role_colour(inner.get("ring", "accent")).lightened(0.15), 0.85)
+			ic = Color(role_colour(inner.get("ring", "primary")).lightened(0.15), 0.85)
 		_loop(_circle_pts(s.at, inner.r), ic, inner.get("width", 0.4))
 	var lines: Array = s.get("lines", [])
 	var tc := Color(role_colour(s.get("text_ring", s.get("ring", "ink"))), s.get("text_alpha", 1.0))
@@ -578,11 +578,11 @@ func circle(at: Vector2, ring: String, lines: Array) -> void:
 	spot({"shape": "circle", "at": at, "r": CasinoTable.SPOT_R, "ring": ring, "lines": lines, "size": 2})
 
 
-## A main bet's circle: ink, with an accent ring inside it when `inner_r` is given.
-func big(at: Vector2, r: float, lines: Array, size: int, inner_r := 0.0) -> void:
-	var s := {"shape": "circle", "at": at, "r": r, "ring": "ink", "lines": lines, "size": size}
+## A bet's circle, a primary bet's unless `ring` says otherwise, with a second ring inside it when `inner_r` is given.
+func big(at: Vector2, r: float, lines: Array, size: int, inner_r := 0.0, ring := "primary") -> void:
+	var s := {"shape": "circle", "at": at, "r": r, "ring": ring, "lines": lines, "size": size}
 	if inner_r > 0.0:
-		s["inner"] = {"r": inner_r, "ring": "accent", "alpha": 0.8, "width": 0.4}
+		s["inner"] = {"r": inner_r, "ring": ring, "alpha": 0.8, "width": 0.4}
 	spot(s)
 
 

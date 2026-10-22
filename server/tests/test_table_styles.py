@@ -51,6 +51,13 @@ def test_a_design_missing_newer_choices_takes_them_from_house():
     assert design["felt"]["colour"] == "#14284a" and design["border"] == "deco" and design["chips"] == table_styles.HOUSE["chips"]
 
 
+def test_a_design_saved_before_the_bet_colours_keeps_its_look():
+    old = {"print": {"font": "montserrat", "ink": "#f4f4f2", "accent": "#c8794a"}}   # (one colour for side bets and trim)
+    pr = table_styles.clean_design(old)["print"]
+    assert pr == {"font": "montserrat", "ink": "#f4f4f2", "primary": "#f4f4f2", "side": "#c8794a", "accent": "#c8794a"}
+    assert table_styles.BUILT_IN["vegas"]["design"]["print"]["side"] == "#8fd3ff"
+
+
 def test_new_styles_go_on_some_tables_and_the_built_ins_stay(client):
     r = client.put("/api/table-styles/styles/pit_blue", json={"name": "Pit blue", "design": table_styles.BUILT_IN["vegas"]["design"]})
     assert r.status_code == 200, r.text

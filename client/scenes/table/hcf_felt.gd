@@ -18,7 +18,7 @@ func _draw_layout(t: CasinoTable) -> void:
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
 	jackpot_disc(t.spot_pos(seat, "jackpot"))
-	circle(t.spot_pos(seat, "flush"), "accent", ["FLUSH"])
-	circle(t.spot_pos(seat, "straight_flush"), "ink", ["STRAIGHT", "FLUSH"])
-	for spot_name in ["ante", "raise"]:
-		big(t.spot_pos(seat, spot_name), 8.0, [spot_name.to_upper()], 3)
+	circle(t.spot_pos(seat, "flush"), "side", ["FLUSH"])
+	circle(t.spot_pos(seat, "straight_flush"), "side", ["STRAIGHT", "FLUSH"])
+	big(t.spot_pos(seat, "ante"), 8.0, ["ANTE"], 3)
+	big(t.spot_pos(seat, "raise"), 8.0, ["RAISE"], 3, 0.0, "ink")   # (a follow-up bet)

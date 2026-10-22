@@ -12,7 +12,7 @@ func _draw_layout(t: CasinoTable) -> void:
 		for side in ["player", "banker"]:
 			var left := bt.coup_pos(side, 0) - Vector2(8.5, 11)
 			var right := bt.coup_pos(side, 2) + Vector2(8.5, 11)
-			var ring := "accent" if side == "banker" else "ink"   # the same colours as the seats' boxes
+			var ring := "primary" if side == "banker" else "ink"   # the same colours as the seats' boxes
 			spot({"shape": "box", "at": (left + right) / 2, "w": right.x - left.x, "h": right.y - left.y, "rad": 1.5, "ring": ring,
 				"alpha": 0.8, "width": 0.6})
 			print_text(side.to_upper(), Vector2((left.x + right.x) / 2, right.y + 3), 3, Color(role_colour(ring), 0.9))  # below: clear of the chip tray
@@ -21,10 +21,10 @@ func _draw_layout(t: CasinoTable) -> void:
 
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
-	circle(t.spot_pos(seat, "player_dragon"), "jade", ["P", "DRAGON"])
-	circle(t.spot_pos(seat, "tie"), "ink", ["TIE"])
-	circle(t.spot_pos(seat, "banker_dragon"), "jade", ["B", "DRAGON"])
+	circle(t.spot_pos(seat, "player_dragon"), "side", ["P", "DRAGON"])
+	circle(t.spot_pos(seat, "tie"), "side", ["TIE"])
+	circle(t.spot_pos(seat, "banker_dragon"), "side", ["B", "DRAGON"])
 	for spot_name in ["banker", "player"]:
 		var y: float = BacTable.BANKER_Y if spot_name == "banker" else BacTable.PLAYER_Y
 		spot({"shape": "box", "at": Vector2(t.seat_x(seat), y), "w": BacTable.BOX.x, "h": BacTable.BOX.y, "rad": 2.0,
-			"ring": "ink" if spot_name == "player" else "accent", "lines": [spot_name.to_upper()], "size": 3, "dx": 9.0})
+			"ring": "ink" if spot_name == "player" else "primary", "lines": [spot_name.to_upper()], "size": 3, "dx": 9.0})

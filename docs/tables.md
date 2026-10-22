@@ -11,7 +11,11 @@ a tab for each kind of table, because they have different parts:
 - **Card Games:** the felt (colour, a woven or velvet cloth, how much darker it gets towards the rail) and a border
   line; the rail (one of five woods, a leather armrest along the players' straight front or leather all round, a brass/gold/chrome bead where it
   meets the felt); the chip tray (a well cut into a dealer's ledge, or sunk in where it's always been, in three
-  finishes); the printing's font and colours, and the betting spots' artwork; the Jackpot disc, the shuffler,
+  finishes); the printing's font and four colours (ink for titles, rules and follow-up bets like Play, Raise and the
+  Mississippi streets; primary for the bet every hand must have: the Ante, Blackjack's bet, Hold'em's Blind, Let It
+  Ride's three, Baccarat's Banker box and hand; side for the bonus bets, Baccarat's Tie and Dragons; and the trim for
+  the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
+  the betting spots' artwork; the Jackpot disc, the shuffler,
   shoe and discard rack, card backs and chips.
 - **Roulette:** the felt (with the fine grain it's always had as a fourth cloth), a border line, the rail (bare
   wood or leather all round), the printing's font, ink and accent, the red, black and zero colours (on the layout

@@ -17,9 +17,9 @@ func _draw_layout(t: CasinoTable) -> void:
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
 	jackpot_disc(t.spot_pos(seat, "jackpot"))
-	circle(t.spot_pos(seat, "bonus"), "accent", ["BONUS"])
-	circle(t.spot_pos(seat, "three_card"), "ink", ["3 CARD", "BONUS"])
+	circle(t.spot_pos(seat, "bonus"), "side", ["BONUS"])
+	circle(t.spot_pos(seat, "three_card"), "side", ["3 CARD", "BONUS"])
 	for pair in [["bet1", "1"], ["bet2", "2"], ["ante", "£"]]:
-		var s := {"shape": "circle", "at": t.spot_pos(seat, pair[0]), "r": 7.0, "ring": "ink", "lines": [pair[1]], "size": 6,
-			"inner": {"r": 5.2, "ring": "accent", "alpha": 0.7, "width": 0.4}}
+		var s := {"shape": "circle", "at": t.spot_pos(seat, pair[0]), "r": 7.0, "ring": "primary", "lines": [pair[1]], "size": 6,
+			"inner": {"r": 5.2, "ring": "primary", "alpha": 0.7, "width": 0.4}}
 		spot(s)

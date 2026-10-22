@@ -33,7 +33,7 @@ HOUSE = {
     "shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
     "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
     "spots": "deco",
-    "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
+    "print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
     "back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
 }
 
@@ -108,7 +108,11 @@ CHOICES = {
     "jackpotRim": ("thin", "standard", "heavy"),
     "chips": ("classic", "clay", "ceramic", "stripes", "metal", "house", "vintage"),
 }
-COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.accent", "shufflerTint", "shoeTint", "rackTint")
+# The printing's colours: ink (titles, rules, follow-up bets like Play), primary (the bet every hand must have: the
+# Ante, Blackjack's bet), side (the optional bonus bets) and accent, the trim (gilt, double and deco borders, the
+# House chips, the Master Table's crest).
+COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.primary", "print.side", "print.accent",
+           "shufflerTint", "shoeTint", "rackTint")
 RANGES = {"felt.vignette": (0.0, 1.0)}
 
 CARD_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
@@ -142,7 +146,8 @@ ROULETTE_BUILT_IN = {
                      border="led", led="#8fd3ff", rail__wood="ebony", rail__bead="chrome", print__font="montserrat",
                      print__ink="#f4f4f2", print__accent="#8fd3ff", float="steel", wheel__metal="chrome"),
     "cards": _preset("Card tables' House", ROULETTE_HOUSE, felt=copy.deepcopy(HOUSE["felt"]), border=HOUSE["border"],
-                     led=HOUSE["led"], rail=copy.deepcopy(HOUSE["rail"]), print=copy.deepcopy(HOUSE["print"]),
+                     led=HOUSE["led"], rail=copy.deepcopy(HOUSE["rail"]),
+                     print={k: HOUSE["print"][k] for k in ("font", "ink", "accent")},
                      wheel__metal="gold"),
 }
 
@@ -193,6 +198,23 @@ KINDS = {
 }
 
 
+def _upgrade(design, kind: str):
+    """A card design saved before a choice existed, brought up to date so it looks as it did: the side bets take
+    what was the accent, the primary bets the ink."""
+    if kind != "cards" or not isinstance(design, dict):
+        return design
+    design = copy.deepcopy(design)
+    pr = design.get("print")
+    if isinstance(pr, dict):
+        pr.setdefault("side", pr.get("accent", HOUSE["print"]["side"]))
+        pr.setdefault("primary", pr.get("ink", HOUSE["print"]["primary"]))
+    return design
+
+
+for _s in BUILT_IN.values():
+    _s["design"] = _upgrade(_s["design"], "cards")
+
+
 def _kind(kind: str) -> dict:
     if kind not in KINDS:
         raise ValueError(f"No kind of table called {kind!r}.")
@@ -229,6 +251,7 @@ def clean_design(data: dict, kind: str = "cards") -> dict:
     k = _kind(kind)
     if not isinstance(data, dict):
         raise ValueError("A design is a set of choices.")
+    data = _upgrade(data, kind)
     out = copy.deepcopy(k["house"])
     for path, allowed in k["choices"].items():
         try:

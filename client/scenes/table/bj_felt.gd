@@ -16,9 +16,9 @@ func _draw_layout(t: CasinoTable) -> void:
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
 	jackpot_disc(t.spot_pos(seat, "jackpot"))
-	spot({"shape": "diamond", "at": t.spot_pos(seat, "top_three"), "hw": 8.5, "hh": 7.5, "ring": "accent", "lines": ["TOP 3"], "size": 2})
-	circle(t.spot_pos(seat, "super_pairs"), "accent", ["SUPER", "PAIRS"])
-	circle(t.spot_pos(seat, "twenty_one_plus_three"), "ink", ["21+3"])
+	spot({"shape": "diamond", "at": t.spot_pos(seat, "top_three"), "hw": 8.5, "hh": 7.5, "ring": "side", "lines": ["TOP 3"], "size": 2})
+	circle(t.spot_pos(seat, "super_pairs"), "side", ["SUPER", "PAIRS"])
+	circle(t.spot_pos(seat, "twenty_one_plus_three"), "side", ["21+3"])
 	var r: float = BlackjackTable.BET_R
 	big(t.spot_pos(seat, "bet"), r, [], 0, r - 2.2)
 	# Insurance goes on the little mark at the circle's side.

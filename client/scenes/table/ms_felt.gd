@@ -18,7 +18,7 @@ func _draw_layout(t: CasinoTable) -> void:
 
 func _draw_seat(t: CasinoTable, seat: int) -> void:
 	jackpot_disc(t.spot_pos(seat, "jackpot"))
-	circle(t.spot_pos(seat, "bonus"), "accent", ["3 CARD", "BONUS"])
+	circle(t.spot_pos(seat, "bonus"), "side", ["3 CARD", "BONUS"])
 	big(t.spot_pos(seat, "ante"), 9.0, ["ANTE"], 3, 7.0)
 	for k in 3:
 		spot({"shape": "circle", "at": t.spot_pos(seat, MsTable.STREETS[k]), "r": MsTable.STREET_R, "ring": "ink", "alpha": 0.9,

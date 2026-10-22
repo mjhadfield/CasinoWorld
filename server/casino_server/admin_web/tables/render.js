@@ -64,8 +64,10 @@ export const SLOTS = [
     { key: "tray.finish", type: "seg", options: [["wood", "Felt-lined well"], ["steel", "Brushed steel"], ["lid", "Smoked lid"]], label: "Finish" }] },
   { id: "print", label: "Printing", keys: ["print"], ctl: [
     { key: "print.font", type: "seg", options: Object.entries(FONTS).map(([k, v]) => [k, v[2]]), label: "Lettering" },
-    { key: "print.ink", type: "swatch", options: INKS, custom: true, label: "Ink" },
-    { key: "print.accent", type: "swatch", options: ACCENTS, custom: true, label: "Accent (side bets)" }] },
+    { key: "print.ink", type: "swatch", options: INKS, custom: true, label: "Ink (titles, rules, follow-up bets like Play)" },
+    { key: "print.primary", type: "swatch", options: [...INKS, ...ACCENTS], custom: true, label: "Primary bet (the Ante, Blackjack's bet, Banker)" },
+    { key: "print.side", type: "swatch", options: [...ACCENTS, ...INKS], custom: true, label: "Side bets (Pair Plus, 21+3, Tie, Dragons...)" },
+    { key: "print.accent", type: "swatch", options: ACCENTS, custom: true, label: "Trim (gilt, double and deco borders, House chips, Master crest)" }] },
   { id: "spots", label: "Betting spots", keys: ["spots"], hint: "same centres and sizes", ctl: [
     { key: "spots", type: "seg", options: [["printed", "Printed"], ["double", "Double ring"], ["foil", "Gold foil"], ["inlaid", "Inlaid"], ["deco", "Deco"]] }] },
   { id: "jackpot", label: "Jackpot disc", keys: ["jackpot", "jackpotRim"], hint: "same size and place", ctl: [
@@ -489,7 +491,9 @@ function drawTray(ctx, D, ledge) {
 // ---------------------------------------------------------------- spots
 const SPOT_FILL = "rgba(0,0,0,.15)";
 function ledOf(D) { return D.led || "#8fd3ff"; }
-function colourOf(D, role) { return role === "accent" ? D.print.accent : role === "jade" ? "#7fc8a9" : D.print.ink; }
+// The printing's colours by role: ink (titles, rules, follow-up bets), primary (the bet every hand must have), side
+// (the bonus bets) and accent (the trim) -- StyledFelt.role_colour.
+function colourOf(D, role) { return ["primary", "side", "accent"].includes(role) ? D.print[role] || D.print.ink : D.print.ink; }
 function shapePath(ctx, s, k = 0) {
   ctx.beginPath();
   const [x, y] = s.at;
@@ -570,7 +574,7 @@ function layout(game, T, D) {
   const title = (s, size = 9) => tx.push([s, 0, T.title_y, size, "ink", 1]);
   const small = (s, x, dy) => tx.push([s, x, DY + dy, 3, "ink", 0.85]);
   const circle = (at, ring, lines) => sp.push({ shape: "circle", at, r: 7.5, ring, lines, size: 2 });
-  const big = (at, r, lines, size, inner) => sp.push({ shape: "circle", at, r, ring: "ink", lines, size, width: 0.8, inner });
+  const big = (at, r, lines, size, inner, ring = "primary") => sp.push({ shape: "circle", at, r, ring, lines, size, width: 0.8, inner: inner && { ring, ...inner } });
   const box = (at, w, h, alpha, width = 0.5, ring = "ink", rad = 1.5) => sp.push({ shape: "box", at, w, h, rad, ring, alpha, width });
   const jp = [];
   const S = T.spots;
@@ -578,24 +582,24 @@ function layout(game, T, D) {
     case "tcp":
       title("THREE CARD POKER");
       for (const [s, x, d] of [["DEALER QUALIFIES", -62, -1.5], ["WITH QUEEN HIGH", -62, 3.5], ["PLAY MUST", 62, -1.5], ["EQUAL ANTE", 62, 3.5]]) small(s, x, d);
-      S.forEach(s => { jp.push(s.jackpot.at); circle(s.pair_plus.at, "accent", ["PAIR", "PLUS"]); circle(s.prime.at, "ink", ["PRIME"]);
-        sp.push({ shape: "diamond", at: s.ante.at, hw: 9, hh: 7.5, ring: "ink", lines: ["ANTE"], size: 3 });
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.pair_plus.at, "side", ["PAIR", "PLUS"]); circle(s.prime.at, "side", ["PRIME"]);
+        sp.push({ shape: "diamond", at: s.ante.at, hw: 9, hh: 7.5, ring: "primary", lines: ["ANTE"], size: 3 });
         sp.push({ shape: "box", at: s.play.at, w: 21, h: 12, rad: 1.2, ring: "ink", lines: ["PLAY"], size: 4 }); });
       break;
     case "bj":
       title("BLACKJACK PAYS 3 TO 2"); small("STANDS ON 17s", 69, -1.5); small("INSURANCE 2:1", 69, 3.5);
       S.forEach(s => { jp.push(s.jackpot.at);
-        sp.push({ shape: "diamond", at: s.top_three.at, hw: 8.5, hh: 7.5, ring: "accent", lines: ["TOP 3"], size: 2 });
-        circle(s.super_pairs.at, "accent", ["SUPER", "PAIRS"]); circle(s.twenty_one_plus_three.at, "ink", ["21+3"]);
-        big(s.bet.at, T.extra.bet_r, null, 0, { r: T.extra.bet_r - 2.2, ring: "accent", alpha: 0.8, width: 0.4 });
+        sp.push({ shape: "diamond", at: s.top_three.at, hw: 8.5, hh: 7.5, ring: "side", lines: ["TOP 3"], size: 2 });
+        circle(s.super_pairs.at, "side", ["SUPER", "PAIRS"]); circle(s.twenty_one_plus_three.at, "side", ["21+3"]);
+        big(s.bet.at, T.extra.bet_r, null, 0, { r: T.extra.bet_r - 2.2, alpha: 0.8, width: 0.4 });
         sp.push({ shape: "circle", at: s.insurance.at, r: 4.6, ring: "ink", alpha: 0.55, width: 0.4, lines: ["INS"], size: 2, textAlpha: 0.7 }); });
       break;
     case "pgf": case "pgu": {
       title(game === "pgu" ? "FACE UP PAI GOW" : "FORTUNE PAI GOW");
       const last = game === "pgu" ? "NO COMMISSION" : "5% COMMISSION";
       for (const [s, d] of [["DEALER SETS", -6.5], ["BY HOUSE WAY", -1.5], [last, 3.5]]) small(s, -62, d);
-      S.forEach((s, i) => { jp.push(s.jackpot.at); circle(s.fortune.at, "accent", ["FORTUNE"]);
-        big(s.ante.at, T.extra.ante_r, ["ANTE"], 3, { r: T.extra.ante_r - 2.0, ring: "accent", alpha: 0.8, width: 0.4 });
+      S.forEach((s, i) => { jp.push(s.jackpot.at); circle(s.fortune.at, "side", ["FORTUNE"]);
+        big(s.ante.at, T.extra.ante_r, ["ANTE"], 3, { r: T.extra.ante_r - 2.0, alpha: 0.8, width: 0.4 });
         const [lo, hi] = T.cards[i];
         sp.push({ shape: "box", at: lo, w: T.extra.low_box[0], h: T.extra.low_box[1], rad: 1.5, ring: "ink", alpha: 0.8, width: 0.6, lines: ["LOW"], size: 2, dy: T.extra.low_box[1] / 2 - 3, textAlpha: 0.8 });
         sp.push({ shape: "box", at: hi, w: T.extra.high_box[0], h: T.extra.high_box[1], rad: 1.5, ring: "ink", alpha: 0.8, width: 0.6, lines: ["HIGH"], size: 2, dy: T.extra.high_box[1] / 2 - 3, textAlpha: 0.8 }); });
@@ -604,14 +608,14 @@ function layout(game, T, D) {
       title("MISSISSIPPI STUD");
       for (const [s, x, d] of [["JACKS OR BETTER", -64, -1.5], ["PAYS EVERY BET", -64, 3.5], ["6s TO 10s", 64, -1.5], ["PUSH", 64, 3.5]]) small(s, x, d);
       T.dealer_cards.forEach(at => box(at, 16, 22, 0.55));
-      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "accent", ["3 CARD", "BONUS"]);
-        big(s.ante.at, 9, ["ANTE"], 3, { r: 7.0, ring: "accent", alpha: 0.8, width: 0.4 });
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "side", ["3 CARD", "BONUS"]);
+        big(s.ante.at, 9, ["ANTE"], 3, { r: 7.0, alpha: 0.8, width: 0.4 });
         ["third", "fourth", "fifth"].forEach((k, j) => sp.push({ shape: "circle", at: s[k].at, r: T.extra.street_r, ring: "ink", alpha: 0.9, width: 0.6, lines: [["3RD", "4TH", "5TH"][j]], size: 2 })); });
       break;
     case "uth":
       title("ULTIMATE TEXAS HOLD'EM", 8); small("DEALER QUALIFIES", 64, -1.5); small("WITH A PAIR", 64, 3.5);
       T.dealer_cards.forEach((at, k) => box(at, 15, 21, k >= 2 ? 0.5 : 0.35));
-      S.forEach(s => { jp.push(s.jackpot.at); circle(s.trips.at, "accent", ["TRIPS"]);
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.trips.at, "side", ["TRIPS"]);
         for (const k of ["ante", "blind"]) big(s[k].at, 8, [k.toUpperCase()], 3);
         tx.push(["=", (s.ante.at[0] + s.blind.at[0]) / 2, s.ante.at[1], 4, "ink", 0.8]);
         sp.push({ shape: "box", at: s.play.at, w: 21, h: 12, rad: 1.2, ring: "ink", lines: ["PLAY"], size: 4 }); });
@@ -620,16 +624,16 @@ function layout(game, T, D) {
       title("LET IT RIDE");
       for (const [s, x, d] of [["PAIR OF 10s", -60, -1.5], ["OR BETTER PAYS", -60, 3.5], ["PULL BACK", 60, -1.5], ["1 AND 2", 60, 3.5]]) small(s, x, d);
       T.dealer_cards.forEach(at => box(at, 16, 22, 0.55));
-      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "accent", ["BONUS"]); circle(s.three_card.at, "ink", ["3 CARD", "BONUS"]);
-        for (const [k, l] of [["bet1", "1"], ["bet2", "2"], ["ante", "£"]]) big(s[k].at, 7, [l], 6, { r: 5.2, ring: "accent", alpha: 0.7, width: 0.4 }); });
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.bonus.at, "side", ["BONUS"]); circle(s.three_card.at, "side", ["3 CARD", "BONUS"]);
+        for (const [k, l] of [["bet1", "1"], ["bet2", "2"], ["ante", "£"]]) big(s[k].at, 7, [l], 6, { r: 5.2, alpha: 0.7, width: 0.4 }); });
       break;
     case "hcf": {
       title("HIGH CARD FLUSH");
       for (const [s, x, d] of [["DEALER NEEDS", -64, -1.5], ["3-CARD 9-HIGH", -64, 3.5], ["RAISE 2X ON 5", 64, -1.5], ["3X ON 6 OR 7", 64, 3.5]]) small(s, x, d);
       const L = T.dealer_cards[0], R = T.dealer_cards[6];
       box([(L[0] + R[0]) / 2, L[1]], R[0] - L[0] + 17, 22, 0.45);
-      S.forEach(s => { jp.push(s.jackpot.at); circle(s.flush.at, "accent", ["FLUSH"]); circle(s.straight_flush.at, "ink", ["STRAIGHT", "FLUSH"]);
-        for (const k of ["ante", "raise"]) big(s[k].at, 8, [k.toUpperCase()], 3); });
+      S.forEach(s => { jp.push(s.jackpot.at); circle(s.flush.at, "side", ["FLUSH"]); circle(s.straight_flush.at, "side", ["STRAIGHT", "FLUSH"]);
+        big(s.ante.at, 8, ["ANTE"], 3); big(s.raise.at, 8, ["RAISE"], 3, null, "ink"); });
       break; }
     case "mt": {   // the Master Table before a game's chosen (master_felt.gd): its crest
       for (const [s, x, d] of [["ANY CARD GAME", -62, -1.5], ["ON ONE TABLE", -62, 3.5], ["CHANGE GAME", 62, -1.5], ["BETWEEN HANDS", 62, 3.5]]) small(s, x, d);
@@ -638,13 +642,13 @@ function layout(game, T, D) {
     case "bac": {
       title("BACCARAT");
       for (const [side, j] of [["player", 0], ["banker", 3]]) {
-        const L = T.dealer_cards[j], R = T.dealer_cards[j + 2], ring = side === "banker" ? "accent" : "ink";
+        const L = T.dealer_cards[j], R = T.dealer_cards[j + 2], ring = side === "banker" ? "primary" : "ink";
         sp.push({ shape: "box", at: [(L[0] + R[0]) / 2, L[1]], w: R[0] - L[0] + 17, h: 22, rad: 1.5, ring, alpha: 0.8, width: 0.6 });
         tx.push([side.toUpperCase(), (L[0] + R[0]) / 2, L[1] + 14, 3, ring, 0.9]);
       }
-      S.forEach((s, i) => { circle(s.player_dragon.at, "jade", ["P", "DRAGON"]); circle(s.tie.at, "ink", ["TIE"]); circle(s.banker_dragon.at, "jade", ["B", "DRAGON"]);
+      S.forEach((s, i) => { circle(s.player_dragon.at, "side", ["P", "DRAGON"]); circle(s.tie.at, "side", ["TIE"]); circle(s.banker_dragon.at, "side", ["B", "DRAGON"]);
         for (const k of ["banker", "player"]) {
-          const at = [T.chairs[i][0], k === "banker" ? T.extra.banker_y : T.extra.player_y], ring = k === "player" ? "ink" : "accent";
+          const at = [T.chairs[i][0], k === "banker" ? T.extra.banker_y : T.extra.player_y], ring = k === "player" ? "ink" : "primary";
           sp.push({ shape: "box", at, w: T.extra.box[0], h: T.extra.box[1], rad: 2, ring, lines: [k.toUpperCase()], size: 3, dx: 9 });
         } });
       break; }

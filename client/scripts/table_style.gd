@@ -20,7 +20,7 @@ const HOUSE := {
 	"shoe": "wood", "shoeTint": "#141416", "shoeWood": "match",
 	"rack": "wood", "rackTint": "#12305e", "rackWood": "match",
 	"spots": "deco",
-	"print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
+	"print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
 	"back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
 }
 ## Roulette's and Craps' House (table_styles.ROULETTE_HOUSE, CRAPS_HOUSE): how they looked before they took styles.
@@ -65,7 +65,6 @@ const FONTS := {
 ## The rail's bead where it meets the felt (and the metal ring chips): its colour and its highlight.
 const BEADS := {"brass": [Color("c9a24a"), Color("f3d78e")], "gold": [Color("d9b453"), Color("fff0b8")],
 	"chrome": [Color("aeb7bf"), Color("ffffff")]}
-const JADE := Color("7fc8a9")   # the Baccarat Dragon circles, whatever the style
 ## The roulette wheel's bowl in each wood (its track, floor and cone are shades of it).
 const WHEEL_WOODS := {"mahogany": Color("4e2814"), "walnut": Color("4a3222"), "wenge": Color("302520"),
 	"rosewood": Color("4c1f17"), "ebony": Color("1c1917")}
