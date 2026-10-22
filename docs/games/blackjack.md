@@ -22,6 +22,9 @@ Boxes play in turn from first base. **Hit** (**H**), **Stand** (**S**), **Double
 also after splitting) or **Split** (**P**, any pair, up to 4 times; split Aces get one card each). You have
 20 seconds per decision; out of time stands. A bust is swept at once.
 
+Each hand's total sits just above its first card and stays put as the hand draws. Split hands sit a card's width
+apart with their bets in a row above them, so their totals are short: a soft total shows both counts (`7/17`).
+
 ## The dealer
 
 Draws to 17 and stands on all 17s. Boxes are then settled from third base.

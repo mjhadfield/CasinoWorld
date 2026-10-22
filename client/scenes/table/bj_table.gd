@@ -15,10 +15,12 @@ extends CasinoTable
 ## Each seat, top to bottom: the Jackpot disc and Top 3, Super Pairs and 21+3,
 ## the Blackjack betting circle (insurance goes beside it), then the cards.
 
-const SIDE_Y := -63.0     # Super Pairs and 21+3
+const TOP_Y := -78.5      # the Jackpot disc and Top 3
+const SIDE_Y := -61.5     # Super Pairs and 21+3: 2 below the top row, so no spot touches another
 const BET_Y := -44.0      # the betting circle
+const SPLIT_BET_Y := -47.0   # each hand's bet once a box has split, leaving room for its total below
 const CARD_Y := -19.0     # first card of a hand
-const SPLIT_CARD_Y := -27.0  # first card of each hand once a box has split
+const SPLIT_CARD_Y := -25.0  # first card of each hand once a box has split
 const LAST_CARD_Y := -17.0   # no card sits lower: its bottom stays 2 inside the front border
 const BET_R := 10.5
 const SPOTS := ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
@@ -72,9 +74,9 @@ func spot_pos(seat: int, spot: String) -> Vector2:
 	var x := seat_x(seat)
 	match spot:
 		"jackpot":
-			return Vector2(x - 9.5, JACKPOT_Y)
+			return Vector2(x - 9.5, TOP_Y)
 		"top_three":
-			return Vector2(x + 9.5, JACKPOT_Y)
+			return Vector2(x + 9.5, TOP_Y)
 		"super_pairs":
 			return Vector2(x - 9.5, SIDE_Y)
 		"twenty_one_plus_three":
@@ -127,15 +129,21 @@ func card_pos(seat: int, idx: int, n: int, k: int, count := 2) -> Vector2:
 
 
 func _bet_pos(seat: int, idx: int, n: int) -> Vector2:
-	return spot_pos(seat, "bet") if n <= 1 else Vector2(_hand_x(seat, idx, n), BET_Y)
+	return spot_pos(seat, "bet") if n <= 1 else Vector2(_hand_x(seat, idx, n), SPLIT_BET_Y)
 
 
 func _double_pos(seat: int, idx: int, n: int) -> Vector2:
-	return _bet_pos(seat, idx, n) + (Vector2(5, 3) if n <= 1 else Vector2(3.5, -3.5))
+	return _bet_pos(seat, idx, n) + (Vector2(5, 3) if n <= 1 else Vector2(3.5, -2.5))
 
 
 func _hand_payout_pos(seat: int, idx: int, n: int) -> Vector2:
-	return payout_pos(seat, "bet") if n <= 1 else _bet_pos(seat, idx, n) + Vector2(-3.5, -4)
+	return payout_pos(seat, "bet") if n <= 1 else _bet_pos(seat, idx, n) + Vector2(-3.5, -3)
+
+
+## Where a hand's total sits: centred just above its first card, which doesn't move
+## as the hand draws (split hands: between the bets and the cards).
+func label_pos(seat: int, idx: int, n: int) -> Vector2:
+	return card_pos(seat, idx, n, 0) + Vector2(0, -13)
 
 
 ## The countdown sits at the right-hand end of the title's row, under the shoe.
@@ -650,21 +658,24 @@ func _draw_game(_now: float, pulse: float) -> void:
 				box = box.expand(card.position)
 			box = box.grow_individual(8.5, 11.5, 8.5, 11.5)
 			draw_rect(box, Color(1, 0.85, 0.3, 0.35 + 0.35 * pulse), false, 0.9)
-	# Each hand's total: beside the last card of a lone hand; above the first
-	# card of each split hand, where it can't cover the next hand's cards.
+	# Each hand's total, above its first card. Split hands are only a card apart,
+	# so theirs are short: "Soft 17" is 7/17.
 	for seat in _hands:
-		var split: bool = _hands[seat].size() > 1
-		for hand in _hands[seat]:
+		var n: int = _hands[seat].size()
+		for idx in n:
+			var hand: Dictionary = _hands[seat][idx]
 			if hand.gone or hand.cards.is_empty() or hand.label == "":
 				continue
-			if split:
-				var first: Card2D = hand.cards[0]
-				_label_pill(first.position + Vector2(0, -12.5), hand.label, true)
-			else:
-				var last: Card2D = hand.cards[-1]
-				_label_pill(last.position + Vector2(9, -9), hand.label)
+			_label_pill(label_pos(seat, idx, n), _short_total(hand.label) if n > 1 else hand.label, true)
 	if dealer_label != "" and not _dealer_cards.is_empty():
 		_label_pill(_dealer_cards[-1].position + Vector2(9, -9), dealer_label)
+
+
+func _short_total(label: String) -> String:
+	if label.begins_with("Soft "):
+		var total := int(label.substr(5))
+		return "%d/%d" % [total - 10, total]
+	return label
 
 
 func _label_pill(at: Vector2, text: String, centred := false) -> void:
