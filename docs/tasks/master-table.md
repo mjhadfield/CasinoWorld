@@ -45,8 +45,8 @@ Mike's decisions (2026-10-22):
 - **Tools:** `tools/plan_catalogue.gd`, `tools/table_geometry.gd`.
 
 ## Done when
-- [x] A Master Table placed in a scratch plan changes between games with each animation, votes, queues and reverts:
-      checked in a browser on a private instance
+- [x] A Master Table placed in a scratch plan changes between games with each animation and takes votes: checked in
+      a browser on a private instance (queueing and reverting by the tests)
 - [x] Animation and speed can be picked per table on the Floor plan tab
 - [x] `tools/dev.sh test` passes
 - [x] Docs: `docs/games/master_table.md`, `docs/games/README.md`, `docs/tables.md`, `server/protocol.md`, README
