@@ -103,7 +103,8 @@ sections:
   - **Room:** one blueprint on a grid. The palette has the tables, every slot, the pit podium, standing figures
     (any NPC on the roster, or a dealer) and the furniture library: click one and click the floor (or drag it in),
     R turns it, Esc stops. Drag to move (8px steps, Shift for free), drag a box to pick several, arrows nudge,
-    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room. Tools: Door
+    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch (the
+    cursor turns to a resize arrow over either; a picked patch's edge wins over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
     in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or
     everyone does) and Floor patch. "Where NPCs can walk" shades everywhere they can reach from their arrival

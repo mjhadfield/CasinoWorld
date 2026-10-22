@@ -642,6 +642,45 @@ function hitRoomEdge(r, p) {
   return null;
 }
 
+/** The floor patch edge (or corner) under p: {i, sides}, the picked patch before the others. */
+function patchEdge(r, p) {
+  const tol = 6 / S.cam.s, [x, y] = p;
+  const picked = S.sel.filter(s => s.t === "patch").map(s => s.i);
+  const order = [...picked, ...r.patches.map((_, i) => r.patches.length - 1 - i).filter(i => !picked.includes(i))];
+  for (const i of order) {
+    const q = r.patches[i], x0 = r.x + q.x, y0 = r.y + q.y, x1 = x0 + q.w, y1 = y0 + q.h;
+    if (x < x0 - tol || x > x1 + tol || y < y0 - tol || y > y1 + tol) continue;
+    const sides = [];
+    if (Math.abs(x - x0) < tol) sides.push("left"); else if (Math.abs(x - x1) < tol) sides.push("right");
+    if (Math.abs(y - y0) < tol) sides.push("top"); else if (Math.abs(y - y1) < tol) sides.push("bottom");
+    if (sides.length) return { i, sides };
+  }
+  return null;
+}
+
+/** Something under p to drag out: a wall ({edge}) or a patch's edge ({patch}). A picked patch's edge beats a wall,
+ *  a wall beats any other patch's edge; anything standing on top (an item, a point, a door, a zone) beats both. */
+function grabAt(r, p) {
+  const h = hit(p);
+  if (h && h.t !== "patch") return null;
+  const pe = patchEdge(r, p), wall = hitRoomEdge(r, p);
+  if (pe && (!wall || S.sel.some(s => s.t === "patch" && s.i === pe.i))) return { patch: pe };
+  return wall ? { edge: wall } : null;
+}
+
+const RESIZE = { left: "ew-resize", right: "ew-resize", top: "ns-resize", bottom: "ns-resize",
+                 "left top": "nwse-resize", "right bottom": "nwse-resize", "right top": "nesw-resize", "left bottom": "nesw-resize" };
+const grabCursor = g => RESIZE[g.edge || g.patch.sides.join(" ")];
+
+/** Drag a patch's edges to `to` (room coordinates); the opposite edges stay where they were. */
+function resizePatch(q, was, sides, to, free) {
+  const MIN = 8, x = snap(to[0], SNAP.item, free), y = snap(to[1], SNAP.item, free);
+  if (sides.includes("left")) { q.x = Math.min(x, was.x + was.w - MIN); q.w = was.x + was.w - q.x; }
+  if (sides.includes("right")) q.w = Math.max(MIN, x - was.x);
+  if (sides.includes("top")) { q.y = Math.min(y, was.y + was.h - MIN); q.h = was.y + was.h - q.y; }
+  if (sides.includes("bottom")) q.h = Math.max(MIN, y - was.y);
+}
+
 function hit(p) {
   const r = room();
   if (!r) return null;
@@ -692,8 +731,14 @@ function down(e) {
     return;
   }
   if (S.tool === "zone" || S.tool === "patch") { S.drag = { make: S.tool, from: p, box: [p, p] }; return; }
-  const edge = !hit(p) && hitRoomEdge(r, p);
-  if (edge) { S.drag = { edge, snap: JSON.stringify(S.draft) }; return; }
+  const grab = grabAt(r, p);
+  if (grab && grab.edge) { S.drag = { edge: grab.edge, snap: JSON.stringify(S.draft) }; return; }
+  if (grab) {
+    S.sel = [{ t: "patch", i: grab.patch.i }];
+    S.drag = { patch: grab.patch, was: { ...r.patches[grab.patch.i] }, snap: JSON.stringify(S.draft) };
+    refresh();
+    return;
+  }
   const h = hit(p);
   if (!h) { if (!e.shiftKey) S.sel = []; S.drag = { box: [p, p] }; refresh(); return; }
   const already = S.sel.some(s => s.t === h.t && s.i === h.i);
@@ -714,7 +759,10 @@ function move(e) {
   S.mouse = p; S.free = e.shiftKey;
   const d = S.drag;
   if (!d) {
-    if (S.mode === "room" && room() && !S.placing) canvas.style.cursor = (S.tool === "select" && !hit(p) && hitRoomEdge(room(), p)) ? "move" : S.tool === "select" ? "default" : "crosshair";
+    if (S.mode === "room" && room() && !S.placing) {
+      const g = S.tool === "select" && grabAt(room(), p);
+      canvas.style.cursor = g ? grabCursor(g) : S.tool === "select" ? "default" : "crosshair";
+    }
     if (S.placing) draw();
     return;
   }
@@ -722,6 +770,7 @@ function move(e) {
   if (d.box) { d.box[1] = p; draw(); return; }
   const r = room();
   if (d.edge) { resize(r, d.edge, snap(d.edge === "left" || d.edge === "right" ? p[0] : p[1], SNAP.room, e.shiftKey)); d.moved = true; draw(); refreshInspector(); return; }
+  if (d.patch) { resizePatch(r.patches[d.patch.i], d.was, d.patch.sides, [p[0] - r.x, p[1] - r.y], e.shiftKey); d.moved = true; draw(); refreshInspector(); return; }
   const dx = p[0] - d.from[0], dy = p[1] - d.from[1];
   if (d.room) {
     d.room.x = snap(d.at[0] + dx, SNAP.room, e.shiftKey); d.room.y = snap(d.at[1] + dy, SNAP.room, e.shiftKey);
