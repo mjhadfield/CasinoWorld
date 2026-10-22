@@ -1,0 +1,1381 @@
+<title>Master Table</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one stage (the table, drawn by the game's own renderer) with the HUD laid over its foot, and a demo
+   panel beside it. A single dark look on purpose: it's the casino floor at night, as the game is. */
+:root {
+  --ground: #0d1012;
+  --panel: #14181a;
+  --raised: #1c2124;
+  --line: #2b3133;
+  --brass: #c9a24a;
+  --brass-hi: #ecd396;
+  --ink: #ece4d2;
+  --muted: #9ba39e;
+  --paper: #f6efdc;
+  --paper-ink: #2a1a10;
+  --ok: #5fd3a0;
+  --warn: #f2c14e;
+  --bad: #ef7a6b;
+  --display: "TS Cinzel", "Cinzel", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 14px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding-block: 12px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line);
+}
+header.top h1 { margin: 0; font: 600 20px/1.1 var(--display); letter-spacing: .08em; color: var(--brass-hi); }
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+header.top .tag { margin-left: auto; font: 600 11px var(--cond); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+main.layout {
+  min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.stage { position: relative; min-height: 0; border-radius: 10px; overflow: hidden; background: #1f3a3e; border: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+
+/* status chip */
+.status { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; align-items: center; padding: 6px 10px 6px 8px;
+  background: rgba(10, 12, 13, .78); border: 1px solid rgba(201, 162, 74, .3); border-radius: 999px; font: 600 12.5px var(--cond); letter-spacing: .04em; }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 8px var(--brass); }
+.status .sub { color: var(--muted); font-weight: 500; }
+.status .sub.warn { color: var(--warn); }
+
+/* speech bubbles */
+.bubble { position: absolute; transform: translate(-14px, -100%); max-width: 240px; padding: 7px 11px; border-radius: 11px 11px 11px 3px;
+  background: var(--paper); color: var(--paper-ink); font: 600 13.5px/1.3 var(--body); box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  white-space: normal; transition: opacity .18s; }
+.bubble.think { background: #232a2d; color: var(--ink); border: 1px solid rgba(201, 162, 74, .45); font-weight: 500; }
+.bubble.think b { color: var(--warn); font-variant-numeric: tabular-nums; }
+.bubble.fade { opacity: 0; }
+
+/* the game menu */
+.menu { position: absolute; top: 54px; left: 12px; width: 360px; max-height: calc(100% - 160px); display: flex; flex-direction: column;
+  background: rgba(14, 12, 10, .95); border: 1px solid rgba(201, 162, 74, .55); border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+.menu header { padding: 14px 16px 10px; border-bottom: 1px solid rgba(201, 162, 74, .25); }
+.menu h2 { margin: 0; font: 600 16px/1.2 var(--display); letter-spacing: .06em; color: var(--brass-hi); text-wrap: balance; }
+.menu header p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+.menu header p.note { color: var(--warn); }
+.menu .list { overflow: auto; padding: 6px; display: grid; gap: 2px; }
+.menu .game { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 11px; align-items: center; padding: 7px; text-align: left;
+  background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer; }
+.menu .game:hover:not(:disabled), .menu .game:focus-visible { background: rgba(201, 162, 74, .09); border-color: rgba(201, 162, 74, .4); }
+.menu .game:disabled { cursor: default; opacity: .42; }
+.menu .game.now { opacity: 1; background: rgba(201, 162, 74, .06); }
+.menu .thumb { width: 104px; height: auto; border-radius: 4px; display: block; background: #1f3a3e; }
+.menu .name { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font: 600 14px/1.25 var(--display); letter-spacing: .03em; color: var(--ink); }
+.menu .key { font: 600 10.5px var(--cond); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.menu .blurb { margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.menu .tags { margin-top: 4px; display: flex; gap: 5px; flex-wrap: wrap; }
+.pill { font: 600 10.5px var(--cond); letter-spacing: .08em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.gold { border-color: rgba(201, 162, 74, .5); color: var(--brass-hi); }
+.pill.warn { border-color: rgba(242, 193, 78, .5); color: var(--warn); }
+.menu footer { padding: 10px 12px; border-top: 1px solid rgba(201, 162, 74, .25); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.menu footer span { color: var(--muted); font-size: 12px; }
+
+/* HUD */
+.hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 12px 10px; display: grid; gap: 7px; pointer-events: none;
+  background: linear-gradient(rgba(8, 10, 11, 0), rgba(8, 10, 11, .86) 46%); }
+.hud > * { pointer-events: auto; }
+.hud .info { justify-self: center; font: 600 14px var(--cond); letter-spacing: .05em; text-align: center; color: var(--ink); text-shadow: 0 1px 2px #000; pointer-events: none; }
+.hud .info b { color: var(--brass-hi); font-variant-numeric: tabular-nums; }
+.hud .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+.wallet { display: flex; gap: 14px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.wallet span { font: 600 11px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 5px; }
+.wallet b { font: 700 16px var(--cond); color: var(--ink); }
+.chips { display: flex; gap: 5px; }
+.chip { width: 40px; height: 40px; padding: 0; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; }
+.chip canvas { width: 100%; height: 100%; display: block; }
+.chip[aria-pressed="true"] { border-color: var(--brass-hi); box-shadow: 0 0 10px rgba(236, 211, 150, .6); }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.btn { font: 600 13px var(--cond); letter-spacing: .07em; text-transform: uppercase; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+  background: #232a2d; border: 1px solid #39413f; color: var(--ink); }
+.btn:hover:not(:disabled) { border-color: rgba(201, 162, 74, .6); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--brass); border-color: var(--brass); color: #1b1307; }
+.btn.danger { border-color: rgba(239, 122, 107, .5); }
+.btn kbd { font: 500 11px var(--cond); opacity: .65; margin-left: 4px; }
+.queued { justify-self: center; display: flex; gap: 8px; align-items: center; padding: 4px 6px 4px 12px; border-radius: 999px;
+  background: rgba(20, 16, 10, .9); border: 1px solid rgba(201, 162, 74, .5); font: 600 12.5px var(--cond); letter-spacing: .04em; }
+.queued button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 6px; font-size: 13px; }
+.vote { justify-self: center; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; padding: 8px 10px 8px 14px; border-radius: 9px;
+  background: rgba(20, 16, 10, .94); border: 1px solid rgba(242, 193, 78, .55); }
+.vote b { color: var(--warn); font-variant-numeric: tabular-nums; }
+.toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 8px; background: rgba(10, 12, 13, .9);
+  border: 1px solid var(--line); font: 600 13px var(--cond); letter-spacing: .04em; transition: opacity .25s; pointer-events: none; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 600 14px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #1f3a3e; }
+
+/* demo panel */
+aside.panel { min-height: 0; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 16px; align-content: start; }
+.panel h3 { margin: 0 0 8px; font: 600 11px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+.panel section { display: grid; gap: 8px; }
+.panel .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel label.lbl, .panel .lbl { color: var(--ink); font-size: 13px; }
+.panel .hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { background: var(--raised); border: 0; border-right: 1px solid var(--line); padding: 7px 4px; font: 600 12.5px var(--cond); letter-spacing: .03em; cursor: pointer; color: var(--muted); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: #2c2618; color: var(--brass-hi); }
+.switch { position: relative; width: 38px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: #2b3133; transition: background .15s; pointer-events: none; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.switch input:checked + span { background: #5a4920; }
+.switch input:checked + span::after { transform: translateX(16px); background: var(--brass-hi); }
+.switch input:focus-visible + span { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+.panel .btn { width: 100%; }
+.panel ol, .panel ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.panel li b { color: var(--ink); font-weight: 600; }
+.sub-opts { display: grid; gap: 8px; padding-left: 10px; border-left: 2px solid var(--line); }
+.sub-opts[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+
+@media (max-width: 900px) {
+  .app { height: auto; }
+  main.layout { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 78vh; min-height: 460px; }
+  .menu { top: auto; bottom: 108px; left: 8px; right: 8px; width: auto; max-height: 62%; }
+  .hud { padding-inline: 8px; }
+  .chip { width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { .bubble, .toast { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Master Table</h1>
+    <p>One table, any card game. Sit down, ask the dealer, and the felt changes to suit.</p>
+    <span class="tag">Playable mockup · Casino World</span>
+  </header>
+  <main class="layout">
+    <section class="stage" id="stage" aria-label="The table">
+      <canvas id="cv"></canvas>
+      <div class="overlay" id="overlay"></div>
+      <div class="status" id="status"><span class="dot"></span><span id="statusMain">Master Table</span><span class="sub" id="statusSub"></span></div>
+      <div class="menu" id="menu" hidden role="dialog" aria-labelledby="menuTitle">
+        <header><h2 id="menuTitle">What would you like to play?</h2><p id="menuSub">The table changes to suit the game.</p></header>
+        <div class="list" id="menuList"></div>
+        <footer><span>Keys 1–9 pick a game</span><button class="btn" id="menuClose">Not now <kbd>Esc</kbd></button></footer>
+      </div>
+      <div class="hud" id="hud">
+        <div class="vote" id="voteCard" hidden><span id="voteText"></span><button class="btn primary" id="voteYes">Switch</button><button class="btn" id="voteNo">Keep playing</button></div>
+        <div class="queued" id="queued" hidden><span id="queuedText"></span><button id="queuedX" aria-label="Cancel the change">✕</button></div>
+        <div class="info" id="info">Click a glowing chair to sit down.</div>
+        <div class="bar">
+          <div class="wallet"><div><span>Balance</span><b id="bal">£1,000</b></div><div><span>On the felt</span><b id="onFelt">£0</b></div></div>
+          <div class="chips" id="chips"></div>
+          <div class="acts" id="acts">
+            <button class="btn" id="bUndo">Undo</button>
+            <button class="btn" id="bRebet">Rebet</button>
+            <button class="btn primary" id="bReady">Ready <kbd>Space</kbd></button>
+            <button class="btn primary" id="bPlay" hidden>Play <kbd>P</kbd></button>
+            <button class="btn danger" id="bFold" hidden>Fold <kbd>F</kbd></button>
+            <button class="btn" id="bStand">Stand up <kbd>Esc</kbd></button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="loading" id="loading">Setting up the table…</div>
+    </section>
+
+    <aside class="panel" aria-label="Demo controls">
+      <section>
+        <h3>Try it</h3>
+        <ol>
+          <li>Click a <b>glowing chair</b> to sit down.</li>
+          <li>Pick a game from the dealer's menu.</li>
+          <li>Click the spots on the felt to bet, then <b>Ready</b>.</li>
+          <li><b>Click the dealer</b> to change game. Mid-hand, it waits for the hand to end.</li>
+          <li><b>Stand up</b> and the table goes back to the Master Table after a while.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>The change animation</h3>
+        <div class="seg" id="segAnim" role="group" aria-label="Animation">
+          <button data-v="sweep">Dealer's sweep</button><button data-v="cloth">Fresh cloth</button><button data-v="dust">Gold dust</button>
+        </div>
+        <div class="seg" id="segSpeed" role="group" aria-label="Speed">
+          <button data-v="0.5">0.5×</button><button data-v="1">1×</button><button data-v="2">2×</button>
+        </div>
+        <button class="btn" id="bReplay">Replay the last change</button>
+        <p class="hint" id="animHint"></p>
+      </section>
+      <section>
+        <h3>Others at the table</h3>
+        <div class="row"><span class="lbl" id="lNpc">NPCs come and play</span><label class="switch"><input type="checkbox" id="tNpc" aria-labelledby="lNpc"><span></span></label></div>
+        <button class="btn" id="bFill">Fill every free seat with NPCs</button>
+        <div class="row"><span class="lbl" id="lAnna">Anna, another player</span><label class="switch"><input type="checkbox" id="tAnna" aria-labelledby="lAnna"><span></span></label></div>
+        <div class="sub-opts" id="annaOpts">
+          <span class="hint">When you pick a game, Anna…</span>
+          <div class="seg" id="segVote" role="group" aria-label="Anna's answer">
+            <button data-v="accept">Agrees</button><button data-v="decline">Declines</button><button data-v="none">Says nothing</button>
+          </div>
+          <button class="btn" id="bAnnaAsks">Anna asks you to change</button>
+        </div>
+        <p class="hint">NPCs don't vote. When the game changes, each one stays if it likes the new game, or gets up and leaves.</p>
+      </section>
+      <section>
+        <h3>Back to the Master Table</h3>
+        <div class="seg" id="segRevert" role="group" aria-label="Revert delay">
+          <button data-v="15">15 s (demo)</button><button data-v="60">60 s (planned)</button>
+        </div>
+        <p class="hint">Starts when no person is seated. NPCs alone don't hold a game: they finish the hand and leave.</p>
+      </section>
+      <section>
+        <h3>The rules this demo follows</h3>
+        <ul>
+          <li>Anyone seated can change the game, but only <b>between hands</b>. Bets on the felt are handed back first.</li>
+          <li>Other players get <b>10 s to agree</b>. Saying nothing counts as yes.</li>
+          <li><b>Let It Ride</b> and <b>High Card Flush</b> seat five: they need a free seat, and the chairs slide to fit.</li>
+          <li>Rounds are a short stand-in: real layouts, but wins and losses are random. Betting closes after 12 s (15 s in the game).</li>
+        </ul>
+      </section>
+      <button class="btn" id="bReset">Start over</button>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import * as R from "./render.js";
+
+// ============================================================ assets
+const $ = s => document.querySelector(s);
+const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), overlay = $("#overlay");
+await R.loadAssets("./");
+const G = R.geometry();
+const D = await fetch("house.json").then(r => r.json());
+const IMG = {};
+await Promise.all(["player", "npc1", "npc3", "npc5", "npc7", "dealer"].map(k => new Promise(res => {
+  const i = new Image(); i.onload = i.onerror = res; i.src = `people/${k}.png`; IMG[k] = i; })));
+const FONT = { cinzel: ['"TS Cinzel"', 600], cormorant: ['"TS Cormorant"', 700], josefin: ['"TS Josefin"', 600], montserrat: ['"TS Montserrat"', 600] }[D.print.font];
+
+// ============================================================ the games
+const GAMES = [
+  { id: "tcp", name: "Three Card Poker", blurb: "Beat the dealer's three cards. Pair Plus and Prime pay on your hand alone." },
+  { id: "bj", name: "Blackjack", blurb: "Get closer to 21 than the dealer. Pays 3 to 2, with four side bets." },
+  { id: "pgf", name: "Fortune Pai Gow", blurb: "Set seven cards into a low two and a high five. 5% commission." },
+  { id: "pgu", name: "Face Up Pai Gow", blurb: "The dealer's hand is shown before you set yours. No commission." },
+  { id: "ms", name: "Mississippi Stud", blurb: "Two cards and three to come. Raise up to 3× on each street." },
+  { id: "uth", name: "Ultimate Texas Hold'em", blurb: "Hold'em against the dealer. Bet big early or check to the river." },
+  { id: "lir", name: "Let It Ride", blurb: "Three equal bets, and you can pull two of them back. Tens or better pays." },
+  { id: "hcf", name: "High Card Flush", blurb: "Seven cards: the longest flush wins. Raise on five or more." },
+  { id: "bac", name: "Baccarat", blurb: "Back the Player, the Banker or a Tie. No decisions to make." },
+];
+const NAME = Object.fromEntries(GAMES.map(g => [g.id, g.name]));
+NAME.master = "Master Table";
+const seatsOf = g => g === "master" ? 6 : G.tables[g].seats;
+// What a short round uses at each table: the spots you can bet on, the bets that win or lose with the hand, the
+// optional second decision, how many cards each hand gets and which dealer card places are dealt to.
+const CFG = {
+  tcp: { bets: ["ante", "pair_plus", "prime", "jackpot"], main: "ante", group: ["ante", "play"], decide: { label: "Play", spot: "play" }, n: 3, dc: [0, 1, 2] },
+  bj: { bets: ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot"], main: "bet", group: ["bet"], n: 2, dc: [0, 1], up: [0] },
+  pgf: { bets: ["ante", "fortune", "jackpot"], main: "ante", group: ["ante"], n: 7, dc: [0, 1, 2, 3, 4, 5, 6], pg: true },
+  pgu: { bets: ["ante", "fortune", "jackpot"], main: "ante", group: ["ante"], n: 7, dc: [0, 1, 2, 3, 4, 5, 6], pg: true, up: [0, 1, 2, 3, 4, 5, 6] },
+  ms: { bets: ["ante", "bonus", "jackpot"], main: "ante", group: ["ante", "third"], decide: { label: "Bet 1×", spot: "third" }, n: 2, dc: [0, 1, 2] },
+  uth: { bets: ["ante", "trips", "jackpot"], mirror: { ante: ["blind"] }, alias: { blind: "ante" }, main: "ante", group: ["ante", "blind", "play"], decide: { label: "Bet 1×", spot: "play" }, n: 2, dc: [0, 1, 2, 3, 4, 5, 6] },
+  lir: { bets: ["bet1", "bonus", "three_card", "jackpot"], mirror: { bet1: ["bet2", "ante"] }, alias: { bet2: "bet1", ante: "bet1" }, main: "bet1", group: ["bet1", "bet2", "ante"], n: 3, dc: [0, 1] },
+  hcf: { bets: ["ante", "flush", "straight_flush", "jackpot"], main: "ante", group: ["ante", "raise"], decide: { label: "Raise", spot: "raise" }, n: 7, dc: [0, 1, 2, 3, 4, 5, 6] },
+  bac: { bets: ["player", "banker", "tie", "player_dragon", "banker_dragon"], main: "banker", group: [], n: 0, dc: [0, 3, 1, 4], bac: true },
+};
+const SIDE_PAYS = { pair_plus: 4, prime: 3, super_pairs: 10, twenty_one_plus_three: 5, top_three: 9, fortune: 3, bonus: 3, trips: 3, three_card: 3,
+  flush: 3, straight_flush: 8, tie: 8, player_dragon: 2, banker_dragon: 2 };
+const SPOT_LABEL = { ante: "Ante", play: "Play", bet: "Bet", pair_plus: "Pair Plus", prime: "Prime", super_pairs: "Super Pairs", twenty_one_plus_three: "21+3",
+  top_three: "Top 3", fortune: "Fortune", bonus: "Bonus", third: "3rd", trips: "Trips", blind: "Blind", bet1: "Bet 1", bet2: "Bet 2", three_card: "3 Card Bonus",
+  flush: "Flush", straight_flush: "Straight Flush", raise: "Raise", player: "Player", banker: "Banker", tie: "Tie", player_dragon: "Player Dragon",
+  banker_dragon: "Banker Dragon", jackpot: "Jackpot" };
+
+// ============================================================ settings (the demo panel)
+const P = { anim: "sweep", speed: 1, npcs: true, anna: false, vote: "accept", revert: 15 };
+try { Object.assign(P, JSON.parse(localStorage.getItem("master-table-demo") || "{}")); } catch {}
+P.anna = false;   // Anna always starts away, so the first sit is yours
+if (matchMedia("(prefers-reduced-motion: reduce)").matches && !localStorage.getItem?.("master-table-demo")) P.speed = 2;
+function saveP() { try { localStorage.setItem("master-table-demo", JSON.stringify(P)); } catch {} }
+
+// ============================================================ time
+let now = performance.now();
+const Dms = ms => ms / P.speed;
+const easeIO = k => k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+const easeOut = k => 1 - (1 - k) ** 3;
+const easeIn = k => k * k * k;
+const backOut = k => { const c = 1.7; return 1 + (c + 1) * (k - 1) ** 3 + c * (k - 1) ** 2; };
+const lin = k => k;
+const lerp = (a, b, k) => a + (b - a) * k;
+const clamp01 = k => Math.max(0, Math.min(1, k));
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+let tweens = [];
+function tween(ms, fn, ease = easeIO) {
+  return new Promise(res => tweens.push({ t0: now, dur: Math.max(ms, 1), fn, ease, res }));
+}
+const wait = ms => tween(ms, () => {}, lin);                  // animation time (follows the speed setting)
+const waitReal = ms => new Promise(r => setTimeout(r, ms));    // game time (countdowns don't speed up)
+function runTweens() {
+  const done = [];
+  tweens = tweens.filter(t => { const k = clamp01((now - t.t0) / t.dur); t.fn(t.ease(k), k); if (k >= 1) { done.push(t.res); return false; } return true; });
+  done.forEach(r => r());
+}
+const money = p => "£" + (p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
+
+// ============================================================ the table's state
+const CH = n => G.tables[n === 5 ? "lir" : "tcp"].chairs.map(c => c[0]);
+const CHAIR_Y = 40, TRAY = [0, -128];
+const S = {
+  game: "master", seats: [null, null, null, null, null, null], chairs: CH(6).map(x => ({ x, y: CHAIR_Y, a: 1 })), ghosts: [],
+  stakes: new Map(), payouts: new Map(), cards: [], flyers: [], rackN: 0, jpLit: new Set(),
+  phase: "idle", busy: false, changing: false, morph: null, request: null, revertAt: 0, closeAt: 0,
+  equip: null, lastMorph: null, betEpoch: 0, ready: new Set(), decide: null, folded: new Set(), vote: null, ask: null,
+};
+const people = [];
+const dealer = { x: 0, y: -123, t: 0, dip: 0 };
+let you = null, balance = 100000, chipSel = 2500, lastBets = null, undo = [];
+const T = () => G.tables[S.game];
+const seatOf = p => S.seats.indexOf(p);
+const seated = () => S.seats.filter(Boolean);
+const seatedHumans = () => seated().filter(p => p.kind !== "npc");
+const freeSeats = () => S.seats.map((p, i) => p ? -1 : i).filter(i => i >= 0);
+const youSeated = () => !!you && seatOf(you) >= 0 && you.seated;
+const annaP = () => people.find(p => p.kind === "anna");
+
+// ============================================================ the Master Table's printing
+const CREST_Y = -64;
+function arcText(c, s, cx, cy, r, mid, size, colour, track = 0.14, bottom = false) {
+  const [fam, wt] = FONT;
+  c.save(); c.font = `${wt} ${size * 10}px ${fam}, Georgia, serif`;
+  const chars = [...s], ws = chars.map(ch => c.measureText(ch).width / 10), gap = size * track;
+  const total = ws.reduce((a, b) => a + b, 0) + gap * (chars.length - 1), dir = bottom ? -1 : 1;
+  let cum = 0; const start = mid - dir * total / (2 * r);
+  chars.forEach((ch, i) => {
+    const a = start + dir * (cum + ws[i] / 2) / r;
+    c.save(); c.translate(cx + r * Math.cos(a), cy + r * Math.sin(a)); c.rotate(a + dir * Math.PI / 2); c.scale(.1, .1);
+    c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = colour; c.fillText(ch, 0, 0); c.restore();
+    cum += ws[i] + gap;
+  });
+  c.restore();
+}
+function goldGrad(c, x, y0, y1, base) {
+  const g = c.createLinearGradient(x, y0, x, y1);
+  g.addColorStop(0, R.lighten(base, .45)); g.addColorStop(.5, base); g.addColorStop(1, R.darken(base, .35)); return g;
+}
+function crown(c, x, y, w) {   // (x, y) is the middle of its base
+  const h = w * .7, acc = D.print.accent;
+  c.beginPath();
+  c.moveTo(x - w / 2, y); c.lineTo(x - w / 2, y - h * .25); c.lineTo(x - w * .56, y - h * .92); c.lineTo(x - w * .25, y - h * .48);
+  c.lineTo(x, y - h); c.lineTo(x + w * .25, y - h * .48); c.lineTo(x + w * .56, y - h * .92); c.lineTo(x + w / 2, y - h * .25); c.lineTo(x + w / 2, y); c.closePath();
+  c.fillStyle = goldGrad(c, x, y - h, y, acc); c.fill(); c.strokeStyle = R.darken(acc, .5); c.lineWidth = .25; c.stroke();
+  for (const [px, py] of [[-w * .56, -h * .92], [0, -h], [w * .56, -h * .92]]) { c.beginPath(); c.arc(x + px, y + py, w * .07, 0, 7); c.fillStyle = R.lighten(acc, .35); c.fill(); }
+  c.fillStyle = R.darken(acc, .45); c.fillRect(x - w / 2, y - h * .25, w, .3);
+  for (const k of [-.3, 0, .3]) { c.beginPath(); c.arc(x + w * k, y - h * .12, w * .045, 0, 7); c.fillStyle = k ? D.felt.colour : R.lighten(D.felt.colour, .25); c.fill(); }
+}
+function drawCrest(c) {
+  const cx = 0, cy = CREST_Y, ink = D.print.ink, acc = D.print.accent;
+  c.beginPath(); c.arc(cx, cy, 24.6, 0, 7); c.fillStyle = "rgba(0,0,0,.15)"; c.fill();
+  const ring = (r, style, w) => { c.beginPath(); c.arc(cx, cy, r, 0, 7); c.strokeStyle = style; c.lineWidth = w; c.stroke(); };
+  ring(24, goldGrad(c, cx, cy - 24, cy + 24, acc), 1.0);
+  ring(22.5, R.rgba(ink, .55), .22);
+  ring(15.2, R.rgba(ink, .75), .32);
+  ring(14.2, R.rgba(ink, .35), .18);
+  // the band's lettering
+  arcText(c, "MASTER TABLE", cx, cy, 18.9, -Math.PI / 2, 3.7, ink, .16);
+  arcText(c, "NINE GAMES · ONE TABLE", cx, cy, 18.9, Math.PI / 2, 2.3, R.rgba(ink, .85), .18, true);
+  for (const s of [-1, 1]) {   // a diamond each side, between the words
+    const x = cx + s * 18.9, y = cy;
+    c.beginPath(); c.moveTo(x, y - 1.4); c.lineTo(x + .9, y); c.lineTo(x, y + 1.4); c.lineTo(x - .9, y); c.closePath(); c.fillStyle = acc; c.fill();
+  }
+  // the four suits round the middle
+  for (const [deg, suit] of [[-90, "s"], [0, "h"], [90, "c"], [180, "d"]]) {
+    const a = deg * Math.PI / 180, x = cx + Math.cos(a) * 8, y = cy + Math.sin(a) * 8 + .3;
+    R.suitShape(c, suit, x, y, 5.6, "hd".includes(suit) ? acc : ink);
+  }
+  c.beginPath(); c.moveTo(cx, cy - 2.2); c.lineTo(cx + .7, cy - .7); c.lineTo(cx + 2.2, cy); c.lineTo(cx + .7, cy + .7); c.lineTo(cx, cy + 2.2);
+  c.lineTo(cx - .7, cy + .7); c.lineTo(cx - 2.2, cy); c.lineTo(cx - .7, cy - .7); c.closePath(); c.fillStyle = acc; c.fill();
+  // the crown on top, breaking the ring; deco tips on the other three points, as the House spots have
+  c.beginPath(); c.ellipse(cx, cy - 24, 7.6, 2.4, 0, 0, 7); c.fillStyle = D.felt.colour; c.fill();
+  crown(c, cx, cy - 23.2, 11);
+  for (const [x, y] of [[cx + 24, cy], [cx, cy + 24], [cx - 24, cy]]) {
+    c.beginPath(); c.moveTo(x, y - 1.6); c.lineTo(x + 1.2, y); c.lineTo(x, y + 1.6); c.lineTo(x - 1.2, y); c.closePath(); c.fillStyle = R.lighten(acc, .2); c.fill();
+  }
+}
+function masterItems() {
+  const ink = D.print.ink, DY = G.dealer_y, items = [{ at: [0, CREST_Y], seat: -1, kind: "crest", draw: drawCrest }];
+  for (const [s, x, dy] of [["ANY CARD GAME", -62, -1.5], ["ON ONE TABLE", -62, 3.5], ["CHANGE GAME", 62, -1.5], ["BETWEEN HANDS", 62, 3.5]])
+    items.push({ at: [x, DY + dy], seat: -1, kind: "text", draw: c => R.text(c, s, x, DY + dy, 3, R.rgba(ink, .85), D) });
+  const ty = CREST_Y + 31;
+  items.push({ at: [0, ty], seat: -1, kind: "text", draw: c => {
+    R.text(c, "ASK THE DEALER FOR ANY GAME", 0, ty, 3.4, R.rgba(ink, .92), D);
+    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * 33, ty); c.lineTo(s * 48, ty); c.strokeStyle = R.rgba(D.print.accent, .8); c.lineWidth = .3; c.stroke();
+      c.beginPath(); c.moveTo(s * 31, ty - .9); c.lineTo(s * 31.8, ty); c.lineTo(s * 31, ty + .9); c.lineTo(s * 30.2, ty); c.closePath(); c.fillStyle = D.print.accent; c.fill(); }
+  } });
+  return items;
+}
+// A game's printing as separate pieces, each knowing its seat (-1 for the title, small print and the dealer's boxes),
+// so the change animation can move them one at a time.
+function itemsFor(game) {
+  if (game === "master") return masterItems();
+  const TT = G.tables[game], L = R.layout(game, TT, D), xs = TT.chairs.map(c => c[0]);
+  const seatAt = (x, y) => { if (y < -90) return -1; let b = -1, bd = 31; xs.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < bd) { bd = d; b = i; } }); return b; };
+  const items = [];
+  for (const [s, x, y, size, role, a] of L.tx) {
+    const col = R.rgba(R.colourOf(D, role), a), foil = D.spots === "foil" && size >= 8 ? R.colourOf(D, role) : false;
+    items.push({ at: [x, y], seat: size >= 8 || y < -84 ? -1 : seatAt(x, y), kind: "text", draw: c => R.text(c, s, x, y, size, col, D, { foil }) });
+  }
+  L.sp.forEach(sp => items.push({ at: sp.at, seat: seatAt(sp.at[0], sp.at[1]), kind: "spot", draw: c => R.drawSpot(c, D, sp) }));
+  L.jp.forEach(at => items.push({ at, seat: seatAt(at[0], at[1]), kind: "jp", draw: c => R.jackpotDisc(c, D, at, false) }));
+  return items;
+}
+function equipFor(game) {
+  if (game === "master") return { shuffler: [94, -106], discard: [-94, -106], shoe: null };
+  const TT = G.tables[game]; return { shuffler: TT.shuffler, discard: TT.discard, shoe: TT.shoe };
+}
+
+// ============================================================ caches: the table's base and each game's printing
+const BASE_R = [-178, -166, 356, 188], PRINT_R = [-162, -150, 324, 158], PPU = 8;
+function offscreen(r) { const c = document.createElement("canvas"); c.width = r[2] * PPU; c.height = r[3] * PPU;
+  const x = c.getContext("2d"); x.setTransform(PPU, 0, 0, PPU, -r[0] * PPU, -r[1] * PPU); return [c, x]; }
+const FELT = R.feltPoly(D.tray.mode);
+const baseCanvas = (() => {
+  const [c, x] = offscreen(BASE_R), Sh = R.CARD_SHAPE, ledge = D.tray.mode === "ledge";
+  R.fillPoly(x, R.shift(R.grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
+  R.fillPoly(x, R.shift(R.grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
+  R.drawRail(x, Sh, D, FELT, ledge); R.drawFelt(x, Sh, D, FELT); R.drawBorder(x, Sh, D, FELT, ledge); R.drawBead(x, D, FELT); R.drawTray(x, D, ledge);
+  return c;
+})();
+const printCache = new Map();
+function printing(game) {
+  if (!printCache.has(game)) {
+    const [c, x] = offscreen(PRINT_R); itemsFor(game).forEach(i => i.draw(x));
+    printCache.set(game, c);
+    if (printCache.size > 4) printCache.delete(printCache.keys().next().value);
+  }
+  return printCache.get(game);
+}
+S.equip = equipFor("master");
+
+// ============================================================ camera
+const VIEW_STAND = [-250, -196, 500, 316], VIEW_SEAT = [-172, -192, 344, 254];
+const cam = { r: VIEW_STAND.slice() };
+let dpr = 1, X = { k: 1, ox: 0, oy: 0 };
+function camTo(rect, ms = 700) { const from = cam.r.slice(); return tween(Dms(ms), k => { cam.r = from.map((v, i) => lerp(v, rect[i], k)); }); }
+function resize() {
+  dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, Math.round(stage.clientWidth * dpr)); cv.height = Math.max(1, Math.round(stage.clientHeight * dpr));
+}
+new ResizeObserver(resize).observe(stage); resize();
+function camera() {
+  const [x, y, w, h] = cam.r, hudRoom = 70 * dpr;   // keep the chairs clear of the HUD
+  const k = Math.min(cv.width / w, (cv.height - hudRoom) / h);
+  X = { k, ox: (cv.width - w * k) / 2 - x * k, oy: (cv.height - hudRoom - h * k) / 2 - y * k };
+}
+const toScreen = ([x, y]) => [(x * X.k + X.ox) / dpr, (y * X.k + X.oy) / dpr];
+const toWorld = (sx, sy) => [(sx * dpr - X.ox) / X.k, (sy * dpr - X.oy) / X.k];
+
+// ============================================================ people
+const DIRI = { up: 0, left: 1, down: 2, right: 3 };
+const SIT_DY = 6;   // the sit frames drawn this much lower, so the sitter is on the stool
+function person(name, sheet, kind, x, y) { const p = { name, sheet, kind, x, y, dir: "up", action: "idle", t: Math.random() * 5, dip: 0, seated: false, side: 1 }; people.push(p); return p; }
+function drawPerson(c, p) {
+  const img = IMG[p.sheet]; if (!img || !img.naturalWidth) return;
+  const d = DIRI[p.dir] ?? 0;
+  let row, col, dy = 0;
+  if (p.action === "walk") { row = d; col = 1 + Math.floor(p.t * 11) % 8; }
+  else if (p.action === "sit") { row = 8 + d; col = 0; dy = SIT_DY; }
+  else { row = 4 + d; col = Math.floor(p.t * 1.4) % 2; }
+  if (p.action !== "sit") { c.beginPath(); c.ellipse(p.x, p.y - 1, 11, 5, 0, 0, 7); c.fillStyle = "rgba(0,0,0,.28)"; c.fill(); }
+  c.imageSmoothingEnabled = false;
+  c.drawImage(img, col * 64, row * 64, 64, 64, p.x - 32, p.y - 60 + p.dip + dy, 64, 64);
+  c.imageSmoothingEnabled = true;
+}
+function nameTag(c, p) {
+  const s = p.kind === "you" ? "You" : p.name, y = p.action === "sit" ? p.y + 15 : p.y + 6;
+  c.save(); c.translate(p.x, y); c.scale(.1, .1);
+  c.font = "600 42px Barlow, sans-serif"; const w = c.measureText(s).width + 26;
+  c.beginPath(); R.rrect(c, -w / 2, -26, w, 46, 23); c.fillStyle = p.kind === "you" ? "rgba(201,162,74,.92)" : p.kind === "anna" ? "rgba(70,110,170,.9)" : "rgba(12,14,15,.72)"; c.fill();
+  c.fillStyle = p.kind === "you" ? "#1b1307" : "#f1ece0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s, 0, -2);
+  c.restore();
+}
+const dirFrom = (dx, dy, cur) => Math.abs(dx) < .01 && Math.abs(dy) < .01 ? cur : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+async function walk(p, pts) {
+  for (const [x, y] of pts) {
+    const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy); if (d < .3) continue;
+    p.dir = dirFrom(dx, dy, p.dir); p.action = "walk"; const x0 = p.x, y0 = p.y;
+    await tween(Dms(d / 80 * 1000), k => { p.x = x0 + dx * k; p.y = y0 + dy * k; }, lin);
+  }
+  p.action = "idle";
+}
+async function sitDown(p, i) {
+  S.seats[i] = p; p.reserved = true;
+  const ch = () => S.chairs[seatOf(p)];
+  const side = p.x <= ch().x ? -1 : 1; p.side = side;
+  await walk(p, [[p.x, Math.max(p.y, 66)], [ch().x + side * 15, 66], [ch().x + side * 15, CHAIR_Y + 4]]);
+  p.dir = side < 0 ? "right" : "left";
+  const x0 = p.x, y0 = p.y;
+  await tween(Dms(260), k => { p.x = lerp(x0, ch().x, k); p.y = lerp(y0, CHAIR_Y, k); });
+  p.action = "sit"; p.dir = "up"; p.seated = true; p.reserved = false;
+  await tween(Dms(90), k => { p.dip = 1.6 * k; }); await tween(Dms(160), k => { p.dip = 1.6 * (1 - k); });
+}
+async function standUp(p) {
+  const i = seatOf(p); if (i < 0) return;
+  const cx = S.chairs[i].x; S.seats[i] = null; p.seated = false; p.action = "idle";
+  p.side = p.side || 1; p.dir = p.side < 0 ? "left" : "right";
+  await tween(Dms(240), k => { p.x = cx + p.side * 15 * k; p.y = CHAIR_Y + 4 * k; });
+}
+async function leaveTable(p, line) {
+  if (line) say(p, line, 1800);
+  await returnStakesOf(p);
+  await standUp(p);
+  const ex = p.x < 0 ? -300 : 300;
+  await walk(p, [[p.x, 80 + Math.random() * 14], [ex, 92]]);
+  people.splice(people.indexOf(p), 1); dropBubble(p);
+}
+
+// ============================================================ speech bubbles (HTML, anchored to the world)
+const bubbles = new Map();
+function bubbleFor(key) {
+  let b = bubbles.get(key);
+  if (!b) { const el = document.createElement("div"); el.className = "bubble"; overlay.appendChild(el); b = { el, until: 0 }; bubbles.set(key, b); }
+  return b;
+}
+function say(who, text, ms = 2600, cls = "") {
+  const b = bubbleFor(who); b.el.className = "bubble " + cls; b.el.innerHTML = text; b.until = ms === Infinity ? Infinity : performance.now() + ms; b.who = who;
+}
+function dealerSay(text, ms = 2800) { say(dealer, text, ms); }
+function dropBubble(who) { const b = bubbles.get(who); if (b) { b.el.remove(); bubbles.delete(who); } }
+function placeBubbles() {
+  const t = performance.now();
+  for (const [who, b] of bubbles) {
+    const at = who === dealer ? [8, -170] : [who.x + 6, who.y - (who.action === "sit" ? 62 : 54)];
+    const [sx, sy] = toScreen(at); b.el.style.left = sx + "px"; b.el.style.top = sy + "px";
+    b.el.classList.toggle("fade", t > b.until);
+  }
+}
+
+// ============================================================ chips and cards
+const seatPos = i => [S.chairs[i].x, 24];
+const spotAt = (i, key) => T().spots[i][key].at;
+const keyOf = (i, k) => i + "|" + k;
+function flyChips(amount, from, to, ms = 300) {
+  const f = { amount, x: from[0], y: from[1] }; S.flyers.push(f);
+  return tween(Dms(ms), k => { f.x = lerp(from[0], to[0], k); f.y = lerp(from[1], to[1], k) - Math.sin(Math.PI * k) * 6; }).then(() => S.flyers.splice(S.flyers.indexOf(f), 1));
+}
+function addStake(i, k, amount, owner) { const key = keyOf(i, k), s = S.stakes.get(key) || { amount: 0, owner }; s.amount += amount; s.owner = owner; S.stakes.set(key, s); }
+function takeStake(i, k, amount) { const key = keyOf(i, k), s = S.stakes.get(key); if (!s) return 0; const a = Math.min(amount, s.amount); s.amount -= a; if (s.amount <= 0) S.stakes.delete(key); return a; }
+function seatStakes(i) { const out = {}; for (const [key, s] of S.stakes) { const [si, k] = key.split("|"); if (+si === i) out[k] = s.amount; } return out; }
+const hasStakes = () => S.stakes.size > 0;
+// A bet: the chip flies from the player's place to the spot (and its mirrors: Hold'em's Blind, Let It Ride's three bets).
+async function placeBet(p, k, amount) {
+  const i = seatOf(p), cfg = CFG[S.game]; if (i < 0 || !cfg) return false;
+  const keys = [k, ...((cfg.mirror && cfg.mirror[k]) || [])];
+  if (p === you) {
+    if (balance < amount * keys.length) { toast("Not enough left for that chip."); return false; }
+    balance -= amount * keys.length; undo.push({ k, amount, keys }); hud();
+  }
+  const ep = S.betEpoch;
+  await Promise.all(keys.map(kk => flyChips(amount, seatPos(i), spotAt(i, kk), 220)));
+  if (ep !== S.betEpoch || seatOf(p) !== i) { if (p === you) { balance += amount * keys.length; hud(); } return false; }
+  keys.forEach(kk => addStake(i, kk, amount, p)); hud();
+  return true;
+}
+async function returnStakesOf(p) {
+  const i = seatOf(p); if (i < 0) return;
+  const mine = [...S.stakes].filter(([key]) => +key.split("|")[0] === i);
+  if (!mine.length) return;
+  mine.forEach(([key]) => S.stakes.delete(key));
+  S.jpLit.delete(i);
+  await Promise.all(mine.map(([key, s]) => flyChips(s.amount, spotAt(i, key.split("|")[1]), seatPos(i), 320)));
+  if (p === you) { balance += mine.reduce((a, [, s]) => a + s.amount, 0); undo = []; hud(); }
+}
+async function returnAllStakes() { await Promise.all(seated().map(p => returnStakesOf(p))); }
+
+const SUITS = "shdc", RANKS = "23456789TJQKA";
+function deck() { const d = []; for (const s of SUITS) for (const r of RANKS) d.push(r + s); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d; }
+function dealFrom() { const e = S.equip; return e.shoe ? [e.shoe[0] - 14, e.shoe[1] + 1] : [e.shuffler[0], e.shuffler[1] + 9]; }
+function newCard(code, seat) { const c = { code, x: 0, y: 0, rot: 0, up: false, flip: null, seat, a: 1 }; S.cards.push(c); return c; }
+function sendCard(c, to, rot = 0, ms = 260) {
+  const [x0, y0] = dealFrom(); c.x = x0; c.y = y0;
+  return tween(Dms(ms), k => { c.x = lerp(x0, to[0], k); c.y = lerp(y0, to[1], k); c.rot = rot * k; }, easeOut);
+}
+function flip(c, up = true) { c.flip = { k: 0, to: up }; return tween(Dms(240), k => { c.flip.k = k; }, lin).then(() => { c.up = up; c.flip = null; }); }
+async function toRack(cards) {
+  const at = S.equip.discard;
+  await Promise.all(cards.map((c, j) => wait(Dms(j * 40)).then(() => { const x0 = c.x, y0 = c.y, r0 = c.rot;
+    return tween(Dms(320), k => { c.x = lerp(x0, at[0], k); c.y = lerp(y0, at[1], k); c.rot = lerp(r0, Math.PI / 2, k); c.a = 1 - k * .3; }); })));
+  cards.forEach(c => S.cards.splice(S.cards.indexOf(c), 1));
+  S.rackN = Math.min(6, S.rackN + Math.ceil(cards.length / 3));
+}
+function cardPlaces(game, i) {
+  const TT = G.tables[game];
+  if (CFG[game].pg) { const [lo, hi] = TT.cards[i]; return [[lo[0], lo[1] - 1.5, 0], [lo[0], lo[1] + 1.5, 0], ...[0, 1, 2, 3, 4].map(k => [hi[0] - 4 + k * 2, hi[1], Math.PI / 2])]; }
+  return TT.cards[i].map(p => [p[0], p[1], 0]);
+}
+
+// ============================================================ the change animation
+const PARTICLES = 2400;
+function sampleInk(canvas, n) {
+  const w = canvas.width, h = canvas.height, data = canvas.getContext("2d").getImageData(0, 0, w, h).data, pts = [];
+  for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) if (data[(y * w + x) * 4 + 3] > 110) pts.push([PRINT_R[0] + x / PPU, PRINT_R[1] + y / PPU]);
+  const out = []; for (let i = 0; i < n; i++) out.push(pts.length ? pts[Math.floor(Math.random() * pts.length)] : [0, -60]);
+  return out;
+}
+// Which seat goes (6 to 5) or comes (5 to 6): the one that moves the sitters least, keeping everyone in order.
+function planRemap(fromN, toN) {
+  const XF = CH(fromN), XT = CH(toN), occ = S.seats.map(Boolean);
+  let best = null;
+  if (toN < fromN) {
+    for (let e = 0; e < fromN; e++) { if (occ[e]) continue;
+      const kept = [...Array(fromN).keys()].filter(j => j !== e), cost = kept.reduce((a, j, n) => a + (occ[j] ? Math.abs(XF[j] - XT[n]) : 0), 0);
+      if (!best || cost < best.cost) best = { cost, map: kept, drop: e }; }
+  } else {
+    for (let ins = 0; ins < toN; ins++) {
+      const map = [...Array(toN).keys()].map(n => n === ins ? -1 : n < ins ? n : n - 1);
+      const cost = map.reduce((a, j, n) => a + (j >= 0 && occ[j] ? Math.abs(XF[j] - XT[n]) : 0), 0);
+      if (!best || cost < best.cost) best = { cost, map, add: ins }; }
+  }
+  return best;
+}
+function remapSeats(toN) {
+  const plan = planRemap(S.seats.length, toN), XT = CH(toN);
+  const oldChairs = S.chairs, oldSeats = S.seats;
+  const chairs = plan.map.map((j, n) => j < 0 ? { x: XT[n], y: CHAIR_Y, a: 0, from: XT[n] } : Object.assign(oldChairs[j], { from: oldChairs[j].x }));
+  const seats = plan.map.map(j => j < 0 ? null : oldSeats[j]);
+  if (plan.drop !== undefined) { const g = oldChairs[plan.drop]; g.from = g.x; S.ghosts.push(g);
+    const near = XT.reduce((b, x) => Math.abs(x - g.x) < Math.abs(b - g.x) ? x : b, XT[0]); g.to = (g.x + near) / 2; }
+  S.chairs = chairs; S.seats = seats;
+  return chairs.map((c, n) => ({ c, to: XT[n] }));
+}
+const MORPH_MS = { sweep: 3000, cloth: 2700, dust: 3300 };
+const WINDOW = {   // when the chairs and the equipment move, as parts of the whole
+  sweep: { chairs: [.36, .72], eqOut: [.1, .35], eqIn: [.55, .78] },
+  cloth: { chairs: [.3, .75], eqOut: [.12, .4], eqIn: [.5, .8] },
+  dust: { chairs: [.25, .7], eqOut: [.05, .3], eqIn: [.62, .88] },
+};
+async function morph(from, to, opts = {}) {
+  const style = P.anim, total = Dms(MORPH_MS[style]), W = WINDOW[style];
+  const m = { from, to, style, k: 0, a: itemsFor(from), b: itemsFor(to), fromN: seatsOf(from), toN: seatsOf(to) };
+  m.a.forEach(i => { i.items = "a"; i.rank = i.seat < 0 ? -1 : m.fromN - 1 - i.seat; });
+  m.b.forEach(i => { i.items = "b"; i.rank = i.seat < 0 ? 99 : m.toN - 1 - i.seat; });
+  if (style === "dust") {
+    const src = sampleInk(printing(from), PARTICLES), dst = sampleInk(printing(to), PARTICLES);
+    m.parts = src.map((p, n) => ({ x0: p[0], y0: p[1], x1: dst[n][0], y1: dst[n][1], cx: (p[0] + dst[n][0]) / 2 + rand(-40, 40), cy: Math.min(p[1], dst[n][1]) - rand(10, 46),
+      d: rand(0, .14), s: rand(.5, 1.15), tw: rand(0, 6) }));
+  }
+  S.morph = m;
+  const eqA = S.equip, eqB = equipFor(to);
+  const jobs = [tween(total, (e, k) => { m.k = k; }, lin)];
+  // equipment: what both have glides across; what goes slides off to the right; what comes slides in
+  const eqAt = (key, kOut, kIn) => {
+    const a = eqA[key], b = eqB[key];
+    if (a && b) { const k = easeIO(clamp01((kIn - .0))); return { at: [lerp(a[0], b[0], k), lerp(a[1], b[1], k)], a: 1 }; }
+    if (a) return { at: [a[0] + 26 * easeIn(kOut), a[1]], a: 1 - kOut };
+    if (b) return { at: [b[0] + 26 * (1 - easeOut(kIn)), b[1]], a: kIn };
+    return null;
+  };
+  m.equip = k => {
+    const kOut = clamp01((k - W.eqOut[0]) / (W.eqOut[1] - W.eqOut[0])), kIn = clamp01((k - W.eqIn[0]) / (W.eqIn[1] - W.eqIn[0]));
+    return { shuffler: eqAt("shuffler", kOut, (eqA.shuffler && eqB.shuffler) ? clamp01((k - W.eqOut[0]) / (W.eqIn[1] - W.eqOut[0])) : kIn), shoe: eqAt("shoe", kOut, kIn), discard: eqAt("discard", kOut, kIn) };
+  };
+  if (!opts.visualOnly && m.fromN !== m.toN) {
+    const moves = remapSeats(m.toN);
+    jobs.push(wait(total * W.chairs[0]).then(() => tween(total * (W.chairs[1] - W.chairs[0]), k => {
+      moves.forEach(({ c, to: x }) => { c.x = lerp(c.from, x, k); if (c.a < 1) c.a = k; });
+      S.ghosts.forEach(g => { g.x = lerp(g.from, g.to, k); g.a = 1 - k; });
+    })).then(() => { S.ghosts = []; S.chairs.forEach(c => { c.a = 1; }); }));
+  }
+  dealerGesture(total);
+  await Promise.all(jobs);
+  S.morph = null; S.game = to; S.equip = eqB; S.rackN = 0;
+}
+function dealerGesture(total) {
+  tween(total * .2, k => { dealer.dip = -2.5 * Math.sin(Math.PI * k); });
+}
+// Each style draws the printing its own way while S.morph runs.
+function drawMorph(c, m) {
+  const k = m.k;
+  if (m.style === "sweep") {
+    const outEnd = .48, inStart = .5, step = .045;
+    const piece = (it, phase) => {
+      let e, x, y, s, a, rot = 0;
+      if (phase === "out") {
+        const d = it.rank < 0 ? 0 : (it.rank + 1) * step, kk = clamp01((k - .05 - d) / .2); if (kk >= 1) return; if (kk <= 0) { it.draw(c); return; }
+        if (it.kind === "crest") { e = easeIn(kk); s = 1 - .45 * e; a = 1 - e; rot = -.6 * e; x = it.at[0]; y = it.at[1]; }
+        else { e = easeIn(kk); x = lerp(it.at[0], TRAY[0], e); y = lerp(it.at[1], TRAY[1], e) - Math.sin(Math.PI * e) * 14; s = (1 + .18 * Math.sin(Math.PI * Math.min(1, kk * 2.5))) * (1 - .7 * e); a = 1 - e * e; }
+      } else {
+        const d = it.rank === 99 ? .3 : (it.rank + 1) * step, kk = clamp01((k - inStart - d) / .2); if (kk <= 0) return; if (kk >= 1) { it.draw(c); return; }
+        if (it.kind === "crest" || it.seat < 0) { e = easeOut(kk); s = it.kind === "crest" ? .55 + .45 * backOut(kk) : 1; a = e; rot = it.kind === "crest" ? .6 * (1 - e) : 0; x = it.at[0]; y = it.at[1]; }
+        else { e = easeOut(kk); x = lerp(TRAY[0], it.at[0], e); y = lerp(TRAY[1], it.at[1], e) - Math.sin(Math.PI * e) * 14; s = .3 + .7 * backOut(kk); a = Math.min(1, kk * 2); }
+      }
+      c.save(); c.globalAlpha *= clamp01(a); c.translate(x, y); c.rotate(rot); c.scale(s, s); c.translate(-it.at[0], -it.at[1]); it.draw(c); c.restore();
+    };
+    if (k < outEnd + .2) m.a.forEach(it => piece(it, "out"));
+    m.b.forEach(it => piece(it, "in"));
+    // a sheen across the felt between the two
+    const g = clamp01((k - .4) / .22);
+    if (g > 0 && g < 1) {
+      c.save(); c.beginPath(); R.path(c, FELT); c.clip();
+      const gx = lerp(-200, 200, easeIO(g)), gr = c.createLinearGradient(gx - 40, -120, gx + 40, 0);
+      gr.addColorStop(0, "rgba(255,236,190,0)"); gr.addColorStop(.5, "rgba(255,236,190,.2)"); gr.addColorStop(1, "rgba(255,236,190,0)");
+      c.fillStyle = gr; c.fillRect(-180, -150, 360, 160); c.restore();
+    }
+  } else if (m.style === "cloth") {
+    const kk = easeIO(clamp01((k - .08) / .8)), top = -146, bottom = 8, y = lerp(top, bottom, kk);
+    drawPrinting(c, m.from);
+    c.save(); c.beginPath(); R.path(c, FELT); c.clip();
+    c.save(); c.beginPath(); c.rect(-200, -200, 400, y + 200); c.clip();
+    c.drawImage(baseCanvas, BASE_R[0], BASE_R[1], BASE_R[2], BASE_R[3]);
+    drawPrinting(c, m.to);
+    c.restore();
+    if (kk > 0 && kk < 1) {   // the roll of new cloth and its shadow
+      const felt = D.felt.colour, g = c.createLinearGradient(0, y - 5, 0, y + 3);
+      g.addColorStop(0, R.rgba(R.darken(felt, .55), 0)); g.addColorStop(.25, R.darken(felt, .35)); g.addColorStop(.55, R.lighten(felt, .22)); g.addColorStop(.8, R.darken(felt, .2)); g.addColorStop(1, R.darken(felt, .6));
+      const sh = c.createLinearGradient(0, y + 3, 0, y + 10); sh.addColorStop(0, "rgba(0,0,0,.4)"); sh.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = sh; c.fillRect(-200, y + 3, 400, 7);
+      c.fillStyle = g; c.fillRect(-200, y - 5, 400, 8);
+      c.fillStyle = "rgba(255,240,210,.12)"; c.fillRect(-200, y - 1.6, 400, .5);
+    }
+    c.restore();
+  } else {
+    const fadeA = 1 - clamp01(k / .22), fadeB = clamp01((k - .7) / .22);
+    if (fadeA > 0) { c.save(); c.globalAlpha = fadeA; drawPrinting(c, m.from); c.restore(); }
+    if (fadeB > 0) { c.save(); c.globalAlpha = fadeB; drawPrinting(c, m.to); c.restore(); }
+    c.save(); c.globalCompositeOperation = "lighter";
+    const gold = R.lighten(D.print.accent, .25);
+    for (const p of m.parts) {
+      const kk = clamp01((k - .06 - p.d) / .74);
+      if (kk <= 0 && k < .06) continue;
+      const e = easeIO(kk), u = 1 - e;
+      const x = u * u * p.x0 + 2 * u * e * p.cx + e * e * p.x1, y = u * u * p.y0 + 2 * u * e * p.cy + e * e * p.y1;
+      const a = Math.min(clamp01(k / .12), 1 - clamp01((k - .82) / .16)) * (.55 + .45 * Math.sin(now / 90 + p.tw));
+      if (a <= 0) continue;
+      c.globalAlpha = a; c.fillStyle = gold; c.fillRect(x - p.s / 2, y - p.s / 2, p.s, p.s);
+      if (p.s > 1) { c.globalAlpha = a * .25; c.beginPath(); c.arc(x, y, p.s * 1.6, 0, 7); c.fill(); }
+    }
+    c.restore();
+  }
+}
+function drawPrinting(c, game) { c.drawImage(printing(game), PRINT_R[0], PRINT_R[1], PRINT_R[2], PRINT_R[3]); }
+
+// ============================================================ changing game
+function requestChange(game, by = "you") {
+  if (game === S.game) return;
+  if (game !== "master" && seatsOf(game) === 5 && seated().length >= 6) {
+    toast(NAME[game] + " seats five. A seat needs to be free first."); return;
+  }
+  S.request = { game, by };
+  if (S.busy) { dealerSay(`Right you are: ${NAME[game]} after this hand.`); hud(); }
+}
+async function annaVote(game) {
+  const anna = annaP(); if (!anna || !anna.seated) return true;
+  dealerSay(`Anna, are you happy to switch to ${NAME[game]}?`, 3200);
+  const answer = P.vote, delay = answer === "accept" ? 2600 : answer === "decline" ? 3600 : 10000;
+  S.vote = { who: anna, game, until: performance.now() + 10000 };
+  await waitReal(delay);
+  S.vote = null;
+  if (answer === "decline") { say(anna, "I'd rather keep playing this, thanks.", 2600); await waitReal(1400); dealerSay(`Anna would rather stay at ${NAME[S.game]}. Maybe after a few more hands.`, 3400); return false; }
+  say(anna, answer === "accept" ? "Sure, let's try it!" : "<i>No answer…</i>", 2000);
+  if (answer === "none") { await waitReal(600); dealerSay("No answer counts as a yes.", 2200); }
+  await waitReal(900);
+  return true;
+}
+async function doChange(game) {
+  S.changing = true; S.betEpoch++; S.phase = "idle"; S.closeAt = 0; closeMenu(); hud();   // (a new epoch: bets still in the air don't land)
+  await returnAllStakes();
+  const verb = game === "master" ? "Back to the Master Table." : `${NAME[game]} it is.`;
+  dealerSay(verb, 2600);
+  // NPCs: stay if they like the new game, otherwise leave
+  if (game !== "master") {
+    const npcs = seated().filter(p => p.kind === "npc"), leaving = [];
+    for (const p of npcs) {
+      const likes = p.likes.includes(game) || Math.random() < .35;
+      if (likes) say(p, pick([`Ooh, ${NAME[game]}!`, "Fine by me.", "Deal me in."]), 2000);
+      else { say(p, pick(["Not my game.", "That's me done.", "I'll find another table."]), 2000); leaving.push(p); }
+    }
+    if (npcs.length) await waitReal(1100);
+    await Promise.all(leaving.map(p => standUp(p)));
+    leaving.forEach(p => { (async () => { await walk(p, [[p.x, 86], [p.x < 0 ? -300 : 300, 92]]); people.splice(people.indexOf(p), 1); dropBubble(p); })(); });
+  }
+  if (seatsOf(game) < S.seats.length && !freeSeats().length) {
+    dealerSay(`Sorry, ${NAME[game]} seats five and every seat's taken now.`, 3000); S.changing = false; hud(); return;
+  }
+  S.lastMorph = { from: S.game, to: game }; lastBets = null;
+  await morph(S.game, game);
+  S.changing = false;
+  dealerSay(game === "master" ? "Ask me for any game when you sit down." : `${NAME[game]}. Place your bets!`, 2800);
+  S.npcClock = performance.now() + rand(2000, 4000);
+  hud(); $("#bReplay").disabled = false;
+}
+
+// ============================================================ a short round
+const NPC_POOL = [
+  { name: "Ray", sheet: "npc1", likes: ["bj", "bac", "tcp"] }, { name: "Dot", sheet: "npc5", likes: ["pgf", "pgu", "bac", "ms"] },
+  { name: "Lou", sheet: "npc7", likes: ["uth", "hcf", "lir", "tcp"] }, { name: "Sid", sheet: "npc1", likes: ["ms", "lir", "bj"] },
+  { name: "Mae", sheet: "npc5", likes: ["bac", "hcf", "pgf"] }, { name: "Bea", sheet: "npc7", likes: ["tcp", "uth", "bj"] },
+];
+let poolAt = 0;
+function npcFor(game) {
+  const here = new Set(people.map(p => p.name));
+  const free = NPC_POOL.filter(n => !here.has(n.name));
+  return free.find(n => n.likes.includes(game)) || free[0] || null;
+}
+async function npcArrives(seatIdx) {
+  const t = npcFor(S.game); if (!t) return;
+  const side = Math.random() < .5 ? -1 : 1, p = person(t.name, t.sheet, "npc", side * 300, 92); p.likes = t.likes;
+  const i = seatIdx ?? pick(freeSeats()); if (i === undefined) return;
+  await sitDown(p, i);
+}
+async function npcBets(p, ep) {
+  const cfg = CFG[S.game]; await waitReal(rand(900, 3200)); if (ep !== S.betEpoch || !p.seated) return;
+  const main = cfg.bac ? pick(["banker", "player", "banker"]) : cfg.main;
+  await placeBet(p, main, pick([500, 1000, 1000, 2500]));
+  const sides = cfg.bets.filter(k => k !== main && k !== "jackpot" && k !== "player" && k !== "banker");
+  if (sides.length && Math.random() < .45) { await waitReal(rand(300, 900)); if (ep === S.betEpoch && p.seated) await placeBet(p, pick(sides), 500); }
+  if (cfg.bets.includes("jackpot") && Math.random() < .3) { await waitReal(rand(200, 600)); if (ep === S.betEpoch && p.seated) await placeBet(p, "jackpot", 100); }
+  if (p.kind === "anna") { await waitReal(rand(800, 1600)); if (ep === S.betEpoch) S.ready.add(p); }
+}
+// Betting: closes 12 s after the first bet, or once every person sitting is Ready. Returns why it ended.
+async function bettingPhase() {
+  S.phase = "betting"; S.betEpoch++; S.ready = new Set(); S.closeAt = 0; undo = [];
+  const ep = S.betEpoch;
+  hud();
+  for (;;) {
+    await waitReal(100);
+    if (ep !== S.betEpoch) return "aborted";
+    if (S.request && !S.changing) return "request";
+    if (!seated().length) { S.closeAt = 0; return "empty"; }
+    if (revertDue()) return "revert";
+    if (people.some(p => p.leaving && p.seated)) return "leavers";
+    if (hasStakes() && !S.closeAt) S.closeAt = performance.now() + 12000;
+    if (!hasStakes()) S.closeAt = 0;
+    const humans = seatedHumans();
+    if (hasStakes() && humans.length && humans.every(p => S.ready.has(p))) return "closed";
+    if (S.closeAt && performance.now() >= S.closeAt) return "closed";
+    // everyone else bets, newcomers who sit down mid-betting too
+    seated().filter(p => p.kind !== "you" && p.seated && p.betFor !== ep).forEach(p => { p.betFor = ep; npcBets(p, ep); });
+    hud();
+  }
+}
+function outcomesFor(i, bacWinner) {
+  const st = seatStakes(i), cfg = CFG[S.game], res = {};
+  if (cfg.bac) {
+    for (const k in st) {
+      if (k === "player") res[k] = bacWinner === "player" ? ["win", 1] : bacWinner === "tie" ? ["push"] : ["lose"];
+      else if (k === "banker") res[k] = bacWinner === "banker" ? ["win", .95] : bacWinner === "tie" ? ["push"] : ["lose"];
+      else if (k === "tie") res[k] = bacWinner === "tie" ? ["win", 8] : ["lose"];
+      else res[k] = (k === "player_dragon" ? bacWinner === "player" : bacWinner === "banker") && Math.random() < .35 ? ["win", 2] : ["lose"];
+    }
+    return res;
+  }
+  const r = Math.random(), main = r < .44 ? "win" : r < .52 ? "push" : "lose";
+  for (const k in st) {
+    if (cfg.group.includes(k)) res[k] = main === "win" ? ["win", 1] : [main];
+    else if (k === "jackpot") res[k] = ["lose"];
+    else { const m = SIDE_PAYS[k] || 2; res[k] = Math.random() < .6 / (m + 1.5) ? ["win", m] : ["lose"]; }
+  }
+  return res;
+}
+async function playRound() {
+  S.busy = true; S.phase = "closed"; hud();
+  dealerSay("No more bets.", 1500);
+  const game = S.game, cfg = CFG[game], TT = T(), d = deck();
+  if (youSeated()) { const st = seatStakes(seatOf(you)), keep = {}; for (const k in st) if (cfg.bets.includes(k)) keep[k] = st[k]; if (Object.keys(keep).length) lastBets = keep; }
+  // the Jackpot bets are locked in: lights solid, chips to the rack
+  const jp = [...S.stakes].filter(([key]) => key.endsWith("|jackpot"));
+  jp.forEach(([key]) => { S.stakes.delete(key); S.jpLit.add(+key.split("|")[0]); });
+  await Promise.all(jp.map(([key, s]) => flyChips(s.amount, spotAt(+key.split("|")[0], "jackpot"), TRAY, 360)));
+  const players = [...new Set([...S.stakes.keys(), ...jp.map(([k]) => k)].map(k => +k.split("|")[0]))].filter(i => S.seats[i]).sort((a, b) => a - b);
+  // deal: first base first, each hand together, the dealer last
+  S.phase = "dealing"; hud();
+  const hands = {};
+  if (!cfg.bac) for (const i of players) {
+    const places = cardPlaces(game, i); hands[i] = [];
+    await Promise.all(places.slice(0, cfg.n).map((pl, j) => wait(Dms(j * 80)).then(() => { const c = newCard(d.pop(), i); hands[i].push(c); return sendCard(c, pl, pl[2]); })));
+    await wait(Dms(260));
+  }
+  const dealt = [];
+  for (const j of cfg.dc) { const at = TT.dealer_cards[j]; const c = newCard(d.pop(), -1); dealt.push(c); sendCard(c, at); await wait(Dms(110)); }
+  await wait(Dms(300));
+  if (cfg.up) await Promise.all(cfg.up.map(j => dealt[cfg.dc.indexOf(j)]).filter(Boolean).map(c => flip(c)));
+  // you see your own hand
+  const mine = youSeated() ? hands[seatOf(you)] : null;
+  if (mine) await Promise.all(mine.map(c => flip(c)));
+  // the decision, where the game has one
+  if (cfg.decide) await decidePhase(players.filter(i => seatStakes(i)[cfg.main]));
+  // folded hands out first
+  const folded = players.filter(i => S.folded.has(i));
+  if (folded.length) {
+    dealerSay("Folded hands out.", 1500);
+    for (const i of folded) {
+      const st = Object.entries(seatStakes(i)); st.forEach(([k]) => S.stakes.delete(keyOf(i, k))); S.jpLit.delete(i);
+      await Promise.all([...st.map(([k, a]) => flyChips(a, spotAt(i, k), TRAY, 320)), toRack(hands[i] || [])]);
+      await wait(Dms(250));
+    }
+  }
+  // the dealer's cards
+  S.phase = "settling"; hud();
+  for (const c of dealt) if (!c.up) { flip(c); await wait(Dms(120)); }
+  await wait(Dms(400));
+  const bacWinner = cfg.bac ? (() => { const r = Math.random(); return r < .458 ? "banker" : r < .904 ? "player" : "tie"; })() : null;
+  if (cfg.bac) dealerSay(bacWinner === "tie" ? "It's a tie." : `${bacWinner === "banker" ? "Banker" : "Player"} wins.`, 2200);
+  else dealerSay(pick(["Dealer's hand.", "Let's see what we've got.", "Here we go."]), 1600);
+  await wait(Dms(700));
+  // each player in turn, third base first
+  for (const i of players.filter(i => !S.folded.has(i)).sort((a, b) => b - a)) {
+    const p = S.seats[i]; if (!p) continue;
+    const hand = hands[i] || [];
+    if (p !== you) { for (const c of hand) flip(c); if (hand.length) await wait(Dms(320)); }
+    const res = outcomesFor(i, bacWinner), st = seatStakes(i);
+    const lost = Object.keys(res).filter(k => res[k][0] === "lose"), won = Object.keys(res).filter(k => res[k][0] === "win");
+    const winSum = won.reduce((a, k) => a + Math.floor(st[k] * res[k][1]), 0);
+    const who = p === you ? "You" : p.name;
+    dealerSay(winSum ? `${who === "You" ? "You win" : who + " wins"} ${money(winSum)}.` : won.length || Object.values(res).some(r => r[0] === "push") ? `${who === "You" ? "Your" : who + "'s"} bets stand.` : `Dealer takes ${who === "You" ? "yours" : who + "'s"}.`, 1800);
+    S.jpLit.delete(i);
+    if (lost.length) { lost.forEach(k => takeStake(i, k, Infinity)); await Promise.all(lost.map(k => flyChips(st[k], spotAt(i, k), TRAY, 320))); await wait(Dms(220)); }
+    for (const k of won) {
+      const pay = Math.floor(st[k] * res[k][1]); const at = spotAt(i, k), to = [at[0] + 5, at[1] - 5];
+      await flyChips(pay, TRAY, to, 340); S.payouts.set(keyOf(i, k), { amount: pay, owner: p });
+    }
+    await wait(Dms(300));
+    if (hand.length) await toRack(hand);
+    await wait(Dms(450));
+  }
+  // round end: what's left on the felt goes back to its players, and the dealer's cards to the rack
+  dealerSay("Thank you, all.", 1400);
+  const back = new Map();
+  for (const [key, s] of [...S.stakes, ...S.payouts]) { const i = +key.split("|")[0]; back.set(i, (back.get(i) || 0) + s.amount);
+    flyChips(s.amount, S.payouts.has(key) && S.payouts.get(key) === s ? [spotAt(i, key.split("|")[1])[0] + 5, spotAt(i, key.split("|")[1])[1] - 5] : spotAt(i, key.split("|")[1]), seatPos(i), 380); }
+  S.stakes.clear(); S.payouts.clear();
+  await Promise.all([wait(Dms(420)), toRack(S.cards.slice())]);
+  if (youSeated() && back.has(seatOf(you))) balance += back.get(seatOf(you));
+  S.folded = new Set(); S.jpLit.clear();
+  S.busy = false; S.phase = "idle"; hud();
+  await wait(Dms(500));
+}
+async function decidePhase(seats) {
+  const cfg = CFG[S.game]; S.phase = "deciding"; S.folded = new Set();
+  S.decide = { until: performance.now() + 12000, pending: new Set(seats) };
+  hud();
+  for (const i of seats) {
+    const p = S.seats[i]; if (p === you) continue;
+    waitReal(rand(900, 3200)).then(() => decide(i, Math.random() < .86));
+  }
+  while (S.decide.pending.size && performance.now() < S.decide.until) await waitReal(100);
+  for (const i of [...S.decide.pending]) decide(i, false, true);
+  await waitReal(150); await wait(Dms(350));
+  S.decide = null; hud();
+}
+function decide(i, play, timedOut = false) {
+  if (!S.decide || !S.decide.pending.has(i)) return;
+  S.decide.pending.delete(i);
+  const p = S.seats[i], cfg = CFG[S.game], st = seatStakes(i), amount = st[cfg.main] || 0;
+  if (play && p === you && balance < amount) { toast("Not enough to play: that's a fold."); play = false; }
+  if (!play) { S.folded.add(i); if (p !== you) say(p, "Fold.", 1200); else if (timedOut) toast("Time's up: your hand is folded."); hud(); return; }
+  if (p === you) balance -= amount;
+  flyChips(amount, seatPos(i), spotAt(i, cfg.decide.spot), 260).then(() => { addStake(i, cfg.decide.spot, amount, p); hud(); });
+  if (p !== you) say(p, cfg.decide.label.replace(" 1×", "") + ".", 1200);
+  hud();
+}
+
+// ============================================================ the table's loop
+function revertDue() { return S.game !== "master" && S.revertAt && performance.now() >= S.revertAt; }
+async function tableLoop() {
+  for (;;) {
+    await waitReal(120);
+    if (S.changing) continue;
+    // people who were asked to leave go between hands
+    for (const p of people.filter(p => p.leaving && p.seated)) await leaveTable(p, p.kind === "npc" ? "That's me for now." : "See you later!");
+    // a change someone asked for
+    if (S.request) {
+      const { game, by } = S.request; S.request = null; hud();
+      if (by === "you" && !(await annaVote(game))) continue;
+      await doChange(game); continue;
+    }
+    // back to the Master Table once no person is sitting here
+    if (S.game !== "master" && !seatedHumans().length) { if (!S.revertAt) S.revertAt = performance.now() + P.revert * 1000; }
+    else S.revertAt = 0;
+    if (revertDue()) {
+      S.revertAt = 0;
+      const npcs = seated().filter(p => p.kind === "npc");
+      if (npcs.length) { dealerSay("That's the last hand on this one, folks.", 2400); await waitReal(900); await Promise.all(npcs.map(p => leaveTable(p))); }
+      await doChange("master"); continue;
+    }
+    // Anna, sitting alone at the Master Table, picks a game herself
+    const anna = annaP();
+    if (S.game === "master" && anna && anna.seated && !(you && (you.seated || you.reserved))) {
+      if (!anna.pickAt) anna.pickAt = performance.now() + 2600;
+      if (performance.now() >= anna.pickAt) { anna.pickAt = 0; const g = pick(["bj", "tcp", "uth", "bac"]); say(anna, `${NAME[g]}, please!`, 2200); await waitReal(1200); await doChange(g); }
+      continue;
+    }
+    // NPCs come and play, leaving two seats for people
+    if (P.npcs && S.game !== "master" && seatedHumans().length && performance.now() >= (S.npcClock || 0)) {
+      S.npcClock = performance.now() + rand(6000, 11000);
+      const npcHere = people.filter(p => p.kind === "npc").length;
+      if (npcHere < 2 && freeSeats().length > 2) npcArrives(pickNpcSeat());
+    }
+    if (S.game === "master" || !seated().length) continue;
+    const why = await bettingPhase();
+    if (why === "closed") await playRound();
+  }
+}
+function pickNpcSeat() {
+  const free = freeSeats(); const prefer = [0, S.seats.length - 1, 1, S.seats.length - 2];
+  return prefer.find(i => free.includes(i)) ?? free[0];
+}
+
+// ============================================================ drawing
+function drawEquip(c) {
+  const e = S.morph ? S.morph.equip(S.morph.k) : { shuffler: S.equip.shuffler && { at: S.equip.shuffler, a: 1 }, shoe: S.equip.shoe && { at: S.equip.shoe, a: 1 }, discard: { at: S.equip.discard, a: 1 } };
+  if (e.discard) { c.save(); c.globalAlpha = e.discard.a; R.rack(c, D, e.discard.at, Math.max(2, S.morph ? 2 : S.rackN)); c.restore(); }
+  for (const k of ["shuffler", "shoe"]) if (e[k] && e[k].a > 0) { c.save(); c.globalAlpha = clamp01(e[k].a); R[k](c, D, e[k].at); c.restore(); }
+}
+function drawCard(c, card) {
+  c.save(); c.globalAlpha = card.a; c.translate(card.x, card.y);
+  let up = card.up, sx = 1;
+  if (card.flip) { const k = card.flip.k; sx = Math.max(.02, Math.abs(Math.cos(Math.PI * k))); up = k < .5 ? card.up : card.flip.to; }
+  c.rotate(card.rot); c.scale(sx, 1); R.card(c, D, up ? card.code : "??", 0, 0); c.restore();
+}
+function drawCountdown(c, at, n, colour) {
+  c.save(); c.translate(at[0], at[1]);
+  c.beginPath(); R.rrect(c, -6, -3.6, 12, 7.2, 3.6); c.fillStyle = "rgba(8,6,5,.75)"; c.fill(); c.strokeStyle = R.rgba(colour, .5); c.lineWidth = .3; c.stroke();
+  c.scale(.1, .1); c.font = "700 50px Barlow Condensed, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = colour; c.fillText(String(n), 0, 2);
+  c.restore();
+}
+function chairBack(c, ch) {   // the stool's low back, drawn again over its sitter (the game's ChairBack)
+  c.save(); c.translate(ch.x, ch.y); c.beginPath(); c.ellipse(0, .5, 9.5, 5.5, 0, .15, Math.PI - .15);
+  c.strokeStyle = "#1a1412"; c.lineWidth = 2.6; c.stroke(); c.restore();
+}
+function chairGlow(c, ch, pulse) {
+  c.save(); c.translate(ch.x, ch.y + 3); c.scale(1, .5);
+  const g = c.createRadialGradient(0, 0, 4, 0, 0, 17); g.addColorStop(0, `rgba(255,214,110,${.3 + .25 * pulse})`); g.addColorStop(1, "rgba(255,214,110,0)");
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, 17, 0, 7); c.fill(); c.restore();
+}
+let hover = null;
+function frame(ts) {
+  const dt = Math.min(.1, (ts - now) / 1000); now = ts;
+  runTweens();
+  people.forEach(p => { p.t += dt * P.speed; const i = seatOf(p); if (p.seated && i >= 0) p.x = S.chairs[i].x; });
+  dealer.t += dt;
+  camera();
+  const c = ctx, pulse = .5 + .5 * Math.sin(ts / 260);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = "#1f3a3e"; c.fillRect(0, 0, cv.width, cv.height);
+  c.setTransform(X.k, 0, 0, X.k, X.ox, X.oy);
+  const [wx0, wy0] = toWorld(0, 0), [wx1, wy1] = toWorld(cv.width / dpr, cv.height / dpr);
+  R.drawCarpet(c, [wx0, wy0, wx1 - wx0, wy1 - wy0]);
+  // the dealer stands in the bay, behind the felt
+  const dimg = IMG.dealer;
+  if (dimg.naturalWidth) {
+    c.save(); c.imageSmoothingEnabled = false;
+    if (hover === "dealer") { c.shadowColor = "rgba(255,214,110,.95)"; c.shadowBlur = 14 * dpr; }
+    c.drawImage(dimg, (Math.floor(dealer.t * 1.4) % 2) * 64, 6 * 64, 64, 64, dealer.x - 32, dealer.y - 60 + dealer.dip, 64, 64);
+    c.restore();
+  }
+  c.drawImage(baseCanvas, BASE_R[0], BASE_R[1], BASE_R[2], BASE_R[3]);
+  if (S.morph) drawMorph(c, S.morph); else drawPrinting(c, S.game);
+  drawEquip(c);
+  if (!S.morph && S.game !== "master") {
+    const TT = T(), blink = Math.floor(ts / 380) % 2 === 0;
+    for (let i = 0; i < S.seats.length; i++) {
+      const lit = S.jpLit.has(i) || (S.phase === "betting" && S.stakes.has(keyOf(i, "jackpot")) && blink);
+      if (lit && TT.spots[i] && TT.spots[i].jackpot) R.jackpotDisc(c, D, TT.spots[i].jackpot.at, true);
+    }
+    if (hover && hover.spot) { const s = TT.spots[hover.seat][hover.spot]; c.beginPath(); c.arc(s.at[0], s.at[1], s.r + 1.2, 0, 7); c.strokeStyle = `rgba(255,224,150,${.45 + .35 * pulse})`; c.lineWidth = .6; c.stroke(); }
+  }
+  S.cards.forEach(card => drawCard(c, card));
+  if (S.game !== "master") {
+    for (const [key, s] of S.stakes) { const [i, k] = key.split("|"); const at = T().spots[+i]?.[k]?.at; if (at) R.stack(c, D, s.amount, at[0], at[1]); }
+    for (const [key, s] of S.payouts) { const [i, k] = key.split("|"); const at = T().spots[+i]?.[k]?.at; if (at) R.stack(c, D, s.amount, at[0] + 5, at[1] - 5); }
+  }
+  S.flyers.forEach(f => R.stack(c, D, f.amount, f.x, f.y));
+  // countdowns on the felt: betting (LED) and the way back to the Master Table (gold)
+  if (!S.morph && S.game !== "master") {
+    const cd = T().countdown;
+    if (S.phase === "betting" && S.closeAt) drawCountdown(c, cd, Math.max(0, Math.ceil((S.closeAt - performance.now()) / 1000)), D.led || "#ffd28a");
+    else if (S.decide) drawCountdown(c, cd, Math.max(0, Math.ceil((S.decide.until - performance.now()) / 1000)), D.led || "#ffd28a");
+  }
+  // chairs and people, back to front
+  const standing = !youSeated() && !(you && you.reserved);
+  S.ghosts.forEach(g => { c.save(); c.globalAlpha = clamp01(g.a); R.chair(c, [g.x, g.y]); c.restore(); });
+  S.chairs.forEach((ch, i) => {
+    if (standing && !S.seats[i] && !S.changing) chairGlow(c, ch, hover && hover.chair === i ? 1 : pulse);
+    c.save(); c.globalAlpha = clamp01(ch.a); R.chair(c, [ch.x, ch.y]); c.restore();
+  });
+  [...people].sort((a, b) => a.y - b.y).forEach(p => drawPerson(c, p));
+  S.seats.forEach((p, i) => { if (p && p.seated) chairBack(c, S.chairs[i]); });
+  people.forEach(p => nameTag(c, p));
+  placeBubbles();
+  if (S.vote) {
+    const s = Math.max(0, Math.ceil((S.vote.until - performance.now()) / 1000));
+    say(S.vote.who, `Switch to ${NAME[S.vote.game]}? <b>${s}</b>`, 400, "think");
+  }
+  if (S.ask) { const s = Math.max(0, Math.ceil((S.ask.until - performance.now()) / 1000)); $("#voteText").innerHTML = `Anna wants to switch to <b>${NAME[S.ask.game]}</b> · ${s}`; }
+  if (Math.floor(ts / 250) !== frame.q) { frame.q = Math.floor(ts / 250); hud(); }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================ input
+function hitTest(sx, sy) {
+  const [x, y] = toWorld(sx, sy);
+  if (!youSeated() && !(you && you.reserved)) {
+    for (let i = 0; i < S.chairs.length; i++) { const ch = S.chairs[i]; if (!S.seats[i] && Math.hypot(x - ch.x, (y - ch.y) * 1.4) < 14) return { chair: i }; }
+  }
+  if (x > -14 && x < 14 && y > -182 && y < -138) return "dealer";
+  if (youSeated() && S.game !== "master" && !S.morph && S.phase === "betting") {
+    const i = seatOf(you), cfg = CFG[S.game], spots = T().spots[i];
+    for (const k in spots) { const s = spots[k]; const key = cfg.bets.includes(k) ? k : cfg.alias && cfg.alias[k]; if (!key) continue;
+      if (Math.hypot(x - s.at[0], y - s.at[1]) <= s.r + .8) return { seat: i, spot: k, bet: key }; }
+  }
+  return null;
+}
+cv.addEventListener("pointermove", e => {
+  const r = cv.getBoundingClientRect(); hover = hitTest(e.clientX - r.left, e.clientY - r.top);
+  cv.style.cursor = hover ? "pointer" : "default";
+});
+cv.addEventListener("pointerleave", () => { hover = null; });
+cv.addEventListener("contextmenu", e => {
+  e.preventDefault(); const r = cv.getBoundingClientRect(), h = hitTest(e.clientX - r.left, e.clientY - r.top);
+  if (h && h.bet) removeChip(h.bet);
+});
+cv.addEventListener("click", e => {
+  const r = cv.getBoundingClientRect(), h = hitTest(e.clientX - r.left, e.clientY - r.top);
+  if (!h) return;
+  if (h === "dealer") return clickDealer();
+  if (h.chair !== undefined) return yourSit(h.chair);
+  if (h.bet) {
+    if (h.bet === "jackpot") { if (S.stakes.has(keyOf(h.seat, "jackpot"))) return removeChip("jackpot"); return placeBet(you, "jackpot", 100); }
+    const cur = S.stakes.get(keyOf(h.seat, h.bet))?.amount || 0;
+    if (cur + chipSel > 50000) return toast("£500 is the most on one spot here.");
+    placeBet(you, h.bet, chipSel);
+  }
+});
+function removeChip(k) {
+  const i = seatOf(you); if (i < 0 || S.phase !== "betting") return;
+  const cfg = CFG[S.game], keys = [k, ...((cfg.mirror && cfg.mirror[k]) || [])];
+  const cur = S.stakes.get(keyOf(i, k))?.amount || 0; if (!cur) return;
+  const amt = k === "jackpot" ? cur : Math.min(cur, chipSel);
+  keys.forEach(kk => { const a = takeStake(i, kk, amt); balance += a; flyChips(a, spotAt(i, kk), seatPos(i), 220); });
+  undo = undo.filter(u => u.k !== k || false); hud();
+}
+async function yourSit(i) {
+  if (!you) you = person("You", "player", "you", 0, 104);
+  if (you.reserved || youSeated()) return;
+  if (S.changing) return toast("One moment: the table's changing.");
+  hover = null; closeMenu();
+  const sit = sitDown(you, i);
+  camTo(VIEW_SEAT, 900);
+  await sit; hud();
+  if (S.game === "master" && !S.changing) { dealerSay("Welcome! What would you like to play?", Infinity); openMenu(); }
+  else if (!S.changing) dealerSay(`Welcome! It's ${NAME[S.game]} here. Click me if you'd like something else.`, 3600);
+}
+async function yourStand() {
+  if (!youSeated()) return;
+  if (S.busy) return toast("You can stand up once this hand is over.");
+  if (S.changing) return;
+  closeMenu(); S.betEpoch++; await returnStakesOf(you);
+  await standUp(you); camTo(VIEW_STAND, 900);
+  await walk(you, [[you.x, 104], [0, 104]]); you.dir = "up";
+  if (S.game !== "master" && !seatedHumans().length) dealerSay(`I'll keep ${NAME[S.game]} going for a bit, in case you come back.`, 3200);
+  hud();
+}
+function clickDealer() {
+  if (!youSeated()) return dealerSay("Take a seat and I'll set up any game you like.", 2600);
+  if (S.changing) return;
+  if (S.request) return dealerSay(`${NAME[S.request.game]} is next, after this hand.`, 2400);
+  dealerSay(S.game === "master" ? "What would you like to play?" : S.busy ? "Let's finish this hand first. What would you like next?" : "Fancy a change? What would you like to play?", Infinity);
+  openMenu();
+}
+
+// ============================================================ the menu
+const menu = $("#menu"), list = $("#menuList");
+GAMES.forEach((g, n) => {
+  const b = document.createElement("button"); b.className = "game"; b.dataset.game = g.id;
+  const thumb = document.createElement("canvas"); thumb.className = "thumb"; thumb.width = 104;
+  R.render(thumb, D, g.id, [-166, -150, 332, 196]); thumb.style.width = "";
+  const body = document.createElement("div");
+  body.innerHTML = `<div class="name">${g.name} <span class="key">${n + 1}</span></div><div class="blurb">${g.blurb}</div><div class="tags"></div>`;
+  b.append(thumb, body); b.addEventListener("click", () => chooseGame(g.id)); list.appendChild(b);
+});
+function openMenu() {
+  const full = seated().length >= 6, annaHere = annaP()?.seated;
+  for (const b of list.children) {
+    const g = b.dataset.game, five = seatsOf(g) === 5, now = g === S.game;
+    b.disabled = now || (five && full); b.classList.toggle("now", now);
+    b.querySelector(".tags").innerHTML = (now ? `<span class="pill gold">Playing now</span>` : "") + (five ? `<span class="pill ${full ? "warn" : ""}">${full ? "Needs a free seat" : "Seats five"}</span>` : "");
+  }
+  $("#menuTitle").textContent = S.game === "master" ? "What would you like to play?" : "Change the game";
+  const sub = $("#menuSub");
+  sub.className = S.busy || annaHere ? "note" : "";
+  sub.textContent = S.busy ? "This hand finishes first, then the table changes." : annaHere ? "Anna will be asked first." : S.game === "master" ? "The table changes to suit the game." : "Any bets on the felt come back to you first.";
+  menu.hidden = false; list.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
+}
+function closeMenu() { if (!menu.hidden) { menu.hidden = true; const b = bubbles.get(dealer); if (b && b.until === Infinity) b.until = 0; } }
+function chooseGame(g) { closeMenu(); requestChange(g, "you"); }
+$("#menuClose").addEventListener("click", () => { closeMenu(); if (S.game === "master") dealerSay("Whenever you're ready. Just click me.", 2400); });
+
+// ============================================================ HUD
+const CHIPS = [100, 500, 2500, 10000, 50000];
+CHIPS.forEach(v => {
+  const b = document.createElement("button"); b.className = "chip"; b.setAttribute("aria-label", money(v) + " chip"); b.dataset.v = v;
+  const c = document.createElement("canvas"); c.width = c.height = 80; const x = c.getContext("2d");
+  x.setTransform(6.2, 0, 0, 6.2, 40, 40); R.stack(x, D, v, 0, 0);
+  b.appendChild(c); b.addEventListener("click", () => { chipSel = v; hud(); }); $("#chips").appendChild(b);
+});
+let toastT = 0;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; setTimeout(() => { t.hidden = true; }, 260); }, 2400); }
+function hud() {
+  const seatedNow = youSeated(), inGame = S.game !== "master", my = seatedNow ? seatOf(you) : -1;
+  const onFelt = my >= 0 ? Object.values(seatStakes(my)).reduce((a, b) => a + b, 0) : 0;
+  $("#bal").textContent = money(balance); $("#onFelt").textContent = money(onFelt);
+  for (const b of $("#chips").children) b.setAttribute("aria-pressed", String(+b.dataset.v === chipSel));
+  const betting = seatedNow && inGame && S.phase === "betting" && !S.changing && !S.request;
+  const deciding = seatedNow && S.decide && S.decide.pending.has(my);
+  $("#chips").hidden = !(seatedNow && inGame);
+  $("#bUndo").hidden = $("#bRebet").hidden = $("#bReady").hidden = !(seatedNow && inGame) || deciding;
+  $("#bUndo").disabled = !betting || !undo.length; $("#bRebet").disabled = !betting || !lastBets || onFelt > 0; $("#bReady").disabled = !betting || S.ready.has(you);
+  $("#bPlay").hidden = $("#bFold").hidden = !deciding;
+  if (deciding) $("#bPlay").innerHTML = `${CFG[S.game].decide.label} ${money(seatStakes(my)[CFG[S.game].main] || 0)} <kbd>P</kbd>`;
+  $("#bStand").hidden = !seatedNow; $("#bStand").disabled = S.busy || S.changing;
+  // the line above the bar
+  let info = "";
+  const secs = t => Math.max(0, Math.ceil((t - performance.now()) / 1000));
+  if (S.vote) info = `Waiting for Anna to agree · <b>${secs(S.vote.until)}</b>`;
+  else if (S.changing) info = S.morph ? `Setting up <b>${NAME[S.morph.to]}</b>…` : "Changing the table…";
+  else if (!seatedNow) info = you && you.reserved ? "Taking a seat…" : "Click a glowing chair to sit down.";
+  else if (!inGame) info = menu.hidden ? "Click the dealer to choose a game." : "Pick a game from the menu.";
+  else if (deciding) info = `${CFG[S.game].decide.label} or fold? · <b>${secs(S.decide.until)}</b>`;
+  else if (S.phase === "betting") info = S.request ? "Changing game…" : S.closeAt ? `Bets close in <b>${secs(S.closeAt)}</b> · Ready when you are` : onFelt ? "" : "Place your bets on the felt. Click the dealer to change game.";
+  else if (S.phase === "dealing") info = "Dealing…"; else if (S.phase === "deciding") info = "Waiting for the others…";
+  else if (S.phase === "settling") info = "Settling, third base first…"; else if (S.phase === "closed") info = "No more bets.";
+  $("#info").innerHTML = info;
+  // the queued change and the vote card
+  const q = S.request && S.busy; $("#queued").hidden = !q; if (q) $("#queuedText").textContent = `After this hand: ${NAME[S.request.game]}`;
+  $("#voteCard").hidden = !S.ask;
+  // status chip
+  const n = seated().length;
+  $("#statusMain").textContent = NAME[S.morph ? S.morph.to : S.game];
+  const sub = $("#statusSub");
+  if (S.revertAt && S.game !== "master") { sub.textContent = `Back to the Master Table in ${secs(S.revertAt)} s`; sub.className = "sub warn"; }
+  else { sub.textContent = n ? `${n} of ${S.seats.length} seated` : S.game === "master" ? "Waiting for players" : "Empty"; sub.className = "sub"; }
+}
+$("#bUndo").addEventListener("click", () => {
+  const u = undo.pop(); if (!u || S.phase !== "betting") return; const i = seatOf(you);
+  u.keys.forEach(kk => { const a = takeStake(i, kk, u.amount); balance += a; flyChips(a, spotAt(i, kk), seatPos(i), 220); }); hud();
+});
+$("#bRebet").addEventListener("click", async () => { if (!lastBets) return; for (const [k, a] of Object.entries(lastBets)) await placeBet(you, k, a); });
+$("#bReady").addEventListener("click", () => readyUp());
+function readyUp() {
+  if (!youSeated() || S.phase !== "betting") return;
+  S.ready.add(you); hud();
+}
+$("#bPlay").addEventListener("click", () => decide(seatOf(you), true));
+$("#bFold").addEventListener("click", () => decide(seatOf(you), false));
+$("#bStand").addEventListener("click", () => yourStand());
+$("#queuedX").addEventListener("click", () => { if (S.request) { dealerSay(`We'll stay on ${NAME[S.game]}, then.`); S.request = null; hud(); } });
+document.addEventListener("keydown", e => {
+  // the stage's keys work whatever has focus, except typing; a focused button or switch mustn't eat Space
+  if (e.target.closest && e.target.closest("textarea, input:not([type=checkbox])")) return;
+  if (e.code === "Space" && e.target !== document.body) { e.target.blur?.(); }
+  if (!menu.hidden) {
+    if (e.key === "Escape") { closeMenu(); e.preventDefault(); }
+    const n = +e.key; if (n >= 1 && n <= 9) { const b = list.children[n - 1]; if (!b.disabled) b.click(); }
+    return;
+  }
+  if (e.code === "Space" && youSeated()) { e.preventDefault(); readyUp(); }
+  else if (e.key === "Escape") yourStand();
+  else if ((e.key === "p" || e.key === "P") && S.decide) decide(seatOf(you), true);
+  else if ((e.key === "f" || e.key === "F") && S.decide) decide(seatOf(you), false);
+});
+
+// ============================================================ the demo panel
+function seg(id, key, cast = v => v) {
+  const el = $(id);
+  const sync = () => el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(String(P[key]) === b.dataset.v)));
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; P[key] = cast(b.dataset.v); saveP(); sync(); onPanel(key); });
+  sync();
+}
+const ANIM_HINT = {
+  sweep: "The printing flies into the dealer's chip tray seat by seat, from third base, and the new layout deals back out the same way.",
+  cloth: "A fresh cloth rolls down from the dealer's side, uncovering the new layout as it goes.",
+  dust: "The printing breaks up into gold dust that drifts across and settles into the new layout.",
+};
+seg("#segAnim", "anim"); seg("#segSpeed", "speed", Number); seg("#segVote", "vote"); seg("#segRevert", "revert", Number);
+function onPanel(key) {
+  $("#animHint").textContent = ANIM_HINT[P.anim];
+  if (key === "revert" && S.revertAt) S.revertAt = performance.now() + P.revert * 1000;
+}
+onPanel();
+$("#tNpc").checked = P.npcs;
+$("#tNpc").addEventListener("change", e => {
+  P.npcs = e.target.checked; saveP();
+  if (!P.npcs) people.filter(p => p.kind === "npc").forEach(p => { p.leaving = true; });
+  else S.npcClock = performance.now() + 1200;
+});
+$("#tAnna").checked = P.anna;
+const annaSync = () => $("#annaOpts").setAttribute("aria-disabled", String(!P.anna));
+annaSync();
+$("#tAnna").addEventListener("change", e => {
+  P.anna = e.target.checked; annaSync();
+  const anna = annaP();
+  if (P.anna && !anna) {
+    const free = freeSeats(); if (!free.length) { toast("No free seat for Anna."); P.anna = false; e.target.checked = false; annaSync(); return; }
+    const p = person("Anna", "npc3", "anna", -300, 92), i = free.includes(1) ? 1 : free.includes(4) ? 4 : free[0];
+    sitDown(p, i).then(() => { if (S.game === "master" && youSeated()) say(p, "Hi! Pick whatever you like.", 2200); });
+  } else if (!P.anna && anna) { anna.leaving = true; if (!anna.seated) anna.leaving = true; }
+});
+$("#bFill").addEventListener("click", () => {
+  if (S.game === "master") return toast("Pick a game first: NPCs don't sit at an empty Master Table.");
+  const free = freeSeats().filter(i => !(you && you.reserved && seatOf(you) === i));
+  if (!free.length) return toast("Every seat is taken.");
+  free.forEach((i, n) => setTimeout(() => {
+    const t = NPC_POOL.find(t => !people.some(p => p.name === t.name)) || { name: "Guest " + (++poolAt), sheet: pick(["npc1", "npc5", "npc7"]), likes: [] };
+    if (S.seats[i]) return;
+    const p = person(t.name, t.sheet, "npc", i < S.seats.length / 2 ? 300 : -300, 92); p.likes = t.likes; sitDown(p, i);
+  }, n * 500));
+});
+$("#bAnnaAsks").addEventListener("click", async () => {
+  const anna = annaP();
+  if (!anna || !anna.seated) return toast("Anna needs to be sitting at the table.");
+  if (!youSeated()) return toast("Sit down first: Anna asks the other players.");
+  if (S.busy || S.changing || S.ask) return toast("Anna waits until this hand is over.");
+  const full = seated().length >= 6, g = pick(GAMES.filter(x => x.id !== S.game && !(full && seatsOf(x.id) === 5))).id;
+  say(anna, `Could we switch to ${NAME[g]}?`, 10000);
+  S.ask = { game: g, until: performance.now() + 10000 }; hud();
+  const answer = await new Promise(res => { S.ask.res = res; setTimeout(() => res("timeout"), 10000); });
+  S.ask = null; hud(); dropBubble(anna);
+  if (answer === "no") { dealerSay(`We'll stay on ${NAME[S.game]}, then.`, 2400); say(anna, "Fair enough!", 1600); return; }
+  if (answer === "timeout") dealerSay("No answer counts as a yes.", 2000);
+  S.request = { game: g, by: "anna" };
+});
+$("#voteYes").addEventListener("click", () => S.ask?.res("yes"));
+$("#voteNo").addEventListener("click", () => S.ask?.res("no"));
+$("#bReplay").disabled = true;
+$("#bReplay").addEventListener("click", async () => {
+  const m = S.lastMorph;
+  if (!m || S.busy || S.changing || hasStakes() || S.game !== m.to) return toast(S.busy ? "Wait for this hand to finish." : "Nothing to replay yet.");
+  S.changing = true; S.game = m.from; S.equip = equipFor(m.from);
+  await morph(m.from, m.to, { visualOnly: true }); S.changing = false; hud();
+});
+$("#bReset").addEventListener("click", () => location.reload());
+
+// ============================================================ go
+you = person("You", "player", "you", 0, 104);
+$("#loading").remove();
+hud();
+requestAnimationFrame(t => { now = t; requestAnimationFrame(frame); });
+dealerSay("Evening! Pull up a chair.", 3200);
+tableLoop();
+window.__mt = { S, people, P, requestChange, G }; window.__toScreen = toScreen; window.__hit = hitTest;   // for the browser checks
+</script>
