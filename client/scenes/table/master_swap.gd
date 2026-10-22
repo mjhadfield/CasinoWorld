@@ -104,14 +104,15 @@ func run() -> void:
 	# The old table's felt picture stays up until the new one's is painted (its first paint waits a frame or two):
 	# the tables' geometry is the same, so only the printing is seen to change.
 	for i in 30:
-		var cache := to_table._felt._cache
+		var cache := (to_table._felt as TableFelt)._cache
 		if cache and cache._scale > 0.0:
 			break
 		await get_tree().process_frame
 		if not _alive():
 			return _finish()
-	if from_table._felt._cache:
-		from_table._felt._cache.visible = false
+	var old_cache := (from_table._felt as TableFelt)._cache
+	if old_cache:
+		old_cache.visible = false
 	visible = true
 	_bob()
 	var tw := create_tween()
