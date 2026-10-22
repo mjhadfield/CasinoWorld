@@ -294,3 +294,53 @@ def test_choosing_over_the_websocket(master_client):
         assert floor.SEATS["mt_1"] == plan.tables_of(plan.live())["mt_1"]["stands"]["5"]
         ws.send_json({"type": "choose_game", "game": "craps"})
         assert "can't set" in recv_until(ws, "error")["message"]
+
+
+# ------------------------------------------------------------------ with NPCs
+def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
+    """NPCs playing at a Master Table on a fake clock while a person keeps changing its game between six seats
+    and five: every NPC that thinks it's sitting there is in the seat it thinks, and none is lost."""
+    import random
+
+    from casino_server.casino import Casino
+    from casino_server.store import Store
+    p = copy.deepcopy(CLASSIC_PLAN)
+    room = next(r for r in p["rooms"] if r["placed"])
+    room["items"] = [{"id": "mt_1", "asset": "table:master_table", "x": 950, "y": 1040, "props": {}}]   # (its only table)
+    for other in p["rooms"]:
+        if other is not room:
+            other["placed"] = False
+    plan.install(plan.clean(p, {"rev": 0, "next": {}, "rooms": []}))
+    assert list(floor.TABLES) == ["mt_1"]
+    now = [1_000_000.0]
+    store = Store(tmp_path / "npc.sqlite")
+    casino = Casino(store, npc_population=12, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
+    runner = casino.tables["mt_1"]
+    m = runner.machine
+    m.timings = master.Timings(vote=10.0, revert=600.0, hold=0.5)
+    me = FakeParticipant("me")
+    runner.act("sit", 2, me)
+    runner.act("choose_game", 2, "three_card_poker")
+    games = ["let_it_ride", "blackjack", "high_card_flush", "baccarat"]
+    changes, npcs_seen = 0, set()
+    for step in range(8000):
+        now[0] += 0.25
+        casino.npcs.tick(now[0])
+        for r in casino.tables.values():
+            r.publish(r.machine.tick(now[0]))
+        mine = m.seat_of(me)
+        if mine is not None:
+            m.seats[mine].sat_out = 0   # (I watch: the table doesn't stand me up for sitting out)
+        here = [n for n in casino.npcs.npcs.values() if n.table == "mt_1" and n.state == "seated"]
+        for n in here:
+            assert m.seats[n.seat].participant is n.participant, (step, n.name, n.seat)
+            npcs_seen.add(n.entity_id)
+        if step % 400 == 399 and m.phase == "betting" and m.vote is None:
+            game = games[changes % len(games)]
+            seat = m.seat_of(me)
+            try:
+                runner.act("choose_game", seat, game)
+                changes += 1
+            except TableError:
+                pass   # (every seat taken: no five-seat game for now)
+    assert changes >= 6 and npcs_seen and m.seat_of(me) is not None

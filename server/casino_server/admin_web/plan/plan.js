@@ -434,6 +434,11 @@ function refreshInspector() {
       if (rots.length > 1) rows.push(field("Turned", choose(String(it.rot || 0), rots.map(d => [String(d), d ? `${d}°` : "Upright"]), v => { turnTo(it, +v); })));
       if (G.CAT.games[it.asset.slice(6)].at["0"].sign)
         rows.push(field("Sign", choose(G.signSide(it), ["right", "left"].map(side => [side, signEnd(it, side)]), v => { it.props.sign = v; })));
+      if (it.asset === "table:master_table") {   // how it changes from one game to another (tables/master.py)
+        rows.push(field("Changes with", choose(it.props.anim || "cloth", [["cloth", "Fresh cloth"], ["sweep", "Dealer's sweep"], ["dust", "Gold dust"]],
+          v => { it.props.anim = v; })));
+        rows.push(field("Speed", choose(String(it.props.speed || 1), [["0.5", "0.5×"], ["1", "1×"], ["2", "2×"]], v => { it.props.speed = +v; })));
+      }
     } else {
       rows.push(field("Facing", choose(it.facing || "down", G.CAT.facings.map(f => [f, f]), v => { it.facing = v; })));
     }

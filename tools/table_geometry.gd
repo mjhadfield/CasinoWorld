@@ -11,6 +11,7 @@ const TABLES := {
 	"ms": "res://scenes/table/ms_table.tscn", "uth": "res://scenes/table/uth_table.tscn",
 	"lir": "res://scenes/table/lir_table.tscn", "hcf": "res://scenes/table/hcf_table.tscn",
 	"bac": "res://scenes/table/bac_table.tscn",
+	"mt": "res://scenes/table/master_table.tscn",   # (the Master Table blank: its crest, no spots)
 }
 const GROWN := [-8.0, -6.5, -6.0, -5.0, -4.0, -3.5, -2.0, -1.2, -0.9, -0.3, 1.2, 1.5, 3.5, 4.0, 5.9, 6.5, 7.0, 7.5, 11.0]
 const OUT := ["../server/casino_server/admin_web/tables/geometry.json", "../docs/table_styles/mockup/geometry.json"]

@@ -194,6 +194,11 @@ func start_room() -> void:
 
 
 ## What a moment plays at a table: its set's own sound, else the nearest set above's.
+## A Master Table plays its game's sound set while it has one (the casino's own while it's blank).
+func set_table_set(table: String, set_name: String) -> void:
+	_tables[table] = set_name
+
+
 func _choice(key: String, table: String) -> Dictionary:
 	var s = _tables.get(table, "casino")
 	for i in 8:   # the tree is three deep; this only stops a bad manifest looping forever

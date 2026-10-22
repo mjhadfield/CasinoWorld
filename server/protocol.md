@@ -43,6 +43,9 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `ping` | `t` | A latency check. |
 | `away` | | The tab was hidden. The server sends nothing more until `resync`; you stay on the floor (and seated). |
 | `resync` | | The tab is visible again. Drop every message until the `resync` reply; the full state follows it. |
+| `choose_game` | `game` | Master Table: ask for a card game (`three_card_poker` … `baccarat`). Anyone else seated is asked first (`master_vote`); otherwise it changes between hands. |
+| `game_vote` | `accept` (bool) | Master Table: agree to, or turn down, the game someone asked for. |
+| `cancel_game_change` | | Master Table: stay on this game instead of the one agreed for after this hand. |
 
 ## Server → client
 | type | fields | when |
@@ -272,6 +275,20 @@ The slots `table_state` adds `variant`, `bet`, `last` (the last spin's outcome),
 {`bet`, `n`, `of`, `total`}, `meters` and `timer`. Server -> client `slot_jackpots` {`meters`
 {mini, minor, major, grand}} comes on join, on resync and after every slot jackpot; between those,
 every `spin` event carries the meters.
+
+### Master Table (`event.kind`)
+A Master Table's `table_state` is its game's own snapshot (or, blank, `game: "master_table"`, `phase: "idle"` and the
+seats) plus `master` {`game` ("" blank), `anim`, `speed`, `games`, `seats_by_game`, `rules`, `queued`, `vote`
+{`game`, `by`, `voters`, `agreed`, `seconds`} or null, `changing` (seconds left) or null, `revert` (seconds) or null}.
+While it changes, `phase` is `changing` and every bet is refused.
+| event | fields | meaning |
+|---|---|---|
+| `master_vote` | `game`, `by` (seat), `name`, `voters` (seats), `seconds` | Someone asked for a game: the others seated have `seconds` to answer. |
+| `master_vote_cast` | `seat`, `accept` | One of them agreed. |
+| `master_vote_end` | `ok`, `game`, and `seat`, `name` for a no | Agreed (the change follows), or turned down. |
+| `master_queued` | `game` or null | The game agreed on for after this hand, or none any more. |
+| `master_change` | `game` ("" back to blank), `seats` (6 or 5), `map` (each new seat's old seat, or -1), `anim`, `speed`, `seconds`, `rules` | The table becomes `game` now: the client swaps in that game's table and animates it. A fresh `table_state` follows for every session (seats renumbered). Betting opens on it after `seconds`. |
+| `master_revert` | `seconds` or null | Nobody's seated: back to the crest in `seconds` (null: someone sat down again). |
 
 ### Every table: dealers on shifts (`event.kind`)
 | event | fields | meaning |

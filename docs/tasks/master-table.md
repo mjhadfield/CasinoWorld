@@ -45,14 +45,27 @@ Mike's decisions (2026-10-22):
 - **Tools:** `tools/plan_catalogue.gd`, `tools/table_geometry.gd`.
 
 ## Done when
-- [ ] A Master Table placed in a scratch plan plays every game, changes between them with each animation, and votes,
-      queues and reverts, checked in a browser on a dev instance
-- [ ] Animation and speed can be picked per table on the Floor plan tab
-- [ ] `tools/dev.sh test` passes
-- [ ] Docs: `docs/games/master_table.md`, `docs/games/README.md`, `docs/tables.md`, `server/protocol.md`, README
+- [x] A Master Table placed in a scratch plan changes between games with each animation, votes, queues and reverts:
+      checked in a browser on a private instance
+- [x] Animation and speed can be picked per table on the Floor plan tab
+- [x] `tools/dev.sh test` passes
+- [x] Docs: `docs/games/master_table.md`, `docs/games/README.md`, `docs/tables.md`, `server/protocol.md`, README
+- [ ] Mike places one on the live floor and plays it
 
 ## Handoff
-- **State:** started 2026-10-22; server first.
-- **Changed:**
+- **State:** built and live 2026-10-22. Nothing is placed on the live floor: Mike adds a Master Table from the Floor
+  plan tab's palette.
+- **Changed:** see Files. A felt's `layer` ("all", "base" or "print") is new and shared by every card felt.
 - **Checked:**
-- **Questions for Mike:**
+  - 16 tests in `test_master_table.py`, including an NPC simulation through six game changes, 6↔5 and back.
+  - In the browser, on a private instance (port 8680, scratch data and export):
+    - the menu and its pictures;
+    - Fresh cloth, Dealer's sweep (6 seats) and Gold dust (6→5 to High Card Flush);
+    - a vote declined and agreed, with a websocket bot as the second player;
+    - 5→6 seat renumbering;
+    - the Floor plan inspector and the Tables tab drawing the crest.
+- **Not checked in a browser:**
+  - a queued mid-hand change (covered by tests);
+  - the revert countdown text on the felt;
+  - NPCs leaving on a change (covered by tests).
+- **Questions for Mike:** none open.

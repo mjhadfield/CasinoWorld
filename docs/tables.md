@@ -107,6 +107,28 @@ Every card table follows the same alignment rules:
 - **Countdown:** centred under the title where that band is roomy, otherwise level with it at the right-hand
   end (`countdown_pos()`).
 
+## The Master Table
+
+A Master Table (docs/games/master_table.md) is drawn as whichever game it's playing: the floor swaps that game's own
+table scene in, with the same id, place and turn (`casino_floor.gd`, `_master_node`). Blank, it's `master_table.tscn`
+(`MasterTable`, no spots), and `master_felt.gd` prints its crest. `CasinoTable.is_master` marks either kind; clicking
+the dealer while sitting there emits `dealer_clicked`.
+
+The change animates over the felt (`master_swap.gd`, `MasterSwap`):
+- **The felts:** a felt's `layer` paints all of it, just the table under the printing (`"base"`), or just the printing
+  (`"print"`); `FeltCache` passes it on to its painter. The new table shows its base while `MasterSwap` paints each
+  game's printing once into a texture and moves them over it.
+- **The sweep's pieces:** the printing is cut into the band along the dealer's side, above the highest spot, and a
+  column for each seat.
+- **The old table** stays as a ghost until it's done, showing only its machines and anything still moving on its felt.
+  Machines both tables have glide across; the rest slide on or off.
+- **The chairs:** when the seat count changes, the new table's Seat markers start where the old chairs were and slide
+  home with their sitters (`move_sitters()`), and the chair that goes fades.
+
+The plan catalogue measures the blank scene and adds the five-seat table's stands and chairs (`stands5`, `chairs5`,
+from Let It Ride). The admin renderer draws the crest as layout `mt` (`geometry.json` has it from
+`tools/table_geometry.gd`).
+
 ## Turned tables
 
 A table on the floor can be turned (its `rot` on the floor plan): upright, a quarter turn either way (90, 270) or

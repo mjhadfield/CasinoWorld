@@ -26,6 +26,9 @@ const TRAY_FILL := [0.45, 1.0, 0.6, 0.0, 0.85, 1.0, 0.7, 0.0, 0.9, 0.35]
 const CHIP_EDGE := 1.05               # one chip lying in a channel, seen from above
 
 var painting := false        # this is FeltCache's copy, which paints the picture
+## What paint() draws: "all", or just the table under the printing ("base") or just the printing ("print") -- a
+## Master Table changing game shows its base while MasterSwap moves the two games' printing over it.
+var layer := "all"
 var table_ref: CasinoTable   # (the copy's table: it isn't the copy's parent)
 var _cache: FeltCache
 

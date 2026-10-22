@@ -99,6 +99,9 @@ func _ready() -> void:
 	hud.stand_pressed.connect(_request_stand)
 	hud.stand_confirmed.connect(func(): Net.send("stand"))
 	hud.name_entered.connect(Session.choose_name)
+	hud.master.chosen.connect(func(game: String): Net.send("choose_game", {"game": game}))
+	hud.master.voted.connect(func(accept: bool): Net.send("game_vote", {"accept": accept}))
+	hud.master.cancel_queued.connect(func(): Net.send("cancel_game_change"))
 	Net.message_received.connect(_on_message)
 	Net.resynced.connect(_on_resynced)
 	Settings.changed.connect(func(key: String, _v):
@@ -176,6 +179,7 @@ func _register(t: FloorGame) -> void:
 		return
 	t.spot_clicked.connect(_on_spot_clicked)
 	t.spot_removed.connect(_on_spot_removed)
+	t.dealer_clicked.connect(_on_dealer_clicked.bind(t))
 	t.my_hand_changed.connect(func(text: String):
 		if t == active_table:
 			my_hand = text)
@@ -481,6 +485,10 @@ func _sat_down(msg: Dictionary) -> void:
 		if state != "seated" or active_table != t:
 			return
 	_camera_to(world.to_local(t.focus_point()), TABLE_ZOOM, wrapf(-t.rotation, -PI, PI))  # a turned table, the right way up
+	if t is MasterTable:   # a blank Master Table: what would you like to play?
+		await get_tree().create_timer(0.6).timeout
+		if state == "seated" and active_table is MasterTable and not hud.master.menu_open():
+			_open_master_menu(active_table)
 
 
 ## Sitting at a slot cabinet: you sit down, the camera comes in, then the full-screen game grows
@@ -832,6 +840,12 @@ func _on_table_state(msg: Dictionary) -> void:
 	var t: CasinoTable = tables.get(msg.table)
 	if t == null:
 		return
+	if msg.has("master"):   # a Master Table: its game's own table (MasterTable while it's blank)
+		var want := str(msg.master.get("game", ""))
+		if t.master_game != want:   # (a resync, or joining: no animation)
+			var mine = msg.get("my_seat")
+			t = _replace_master(t, want, int(mine) if mine != null else -1, msg.master.get("rules", {}))
+		_apply_master(t, msg.master)
 	t.apply_snapshot(msg)
 	var seats: Array = msg.get("seats", [])
 	for i in seats.size():
@@ -849,6 +863,9 @@ func _on_table_state(msg: Dictionary) -> void:
 
 func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 	if t == null:
+		return
+	if str(ev.kind).begins_with("master_"):
+		_on_master_event(t, ev)
 		return
 	t.handle_event(ev)
 	var mine := state == "seated" and t == active_table
@@ -971,6 +988,153 @@ func _resolve_target(target: String) -> Vector2:
 		var t: FloorGame = tables[parts[1]]
 		return _on_floor(t, t.stand_pos(int(parts[2])))
 	return _fallback_point()
+
+
+# ------------------------------------------------------------------ Master Tables
+## A Master Table's node for `game` ("" blank: MasterTable) in `old`'s place: that game's own table, with the same id,
+## place and turn, on the floor's books in place of `old` (which the caller ghosts or frees). `bare`: its felt shows
+## without its printing for now (MasterSwap draws the printing changing over it).
+func _master_node(old: CasinoTable, game: String, bare := false) -> CasinoTable:
+	var t: CasinoTable = PlanRoom.TABLE_SCENES[game if game != "" else "master_table"].instantiate()
+	t.table_id = old.table_id
+	t.is_master = true
+	t.master_game = game
+	t.game_label = MasterPanel.name_of(game) if game != "" else old.game_label if old is MasterTable else "Master Table"
+	if game == "pai_gow_face_up":
+		t.set("face_up", true)
+	t.position = old.position
+	t.rotation = old.rotation
+	if bare:
+		(t.get_node("Felt") as TableFelt).layer = "base"
+	t.add_to_group("navigation_obstacles")
+	var room := old.get_parent()
+	room.add_child(t)
+	if room is PlanRoom:
+		var i: int = room.games.find(old)
+		if i >= 0:
+			room.games[i] = t
+	_register(t)
+	t.offer_seats = state == "walking" and Session.preview == ""
+	Sfx.set_table_set(t.table_id, game if game != "" else "casino")
+	return t
+
+
+## A Master Table that's playing something else than its node shows (joining, or back from a hidden tab): swap
+## the node at once. You keep your seat (`seat`: yours in the new game's, from the snapshot).
+func _replace_master(old: CasinoTable, game: String, seat: int, rules: Dictionary) -> CasinoTable:
+	var t := _master_node(old, game)
+	_follow_master(old, t, seat, rules)
+	old.get_parent().remove_child(old)
+	old.queue_free()
+	return t
+
+
+## You were sitting at `old`, and it's now `t`: you sit at `t` in `seat` (its seat numbers may differ: six seats or
+## five), with its chips and rules.
+func _follow_master(old: CasinoTable, t: CasinoTable, seat: int, rules: Dictionary) -> void:
+	if state != "seated" or active_table != old or seat < 0:
+		return
+	old.mode = ""
+	old.my_seat = -1
+	active_table = t
+	my_seat = seat
+	t.my_seat = seat
+	t.mode = "seated"
+	my_bets = t.zero_bets()
+	my_ready = false
+	played_a_hand = false
+	my_hand = ""
+	_placed.clear()
+	hud.setup_table(rules)
+	hud.set_pending(0)
+	hud.clear_my_hand()
+	if "chip_value" in t:
+		t.chip_value = hud.selected_chip
+	Seating.sit_down(player, player.avatar, t, seat, false)
+
+
+## The server's view of a Master Table (its snapshot's `master`): on the table, and on your HUD if you're sitting there.
+func _apply_master(t: CasinoTable, m: Dictionary) -> void:
+	t.master = m
+	var now := Time.get_ticks_msec() / 1000.0
+	t.master_revert_end = now + float(m.revert) if m.get("revert") != null else 0.0
+	if state != "seated" or t != active_table:
+		return
+	hud.master.show_queued(str(m.queued) if m.get("queued") != null else "")
+	var v = m.get("vote")
+	if v == null:
+		hud.master.hide_vote()
+	elif my_seat in v.voters.map(func(x): return int(x)) and not my_seat in v.agreed.map(func(x): return int(x)):
+		hud.master.show_vote("Switch to %s?  %%d" % MasterPanel.name_of(str(v.game)), float(v.seconds), true)
+	else:
+		hud.master.show_vote("Waiting for the others to agree to %s  ·  %%d" % MasterPanel.name_of(str(v.game)), float(v.seconds), false)
+
+
+func _on_master_event(t: CasinoTable, ev: Dictionary) -> void:
+	var mine := state == "seated" and t == active_table
+	match ev.kind:
+		"master_change":   # a new game: its table takes this one's place, the change animating over it
+			var b := _master_node(t, str(ev.game), true)
+			var seat := -1
+			if mine:   # (JSON numbers are floats: find() needs ints)
+				seat = (ev.get("map", []) as Array).map(func(x): return int(x)).find(my_seat)
+			MasterSwap.start(t, b, ev)
+			_follow_master(t, b, seat, ev.get("rules", {}))
+			if mine:
+				hud.master.close_all()
+		"master_vote":
+			t.master["vote"] = {"game": ev.game, "by": ev.by, "voters": ev.voters, "agreed": [], "seconds": ev.seconds}
+			if mine and int(ev.by) != my_seat:
+				var asks := "%s wants to switch to %s.  Agree?  %%d" % [str(ev.get("name", "Someone")), MasterPanel.name_of(str(ev.game))]
+				hud.master.show_vote(asks if my_seat in ev.voters.map(func(x): return int(x)) else "Waiting for the others  ·  %d",
+					float(ev.seconds), my_seat in ev.voters.map(func(x): return int(x)))
+			elif mine:
+				hud.master.show_vote("Asking the others about %s  ·  %%d" % MasterPanel.name_of(str(ev.game)), float(ev.seconds), false)
+		"master_vote_end":
+			t.master["vote"] = null
+			if mine:
+				hud.master.hide_vote()   # (the dealer says how it went)
+		"master_queued":
+			t.master["queued"] = ev.game
+			if mine:
+				hud.master.show_queued(str(ev.game) if ev.game != null else "")
+		"master_revert":
+			t.master_revert_end = Time.get_ticks_msec() / 1000.0 + float(ev.seconds) if ev.get("seconds") != null else 0.0
+
+
+## You clicked the dealer at the Master Table you're sitting at.
+func _on_dealer_clicked(t: CasinoTable) -> void:
+	if state != "seated" or t != active_table or not t.is_master:
+		return
+	if t.phase == "changing":
+		return
+	if t.master.get("vote") != null:
+		hud.show_toast("A change is already being asked about.")
+		return
+	if t.master.get("queued") != null:
+		t.dealer.say("%s is next, after this hand." % MasterPanel.name_of(str(t.master.queued)))
+		return
+	t.dealer.say("What would you like to play?" if t.master_game == "" else
+		"Let's finish this hand first. What would you like next?" if t.in_hand else "Fancy a change? What would you like to play?")
+	_open_master_menu(t)
+
+
+func _open_master_menu(t: CasinoTable) -> void:
+	var others := 0
+	for seat in t.occupants:
+		if seat != my_seat and t.occupants[seat].get("human", false):
+			others += 1
+	var note := "The table changes to suit the game."
+	var warn := false
+	if t.in_hand or (t.phase != "betting" and t.master_game != ""):
+		note = "This hand finishes first, then the table changes."
+		warn = true
+	elif others > 0:
+		note = "The others at the table will be asked first."
+		warn = true
+	elif t.master_game != "":
+		note = "Any bets on the felt come back to you first."
+	hud.master.open_menu(t.table_id, t.master_game, t.occupants.size() >= t.seat_count(), note, warn)
 
 
 # ------------------------------------------------------------------ helpers

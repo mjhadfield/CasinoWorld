@@ -74,15 +74,17 @@ func paint() -> void:
 	draw_set_transform(-position)  # draw in table coordinates
 	var ledge: bool = d.tray.mode == "ledge"
 	var felt := felt_outline(ledge)
-	# Its shadow on the carpet.
-	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 4.0), _lit(Vector2(0, 3))), Color(0, 0, 0, 0.16))
-	draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 1.5), _lit(Vector2(0, 2))), Color(0, 0, 0, 0.3))
-	_rail(felt, ledge)
-	_felt(felt)
-	_border(ledge)
-	_bead(felt)
-	_tray(t, ledge)
-	_draw_layout(t)
+	if layer != "print":
+		# Its shadow on the carpet.
+		draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 4.0), _lit(Vector2(0, 3))), Color(0, 0, 0, 0.16))
+		draw_colored_polygon(_shifted(CasinoTable.grown(CasinoTable.RAIL + 1.5), _lit(Vector2(0, 2))), Color(0, 0, 0, 0.3))
+		_rail(felt, ledge)
+		_felt(felt)
+		_border(ledge)
+		_bead(felt)
+		_tray(t, ledge)
+	if layer != "base":
+		_draw_layout(t)
 	draw_set_transform(-position)
 
 

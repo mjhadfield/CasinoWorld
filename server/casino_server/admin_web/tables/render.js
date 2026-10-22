@@ -88,7 +88,7 @@ export const SLOTS = [
 ];
 
 export const GAMES = [["tcp", "Three Card"], ["bj", "Blackjack"], ["pgf", "Pai Gow Fortune"], ["pgu", "Pai Gow Face Up"], ["ms", "Mississippi"],
-  ["uth", "Hold'em"], ["lir", "Let It Ride"], ["hcf", "High Card Flush"], ["bac", "Baccarat"]];
+  ["uth", "Hold'em"], ["lir", "Let It Ride"], ["hcf", "High Card Flush"], ["bac", "Baccarat"], ["mt", "Master Table"]];
 export const VIEWS = { seated: ["Seated", [-166, -188, 332, 242]], table: ["Whole table", [-182, -192, 364, 254]],
   bay: ["Bay close-up", [-112, -160, 224, 70]], seat: ["One seat", [-16, -98, 82, 108]] };
 
@@ -565,7 +565,7 @@ function jackpotDisc(ctx, D, at, lit) {
 
 // ---------------------------------------------------------------- each game's printing (ports of the *_felt.gd files)
 function layout(game, T, D) {
-  const DY = G.dealer_y, sp = [], tx = [], ink = 1;
+  const DY = G.dealer_y, sp = [], tx = [], ink = 1, draw = [];
   const title = (s, size = 9) => tx.push([s, 0, T.title_y, size, "ink", 1]);
   const small = (s, x, dy) => tx.push([s, x, DY + dy, 3, "ink", 0.85]);
   const circle = (at, ring, lines) => sp.push({ shape: "circle", at, r: 7.5, ring, lines, size: 2 });
@@ -630,6 +630,10 @@ function layout(game, T, D) {
       S.forEach(s => { jp.push(s.jackpot.at); circle(s.flush.at, "accent", ["FLUSH"]); circle(s.straight_flush.at, "ink", ["STRAIGHT", "FLUSH"]);
         for (const k of ["ante", "raise"]) big(s[k].at, 8, [k.toUpperCase()], 3); });
       break; }
+    case "mt": {   // the Master Table before a game's chosen (master_felt.gd): its crest
+      for (const [s, x, d] of [["ANY CARD GAME", -62, -1.5], ["ON ONE TABLE", -62, 3.5], ["CHANGE GAME", 62, -1.5], ["BETWEEN HANDS", 62, 3.5]]) small(s, x, d);
+      draw.push(c => masterCrest(c, D));
+      break; }
     case "bac": {
       title("BACCARAT");
       for (const [side, j] of [["player", 0], ["banker", 3]]) {
@@ -644,7 +648,55 @@ function layout(game, T, D) {
         } });
       break; }
   }
-  return { sp, tx, jp };
+  return { sp, tx, jp, draw };
+}
+
+// ---------------------------------------------------------------- the Master Table's crest (master_felt.gd)
+const CREST = [0, -64];
+function arcText(c, s, cx, cy, r, mid, size, colour, D, bottom = false) {
+  const f = FONTS[D.print.font] || FONTS.cinzel;
+  c.save(); c.font = `${f[1]} ${size * 10}px "${f[0]}", Georgia, serif`;
+  const chars = [...s], ws = chars.map(ch => c.measureText(ch).width / 10), gap = size * 0.16;
+  const total = ws.reduce((a, b) => a + b, 0) + gap * (chars.length - 1), dir = bottom ? -1 : 1;
+  let along = 0; const a0 = mid - dir * total / (2 * r);
+  chars.forEach((ch, i) => {
+    const a = a0 + dir * (along + ws[i] / 2) / r;
+    c.save(); c.translate(cx + r * Math.cos(a), cy + r * Math.sin(a)); c.rotate(a + dir * Math.PI / 2); c.scale(0.1, 0.1);
+    c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = colour; c.fillText(ch, 0, 0); c.restore();
+    along += ws[i] + gap;
+  });
+  c.restore();
+}
+function masterCrest(c, D) {
+  const [cx, cy] = CREST, ink = D.print.ink, acc = D.print.accent, R = 24, band = 18.9;
+  const grad = (y0, y1) => { const g = c.createLinearGradient(cx, y0, cx, y1); g.addColorStop(0, lighten(acc, 0.45)); g.addColorStop(0.5, acc); g.addColorStop(1, darken(acc, 0.35)); return g; };
+  const ring = (r, style, w) => { c.beginPath(); c.arc(cx, cy, r, 0, 7); c.strokeStyle = style; c.lineWidth = w; c.stroke(); };
+  const diamond = (x, y, hw, hh, col) => { c.beginPath(); c.moveTo(x, y - hh); c.lineTo(x + hw, y); c.lineTo(x, y + hh); c.lineTo(x - hw, y); c.closePath(); c.fillStyle = col; c.fill(); };
+  c.beginPath(); c.arc(cx, cy, R + 0.6, 0, 7); c.fillStyle = "rgba(0,0,0,.15)"; c.fill();
+  ring(R, grad(cy - R, cy + R), 1.0); ring(R - 1.5, rgba(ink, 0.55), 0.22); ring(15.2, rgba(ink, 0.75), 0.32); ring(14.2, rgba(ink, 0.35), 0.18);
+  arcText(c, "MASTER TABLE", cx, cy, band, -Math.PI / 2, 4, ink, D);
+  arcText(c, "NINE GAMES · ONE TABLE", cx, cy, band, Math.PI / 2, 2, rgba(ink, 0.85), D, true);
+  for (const s of [-1, 1]) diamond(cx + s * band, cy, 0.9, 1.4, acc);
+  for (const [deg, suit] of [[-90, "s"], [0, "h"], [90, "c"], [180, "d"]]) {
+    const a = deg * Math.PI / 180;
+    suitShape(c, suit, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8 + 0.3, 5.6, "hd".includes(suit) ? acc : ink);
+  }
+  c.beginPath();
+  for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, r = i % 2 ? 1.0 : 2.2; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+  c.closePath(); c.fillStyle = acc; c.fill();
+  c.beginPath(); c.ellipse(cx, cy - R, 7.6, 2.4, 0, 0, 7); c.fillStyle = D.felt.colour; c.fill();
+  const w = 11, h = w * 0.7, bx = cx, by = cy - R + 0.8;
+  c.beginPath(); c.moveTo(bx - w / 2, by); c.lineTo(bx - w / 2, by - h * 0.25); c.lineTo(bx - w * 0.56, by - h * 0.92); c.lineTo(bx - w * 0.25, by - h * 0.48);
+  c.lineTo(bx, by - h); c.lineTo(bx + w * 0.25, by - h * 0.48); c.lineTo(bx + w * 0.56, by - h * 0.92); c.lineTo(bx + w / 2, by - h * 0.25); c.lineTo(bx + w / 2, by); c.closePath();
+  c.fillStyle = grad(by - h, by); c.fill(); c.strokeStyle = darken(acc, 0.5); c.lineWidth = 0.25; c.stroke();
+  for (const [px, py] of [[-w * 0.56, -h * 0.92], [0, -h], [w * 0.56, -h * 0.92]]) { c.beginPath(); c.arc(bx + px, by + py, w * 0.07, 0, 7); c.fillStyle = lighten(acc, 0.35); c.fill(); }
+  for (const [x, y] of [[cx + R, cy], [cx, cy + R], [cx - R, cy]]) diamond(x, y, 1.2, 1.6, lighten(acc, 0.2));
+  const ty = cy + 31;
+  text(c, "ASK THE DEALER FOR ANY GAME", 0, ty, 3, rgba(ink, 0.92), D);
+  for (const s of [-1, 1]) {
+    c.beginPath(); c.moveTo(s * 33, ty); c.lineTo(s * 48, ty); c.strokeStyle = rgba(acc, 0.8); c.lineWidth = 0.3; c.stroke();
+    diamond(s * 31, ty, 0.8, 0.9, acc);
+  }
 }
 
 // ---------------------------------------------------------------- cards
@@ -1107,8 +1159,9 @@ export function render(canvas, D, game, rect, opts = {}) {
   for (const [s, x, y, size, role, a] of L.tx) text(ctx, s, x, y, size, rgba(colourOf(D, role), a), D, { foil: D.spots === "foil" && size >= 8 ? colourOf(D, role) : false });
   L.sp.forEach(s => drawSpot(ctx, D, s));
   L.jp.forEach((at, i) => jackpotDisc(ctx, D, at, opts.lit && i === 3));
+  L.draw.forEach(f => f(ctx));
   if (T.discard) rack(ctx, D, T.discard);
-  if (opts.play) drawPlay(ctx, D, game, T);
+  if (opts.play && SAMPLE[game]) drawPlay(ctx, D, game, T);
   if (T.shoe) shoe(ctx, D, T.shoe);
   if (T.shuffler) shuffler(ctx, D, T.shuffler);
   T.chairs.forEach(c => chair(ctx, c));

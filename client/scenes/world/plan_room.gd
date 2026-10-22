@@ -27,6 +27,7 @@ const TABLE_SCENES := {
 	"baccarat": preload("res://scenes/table/bac_table.tscn"),
 	"roulette": preload("res://scenes/table/rou_table.tscn"),
 	"craps": preload("res://scenes/table/crp_table.tscn"),
+	"master_table": preload("res://scenes/table/master_table.tscn"),   # (blank: the floor swaps in its game's table)
 }
 const SIGN := {"back": Color("120406"), "rim": Color("f2c14e"), "text": Color("ffd76a")}
 const BRASS := Color("c9a24a")
@@ -100,6 +101,7 @@ func _place(item: Dictionary) -> void:
 		if game == "pai_gow_face_up":
 			t.face_up = true
 		t.sign_side = str(item.get("props", {}).get("sign", ""))
+		t.is_master = game == "master_table"
 		t.position = at
 		t.rotation = deg_to_rad(float(item.get("rot", 0)))
 		t.add_to_group("navigation_obstacles")

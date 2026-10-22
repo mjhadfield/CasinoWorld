@@ -104,7 +104,8 @@ sections:
     (any NPC on the roster, or a dealer) and the furniture library: click one and click the floor (or drag it in),
     R turns it (a table turns about its middle), Esc stops. Tables are drawn as the game shows them: chairs, dealers
     and Roulette's and Craps' results signs upright, the shadow falling down the screen; the inspector's Sign picks
-    which end the sign stands past. Drag to move (8px steps, Shift for free), drag a box to pick several, arrows nudge,
+    which end the sign stands past, and a Master Table's "Changes with" and Speed pick its change animation (Fresh
+    cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several, arrows nudge,
     Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch (the
     cursor turns to a resize arrow over either; a picked patch's edge wins over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
@@ -330,7 +331,8 @@ admin page's Slot design tab.
   - `floor.py`: what's on the floor now (tables, points, seats, walking distances), filled from the live floor plan.
   - `tables/base.py`: seating, betting, Ready and the clock, shared by every table machine.
   - `tables/<game>.py`: the timed table machines, which are pure and emit events;
-    `tables/slot_machine.py` is a cabinet. `tables/runner.py` drives one in real time.
+    `tables/slot_machine.py` is a cabinet; `tables/master.py` is the Master Table, which holds whichever card game's
+    machine it's playing and swaps it between hands. `tables/runner.py` drives one in real time.
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
   - `npc.py`: the NPC director; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
@@ -356,7 +358,8 @@ admin page's Slot design tab.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`,
     `felt_cache` (a felt shown as one picture), `table_felt` (every felt's base), `styled_felt` (a table drawn in
     its table style, Roulette's and Craps' too), `chip_face` (chips in a style), the shoe, shuffler, discard rack, cards and chips,
-    the roulette wheel and the craps dice.
+    the roulette wheel and the craps dice. The Master Table: `master_table` and `master_felt` (blank, the crest) and
+    `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD, the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to

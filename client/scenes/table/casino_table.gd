@@ -27,6 +27,8 @@ signal my_settle_done
 signal my_hand_changed(text: String)
 ## This table's cards have been cleared away (round over).
 signal round_cleared
+## At a Master Table: the local player, sitting here, clicked the dealer (to choose or change the game).
+signal dealer_clicked
 
 # Table shape (table coordinates; the front edge is at y≈0).
 const HALF_W := 156.0                  # felt half-width
@@ -68,6 +70,13 @@ var _dealer_cards := []
 var _dealer_home := Vector2.ZERO  # where the dealer stands (the scene's spot), in the bay behind the felt
 var _shown_turn := 0.0            # the screen_turn() last drawn
 var look := {}                    # this table's style's design (TableStyle), filled in by style()
+## A Master Table (server tables/master.py) is this game's table while it plays it, or MasterTable while it's blank:
+## `master_game` is the game it's playing ("" blank), `master` the server's view of it (vote, queued change...).
+var is_master := false
+var master_game := ""
+var master := {}
+var master_revert_end := 0.0      # back to the crest at this time (local seconds), or 0
+var _dealer_hot := false
 
 @onready var dealer: Avatar = $Dealer
 @onready var _felt: Node2D = $Felt
@@ -503,13 +512,18 @@ func _process(_delta: float) -> void:
 		var speed := 3.0 if _queue.size() > 6 else 1.0  # catch up if we fell behind
 		_busy_until = now + float(step.call(speed)) / speed
 	# (off screen, a countdown or a thinking ring waits: coming into view redraws it)
-	if mode != "" or (on_screen_now and (_timer_end > now or _needs_redraw()
+	if mode != "" or (on_screen_now and (_timer_end > now or master_revert_end > now or _needs_redraw()
 			or (occupants.size() < seat_count() and breathes_now()))):  # (glowing chairs breathe)
 		queue_redraw()
 	var turn := screen_turn()
 	if turn != _shown_turn:
 		_shown_turn = turn
 		_turned_on_screen()
+	if is_master:   # (sitting here, the dealer lights up under the pointer: click them to change the game)
+		var hot := mode == "seated" and over_dealer(get_local_mouse_position())
+		if hot != _dealer_hot:
+			_dealer_hot = hot
+			dealer.modulate = Color(1.3, 1.2, 0.95) if hot else Color.WHITE
 
 
 ## The table shows a different way up (see screen_turn()). Upside down or on its side, the
@@ -934,6 +948,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 	var p := get_local_mouse_position()
+	if is_master and mode == "seated" and event.button_index == MOUSE_BUTTON_LEFT and over_dealer(p):
+		dealer_clicked.emit()
+		get_viewport().set_input_as_handled()
+		return
 	if mode == "seated" and my_seat >= 0:
 		for spot in bet_spots():
 			if p.distance_to(spot_pos(my_seat, spot)) < spot_radius(spot):
@@ -966,6 +984,8 @@ func _draw() -> void:
 			p + on_screen(Vector2(1.9, -1.4))]), Color.WHITE, 0.8)
 	_draw_game(now, pulse)
 	var countdown := _countdown_text(timer_left())
+	if countdown == "" and master_revert_end > now:   # a Master Table nobody's at: back to the crest soon
+		countdown = "MASTER TABLE IN %d" % ceili(master_revert_end - now)
 	if countdown != "":
 		var at := countdown_pos()
 		draw_string(Card2D.FONT, Vector2(at.x - 45, at.y + 1.75), countdown, HORIZONTAL_ALIGNMENT_CENTER, 90, 5, Color(1, 0.88, 0.5))
@@ -999,6 +1019,11 @@ func countdown_pos() -> Vector2:
 
 func _countdown_x() -> float:
 	return 90.0  # clear of the title and inside the felt's curved border
+
+
+## Whether `local` is on the dealer (the figure standing up from their feet, as the screen shows them).
+func over_dealer(local: Vector2) -> bool:
+	return Rect2(-13, -52, 26, 50).has_point((local - dealer.position).rotated(screen_turn()))
 
 
 ## A ring around a seat's chair: who's thinking, with their time running down.

@@ -15,6 +15,7 @@ How the floor works and what every table has in common. Each game's rules are in
 | Roulette | `rou_1` | [roulette.md](roulette.md) |
 | Craps | `crp_1` | [craps.md](craps.md) |
 | Slots (Armadillo Goes West and built slots) | `slot_1`.. (the floor plan) | [slots.md](slots.md), and the design record in `docs/slots/` |
+| Master Table: any of the card games above, chosen at the table | `mt_<n>` (the floor plan) | [master_table.md](master_table.md) |
 
 ## The floor
 

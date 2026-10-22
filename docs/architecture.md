@@ -62,6 +62,12 @@ game result and every penny is decided on the server; the client only renders an
   `credit` and `refund`. The machine never knows which kind it's dealing with, so NPCs play by exactly the
   same rules and money moves.
 - **Timings** are a dataclass per game. `CASINO_SPEED` scales them, and tests use instant ones.
+- **The Master Table (`tables/master.py`)** is a machine that holds another: whichever card game it's been asked
+  for, built by the Casino's `_make_machine` and passed everything it doesn't handle itself, so the runner, the NPCs
+  and the message handling see an ordinary table of that game. It swaps the inner machine between hands (seats
+  renumbered when the count changes 6↔5: the runner sends everyone a fresh `table_state`, and `Casino.on_reseated`
+  moves sessions, the world's seats and NPCs to their new seats; `floor.SEATS` follows the seat count). The client
+  swaps in that game's own table scene (`casino_floor.gd`, `MasterSwap`).
 
 ### NPCs, dealers and the roster
 

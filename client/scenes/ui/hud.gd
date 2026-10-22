@@ -27,6 +27,7 @@ var pending := 0  # your bets on the felt that haven't been taken from your bala
 var _actions_shown := []  # the action list the buttons were built from
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
 var settings_menu: SettingsMenu
+var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: Button
 var _toast_tween: Tween
 var _banner_tween: Tween
@@ -39,6 +40,8 @@ func _ready() -> void:
 	_click_all(self)
 	sorter = HandSorter.new()
 	add_child(sorter)
+	master = MasterPanel.new()
+	add_child(master)
 	settings_menu = SettingsMenu.new()
 	add_child(settings_menu)
 	settings_button = Button.new()
@@ -119,6 +122,7 @@ func set_mode(new_mode: String) -> void:
 	settings_button.visible = mode != "slot"   # ...and its own Settings button
 	if mode != "seated":
 		sorter.close()
+		master.close_all()
 		%MyHand.hide()
 		%Paytable.hide()
 		%PaytableButton.button_pressed = false
@@ -173,7 +177,7 @@ func show_name_prompt(current := "") -> void:
 
 ## True while a panel that takes the keyboard is open (the floor ignores game keys then).
 func is_typing() -> bool:
-	return %NamePrompt.visible or settings_menu.visible
+	return %NamePrompt.visible or settings_menu.visible or master.menu_open()
 
 
 func confirm_stand(text := "You're in this hand -- standing up folds it. Stand up anyway?") -> void:

@@ -61,6 +61,7 @@ func _ready() -> void:
 ## The felt changed: paint it again (this frame, before it's shown).
 func repaint() -> void:
 	if _scale > 0.0:
+		_painter.layer = felt.layer
 		_painter.queue_redraw()
 		_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
