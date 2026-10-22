@@ -301,7 +301,7 @@ func _restyle_under(node: Node) -> void:
 		if n is ChipStack2D:
 			n.style = look
 		elif n is Card2D:
-			n.back = str(look.back)
+			n.look = look
 		_restyle_under(n)
 
 
@@ -843,7 +843,7 @@ func _make_stack(_seat: int) -> ChipStack2D:
 func _new_card(code: String, pos: Vector2) -> Card2D:
 	var card := Card2D.new()
 	if styled():
-		card.back = str(style().back)
+		card.look = style()
 	card.code = code
 	card.position = pos
 	card.rotation = 0.0

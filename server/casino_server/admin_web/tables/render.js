@@ -43,8 +43,14 @@ export const FONTS = { cinzel: ["TS Cinzel", 600, "Cinzel"], cormorant: ["TS Cor
 const FONT_FILES = { "TS Cinzel": ["Cinzel-SemiBold.ttf", "600"], "TS Cormorant": ["CormorantSC-Bold.ttf", "700"], "TS Josefin": ["JosefinSans-SemiBold.ttf", "600"],
   "TS Montserrat": ["Montserrat-SemiBold.ttf", "600"], "TS DejaVu": ["DejaVuSans-Bold.ttf", "700"] };
 const SANS = '"TS DejaVu", "DejaVu Sans", sans-serif';   // the game's chip, card and display lettering
-export const BACKS = { charcoal: "Charcoal & brass (today)", lattice: "Red lattice", sunburst: "Garnet sunburst", monogram: "Burgundy monogram", stripe: "Black & red stripe", emerald: "Emerald lattice" };
+export const BACKS = { charcoal: "Framed", lattice: "Lattice", sunburst: "Sunburst", monogram: "Monogram", stripe: "Stripe" };
+// Each back's colour before the colour was its own choice (table_styles.BACK_MAIN): a design without backColour takes it.
 export const BACK_MAIN = { charcoal: "#34373c", lattice: "#8e1a22", sunburst: "#4d1616", monogram: "#5a1322", stripe: "#141414", emerald: "#145238" };
+export const backColour = D => D.backColour || BACK_MAIN[D.back] || BACK_MAIN.charcoal;
+const BACK_COLOURS = [["Charcoal", "#34373c"], ["Red", "#8e1a22"], ["Garnet", "#4d1616"], ["Burgundy", "#5a1322"], ["Black", "#141414"],
+  ["Emerald", "#145238"], ["Navy", "#14284a"], ["Royal blue", "#1a3f93"], ["Plum", "#4a1d47"]];
+const CARD_COLOURS = [["White", "#f4f2ec"], ["Ivory", "#efe4c8"], ["Silver", "#cfd3d6"], ["Gold", "#d9b453"], ["Black", "#1c1c1e"]];
+export const FRONTS = { classic: "Classic (today)", jumbo: "Jumbo index", vintage: "Vintage", minimal: "Minimal" };
 
 export const SLOTS = [
   { id: "felt", label: "Felt", keys: ["felt"], ctl: [
@@ -83,8 +89,13 @@ export const SLOTS = [
     { key: "rack", type: "seg", options: [["clear", "Clear (today)"], ["smoked", "Tinted"], ["wood", "Wood-backed"]], label: "Discard rack" },
     { key: "rackTint", type: "swatch", options: TINTS, custom: true, label: "Rack tint (tinted)" },
     { key: "rackWood", type: "seg", options: WOOD_PICKS, label: "Rack wood (wood-backed)" }] },
-  { id: "back", label: "Card back", keys: ["back"], ctl: [
-    { key: "back", type: "seg", options: Object.entries(BACKS) }] },
+  { id: "back", label: "Card back", keys: ["back", "backColour", "cardColour"], ctl: [
+    { key: "back", type: "seg", options: Object.entries(BACKS), label: "Design" },
+    { key: "backColour", type: "swatch", options: BACK_COLOURS, custom: true, label: "Design colour" },
+    { key: "cardColour", type: "swatch", options: CARD_COLOURS, custom: true, label: "Card colour (the border round the back)" }] },
+  { id: "front", label: "Card front", keys: ["front", "suits"], ctl: [
+    { key: "front", type: "seg", options: Object.entries(FRONTS), label: "Design" },
+    { key: "suits", type: "seg", options: [["two", "Red and black"], ["four", "Four-colour (blue diamonds, green clubs)"]], label: "Suit colours" }] },
   { id: "chips", label: "Chips", keys: ["chips"], hint: "Roulette and Craps keep today's", ctl: [
     { key: "chips", type: "seg", options: [["classic", "Today's"], ["clay", "Clay inlay"], ["ceramic", "Ceramic"], ["stripes", "Striped edge"], ["metal", "Metal ring"], ["house", "House colours"], ["vintage", "Vintage suits"]] }] },
 ];
@@ -707,17 +718,17 @@ function masterCrest(c, D) {
 // ---------------------------------------------------------------- cards
 const SUITS = { s: "♠", h: "♥", d: "♦", c: "♣" };
 function cardShape(ctx, x, y, w = 14, h = 20) { ctx.beginPath(); rrect(ctx, x - w / 2, y - h / 2, w, h, 0.9); }
+// A card's back (Card2D.draw_back): its design over its colour, inside a border in the card's colour.
 function cardBack(ctx, D, x, y, w = 14, h = 20) {
-  const k = D.back, main = BACK_MAIN[k];
-  cardShape(ctx, x, y, w, h); ctx.fillStyle = "#f4f2ec"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.3; ctx.stroke();
+  const k = D.back === "emerald" ? "lattice" : D.back, main = backColour(D);
+  cardShape(ctx, x, y, w, h); ctx.fillStyle = D.cardColour || "#f4f2ec"; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 0.3; ctx.stroke();
   const ix = x - w / 2 + 1.3, iy = y - h / 2 + 1.3, iw = w - 2.6, ih = h - 2.6;
   ctx.fillStyle = main; ctx.fillRect(ix, iy, iw, ih);
   ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
   const gold = "#c9a24a";
-  if (k === "charcoal" || k === "lattice" || k === "emerald") {
-    const lc = k === "charcoal" ? "rgba(255,255,255,.1)" : k === "lattice" ? "rgba(255,235,225,.55)" : "rgba(240,228,196,.5)", step = k === "charcoal" ? 3.4 : 1.6;
-    for (let t = -ih; t < iw + ih; t += step) { ctx.beginPath(); ctx.moveTo(ix + t, iy); ctx.lineTo(ix + t - ih, iy + ih); ctx.moveTo(ix + t - ih, iy); ctx.lineTo(ix + t, iy + ih); ctx.strokeStyle = lc; ctx.lineWidth = k === "charcoal" ? 0.3 : 0.18; ctx.stroke(); }
-    ctx.strokeStyle = k === "charcoal" ? rgba(gold, 0.85) : "rgba(255,255,255,.7)"; ctx.lineWidth = 0.4; ctx.strokeRect(ix + 1.3, iy + 1.3, iw - 2.6, ih - 2.6);
+  if (k === "lattice") {
+    for (let t = -ih; t < iw + ih; t += 1.6) { ctx.beginPath(); ctx.moveTo(ix + t, iy); ctx.lineTo(ix + t - ih, iy + ih); ctx.moveTo(ix + t - ih, iy); ctx.lineTo(ix + t, iy + ih); ctx.strokeStyle = "rgba(255,235,217,.52)"; ctx.lineWidth = 0.18; ctx.stroke(); }
+    ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 0.4; ctx.strokeRect(ix + 1.3, iy + 1.3, iw - 2.6, ih - 2.6);
   } else if (k === "sunburst") {
     for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 20, y + Math.sin(a) * 20); ctx.strokeStyle = rgba("#e0b84e", 0.45); ctx.lineWidth = 0.2; ctx.stroke(); }
     ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 3, y); ctx.lineTo(x, y + 4); ctx.lineTo(x - 3, y); ctx.closePath(); ctx.fillStyle = "#e0b84e"; ctx.fill();
@@ -727,8 +738,12 @@ function cardBack(ctx, D, x, y, w = 14, h = 20) {
     ctx.beginPath(); ctx.arc(x, y, 3.3, 0, 7); ctx.strokeStyle = "#d9b453"; ctx.lineWidth = 0.3; ctx.stroke();
     text(ctx, "CW", x, y, 3, "#e8cf86", D, { font: "cormorant" });
   } else if (k === "stripe") {
-    ctx.fillStyle = "#c8202b"; ctx.beginPath(); ctx.moveTo(ix, iy + ih * 0.62); ctx.lineTo(ix + iw, iy + ih * 0.22); ctx.lineTo(ix + iw, iy + ih * 0.38); ctx.lineTo(ix, iy + ih * 0.78); ctx.closePath(); ctx.fill();
+    const [r, g, b] = hex(main), band = r - Math.max(g, b) < 64 ? "#c8202b" : "#f1e4c4";   // (cream on a red back)
+    ctx.fillStyle = band; ctx.beginPath(); ctx.moveTo(ix, iy + ih * 0.62); ctx.lineTo(ix + iw, iy + ih * 0.22); ctx.lineTo(ix + iw, iy + ih * 0.38); ctx.lineTo(ix, iy + ih * 0.78); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = "#c9d0d6"; ctx.lineWidth = 0.3; ctx.strokeRect(ix + 0.9, iy + 0.9, iw - 1.8, ih - 1.8);
+  } else {   // framed: a faint lattice in a brass frame
+    for (let t = -ih; t < iw + ih; t += 3.4) { ctx.beginPath(); ctx.moveTo(ix + t, iy); ctx.lineTo(ix + t - ih, iy + ih); ctx.moveTo(ix + t - ih, iy); ctx.lineTo(ix + t, iy + ih); ctx.strokeStyle = "rgba(255,255,255,.1)"; ctx.lineWidth = 0.3; ctx.stroke(); }
+    ctx.strokeStyle = rgba(gold, 0.85); ctx.lineWidth = 0.4; ctx.strokeRect(ix + 1.3, iy + 1.3, iw - 2.6, ih - 2.6);
   }
   ctx.restore();
 }
@@ -742,18 +757,36 @@ function suitShape(ctx, suit, cx, cy, h, colour) {   // each part filled on its 
   else if (suit === "s") { const r = h * 0.26; dot(cx - r * 0.92, cy + h * 0.1, r); dot(cx + r * 0.92, cy + h * 0.1, r); poly([[cx - h * 0.48, cy + h * 0.04], [cx + h * 0.48, cy + h * 0.04], [cx, cy - h * 0.5]]); stem(h * 0.12); }
   else { const r = h * 0.22; dot(cx, cy - h * 0.25, r); dot(cx - h * 0.25, cy + h * 0.04, r); dot(cx + h * 0.25, cy + h * 0.04, r); stem(-h * 0.05); }
 }
+// A suit's colour: red and black, or a four-colour deck's (Card2D.suit_colour).
+function suitColour(D, suit) {
+  if (D.suits === "four") return { h: "#c62828", d: "#1f5fbf", c: "#1e7d3a" }[suit] || "#1b1b1b";
+  return "hd".includes(suit) ? "#c62828" : "#1b1b1b";
+}
+// A rank centred on x, its baseline at y, `size` units tall, in `family` (the game's sans unless the front's Vintage).
+function rankText(ctx, rank, x, y, size, col, family = SANS, weight = 700) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(0.1, 0.1); ctx.font = `${weight} ${size * 10}px ${family}`; ctx.textAlign = "center"; ctx.fillStyle = col; ctx.fillText(rank, 0, 0); ctx.restore();
+}
+// A card face up or down, in the style's front and back (Card2D.paint).
 function card(ctx, D, code, x, y, rot = 0) {
   ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot);
   cardShape(ctx, 0.6, 0.8); ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fill();
-  if (code === "??") cardBack(ctx, D, 0, 0);
-  else {
-    cardShape(ctx, 0, 0); ctx.fillStyle = "#fbfaf5"; ctx.fill(); ctx.strokeStyle = "#b9b4a5"; ctx.lineWidth = 0.3; ctx.stroke();
-    const rank = code.slice(0, -1), suit = code.slice(-1), col = "hd".includes(suit) ? "#c62828" : "#1b1b1b";
-    for (const flip of [0, 1]) {
-      ctx.save(); if (flip) ctx.rotate(Math.PI);
-      ctx.save(); ctx.translate(-4.6, -6); ctx.scale(0.1, 0.1); ctx.font = `700 ${rank.length < 2 ? 40 : 30}px ${SANS}`; ctx.textAlign = "center"; ctx.fillStyle = col; ctx.fillText(rank, 0, 0); ctx.restore();
-      suitShape(ctx, suit, -4.6, -3.9, 2.5, col); ctx.restore();
-    }
+  if (code === "??") { cardBack(ctx, D, 0, 0); ctx.restore(); return; }
+  const front = D.front || "classic", vintage = front === "vintage";
+  cardShape(ctx, 0, 0); ctx.fillStyle = vintage ? "#f3ead2" : "#fbfaf5"; ctx.fill(); ctx.strokeStyle = vintage ? "#b9a77f" : "#b9b4a5"; ctx.lineWidth = 0.3; ctx.stroke();
+  const rank = code.slice(0, -1), suit = code.slice(-1), col = suitColour(D, suit), one = rank.length < 2;
+  const corners = draw => { for (const flip of [0, 1]) { ctx.save(); if (flip) ctx.rotate(Math.PI); draw(); ctx.restore(); } };
+  if (front === "jumbo") corners(() => { rankText(ctx, rank, -3.4, -3.6, one ? 7 : 5, col); suitShape(ctx, suit, -3.4, -0.7, 3.6, col); });
+  else if (front === "vintage") {
+    ctx.strokeStyle = rgba(col, 0.6); ctx.lineWidth = 0.3; ctx.strokeRect(-2.8, -7.8, 5.6, 15.6);
+    ctx.strokeStyle = rgba(col, 0.35); ctx.lineWidth = 0.15; ctx.strokeRect(-2.2, -7.2, 4.4, 14.4);
+    const f = FONTS[D.print.font] || FONTS.cinzel;
+    corners(() => { rankText(ctx, rank, -4.8, -6, one ? 4 : 3, col, `"${f[0]}", Georgia, serif`, f[1]); suitShape(ctx, suit, -4.8, -3.9, 2.2, col); });
+    suitShape(ctx, suit, 0, 0.4, 5, col);
+  } else if (front === "minimal") {
+    rankText(ctx, rank, 0, 2, one ? 9 : 7, col); suitShape(ctx, suit, 0, 5.4, 3, col);
+    rankText(ctx, rank, -5.1, -7, 2, col);   // (for cascaded cards)
+  } else {
+    corners(() => { rankText(ctx, rank, -4.6, -6, one ? 4 : 3, col); suitShape(ctx, suit, -4.6, -3.9, 2.5, col); });
     suitShape(ctx, suit, 0, 0.6, 7, col);
   }
   ctx.restore();
@@ -805,7 +838,7 @@ function shoe(ctx, D, at) {
   const ix = -bw / 2 + 3.5, iy = -bh / 2 + 2.2, iw = bw - 5.5, ih = bh - 4.4, fill = 0.72;
   ctx.fillStyle = "#ece8de"; ctx.fillRect(ix, iy, iw * fill, ih);
   for (let i = 0; i < iw * fill / 0.7; i++) { ctx.fillStyle = "rgba(0,0,0,.1)"; ctx.fillRect(ix + i * 0.7, iy, 0.2, ih); }
-  ctx.fillStyle = BACK_MAIN[D.back]; ctx.fillRect(ix + iw * fill - 1.4, iy, 1.4, ih);
+  ctx.fillStyle = backColour(D); ctx.fillRect(ix + iw * fill - 1.4, iy, 1.4, ih);
   ctx.fillStyle = "#ffd23c"; ctx.fillRect(ix + iw * 0.3 - 0.4, iy - 1.2, 0.8, ih + 2.4);   // the cut card
   ctx.fillStyle = kind === "wood" ? "rgba(30,15,5,.25)" : rgba(darken(tint, 0.15), 0.3); ctx.fillRect(ix, iy, iw, ih);
   ctx.fillStyle = kind === "wood" ? "#c9a24a" : darken(tint, 0.75); ctx.beginPath(); ctx.moveTo(-bw / 2, -bh / 2 + 2); ctx.lineTo(-bw / 2 + 3.5, -bh / 2 + 2.2); ctx.lineTo(-bw / 2 + 3.5, bh / 2 - 2.2); ctx.lineTo(-bw / 2, bh / 2 - 2); ctx.closePath(); ctx.fill();

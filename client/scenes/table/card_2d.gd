@@ -11,20 +11,25 @@ const SUITS := {"s": "♠", "h": "♥", "d": "♦", "c": "♣"}
 const RED := Color("c62828")
 const BLACK := Color("1b1b1b")
 const JOKER := Color("6a2c91")
+## A four-colour deck's diamonds and clubs (the table style's `suits`).
+const BLUE := Color("1f5fbf")
+const GREEN := Color("1e7d3a")
 ## Card backs: charcoal with a brass frame, so they stand out on the crimson felt.
 const BACK := Color("34373c")
 const BACK_FRAME := Color("c9a24a")
+const STOCK := Color("f4f2ec")    # the card's white border round the back
+const IVORY := Color("f3ead2")    # the Vintage front's stock
 
 @export var code := "??":
 	set(v):
 		code = v
 		queue_redraw()
-## Its back's design (the table style's `back`; Card2D.draw_back).
-var back := "charcoal":
+## How it's drawn: its table's style (TableStyle; `back`, `backColour`, `cardColour`, `front`, `suits` and
+## `print.font`). Empty draws the game's own: Classic faces, the charcoal back.
+var look := {}:
 	set(v):
-		if v != back:
-			back = v
-			queue_redraw()
+		look = v
+		queue_redraw()
 
 
 const _RANKS := {"Jkr": 15, "A": 14, "K": 13, "Q": 12, "J": 11}
@@ -50,39 +55,97 @@ func flip_to(new_code: String, duration := 0.25) -> Tween:
 
 
 func _draw() -> void:
-	paint(self, code, Transform2D.IDENTITY, back)
+	paint(self, code, Transform2D.IDENTITY, look)
 
 
 ## Draws a card (face, back for "??", or the Joker for "Jkr") centred on the
 ## origin of `xform`, on any canvas item -- the felt's cards at their own size,
-## the Pai Gow sorter's scaled up. The suits are drawn as shapes, not font
-## glyphs, and every edge is antialiased, so a card stays crisp at any size.
-static func paint(ci: CanvasItem, card_code: String, xform := Transform2D.IDENTITY, back_design := "charcoal") -> void:
+## the Pai Gow sorter's scaled up -- in a table style's front and back (`look`).
+## The suits are drawn as shapes, not font glyphs, and every edge is
+## antialiased, so a card stays crisp at any size.
+##
+## The fronts: "classic" (a small index tucked into the top-left corner, so it
+## still shows when cards are fanned tightly, again upside down bottom-right, a
+## big suit in the middle), "jumbo" (a big index in both corners, no centre
+## suit), "vintage" (ivory, the index in the table's lettering, the suit in a
+## double-ruled panel) and "minimal" (a big rank over a small suit, a tiny index
+## top-left). `suits` "four" makes diamonds blue and clubs green.
+static func paint(ci: CanvasItem, card_code: String, xform := Transform2D.IDENTITY, look := {}) -> void:
 	ci.draw_set_transform_matrix(xform)
 	var r := Rect2(-SIZE / 2, SIZE)
 	_round_rect(ci, Rect2(r.position + Vector2(0.6, 0.8), r.size), Color(0, 0, 0, 0.25))  # shadow
 	if card_code == "??":
-		draw_back(ci, r, back_design)
-	else:
-		_round_rect(ci, r, Color("fbfaf5"), Color("b9b4a5"))
-		var joker := card_code == "Jkr"
-		var rank := "" if joker else card_code.substr(0, card_code.length() - 1)
-		var suit := "star" if joker else card_code.right(1)
-		var colour := JOKER if joker else (RED if suit in ["h", "d"] else BLACK)
-		# The index, small and tucked into the top-left corner (so it still shows
-		# when cards are fanned tightly), and again upside down in the bottom-right.
+		draw_back(ci, r, look)
+		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+		return
+	var front := str(look.get("front", "classic"))
+	var vintage := front == "vintage"
+	_round_rect(ci, r, IVORY if vintage else Color("fbfaf5"), Color("b9a77f") if vintage else Color("b9b4a5"))
+	var joker := card_code == "Jkr"
+	var rank := "" if joker else card_code.substr(0, card_code.length() - 1)
+	var suit := "star" if joker else card_code.right(1)
+	var colour := JOKER if joker else suit_colour(suit, look)
+	if joker:   # the Joker's the same on every front: a big star, and its name
 		_corner_index(ci, r, rank, suit, colour)
 		ci.draw_set_transform_matrix(xform * Transform2D(PI, Vector2.ZERO))
 		_corner_index(ci, r, rank, suit, colour)
 		ci.draw_set_transform_matrix(xform)
-		# The suit, large, in the middle (the Joker: a big star, and its name).
-		if joker:
-			draw_suit(ci, "star", Vector2(0, -0.6), 8.0, colour)
-			var word := FONT.get_string_size("JOKER", HORIZONTAL_ALIGNMENT_LEFT, -1, 2).x
-			ci.draw_string(FONT, Vector2(-word / 2, 6.4), "JOKER", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, colour)
-		else:
+		draw_suit(ci, "star", Vector2(0, -0.6), 8.0, colour)
+		var word := FONT.get_string_size("JOKER", HORIZONTAL_ALIGNMENT_LEFT, -1, 2).x
+		ci.draw_string(FONT, Vector2(-word / 2, 6.4), "JOKER", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, colour)
+		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+		return
+	match front:
+		"jumbo":
+			for flip in [false, true]:
+				if flip:
+					ci.draw_set_transform_matrix(xform * Transform2D(PI, Vector2.ZERO))
+				var size := 7 if rank.length() < 2 else 5
+				_rank(ci, FONT, rank, Vector2(r.position.x + 3.6, r.position.y + 6.4), size, colour)
+				draw_suit(ci, suit, Vector2(r.position.x + 3.6, r.position.y + 9.3), 3.6, colour)
+			ci.draw_set_transform_matrix(xform)
+		"vintage":
+			var panel := Rect2(r.position + Vector2(4.2, 2.2), r.size - Vector2(8.4, 4.4))
+			ci.draw_rect(panel, Color(colour, 0.6), false, 0.3)
+			ci.draw_rect(panel.grow(-0.6), Color(colour, 0.35), false, 0.15)
+			var font := _font(look)
+			for flip in [false, true]:
+				if flip:
+					ci.draw_set_transform_matrix(xform * Transform2D(PI, Vector2.ZERO))
+				_rank(ci, font, rank, Vector2(r.position.x + 2.2, r.position.y + 4.0), 4 if rank.length() < 2 else 3, colour)
+				draw_suit(ci, suit, Vector2(r.position.x + 2.2, r.position.y + 6.1), 2.2, colour)
+			ci.draw_set_transform_matrix(xform)
+			draw_suit(ci, suit, Vector2(0, 0.4), 5.0, colour)
+		"minimal":
+			_rank(ci, FONT, rank, Vector2(0, 2.0), 9 if rank.length() < 2 else 7, colour)
+			draw_suit(ci, suit, Vector2(0, 5.4), 3.0, colour)
+			_rank(ci, FONT, rank, Vector2(r.position.x + 1.9, r.position.y + 3.0), 2, colour)   # (for cascaded cards)
+		_:
+			_corner_index(ci, r, rank, suit, colour)
+			ci.draw_set_transform_matrix(xform * Transform2D(PI, Vector2.ZERO))
+			_corner_index(ci, r, rank, suit, colour)
+			ci.draw_set_transform_matrix(xform)
 			draw_suit(ci, suit, Vector2(0, 0.6), 7.0, colour)
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## A suit's colour: red and black, or a four-colour deck's.
+static func suit_colour(suit: String, look := {}) -> Color:
+	if str(look.get("suits", "two")) == "four":
+		return {"h": RED, "d": BLUE, "c": GREEN}.get(suit, BLACK)
+	return RED if suit in ["h", "d"] else BLACK
+
+
+## The table's lettering, for the Vintage front.
+static func _font(look: Dictionary) -> Font:
+	var p: Variant = look.get("print")
+	return TableStyle.FONTS.get(p.get("font", ""), FONT) if p is Dictionary else FONT
+
+
+## A rank centred on `column.x`, its baseline at `column.y`.
+static func _rank(ci: CanvasItem, font: Font, rank: String, at: Vector2, size: int, colour: Color) -> void:
+	var width := font.get_string_size(rank, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	ci.draw_string(font, Vector2(at.x - width / 2, at.y), rank, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)
 
 
 ## The corner index: the rank with its suit beneath (the Joker: just a star).
@@ -91,9 +154,7 @@ static func _corner_index(ci: CanvasItem, r: Rect2, rank: String, suit: String, 
 	if rank == "":
 		draw_suit(ci, suit, Vector2(column, r.position.y + 3.4), 3.4, colour)
 		return
-	var size := 4 if rank.length() < 2 else 3
-	var width := FONT.get_string_size(rank, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	ci.draw_string(FONT, Vector2(column - width / 2, r.position.y + 4.0), rank, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)
+	_rank(ci, FONT, rank, Vector2(column, r.position.y + 4.0), 4 if rank.length() < 2 else 3, colour)
 	draw_suit(ci, suit, Vector2(column, r.position.y + 6.1), 2.5, colour)
 
 
@@ -162,35 +223,33 @@ static func _round_rect(ci: CanvasItem, r: Rect2, fill: Color, edge := Color(0, 
 	ci.draw_polyline(closed, edge if edge.a > 0 else fill, 0.3 if edge.a > 0 else 0.12, true)
 
 
-## The card backs a table style can have (TableStyle `back`), by their main colour.
+## The card backs' designs (TableStyle `back`), by the main colour each had before the colour was its own
+## choice (`backColour`; table_styles.BACK_MAIN).
 const BACKS := {"charcoal": BACK, "lattice": Color("8e1a22"), "sunburst": Color("4d1616"), "monogram": Color("5a1322"),
 	"stripe": Color("141414"), "emerald": Color("145238")}
 
 
+## A back's main colour in a table style.
+static func back_colour(look: Dictionary) -> Color:
+	if look.has("backColour"):
+		return Color(str(look.backColour))
+	return BACKS.get(str(look.get("back", "charcoal")), BACK)
+
+
 ## A card's back in `r` on any canvas item (the discard rack draws its stack
-## with this), in a table style's design: charcoal with a brass frame (the game's
-## own), a red or emerald lattice, a garnet sunburst, a burgundy monogram or a black
-## and red stripe, all inside a white border.
-static func draw_back(ci: CanvasItem, r: Rect2, design := "charcoal") -> void:
-	_round_rect(ci, r, Color("f4f2ec"), Color(0, 0, 0, 0.35))  # white border
-	if design != "charcoal" and BACKS.has(design):
-		_styled_back(ci, r.grow(-1.3), design)
-		return
-	ci.draw_rect(r.grow(-1.3), BACK)
-	ci.draw_rect(r.grow(-2.6), Color(BACK_FRAME, 0.85), false, 0.4)
-	var inner := r.grow(-2.6)
-	for i in 4:  # a faint diamond lattice
-		var f := (i + 1) / 5.0
-		ci.draw_line(Vector2(inner.position.x, inner.position.y + inner.size.y * f), Vector2(inner.position.x + inner.size.x * f, inner.position.y), Color(1, 1, 1, 0.1), 0.3)
-		ci.draw_line(Vector2(inner.end.x - inner.size.x * f, inner.end.y), Vector2(inner.end.x, inner.end.y - inner.size.y * f), Color(1, 1, 1, 0.1), 0.3)
-
-
-static func _styled_back(ci: CanvasItem, inner: Rect2, design: String) -> void:
-	ci.draw_rect(inner, BACKS[design])
+## with this), in a table style's design over its back colour, inside a border
+## in its card colour: "charcoal" (framed: a faint lattice in a brass frame, the
+## game's own), "lattice", "sunburst", "monogram" or "stripe".
+static func draw_back(ci: CanvasItem, r: Rect2, look := {}) -> void:
+	_round_rect(ci, r, Color(str(look.get("cardColour", STOCK.to_html(false)))), Color(0, 0, 0, 0.35))
+	var design := str(look.get("back", "charcoal"))
+	var main := back_colour(look)
+	var inner := r.grow(-1.3)
+	ci.draw_rect(inner, main)
 	var c := inner.get_center()
 	match design:
 		"lattice", "emerald":
-			var line := Color(1.0, 0.92, 0.88, 0.55) if design == "lattice" else Color(0.94, 0.89, 0.77, 0.5)
+			var line := Color(1.0, 0.92, 0.85, 0.52)
 			var ix := inner.position.x
 			var iy := inner.position.y
 			var iw := inner.size.x
@@ -228,6 +287,15 @@ static func _styled_back(ci: CanvasItem, inner: Rect2, design: String) -> void:
 		"stripe":
 			var x := inner.position.x
 			var y := inner.position.y
+			var red := Color("c8202b")
+			var band := red if main.r - maxf(main.g, main.b) < 0.25 else Color("f1e4c4")   # (cream on a red back)
 			ci.draw_colored_polygon(PackedVector2Array([Vector2(x, y + inner.size.y * 0.62), Vector2(inner.end.x, y + inner.size.y * 0.22),
-				Vector2(inner.end.x, y + inner.size.y * 0.38), Vector2(x, y + inner.size.y * 0.78)]), Color("c8202b"))
+				Vector2(inner.end.x, y + inner.size.y * 0.38), Vector2(x, y + inner.size.y * 0.78)]), band)
 			ci.draw_rect(inner.grow(-0.9), Color("c9d0d6"), false, 0.3)
+		_:   # framed: a faint lattice in a brass frame
+			ci.draw_rect(r.grow(-2.6), Color(BACK_FRAME, 0.85), false, 0.4)
+			var frame := r.grow(-2.6)
+			for i in 4:
+				var f := (i + 1) / 5.0
+				ci.draw_line(Vector2(frame.position.x, frame.position.y + frame.size.y * f), Vector2(frame.position.x + frame.size.x * f, frame.position.y), Color(1, 1, 1, 0.1), 0.3)
+				ci.draw_line(Vector2(frame.end.x - frame.size.x * f, frame.end.y), Vector2(frame.end.x, frame.end.y - frame.size.y * f), Color(1, 1, 1, 0.1), 0.3)

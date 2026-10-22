@@ -3,7 +3,7 @@
 // (table_styles.py); saving one restyles every table using it straight away. House is the default every table of
 // its kind uses unless it's given another; the presets are built in (save a copy to change one).
 // Three columns: styles and placement | the table, fitted to the window | the design's controls.
-import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, BACK_MAIN } from "/admin-ui/tables/render.js";
+import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, backColour } from "/admin-ui/tables/render.js";
 
 const BASE = "/admin-ui/tables/";
 const KIND_NAMES = { cards: "card table", roulette: "roulette table", craps: "craps table" };
@@ -379,7 +379,7 @@ function drawStage() {
   }
   $("#ts-legend").hidden = !view.fixed;
   const warn = $("#ts-warn");
-  warn.hidden = distance(BACK_MAIN[cur.design.back], cur.design.felt.colour) >= 22;
+  warn.hidden = distance(backColour(cur.design), cur.design.felt.colour) >= 22;
   warn.textContent = "This card back is close to the felt's colour: face-down cards may blend in.";
   syncButtons();
 }

@@ -34,7 +34,8 @@ HOUSE = {
     "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
     "spots": "deco",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
-    "back": "lattice", "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
+    "back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
+    "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
 }
 
 # What the built-in presets are written as changes to (Mike's first pick on the mockup), so they stay as they
@@ -49,8 +50,14 @@ _PRESET_BASE = {
     "rack": "wood", "rackTint": "#12305e", "rackWood": "match",
     "spots": "double",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
-    "back": "emerald", "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
+    "back": "emerald", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
+    "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
 }
+
+# Each card back's colour before the colour was its own choice (Card2D.BACKS): what a design saved then takes.
+# Emerald was the lattice in green.
+BACK_MAIN = {"charcoal": "#34373c", "lattice": "#8e1a22", "sunburst": "#4d1616", "monogram": "#5a1322", "stripe": "#141414",
+             "emerald": "#145238"}
 
 
 def _preset(name: str, base: dict | None = None, **changes) -> dict:
@@ -103,7 +110,9 @@ CHOICES = {
     "rackWood": ("match",) + WOODS,
     "spots": ("printed", "double", "foil", "inlaid", "deco"),
     "print.font": ("cinzel", "cormorant", "josefin", "montserrat"),
-    "back": ("charcoal", "lattice", "sunburst", "monogram", "stripe", "emerald"),
+    "back": ("charcoal", "lattice", "sunburst", "monogram", "stripe"),
+    "front": ("classic", "jumbo", "vintage", "minimal"),
+    "suits": ("two", "four"),
     "jackpot": ("clear", "gold", "led"),
     "jackpotRim": ("thin", "standard", "heavy"),
     "chips": ("classic", "clay", "ceramic", "stripes", "metal", "house", "vintage"),
@@ -112,7 +121,7 @@ CHOICES = {
 # Ante, Blackjack's bet), side (the optional bonus bets) and accent, the trim (gilt, double and deco borders, the
 # House chips, the Master Table's crest).
 COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.primary", "print.side", "print.accent",
-           "shufflerTint", "shoeTint", "rackTint")
+           "shufflerTint", "shoeTint", "rackTint", "backColour", "cardColour")
 RANGES = {"felt.vignette": (0.0, 1.0)}
 
 CARD_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
@@ -200,7 +209,8 @@ KINDS = {
 
 def _upgrade(design, kind: str):
     """A card design saved before a choice existed, brought up to date so it looks as it did: the side bets take
-    what was the accent, the primary bets the ink."""
+    what was the accent, the primary bets the ink; a card back takes the colour its design had (the emerald back
+    is the lattice in green)."""
     if kind != "cards" or not isinstance(design, dict):
         return design
     design = copy.deepcopy(design)
@@ -208,6 +218,11 @@ def _upgrade(design, kind: str):
     if isinstance(pr, dict):
         pr.setdefault("side", pr.get("accent", HOUSE["print"]["side"]))
         pr.setdefault("primary", pr.get("ink", HOUSE["print"]["primary"]))
+    back = design.get("back")
+    if back in BACK_MAIN:
+        design.setdefault("backColour", BACK_MAIN[back])
+        if back == "emerald":
+            design["back"] = "lattice"
     return design
 
 

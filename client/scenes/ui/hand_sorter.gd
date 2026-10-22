@@ -25,6 +25,7 @@ var _low: Array = []      # card codes in the Low hand (up to 2)
 var _high: Array = []     # the rest
 var _order: Array = []    # the seven in their dealt order (for the 1-7 keys)
 var _face_up := false
+var look := {}            # the table's style, for the cards' fronts (Card2D.paint)
 var _sent := false
 var _claim_mode := false
 var _bonus = null         # claim mode: the side-bet hand you can claim, or null
@@ -280,6 +281,7 @@ func _fill(row: HBoxContainer, codes: Array, slots: int) -> void:
 	for code in codes:
 		var card := SortCard.new()
 		card.code = code
+		card.look = look
 		card.custom_minimum_size = CARD_SIZE
 		card.key = 0 if _claim_mode else _order.find(code) + 1
 		card.pressed.connect(_move.bind(code))
@@ -337,6 +339,7 @@ class SortCard extends Control:
 	signal pressed
 	var code := ""
 	var key := 0
+	var look := {}
 	var slide := Vector2.ZERO:  # drawn this far from its place while gliding into it
 		set(v):
 			slide = v
@@ -365,6 +368,6 @@ class SortCard extends Control:
 			return
 		var s := size.x / Card2D.SIZE.x
 		var lift := (Vector2(0, -6) if _hover and slide == Vector2.ZERO else Vector2.ZERO) + slide
-		Card2D.paint(self, code, Transform2D(0.0, Vector2(s, s), 0.0, size / 2 + lift))
+		Card2D.paint(self, code, Transform2D(0.0, Vector2(s, s), 0.0, size / 2 + lift), look)
 		if _hover:
 			draw_rect(Rect2(lift, size), Color("ffd76a"), false, 2.0)

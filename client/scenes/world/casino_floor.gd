@@ -187,6 +187,7 @@ func _register(t: FloorGame) -> void:
 		t.sort_requested.connect(func(cards: Array):
 			if t == active_table:
 				Sfx.play("turn")
+				hud.sorter.look = t.style()
 				hud.sorter.open(cards, t.face_up))
 		t.sort_finished.connect(func():
 			if t == active_table:
@@ -194,6 +195,7 @@ func _register(t: FloorGame) -> void:
 		t.claim_requested.connect(func(cards: Array, bonus):
 			if t == active_table:
 				Sfx.play("turn")
+				hud.sorter.look = t.style()
 				hud.sorter.open_claim(cards, bonus))
 
 

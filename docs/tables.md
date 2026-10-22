@@ -16,7 +16,8 @@ a tab for each kind of table, because they have different parts:
   Ride's three, Baccarat's Banker box and hand; side for the bonus bets, Baccarat's Tie and Dragons; and the trim for
   the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
   the betting spots' artwork; the Jackpot disc, the shuffler,
-  shoe and discard rack, card backs and chips.
+  shoe and discard rack; the card backs (a design, its colour, and the card's colour round it) and fronts (Classic,
+  Jumbo index, Vintage or Minimal, in red and black or four colours); and chips.
 - **Roulette:** the felt (with the fine grain it's always had as a fourth cloth), a border line, the rail (bare
   wood or leather all round), the printing's font, ink and accent, the red, black and zero colours (on the layout
   and the wheel's pockets), the float (wood frame, brushed steel or under a smoked lid) and the wheel (its bowl's
@@ -77,7 +78,7 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **`scenes/table/styled_felt.gd` (`StyledFelt`)** draws a card table in its style; a game's felt only lays
   out its spots, with `spot()` (a shape, its ring colour, its words), `circle()`, `big()`, `card_box()` and
   `jackpot_disc()`. **`chip_face.gd` (`ChipFace`)** draws chips in a style (`ChipStack2D.style`); the card tables
-  give every stack, card (`Card2D.back`) and machine their style, and `CasinoTable.restyle()` redraws them all
+  give every stack, card (`Card2D.look`) and machine their style, and `CasinoTable.restyle()` redraws them all
   when the styles change.
 - **`scenes/table/table_felt.gd` (`TableFelt`)** is the base every felt extends: it puts the drawing in
   FeltCache and holds the shared helpers. `TableFelt.edge_chip()` draws one chip on its edge in a channel (the

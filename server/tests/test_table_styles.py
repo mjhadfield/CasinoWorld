@@ -58,6 +58,21 @@ def test_a_design_saved_before_the_bet_colours_keeps_its_look():
     assert table_styles.BUILT_IN["vegas"]["design"]["print"]["side"] == "#8fd3ff"
 
 
+def test_a_card_back_saved_before_its_colour_keeps_its_look():
+    assert table_styles.clean_design({"back": "sunburst"})["backColour"] == "#4d1616"
+    green = table_styles.clean_design({"back": "emerald"})
+    assert green["back"] == "lattice" and green["backColour"] == "#145238"
+    assert table_styles.BUILT_IN["grand"]["design"]["backColour"] == "#34373c"
+    fresh = table_styles.clean_design({"back": "stripe", "backColour": "#0E2A5C", "cardColour": "#efe4c8", "front": "jumbo", "suits": "four"})
+    assert (fresh["backColour"], fresh["cardColour"], fresh["front"], fresh["suits"]) == ("#0e2a5c", "#efe4c8", "jumbo", "four")
+    for bad in ({"front": "comic"}, {"suits": "six"}, {"backColour": "blue"}):
+        try:
+            table_styles.clean_design(bad)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
+
+
 def test_new_styles_go_on_some_tables_and_the_built_ins_stay(client):
     r = client.put("/api/table-styles/styles/pit_blue", json={"name": "Pit blue", "design": table_styles.BUILT_IN["vegas"]["design"]})
     assert r.status_code == 200, r.text

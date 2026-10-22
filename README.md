@@ -243,7 +243,7 @@ sections:
   part swappable. Card Games: pick the game, the view, a hand in play, the Jackpot lit, and "Fixed layout" to see
   where the game puts every spot and card; the parts are the felt, border line, rail (wood, leather armrest or
   leather all round, the bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting
-  spots, Jackpot disc, shuffler, shoe, discard rack, card backs and chips. Roulette: the felt, border, rail,
+  spots, Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, and chips. Roulette: the felt, border, rail,
   printing, number colours, float and wheel. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to

@@ -74,7 +74,7 @@ func _draw() -> void:
 	var look := _look()
 	var wooden: bool = look.shoe == "wood"
 	var tint := TableStyle.colour(look, "shoeTint")   # its acrylic (the original: red)
-	var back: Color = Card2D.BACKS.get(str(look.back), Card2D.BACK)
+	var back := Card2D.back_colour(look)
 	draw_rect(Rect2(body.position + Vector2(0.8, 1.2), body.size), Color(0, 0, 0, 0.35))  # its shadow
 	draw_rect(body, Color("1e0e06") if wooden else tint.darkened(0.6))
 	if wooden:

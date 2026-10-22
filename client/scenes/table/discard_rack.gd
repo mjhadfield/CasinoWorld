@@ -76,7 +76,7 @@ func _draw() -> void:
 		for k in range(maxi(0, count - 3), count):  # the top few, a little untidy
 			var place := slot(k)
 			draw_set_transform(place[0] - position, place[1] - PI / 2)
-			Card2D.draw_back(self, Rect2(Vector2(-10, -7), Vector2(20, 14)), str(look.back))
+			Card2D.draw_back(self, Rect2(Vector2(-10, -7), Vector2(20, 14)), look)
 		draw_set_transform(Vector2.ZERO)
 	# Walls on three sides, open at the front for the dealer's hand.
 	var wall := Color(0.9, 0.96, 1.0, 0.55)

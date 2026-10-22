@@ -154,7 +154,7 @@ func _draw() -> void:
 	var lid := Rect2(-9.5, body.position.y + 4.2, 19, 7.6)
 	draw_colored_polygon(_rounded(lid, 1.2), GLASS)
 	var deck := Rect2(-5.5, lid.position.y + 1.4, 11, 4.8)
-	draw_rect(Rect2(deck.position + hum, deck.size), Card2D.BACKS.get(str(look.back), Card2D.BACK).darkened(0.35))
+	draw_rect(Rect2(deck.position + hum, deck.size), Card2D.back_colour(look).darkened(0.35))
 	for k in 5:  # card edges seen through the glass
 		var x := deck.position.x + 1.0 + k * 2.2
 		draw_line(Vector2(x, deck.position.y + 0.4) + hum, Vector2(x, deck.end.y - 0.4) + hum, Color(1, 1, 1, 0.08), 0.3)
