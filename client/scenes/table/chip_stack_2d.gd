@@ -47,6 +47,19 @@ func _init() -> void:
 	z_index = 1  # chips always sit on top of cards (a Play bet rests on the face-down hand)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ENTER_TREE:
+		face_screen()
+
+
+## Stand upright on screen whichever way up the table shows (a stack is a little pile of
+## chips, not printing on the felt), turned in quarter turns like the table. The table calls
+## this when it shows a different way up (CasinoTable._turned_on_screen).
+func face_screen() -> void:
+	var parent := get_parent() as Node2D
+	rotation = -snappedf(wrapf(parent.global_rotation, -PI, PI), PI / 2) if parent else 0.0
+
+
 static func breakdown(pence: int) -> Array:
 	var chips := []
 	var left := pence

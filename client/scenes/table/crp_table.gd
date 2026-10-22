@@ -121,6 +121,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	dice.position = -_felt.position
+	_stand_sign(sign_board, $Body/SignBase)
 	_dice_tone()
 	dice.z_index = 2   # over the chips (which sit over cards at z 1); the dice only rest where no one's head reaches
 	_rail = Node2D.new()
@@ -771,6 +772,12 @@ func stool_pos(seat: int) -> Vector2:
 ## doesn't move him; the boxman already stands just outside the bay's ledge.
 func dealer_near_pos() -> Vector2:
 	return _dealer_home
+
+
+## Beside a table on its side, the boxman draws over the rail as the stickman does.
+func _turned_on_screen() -> void:
+	super._turned_on_screen()
+	$Boxman.z_index = dealer.z_index
 
 
 func _countdown_text(left: float) -> String:

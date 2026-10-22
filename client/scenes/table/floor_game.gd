@@ -87,6 +87,11 @@ func screen_turn() -> float:
 	return snappedf(wrapf(global_rotation, -PI, PI), PI / 2) if is_inside_tree() else rotation
 
 
+## Whether the table shows on its side (a quarter turn either way), its dealer to our left or right.
+func sideways() -> bool:
+	return is_equal_approx(absf(screen_turn()), PI / 2)
+
+
 ## An offset as the screen sees it (up is up), in the table's coordinates: for things placed
 ## about a sitter, who's always upright -- their stool, the ring round them, their Ready tick.
 func on_screen(offset: Vector2) -> Vector2:

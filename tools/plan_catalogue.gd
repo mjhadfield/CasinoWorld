@@ -1,7 +1,8 @@
 extends SceneTree
 # The built-in pieces the floor plan places (plan.py, the admin page's Floor plan tab): every table game and the
 # slot cabinet, measured from their scenes. For each game, at each way it can turn: its footprint (its collision
-# outline and its chairs with someone sitting in each, and the dealer's head over the top edge when upright), its
+# outline, its chairs with someone sitting in each, any results sign, and the dealer: their head over the top edge
+# when upright, standing at the felt's edge when turned), its
 # body (just the collision outline: what blocks walking) and where each seat's player stands to sit down. Writes
 # server/casino_server/plan_catalogue.json; run it again whenever a table changes shape or a game is added.
 #   cd client && CASINO_SERVER_URL=ws://127.0.0.1:9/ws godot --headless --path . -s ../tools/plan_catalogue.gd
@@ -9,20 +10,21 @@ extends SceneTree
 const OUT := "res://../server/casino_server/plan_catalogue.json"
 const SITTER := Rect2(-12, -36, 24, 44)   # a chair and the player sitting on it, from the chair
 const DEALER_HEAD := 24.0                 # the dealer stands at the felt's top edge: their head clears it by this
+const SIGN := Rect2(-17.6, -157.6, 35.2, 160)   # a results sign (Roulette, Craps), upright from its foot
 # game -> [scene, its properties, the turns it may have on the floor (degrees)]. Every table can be turned round
-# (the classic pit's far row is); none takes 90 or 270 yet.
+# a quarter turn either way or upside down (the classic pit's far row is).
 const GAMES := {
-	"three_card_poker": ["res://scenes/table/tcp_table.tscn", {"game_label": "Three Card Poker"}, [0, 180]],
-	"blackjack": ["res://scenes/table/bj_table.tscn", {"game_label": "Blackjack"}, [0, 180]],
-	"pai_gow_fortune": ["res://scenes/table/pg_table.tscn", {"game_label": "Fortune Pai Gow"}, [0, 180]],
-	"pai_gow_face_up": ["res://scenes/table/pg_table.tscn", {"game_label": "Face Up Pai Gow", "face_up": true}, [0, 180]],
-	"mississippi_stud": ["res://scenes/table/ms_table.tscn", {"game_label": "Mississippi Stud"}, [0, 180]],
-	"ultimate_texas_holdem": ["res://scenes/table/uth_table.tscn", {"game_label": "Ultimate Texas Hold'em"}, [0, 180]],
-	"let_it_ride": ["res://scenes/table/lir_table.tscn", {"game_label": "Let It Ride"}, [0, 180]],
-	"high_card_flush": ["res://scenes/table/hcf_table.tscn", {"game_label": "High Card Flush"}, [0, 180]],
-	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0, 180]],
-	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0, 180]],
-	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0, 180]],
+	"three_card_poker": ["res://scenes/table/tcp_table.tscn", {"game_label": "Three Card Poker"}, [0, 90, 180, 270]],
+	"blackjack": ["res://scenes/table/bj_table.tscn", {"game_label": "Blackjack"}, [0, 90, 180, 270]],
+	"pai_gow_fortune": ["res://scenes/table/pg_table.tscn", {"game_label": "Fortune Pai Gow"}, [0, 90, 180, 270]],
+	"pai_gow_face_up": ["res://scenes/table/pg_table.tscn", {"game_label": "Face Up Pai Gow", "face_up": true}, [0, 90, 180, 270]],
+	"mississippi_stud": ["res://scenes/table/ms_table.tscn", {"game_label": "Mississippi Stud"}, [0, 90, 180, 270]],
+	"ultimate_texas_holdem": ["res://scenes/table/uth_table.tscn", {"game_label": "Ultimate Texas Hold'em"}, [0, 90, 180, 270]],
+	"let_it_ride": ["res://scenes/table/lir_table.tscn", {"game_label": "Let It Ride"}, [0, 90, 180, 270]],
+	"high_card_flush": ["res://scenes/table/hcf_table.tscn", {"game_label": "High Card Flush"}, [0, 90, 180, 270]],
+	"baccarat": ["res://scenes/table/bac_table.tscn", {"game_label": "Baccarat"}, [0, 90, 180, 270]],
+	"roulette": ["res://scenes/table/rou_table.tscn", {"game_label": "Roulette"}, [0, 90, 180, 270]],
+	"craps": ["res://scenes/table/crp_table.tscn", {"game_label": "Craps"}, [0, 90, 180, 270]],
 }
 const CABINET := "res://scenes/slots/slot_cabinet.tscn"
 
@@ -81,6 +83,11 @@ func measure(path: String, props: Dictionary, degrees: int) -> Dictionary:
 	for seat in n.seat_count():
 		all.append(Rect2(n.to_global(n.chair_pos(seat)) + SITTER.position, SITTER.size))  # (sitters are upright)
 		stands.append(point_json(n.to_global(n.stand_pos(seat))))
+	var sign := n.get_node_or_null("Sign") as Node2D
+	if sign:   # (it stands upright, past one end: on a table on its side it rises over whatever's beyond)
+		all.append(Rect2(n.to_global(sign.position) + SIGN.position, SIGN.size))
+	if degrees != 0:   # turned, the dealer stands at the felt's edge, upright: beside the table on its side
+		all.append(Rect2(n.to_global(n.dealer_near_pos()) + SITTER.position, SITTER.size))
 	var r := merged(all)
 	if degrees == 0:
 		r = r.grow_side(SIDE_TOP, DEALER_HEAD)

@@ -185,6 +185,12 @@ static func _arc(c: Vector2, rx: float, ry: float, a0: float, a1: float, n := 16
 
 
 ## A soft gold pool on the floor (a free seat, while you're walking).
+## Drawing in a table's frame at `at`, squashed by `squash` up and down the screen (lying flat on
+## the floor in perspective), the screen being turned `turn` from the table.
+static func _on_floor(at: Vector2, turn: float, squash: float) -> Transform2D:
+	return Transform2D(turn, at) * Transform2D.IDENTITY.scaled(Vector2(1, squash)) * Transform2D(-turn, Vector2.ZERO)
+
+
 static func _halo(ci, r: float, pulse: float) -> void:
 	var a := 0.1 * (0.6 + 0.4 * pulse)
 	for i in 4:
@@ -294,13 +300,15 @@ static func _quad(ci, q: Array, c: Color) -> void:
 
 # ------------------------------------------------------------------ craps standing spots
 ## A standing spot at the craps rail, at `at` on the floor: glowing while it's free and you're
-## walking, wearing its player's `colour` (or null) once someone's there.
+## walking, wearing its player's `colour` (or null) once someone's there. `turn` is how the
+## screen is turned from the table (-screen_turn()): the spot lies flat in perspective as the
+## screen sees it, still pointing at the table.
 static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pulse: float, colour: Variant, turn := 0.0) -> void:
 	var brass: Array = METALS.brass
 	var taken := colour != null
 	var rim: Color = colour if taken else (Color(GOLD, 0.7 + 0.3 * pulse) if glow else brass[1])
 	if kind == "ring":   # (the first standing spots: a ring on the floor)
-		ci.draw_set_transform(at, 0, Vector2(1, 0.45))
+		ci.draw_set_transform_matrix(_on_floor(at, turn, 0.45))
 		if glow:
 			ci.draw_circle(Vector2.ZERO, 12.0 + pulse * 1.5, Color(1, 0.84, 0.3, 0.14 + 0.16 * pulse))
 			ci.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 40, Color(1, 0.84, 0.3, 0.55 + 0.35 * pulse), 1.4, true)
@@ -309,11 +317,11 @@ static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pul
 		ci.draw_set_transform(Vector2.ZERO)
 		return
 	if glow:
-		ci.draw_set_transform(at)
+		ci.draw_set_transform(at, turn)
 		_halo(ci, 22.0, pulse)
 	match kind:
 		"footprints":   # a brass-rimmed plate with two shoe prints, toes to the table
-			ci.draw_set_transform(at, 0, Vector2(1, 0.5))
+			ci.draw_set_transform_matrix(_on_floor(at, turn, 0.5))
 			var plate := TableFelt._rounded(Rect2(-12, -11, 24, 22), 7)
 			ci.draw_colored_polygon(plate, Color(0.05, 0.03, 0.015, 0.82))
 			plate.append(plate[0])
@@ -337,7 +345,7 @@ static func draw_spot(ci: CanvasItem, at: Vector2, kind: String, glow: bool, pul
 				ci.draw_rect(Rect2(-1.7, -2.2, 1.4, 3.2), ink)
 				ci.draw_rect(Rect2(0.3, -2.2, 1.4, 3.2), ink)
 		_:   # "medallion": a brass disc set in the floor, a chevron pointing at the table
-			ci.draw_set_transform(at, 0, Vector2(1, 0.42))
+			ci.draw_set_transform_matrix(_on_floor(at, turn, 0.42))
 			ci.draw_circle(Vector2(0.5, 1.6), 11.5, Color(0, 0, 0, 0.4))
 			ci.draw_circle(Vector2.ZERO, 11.0, brass[2])
 			ci.draw_circle(Vector2(-0.6, -0.6), 9.6, brass[1])

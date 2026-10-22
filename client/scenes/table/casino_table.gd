@@ -488,15 +488,30 @@ func _process(_delta: float) -> void:
 		_turned_on_screen()
 
 
-## The table shows a different way up (see screen_turn()). Upside down, the dealer is on
-## our side of it: they stand on the floor at the felt's edge, in front of it, rather than
-## in the bay behind it with the felt hiding their feet. The stools move round too.
+## The table shows a different way up (see screen_turn()). Upside down or on its side, the
+## dealer is on our side of it or beside it: they stand on the floor at the felt's edge rather
+## than in the bay behind it with the felt hiding their feet, and beside it they draw over its
+## rail (z 1), as a sitter does. The stools move round, and the chip stacks stand up again.
 func _turned_on_screen() -> void:
-	dealer.position = dealer_near_pos() if absf(_shown_turn) > PI / 2 else _dealer_home
+	dealer.position = _dealer_home if is_zero_approx(_shown_turn) else dealer_near_pos()
+	dealer.z_index = 1 if sideways() else 0
+	for node in _felt.find_children("*", "", true, false):
+		if node is ChipStack2D:
+			node.face_screen()
 	queue_redraw()
 
 
-## Where the dealer stands while the table shows upside down: at the dealer's edge.
+## A results sign that stands on the floor past the table's right-hand end (Roulette, Craps),
+## with its `base` (collision). On a table turned a quarter turn clockwise that end is the one
+## nearest us, and the sign would stand in front of the table hiding it, so it stands past the
+## other end instead.
+func _stand_sign(sign: Node2D, base: Node2D) -> void:
+	if is_equal_approx(wrapf(rotation, -PI, PI), PI / 2):
+		sign.position.x = -absf(sign.position.x)
+		base.position.x = -absf(base.position.x)
+
+
+## Where the dealer stands while the table shows upside down or on its side: at the dealer's edge.
 func dealer_near_pos() -> Vector2:
 	return Vector2(_dealer_home.x, TOP)
 

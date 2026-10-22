@@ -109,17 +109,24 @@ Every card table follows the same alignment rules:
 
 ## Turned tables
 
-A table on the floor can be turned (its `rot` on the floor plan; `plan_catalogue.json` says which turns each game
-takes: every table takes 0 and 180). For example, the far row of the classic Blackjack pit is turned, so its
-dealers stand with their backs to the pit. Most of it lives in `FloorGame` and `CasinoTable`, so a card table needs
-nothing of its own:
-- **To a walker** it's drawn as seen from that side. The felt's printing is upside down, and the players face
-  you from behind it. The dealer has their back to you and stands on the floor at the felt's edge
-  (`dealer_near_pos()`), in front of the table, not in the bay behind it. The chairs are drawn upright (`FloorGame.draw_chair`).
+A table on the floor can be turned (its `rot` on the floor plan): upright, a quarter turn either way (90, 270) or
+upside down (180). `plan_catalogue.json` says which turns each game takes, and every table takes all four. For
+example, the far row of the classic Blackjack pit is upside down, so its dealers stand with their backs to the pit.
+Most of it lives in `FloorGame` and `CasinoTable`, so a card table needs nothing of its own:
+- **To a walker** it's drawn as seen from that side: the felt's printing upside down or on its side. The dealer
+  stands on the floor at the felt's edge (`dealer_near_pos()`), not in the bay with the felt hiding their feet. At
+  90 the dealer's side is to our right, at 270 to our left; on its side (`FloorGame.sideways()`) the dealer draws
+  over the rail at z 1, as a sitter does, since the felt's own place in the Y-sort can be either side of their feet.
+  The chairs are drawn upright (`FloorGame.draw_chair`).
 - **Things placed about a sitter** follow the screen, not the table, because the sitter is always upright.
   That covers their chair, the ring round whoever's thinking and their Ready tick. They use
   `FloorGame.on_screen(offset)`, and `screen_turn()` says which way up the table shows right now. A table
   redraws, and moves its dealer, when that changes (`CasinoTable._turned_on_screen`).
+- **Chip stacks stand upright** on screen too (`ChipStack2D.face_screen()`, when they're put down and when the
+  table shows a different way up). The cards lie flat and turn with the table.
+- **Things lying on the floor in perspective** (Roulette's seat rings, the craps standing spots) are squashed up
+  and down the screen, not the table: `Seating._on_floor()`, or a `draw_set_transform` turned by
+  `-screen_turn()`. A standing spot still points at the table.
 - **Sitting there** turns the whole floor (`World` in `casino_floor.tscn`) about the table, so the table is the
   right way up. Standing turns it back (`casino_floor.gd`, `_camera_to`'s `turn`). World Y-sorts, and Godot sorts
   in the turned frame, so the dealer goes behind the felt again and everyone overlaps the right way.
@@ -129,13 +136,16 @@ nothing of its own:
 - **Positions** the floor and server use are in World's frame. Use `to_global()` for points on a table, never
   `global_position + offset`, as `focus_point()` does.
 - **Roulette and Craps** add a little of their own. Their results signs keep themselves upright about their foot,
-  like the people. Roulette's dealer stands at the mouth of its shallower bay (`dealer_near_pos()` is `FELT_TOP`).
-  At Craps the `dealer` is the stickman, who stands among the players and doesn't move. The boxman already stands
-  just outside the bay's ledge. The shooter's badge, "next shooter" and the standing spots go at a player's feet
-  as the screen sees it, and the badge's text reads upright.
+  like the people. At 90 the sign's usual end is the one nearest us, where it would stand in front of the table,
+  so it stands past the other end (`CasinoTable._stand_sign`). Roulette's dealer stands at the mouth of its
+  shallower bay (`dealer_near_pos()` is `FELT_TOP`). At Craps the `dealer` is the stickman, who stands among the
+  players and doesn't move; the boxman already stands just outside the bay's ledge, and draws over the rail on its
+  side as the stickman does. The shooter's badge, "next shooter" and the standing spots go at a player's feet as
+  the screen sees it, and the badge's text reads upright.
 
-`tools/plan_catalogue.gd` measures each game at every turn it takes. A turned table's dealer's head is over the
-felt, so it adds nothing above them.
+`tools/plan_catalogue.gd` measures each game at every turn it takes: the collision outline, a sitter in every
+chair, any results sign at its full height, and the dealer (their head above the top edge upright, standing at the
+felt's edge when turned).
 
 ## The layout audit
 
