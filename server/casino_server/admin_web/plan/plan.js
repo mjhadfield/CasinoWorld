@@ -300,7 +300,9 @@ function refreshSide() {
       el("button", { textContent: "New room", onclick: newRoom }),
       el("h3", { textContent: "Players appear at" }),
       el("select", { onchange: e => edit(() => { S.draft.spawn = e.target.value; }) },
-        ...(spawns.length ? spawns : [""]).map(s => el("option", { value: s, textContent: s || "(no spawn point on the floor)", selected: s === S.draft.spawn }))),
+        // a saved spawn that's gone (its room was removed) shows as a blank pick, not as the first option
+        ...(spawns.includes(S.draft.spawn) ? spawns : ["", ...spawns]).map(s => el("option", { value: s,
+          textContent: s || (spawns.length ? "(pick one)" : "(no spawn point on the floor)"), selected: s === S.draft.spawn || (!s && !spawns.includes(S.draft.spawn)) }))),
       el("p", { className: "hint", textContent: "Drag a room to move it; doorways that meet show green. Double-click a room to edit it." }));
     return;
   }
