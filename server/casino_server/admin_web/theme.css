@@ -35,7 +35,7 @@
   --ctl-h: 28px; --row-h: 30px; --bar-h: 44px; --ph-h: 34px;
   --gap: 8px; --pad: 10px; --radius: 6px;
 
-  /* The names the older modules use (plan_web, slot_design_web, table_styles_web), mapped onto the tokens above */
+  /* The names the editors (plan/, tables/, design/) were written with, mapped onto the tokens above */
   --bg: var(--bg-0); --panel: var(--bg-1); --ink: var(--fg); --muted: var(--fg-muted);
   --felt: var(--accent); --gold: var(--accent-strong); --target: var(--accent-soft); --warn: var(--danger);
 }

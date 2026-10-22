@@ -1,6 +1,6 @@
 """
 Which sound plays for each game moment -- edited on the admin page's Sounds tab
-(/maintenance#sounds) and fetched by every client when it starts and whenever it
+(/admin#sounds) and fetched by every client when it starts and whenever it
 changes, so trying a different sound needs no rebuild.
 
 Sound sets

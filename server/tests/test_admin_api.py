@@ -1,5 +1,22 @@
-"""The admin page's API: NPCs, looks, settings, players, sound sets."""
+"""The admin page and its API: NPCs, looks, settings, players, sound sets."""
+import re
+from pathlib import Path
+
 from conftest import recv_until  # noqa: F401  (the client fixture lives in conftest)
+
+ADMIN_WEB = Path(__file__).resolve().parents[1] / "casino_server" / "admin_web"
+
+
+def test_the_admin_page_and_every_file_it_names_are_served(client):
+    page = client.get("/admin")
+    assert page.status_code == 200 and "/admin-ui/shell.js" in page.text
+    assert client.get("/maintenance").text == page.text
+    assert client.get("/admin/next", follow_redirects=False).headers["location"] == "/admin"
+    named = {m for f in ADMIN_WEB.rglob("*") if f.suffix in (".js", ".html", ".css")
+             for m in re.findall(r"/admin-ui/[\w./-]+\.\w+", f.read_text())}
+    assert len(named) > 10
+    for url in sorted(named):
+        assert client.get(url).status_code == 200, url
 
 
 def test_the_roster_is_seeded_and_listed(client):

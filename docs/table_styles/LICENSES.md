@@ -5,7 +5,7 @@ non-profit project, but every asset here allows commercial use anyway.
 
 The assets live in three places:
 - **The game's tiles:** `client/assets/tiles/table/`, with a pointer back here in that folder's `CREDITS.md`.
-- **The admin designer's copies:** `server/casino_server/table_styles_web/textures/` and `fonts/`.
+- **The admin designer's copies:** `server/casino_server/admin_web/tables/textures/` and `fonts/`.
 - **The mockup's own processed copies:** `docs/table_styles/mockup/textures/`.
 
 `tools/build_table_tiles.py` makes the first two from the same downloads, so they match. Change its `WOODS`/`SHADES`, and this file, together.

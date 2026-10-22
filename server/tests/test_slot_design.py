@@ -624,8 +624,8 @@ def test_the_scene(board, monkeypatch):
     assert c.patch("/api/slot-design/demo/scene", json={"background": "scene/bg_2.png"}).status_code == 200
     assert c.put("/api/slot-design/demo/fonts/bad.ttf", content=b"nope").status_code == 400
     assert c.put("/api/slot-design/demo/fonts/notes.txt", content=b"nope").status_code == 400
-    assert c.get("/slot-design-ui/slots_math.js").status_code == 200
-    assert c.get("/slot-design-ui/../app.py").status_code == 404
+    assert c.get("/admin-ui/design/slots_math.js").status_code == 200
+    assert c.get("/admin-ui/../app.py").status_code == 404
 
 
 

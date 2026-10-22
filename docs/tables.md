@@ -35,7 +35,7 @@ How it's put together:
   and so do `rou_felt.gd` and `crp_felt.gd`: they give their own outline (`_grown()`), rail width, middle and
   padding area, and draw their own float or rack (`float_tray()`) and printing. `RouletteWheel.restyle()` and
   `CrapsDice.tone` take the wheel's and the dice's colours.
-- **The admin designer's renderer** (`server/casino_server/table_styles_web/render.js`) draws the same way, with
+- **The admin designer's renderer** (`server/casino_server/admin_web/tables/render.js`) draws the same way, with
   the same tiles and fonts, so what's designed is what the floor shows. It draws Roulette and Craps (and the
   wheel) from their real geometry too.
 - **A style changes looks only.** Every spot, card and machine stays where the game puts it. `tools/layout_audit.gd`

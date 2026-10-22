@@ -1,7 +1,7 @@
 class_name SkinDraw
 ## The shapes a slot's skin (the Slot design wizard's Scene step) is drawn from, as polygons any CanvasItem can draw:
 ## LCARS elbows, pills and bars, frosted glass, and the ticking number readouts. The wizard's mockup draws the same
-## shapes on its canvas (slot_design_web/mockup/game.js, "the skin's shapes"); docs/slots/scenes.md describes skins.
+## shapes on its canvas (admin_web/design/mockup/game.js, "the skin's shapes"); docs/slots/scenes.md describes skins.
 
 const ARC_STEPS := 10
 

@@ -1,6 +1,6 @@
 """
 Table styles: how a table looks, as named designs made on the admin page's Tables tab (its designer is
-table_styles_web/, the same renderer as the signed-off mockup in docs/table_styles/mockup/).
+admin_web/tables/, the same renderer as the signed-off mockup in docs/table_styles/mockup/).
 
 There are three kinds, each with its own styles, default and placement, because the tables have different
 parts: the card tables ("cards"), Roulette ("roulette") and Craps ("craps"). A style is only looks: for a

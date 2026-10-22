@@ -1,8 +1,8 @@
 // Step 10, Mockup & sign-off: the whole machine, playable, built from every earlier step; force features, bonuses
 // and jackpots onto the next spin to check them; the checklist of what Build needs; the rules screen's words; and
 // the sign-off, which locks how the slot pays (Value ladder, Features, Bonus games, Maths) until it's reopened.
-import {createGame} from "/slot-design-ui/mockup/game.js";
-import {designConfig, loadMath} from "/slot-design-ui/mockup/design.js";
+import {createGame} from "/admin-ui/design/mockup/game.js";
+import {designConfig, loadMath} from "/admin-ui/design/mockup/design.js";
 import {typing} from "./artslot.js";
 
 const NAMES = {wilds: "Random Wilds", wildReels: "Wild Reels", colossal: "Colossal Reels", multiplier: "Multiplier",

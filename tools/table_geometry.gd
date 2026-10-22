@@ -1,5 +1,5 @@
 extends SceneTree
-# Writes the tables' real geometry for the admin page's table designer (server/casino_server/table_styles_web/)
+# Writes the tables' real geometry for the admin page's table designer (server/casino_server/admin_web/tables/)
 # and the table styles mockup (docs/table_styles/mockup/): the felt outline and the rail offsets, the chip tray and bay, and for every table its seats'
 # spots, cards, dealer cards, equipment and title; and Roulette's and Craps' outlines, layouts and fittings
 # ("rou" and "crp"). The designer draws only from this, so it can't drift from the game. Table-local units,
@@ -13,7 +13,7 @@ const TABLES := {
 	"bac": "res://scenes/table/bac_table.tscn",
 }
 const GROWN := [-8.0, -6.5, -6.0, -5.0, -4.0, -3.5, -2.0, -1.2, -0.9, -0.3, 1.2, 1.5, 3.5, 4.0, 5.9, 6.5, 7.0, 7.5, 11.0]
-const OUT := ["../server/casino_server/table_styles_web/geometry.json", "../docs/table_styles/mockup/geometry.json"]
+const OUT := ["../server/casino_server/admin_web/tables/geometry.json", "../docs/table_styles/mockup/geometry.json"]
 
 
 func v(p: Vector2) -> Array:

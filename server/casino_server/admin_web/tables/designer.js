@@ -3,9 +3,9 @@
 // (table_styles.py); saving one restyles every table using it straight away. House is the default every table of
 // its kind uses unless it's given another; the presets are built in (save a copy to change one).
 // Three columns: styles and placement | the table, fitted to the window | the design's controls.
-import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, BACK_MAIN } from "/table-styles-ui/render.js";
+import { render, loadAssets, clone, getKey, setKey, distance, GAMES, KINDS, BACK_MAIN } from "/admin-ui/tables/render.js";
 
-const BASE = "/table-styles-ui/";
+const BASE = "/admin-ui/tables/";
 const KIND_NAMES = { cards: "card table", roulette: "roulette table", craps: "craps table" };
 let ctx = null;            // the shell's helpers, with $ looking in this section's view and top bar
 let kind = "cards";        // which kind of table's styles are shown

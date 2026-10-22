@@ -1,7 +1,7 @@
 // Step 9, Maths & payouts: the pays, each reel's symbol counts and the Colossal mix; Simulate measures the return
 // (slots_math.js in a worker, the engine the cabinet uses); Auto-tune turns one control to reach the Concept's
 // target; Freeze keeps the strips, once the server has replayed a sample of spins and agrees.
-import {designParams, loadMath} from "/slot-design-ui/mockup/design.js";
+import {designParams, loadMath} from "/admin-ui/design/mockup/design.js";
 import {typing} from "./artslot.js";
 
 let C, worker = null, busy = false, last = null, tuned = null, spins = 500000;
@@ -9,7 +9,7 @@ const key = p => JSON.stringify([p.pays, p.counts, p.bigCounts, p.features, p.ra
   p.colossalSizes, p.multipliers, p.repeats, p.instants, p.trail, p.battle, p.voyage, p.expedition, p.freeGames, p.buyCost, p.routes, p.upgrades]);
 
 function run(msg, onProgress) {
-  worker ??= new Worker("/slot-design-ui/mockup/sim_worker.js");
+  worker ??= new Worker("/admin-ui/design/mockup/sim_worker.js");
   busy = true;
   return new Promise((res, rej) => {
     worker.onmessage = e => { if (e.data.progress != null && onProgress) onProgress(e.data.progress); if (!("progress" in e.data)) { busy = false; res(e.data); } };

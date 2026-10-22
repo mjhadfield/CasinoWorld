@@ -59,7 +59,11 @@ Environment knobs:
 ## Admin page
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
 no password: it's open to anyone who can reach the server, the same as the game, which is fine on the LAN
-and Tailscale. It has eight tabs:
+and Tailscale. It's a desktop page laid out for 1440p (1080p fits too), in `casino_server/admin_web/`: a menu of
+sections down the left (collapsible), a top bar with the section's own controls, and a **Display** menu for the
+colours (Amethyst or Graphite, `theme.css` holds the tokens) and density (Compact or Comfortable). Each section is
+a module loaded the first time it opens, and the route is the hash (`#plan`, `#design/<design>/<step>`). The
+sections:
 - **Sounds:** the sound sets down the left: **Whole casino**, each table game, **Every slot machine** and each
   machine. A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
   own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
@@ -86,8 +90,9 @@ and Tailscale. It has eight tabs:
   - **Stats** per NPC, and **Bring in now**, **Send home** and **Reset stats**.
   - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
 - **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
-- **Slots:** the jackpot meters, players' return on slots, and the symbol art set.
-- **Floor plan** (`#plan`): the casino's rooms and everything in them (`plan.py`; its UI in `plan_web/`). Changes
+- **Slots:** the jackpot meters and their settings, each machine's figures (spins, staked, returned, bonuses; humans
+  and NPCs apart, `slots/stats.py`), the cabinets on the floor now, and players' return on slots.
+- **Floor plan** (`#plan`): the casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). Changes
   go into a draft as you make them (undo and redo, Ctrl+Z / Ctrl+Y); **Preview** opens the game on the draft in a
   new tab (`/?preview=<room>`: walk round alone, nothing to play), and **Publish** puts it on the floor: at once if
   only places changed, or by restarting the casino when tables or cabinets come or go. **History** puts an earlier
@@ -117,7 +122,7 @@ and Tailscale. It has eight tabs:
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
-  wizard's UI is its own scripts in `casino_server/slot_design_web/`, which the tab loads; the server side is
+  wizard's UI is in `casino_server/admin_web/design/`; the server side is
   `casino_server/slot_design.py` (the designs and their steps) and `slot_design_art.py` (the image model, keying, the frame).
   - **Concept:** the name, a theme brief and style notes that lead every image-model prompt, the tier shape (how many
     high, mid and low pays, which sets the Art step's counts), the target return and volatility, and the sheet
@@ -159,8 +164,8 @@ and Tailscale. It has eight tabs:
     by the image model, keeping the font's letters; **Generate**: drawn whole by the image model), each with its own
     **Bin** like Art's. The step shows the **mockup**: the real screen layout, playable, using the ladder's symbols.
     From here on, **Play the mockup** opens it from any step.
-    The mockup is the signed-off Armadillo mockup made design-driven (`slot_design_web/mockup/`), running the
-    shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/slot-design-ui/slots_math.js`.
+    The mockup is the signed-off Armadillo mockup made design-driven (`admin_web/design/mockup/`), running the
+    shared maths, `docs/slots/mockup/slots_math.js`, served to it as `/admin-ui/design/slots_math.js`.
   - **Features:** the library's seven random features, each switched on or off with its chance on a paid spin
     and in the free games, its value table (value:weight pairs) and its name on the screen (which sign-off doesn't
     lock); **Show me** plays the mockup with it forced.
@@ -234,7 +239,7 @@ and Tailscale. It has eight tabs:
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to
   change one); Roulette's and Craps' House is how they looked before styles. The designer is in
-  `table_styles_web/` and draws with the game's own tiles and fonts.
+  `admin_web/tables/` and draws with the game's own tiles and fonts.
 - **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
   game opens, and the craps standing spot). Saving updates the floor straight away. The API
@@ -301,7 +306,8 @@ textures (`server/plan_assets/`) from LPC packs on OpenGameArt (pinned by checks
 Each piece is a box on a pack's sheet in the script; it writes a contact sheet to check them.
 
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
-library for the admin page's Slots tab. New slot art is designed on the admin page's Slot design tab.
+library that Armadillo's saved picks (`<data dir>/slot_art.json`) come from. New slot art is designed on the
+admin page's Slot design tab.
 
 ## Code map
 - **server/casino_server/**
@@ -313,18 +319,18 @@ library for the admin page's Slots tab. New slot art is designed on the admin pa
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
   - `npc.py`: the NPC director; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
-  - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`, `maintenance.html`: the admin page.
+  - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`: the command-line admin. `admin_web/`: the admin page.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `table_styles.py`: the table styles for each kind of table (card tables, Roulette, Craps: House, the
     built-ins, saved designs) and which table uses which;
-    the Tables tab's designer in `table_styles_web/` (`render.js` draws, `designer.js` is the tab).
+    the Tables tab's designer in `admin_web/tables/` (`render.js` draws, `designer.js` is the tab).
   - `art.py`, `slot_art.py`: server-built character sheets and the slot art library. `sounds.py`: the sounds.
   - `slot_design.py`, `slot_design_steps.py`, `slot_design_scene.py`, `slot_design_build.py`, `slot_design_art.py`: the
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
     designs in `server/slot_designs/`), its
-    UI in `slot_design_web/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
+    UI in `admin_web/design/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
   - `plan.py`: the floor plan (rooms, doors, everything placed, NPC paths; draft, publish, history, checks), the
-    Floor plan tab's API; its UI in `plan_web/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
+    Floor plan tab's API; its UI in `admin_web/plan/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
     tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints. `plan_assets.py`:
     the furniture library (built-ins in `server/plan_assets/`, uploads in `<data>/plan_assets/`).
 - **client/**

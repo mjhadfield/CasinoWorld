@@ -44,7 +44,7 @@ Quadrant, `bonuses.py` `expedition_*`, built from Voyager's spec; its settings a
 random feature or a different bonus game) is written up as a spec on the
 Features or Bonus games step. Building one means: the engine (`slots/outcome.py` or `slots/bonuses.py`, wired into
 `tables/slot_machine.py`), the same in `mockup/slots_math.js` (the wizard's mockup and simulator run it), the
-mockup's choreography (`server/casino_server/slot_design_web/mockup/game.js`) and the game's
+mockup's choreography (`server/casino_server/admin_web/design/mockup/game.js`) and the game's
 (`client/scenes/slots/slot_screen.gd`), plus a sound moment in `sounds.py` if it needs one. Then it's in the
 library for every slot.
 

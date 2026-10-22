@@ -1,7 +1,7 @@
 // Step 7, Sprites: how symbols move on a win (a preset per tier group) and the cabinet on the casino floor (both start
 // from the scene's colours; the screen's colours and fonts are the Scene step's). The mockup shows it live; "Show a win" lays a five-of-a-kind on the middle line.
-import {createGame} from "/slot-design-ui/mockup/game.js";
-import {designConfig, loadMath} from "/slot-design-ui/mockup/design.js";
+import {createGame} from "/admin-ui/design/mockup/game.js";
+import {designConfig, loadMath} from "/admin-ui/design/mockup/design.js";
 
 const GROUPS = [["wild", "Wild"], ["high", "High pays"], ["mid", "Mid pays"], ["low", "Low pays (royals)"], ["scatter", "Scatters"]];
 let C, game = null, parts = {};

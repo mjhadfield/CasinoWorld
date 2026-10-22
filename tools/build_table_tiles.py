@@ -8,9 +8,9 @@ table designer alike, so both draw from the same pictures:
                                                  than its average, black where darker, the difference as alpha,
                                                  so drawn over any colour it lightens and darkens it. The velvet
                                                  is made here rather than scanned: soft sheen brushed along the nap
-  server/casino_server/table_styles_web/textures/  the same files, plus the carpet, the dealer and the fine felt grain
+  server/casino_server/admin_web/tables/textures/  the same files, plus the carpet, the dealer and the fine felt grain
                                                  (Roulette's and Craps' House cloth) for the designer
-  server/casino_server/table_styles_web/fonts/     the game's lettering fonts, for the designer
+  server/casino_server/admin_web/tables/fonts/     the game's lettering fonts, for the designer
 
 Downloads are cached in .dev/polyhaven/. Every source and what's done to it is in docs/table_styles/LICENSES.md;
 change that too if you change SOURCES. Run it with the server's venv (it needs Pillow):
@@ -27,7 +27,7 @@ from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, ImageSta
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".dev" / "polyhaven"
 OUT_GAME = ROOT / "client" / "assets" / "tiles" / "table"
-OUT_WEB = ROOT / "server" / "casino_server" / "table_styles_web" / "textures"
+OUT_WEB = ROOT / "server" / "casino_server" / "admin_web" / "tables" / "textures"
 
 # Our name: (Poly Haven id, turn 90°, brightness, saturation, contrast, warm tint (r, g, b, strength) laid over with "screen")
 WOODS = {

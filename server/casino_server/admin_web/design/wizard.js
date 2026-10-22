@@ -13,8 +13,8 @@ import * as sounds from "./steps/sounds.js";
 import * as maths from "./steps/maths.js";
 import * as mockup from "./steps/mockup.js";
 import * as build from "./steps/build.js";
-import {createGame} from "/slot-design-ui/mockup/game.js";
-import {designConfig, loadMath} from "/slot-design-ui/mockup/design.js";
+import {createGame} from "/admin-ui/design/mockup/game.js";
+import {designConfig, loadMath} from "/admin-ui/design/mockup/design.js";
 
 const STEPS = {concept, art, ladder, scene, features, bonuses, sprites, sounds, maths, mockup, build};
 const ctx = {did: null, data: null, step: null};

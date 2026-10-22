@@ -15,8 +15,8 @@
 //
 // Layout: the views, saving, Preview and Publish in the top bar; rooms or the palette | the canvas, filling its box,
 // with the tools floating over it | the inspector.
-import * as G from "/plan-ui/geom.js";
-import { drawRoom, drawItem, drawPaths, drawReach, loadTables, onImage } from "/plan-ui/draw.js";
+import * as G from "/admin-ui/plan/geom.js";
+import { drawRoom, drawItem, drawPaths, drawReach, loadTables, onImage } from "/admin-ui/plan/draw.js";
 
 let $, el, api, status, top;
 export function init(h) {
@@ -175,7 +175,7 @@ function setMode(mode, roomIndex = S.room) {
   $(".pl-main").hidden = mode === "assets";
   $("#pl-assets").hidden = mode !== "assets";
   if (mode === "assets") {
-    import("/plan-ui/assets.js").then(m => m.open({ app: $("#pl-assets"), el, api, status, cat: G.CAT, changed: reloadCatalogue }));
+    import("/admin-ui/plan/assets.js").then(m => m.open({ app: $("#pl-assets"), el, api, status, cat: G.CAT, changed: reloadCatalogue }));
   }
   if (mode === "room") fitRoom(); else fitPlan();
   refresh();

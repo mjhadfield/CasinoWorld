@@ -4,7 +4,7 @@ let loading = null;
 export function loadMath() {
   return loading ??= new Promise((res, rej) => {
     if (window.SlotMath) return res(window.SlotMath);
-    const s = Object.assign(document.createElement("script"), {src: "/slot-design-ui/slots_math.js"});
+    const s = Object.assign(document.createElement("script"), {src: "/admin-ui/design/slots_math.js"});
     s.onload = () => res(window.SlotMath);
     s.onerror = () => rej(new Error("couldn't load slots_math.js"));
     document.head.append(s);

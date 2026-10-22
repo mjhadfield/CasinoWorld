@@ -1,34 +1,27 @@
 """
-Slot art the admin page can change (its Slots > Art tab), the way the Sounds tab changes sounds.
+The slot art the game loads in place of its built-in set.
 
-Each variant's assets (symbols, trail items, the trail armadillo and the pistol cylinder) can
-come from:
+Armadillo's assets (symbols, trail items, the trail armadillo and the pistol cylinder) come from:
   vector/<id>.png    the hand-drawn set, signed off and the default (tools/build_slot_art.py)
   flux1|flux2/<id>.png   the two FLUX.2-klein candidates
-  uploads/<file>.png     anything uploaded on the page (fitted into 512x512)
 
-The library is server/slot_art/<variant>/ (uploads go to <data>/slot_art/uploads/<variant>/);
-the picks are <data>/slot_art.json. The game asks for /api/slots/art/manifest when it connects
-and again on a `slot_art_changed` broadcast, and falls back to its built-in vector set.
+The library is server/slot_art/<variant>/; the picks are <data>/slot_art.json, made on the old
+admin page's Slots > Art tab and now fixed (Armadillo will become a Slot design project). The game
+asks for /api/slots/art/manifest when it connects and falls back to its built-in vector set.
 
 Slots built with the Slot design wizard (slot_builds.py) have no built-in set: their pictures are
 built/<id>.png (from their build folder's art/), the manifest lists every one of them, and their
 display and interface fonts (manifest "fonts") come from the build folder too.
 """
-import io
 import json
-import re
 from pathlib import Path
 
 from casino_server import slot_builds
 from casino_server.slots.variants import VARIANTS
 
 LIBRARY_DIR = Path(__file__).resolve().parent.parent / "slot_art"
-SIZE = 512
-MAX_UPLOAD = 8 * 1024 * 1024
-SOURCES = ("vector", "flux1", "flux2")
 
-# What can be changed, per variant, in page order: asset id -> name.
+# Each variant's assets: asset id -> name.
 ASSETS = {
     "armadillo": {
         "W": "Wild (sheriff's star)", "H1": "Armadillo", "H2": "Snake", "M1": "Hat", "M2": "Horseshoe",
@@ -43,7 +36,7 @@ ASSETS = {
 
 
 def _assets() -> dict:
-    """Every variant's changeable assets: Armadillo's, and each built slot's (from its variant.json)."""
+    """Every variant's assets: Armadillo's, and each built slot's (from its variant.json)."""
     return {**ASSETS, **{vid: VARIANTS[vid].extras.get("assets", {}) for vid in slot_builds.BUILT if vid in VARIANTS}}
 
 
@@ -51,14 +44,9 @@ def _default(variant: str) -> str:
     return "built" if variant in slot_builds.BUILT else "vector"
 
 
-class ArtError(ValueError):
-    """A request the art settings can't take (shown to the page as-is)."""
-
-
 class SlotArtBoard:
     def __init__(self, data_dir: Path, library_dir: Path = LIBRARY_DIR):
         self.library_dir = library_dir
-        self.uploads_dir = data_dir / "slot_art" / "uploads"
         self.path = data_dir / "slot_art.json"
         self.version, self.picks = 0, {}
         if self.path.exists():
@@ -70,7 +58,6 @@ class SlotArtBoard:
             except (ValueError, OSError):
                 pass
 
-    # ------------------------------------------------------------- reading
     def choice(self, variant: str, asset: str) -> str:
         chosen = self.picks.get(variant, {}).get(asset)
         if chosen and self.file_path(variant, chosen):
@@ -96,21 +83,6 @@ class SlotArtBoard:
                         fonts.setdefault(variant, {})[role] = f"/slot-art/{variant}/fonts/{name}?v={int(path.stat().st_mtime)}"
         return {"version": self.version, "variants": out, "fonts": fonts}
 
-    def overview(self) -> dict:
-        """Everything the admin page shows: each asset's pick and its candidates, and the uploads."""
-        variants = []
-        for variant, assets in _assets().items():
-            rows = []
-            for asset, name in assets.items():
-                candidates = [f"{s}/{asset}.png" for s in SOURCES + ("built",) if self.file_path(variant, f"{s}/{asset}.png")]
-                rows.append({"asset": asset, "name": name, "choice": self.choice(variant, asset),
-                             "is_default": asset not in self.picks.get(variant, {}), "candidates": candidates,
-                             "default": _default(variant)})
-            uploads = sorted(f"uploads/{p.name}" for p in (self.uploads_dir / variant).glob("*.png")) \
-                if (self.uploads_dir / variant).exists() else []
-            variants.append({"variant": variant, "assets": rows, "uploads": uploads})
-        return {"version": self.version, "variants": variants}
-
     def file_path(self, variant: str, source: str) -> Path | None:
         """The image a source names (or a built slot's font), or None -- never anything outside the library."""
         if variant not in _assets() or not isinstance(source, str) or "\\" in source or source.startswith("/"):
@@ -119,67 +91,8 @@ class SlotArtBoard:
             return slot_builds.art_path(variant, "art/" + source[len("built/"):])
         if source.startswith("fonts/"):
             return slot_builds.art_path(variant, source)
-        if source.startswith("uploads/"):
-            root, rel = self.uploads_dir / variant, source[len("uploads/"):]
-        else:
-            root, rel = self.library_dir / variant, source
-        path = (root / rel).resolve()
+        root = self.library_dir / variant
+        path = (root / source).resolve()
         if not path.is_relative_to(root.resolve()) or not path.is_file() or path.suffix.lower() != ".png":
             return None
         return path
-
-    # ------------------------------------------------------------- changing
-    def set_choice(self, variant: str, asset: str, source: str) -> str:
-        if asset not in _assets().get(variant, {}):
-            raise ArtError(f"There's no {asset!r} on {variant!r}.")
-        if not self.file_path(variant, source):
-            raise ArtError(f"Not in the library: {source}")
-        self.picks.setdefault(variant, {})[asset] = source
-        self._save()
-        return self.choice(variant, asset)
-
-    def reset(self, variant: str, asset: str | None = None):
-        if variant not in _assets():
-            raise ArtError(f"There's no slot called {variant!r}.")
-        if asset is None:
-            self.picks.pop(variant, None)
-        else:
-            self.picks.get(variant, {}).pop(asset, None)
-        self._save()
-
-    def upload(self, variant: str, filename: str, data: bytes) -> str:
-        """Add an image to the variant's uploads, fitted into 512x512 on a clear background."""
-        from PIL import Image, UnidentifiedImageError
-        if variant not in _assets():
-            raise ArtError(f"There's no slot called {variant!r}.")
-        if not data:
-            raise ArtError("That file is empty.")
-        if len(data) > MAX_UPLOAD:
-            raise ArtError("That file is over 8 MB.")
-        try:
-            im = Image.open(io.BytesIO(data)).convert("RGBA")
-        except (UnidentifiedImageError, OSError):
-            raise ArtError("That isn't an image the server can read (use PNG, JPEG or WebP).")
-        im.thumbnail((SIZE, SIZE), Image.LANCZOS)
-        out = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-        out.paste(im, ((SIZE - im.width) // 2, (SIZE - im.height) // 2), im)
-        stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(filename).stem).strip(".-")[:60] or "art"
-        folder = self.uploads_dir / variant
-        folder.mkdir(parents=True, exist_ok=True)
-        out.save(folder / f"{stem}.png")
-        return f"uploads/{stem}.png"
-
-    def delete_upload(self, variant: str, source: str):
-        path = self.file_path(variant, source) if source.startswith("uploads/") else None
-        if path is None:
-            raise ArtError("Only uploaded art can be deleted.")
-        path.unlink()
-        for asset, chosen in list(self.picks.get(variant, {}).items()):
-            if chosen == source:
-                del self.picks[variant][asset]
-        self._save()
-
-    def _save(self):
-        self.version += 1
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps({"version": self.version, "picks": self.picks}, indent=1))

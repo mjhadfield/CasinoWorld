@@ -3,8 +3,8 @@
 // words, plus the background and the logo. A design keeps several skins and plays the chosen one. This is the step
 // Claude designs by hand: the Brief asks for a scene, and a Claude Code session answers with a new skin here. The
 // mockup fills the left of the step and plays (press Spin); the controls are beside it.
-import {createGame} from "/slot-design-ui/mockup/game.js";
-import {designConfig, loadMath} from "/slot-design-ui/mockup/design.js";
+import {createGame} from "/admin-ui/design/mockup/game.js";
+import {designConfig, loadMath} from "/admin-ui/design/mockup/design.js";
 
 let C, game = null, parts = {}, bgBehind = false;
 const binOpen = {backgrounds: false, logos: false, skins: false};   // is that Bin shown

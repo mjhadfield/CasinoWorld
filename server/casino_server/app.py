@@ -1,6 +1,6 @@
 """
 FastAPI app: serves the Godot web export from build/web, runs the /ws socket,
-and serves the sound maintenance page (/maintenance) and its API (sounds.py).
+and serves the admin page (/admin, admin_web/) and its APIs.
 
 The Casino (casino.py) holds every table, the store and the jackpot, and lives
 on app.state for the app's lifespan. Each socket gets a Session; handlers push
@@ -25,7 +25,7 @@ from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
 from casino_server import plan, plan_assets, slot_builds, slot_design_art
-from casino_server.slot_art import ArtError, SlotArtBoard
+from casino_server.slot_art import SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
 from casino_server.slots import stats as slot_stats
@@ -200,9 +200,8 @@ for _name in ENGINE_FILES:
 
 
 # ------------------------------------------------------------------ sounds
-# The maintenance page picks the sound for each game moment; games fetch the
+# The admin page picks the sound for each game moment; games fetch the
 # manifest at start and again whenever they're sent "sounds_changed".
-MAINTENANCE_PAGE = Path(__file__).resolve().parent / "maintenance.html"
 NO_STORE = {"Cache-Control": "no-store"}
 
 
@@ -218,27 +217,27 @@ def _sound_call(fn, *args):
         raise HTTPException(400, str(e))
 
 
-@app.get("/maintenance", response_class=HTMLResponse)
-def maintenance_page():
-    return FileResponse(MAINTENANCE_PAGE, headers=NO_STORE)
+# The admin page (admin_web/) and its scripts, never cached, so an edit shows on reload.
+# design/slots_math.js is the signed-off slot maths, served from its home in docs/slots/mockup (the one source for both).
+ADMIN_WEB = Path(__file__).resolve().parent / "admin_web"
+SLOTS_MATH = Path(__file__).resolve().parents[2] / "docs" / "slots" / "mockup" / "slots_math.js"
 
 
 @app.get("/admin", response_class=HTMLResponse)
+@app.get("/maintenance", response_class=HTMLResponse)
 def admin_page():
-    return FileResponse(MAINTENANCE_PAGE, headers=NO_STORE)
-
-
-# The new admin page (admin_web/), side by side with maintenance.html until it takes over.
-ADMIN_WEB = Path(__file__).resolve().parent / "admin_web"
-
-
-@app.get("/admin/next", response_class=HTMLResponse)
-def admin_next_page():
     return FileResponse(ADMIN_WEB / "index.html", headers=NO_STORE)
+
+
+@app.get("/admin/next")
+def admin_next_page():
+    return RedirectResponse("/admin")   # where the new page was reviewed
 
 
 @app.get("/admin-ui/{rel:path}")
 def admin_ui(rel: str):
+    if rel == "design/slots_math.js":
+        return FileResponse(SLOTS_MATH, media_type="text/javascript", headers=NO_STORE)
     path = (ADMIN_WEB / rel).resolve()
     if not path.is_relative_to(ADMIN_WEB) or not path.is_file():
         raise HTTPException(404, "No such file")
@@ -394,57 +393,9 @@ def slots_reset_meter(tier: str, request: Request):
     return {"ok": True, "amount": casino.slot_jackpots.amount(tier)}
 
 
-def _art_call(fn, *args):
-    try:
-        return fn(*args)
-    except ArtError as e:
-        raise HTTPException(400, str(e))
-
-
-def _art_changed(request: Request):
-    request.app.state.casino.broadcast_all({"type": "slot_art_changed", "version": request.app.state.slot_art.version})
-
-
-@app.get("/api/slots/art")
-def slot_art_overview(request: Request):
-    return JSONResponse(request.app.state.slot_art.overview(), headers=NO_STORE)
-
-
 @app.get("/api/slots/art/manifest")
 def slot_art_manifest(request: Request):
     return JSONResponse(request.app.state.slot_art.manifest(), headers=NO_STORE)
-
-
-@app.put("/api/slots/art/{variant}/{asset}")
-async def slot_art_set(variant: str, asset: str, request: Request):
-    try:
-        body = await request.json()
-    except ValueError:
-        raise HTTPException(400, "Expected JSON: {source: 'flux2/H1.png'}")
-    source = body.get("source") if isinstance(body, dict) else None
-    chosen = _art_call(request.app.state.slot_art.set_choice, variant, asset, source)
-    _art_changed(request)
-    return {"choice": chosen}
-
-
-@app.delete("/api/slots/art/{variant}/{asset}")
-def slot_art_reset(variant: str, asset: str, request: Request):
-    _art_call(request.app.state.slot_art.reset, variant, asset)
-    _art_changed(request)
-    return {"choice": request.app.state.slot_art.choice(variant, asset)}
-
-
-@app.put("/api/slot-art-uploads/{variant}/{filename}")
-async def slot_art_upload(variant: str, filename: str, request: Request):
-    data = await request.body()
-    return {"source": _art_call(request.app.state.slot_art.upload, variant, filename, data)}
-
-
-@app.delete("/api/slot-art-uploads/{variant}/{filename}")
-def slot_art_delete_upload(variant: str, filename: str, request: Request):
-    _art_call(request.app.state.slot_art.delete_upload, variant, "uploads/" + filename)
-    _art_changed(request)
-    return {"ok": True}
 
 
 @app.get("/slot-art/{variant}/{source:path}")
@@ -557,30 +508,6 @@ async def plan_asset_delete(aid: str, request: Request):
     plans = [board.draft(), plan.load_live(board.data_dir)] + [plan._read(p) or {"rooms": []} for p in sorted((board.dir / "history").glob("*.json"))[-3:]]
     _asset_call(request, request.app.state.plan_assets.delete, aid, plans)
     return {"deleted": aid}
-
-
-# The Floor plan tab's scripts (plan_web/), never cached, so an edit shows on reload.
-PLAN_WEB = Path(__file__).resolve().parent / "plan_web"
-
-
-@app.get("/plan-ui/{rel:path}")
-def plan_ui(rel: str):
-    path = (PLAN_WEB / rel).resolve()
-    if not path.is_relative_to(PLAN_WEB) or not path.is_file():
-        raise HTTPException(404, "No such file")
-    return FileResponse(path, headers=NO_STORE)
-
-
-# The Tables tab's designer (table_styles_web/), never cached, so an edit shows on reload.
-TABLE_STYLES_WEB = Path(__file__).resolve().parent / "table_styles_web"
-
-
-@app.get("/table-styles-ui/{rel:path}")
-def table_styles_ui(rel: str):
-    path = (TABLE_STYLES_WEB / rel).resolve()
-    if not path.is_relative_to(TABLE_STYLES_WEB) or not path.is_file():
-        raise HTTPException(404, "No such file")
-    return FileResponse(path, headers=NO_STORE)
 
 
 # ------------------------------------------------------------------ slot design (the admin page)
@@ -944,22 +871,6 @@ def slot_design_retry(design: str, job_id: int, request: Request):
 def slot_design_cancel(design: str, job_id: int, request: Request):
     _design_call(request.app.state.slot_design.cancel, design, job_id)
     return {"ok": True}
-
-
-# The wizard's own scripts (slot_design_web/), loaded by the Slot design tab; never cached, so an edit shows on reload.
-# slots_math.js is the signed-off slot maths, served from its home in docs/slots/mockup (the one source for both).
-SLOT_DESIGN_WEB = Path(__file__).resolve().parent / "slot_design_web"
-SLOTS_MATH = Path(__file__).resolve().parents[2] / "docs" / "slots" / "mockup" / "slots_math.js"
-
-
-@app.get("/slot-design-ui/{rel:path}")
-def slot_design_ui(rel: str):
-    if rel == "slots_math.js":
-        return FileResponse(SLOTS_MATH, media_type="text/javascript", headers=NO_STORE)
-    path = (SLOT_DESIGN_WEB / rel).resolve()
-    if not path.is_relative_to(SLOT_DESIGN_WEB) or not path.is_file():
-        raise HTTPException(404, "No such file")
-    return FileResponse(path, headers=NO_STORE)
 
 
 @app.get("/slot-design/{design}/{rel:path}")

@@ -133,7 +133,7 @@ checks everything and says what's wrong (`check_skin`).
 
 ## Where it's drawn
 
-- The wizard's mockup: `slot_design_web/mockup/game.js`, the section "the skin's shapes" (`lcarsPanel`,
+- The wizard's mockup: `admin_web/design/mockup/game.js`, the section "the skin's shapes" (`lcarsPanel`,
   `lcarsMeter`, `drawDecor`, ...).
 - The game: `client/scenes/slots/slot_screen.gd`, the section "the skin" (`_lcars_panel`, ...), with the polygons
   in `skin_draw.gd`.

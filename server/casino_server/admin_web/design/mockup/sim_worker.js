@@ -5,7 +5,7 @@
    trails times how often spins trigger it: the trail swings far too hard to sample from spins alone. The battle's
    share is measured the same way (its free games included), and so are the voyage's and the expedition's. Buy Bonus is
    measured on its own run (one of the buyable bonuses at random each time). */
-importScripts("/slot-design-ui/slots_math.js");
+importScripts("/admin-ui/design/slots_math.js");
 const M = self.SlotMath;
 
 function report(V, spins, buys, progress = () => {}, seed = 1000) {

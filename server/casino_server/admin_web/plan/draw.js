@@ -1,7 +1,7 @@
 // Drawing the floor plan on a canvas, in plan coordinates (the caller sets the transform): a room's floor and walls as
 // the game draws them (plan_room.gd), its doorways, and everything in it -- tables in their table styles (the Tables
 // tab's render.js), cabinets, pieces, standing figures and furniture -- plus the NPCs' points and zones.
-import { render, loadAssets } from "/table-styles-ui/render.js";
+import { render, loadAssets } from "/admin-ui/tables/render.js";
 import { CAT, shapes, kindOf, piece, gap, STOOLS } from "./geom.js";
 
 const images = {};
@@ -26,7 +26,7 @@ const thumbs = {};
 const KIND = { roulette: "roulette", craps: "craps" };
 
 export async function loadTables(api) {
-  await loadAssets("/table-styles-ui/");
+  await loadAssets("/admin-ui/tables/");
   const kinds = ["cards", "roulette", "craps"];
   const got = await Promise.all(kinds.map(k => api("GET", "/api/table-styles?kind=" + k)));
   styles = Object.fromEntries(kinds.map((k, i) => [k, got[i]]));
@@ -52,7 +52,7 @@ const SIGN = { back: "#120406", rim: "#f2c14e", text: "#ffd76a" };
 
 function floorFill(ctx, texture, tint) {
   if (texture === "carpet") {
-    const img = image("/table-styles-ui/textures/carpet.png");
+    const img = image("/admin-ui/tables/textures/carpet.png");
     if (img) return ctx.createPattern(img, "repeat");
   } else if (CAT.floors[texture] && CAT.floors[texture].url) {
     const img = image(CAT.floors[texture].url);
