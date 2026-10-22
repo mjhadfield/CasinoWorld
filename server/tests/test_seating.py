@@ -22,7 +22,7 @@ def test_editing_a_style_reaches_the_floor(client):
         style = recv_until(ws, "seating")["seating"]["styles"]["default"]
         assert style["upholstery"] == "#145c43" and style["back"] == 1.1 and style["frame"] == "chrome"
         assert style["chair"] == "stool"   # (what wasn't sent stays)
-    for bad in ({"back": 3}, {"frame": "gold"}, {"upholstery": "red"}, {"name": ""}):
+    for bad in ({"back": 3}, {"frame": "wood"}, {"upholstery": "red"}, {"name": ""}):
         assert client.put("/api/seating/styles/default", json=bad).status_code == 400
 
 

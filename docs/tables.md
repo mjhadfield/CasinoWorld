@@ -17,11 +17,12 @@ a tab for each kind of table, because they have different parts:
   the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
   the betting spots' artwork; the Jackpot disc, the shuffler,
   shoe and discard rack; the card backs (a design, its colour, and the card's colour round it) and fronts (Classic,
-  Jumbo index, Vintage or Minimal, in red and black or four colours); and chips.
+  Jumbo index, Vintage or Minimal, in red and black or four colours); the chairs' frame metal and upholstery; and
+  chips.
 - **Roulette:** the felt (with the fine grain it's always had as a fourth cloth), a border line, the rail (bare
   wood or leather all round), the printing's font, ink and accent, the red, black and zero colours (on the layout
   and the wheel's pockets), the float (wood frame, brushed steel or under a smoked lid) and the wheel (its bowl's
-  wood and its metal: frets, turret, rims and the chip hole's rim).
+  wood and its metal: frets, turret, rims and the chip hole's rim), and the chairs' colours.
 - **Craps:** the felt, the rail (bare wood, leather on the dealers' side, or all round), the printing's font, ink,
   gold (6 and 8, Field, Horn) and red (Come, Big 6/8, Seven, Any Craps), the rubber walls, the chip rack and the
   dice (on the table and the sign).
@@ -91,6 +92,9 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).
+  The chair's shape and the sit come from the seating style (Settings); a card table's or Roulette's chairs take
+  their frame and upholstery from its table style (`FloorGame.chair_colours()`, `Seating.style(table_id, colours)`),
+  and the designer draws the same chair (`seatChair()` in render.js, ported from `docs/seating/mockup.html`).
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of

@@ -282,10 +282,16 @@ func style() -> Dictionary:
 	return look
 
 
+## Its chairs take its style's colours (Craps has standing spots, so none).
+func chair_colours() -> Dictionary:
+	return style().get("chairs", {})
+
+
 ## The table styles changed (the admin page's Tables tab): draw the table, its machines and what's on it again.
 func restyle() -> void:
 	look = TableStyle.design(table_id, style_kind())
 	_felt.queue_redraw()
+	redraw_chairs()
 	for path in ["Felt/Fixtures", "Felt/Machines", "Felt/Lights"]:
 		var layer := get_node_or_null(path)
 		if layer:

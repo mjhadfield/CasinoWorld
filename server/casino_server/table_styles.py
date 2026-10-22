@@ -18,7 +18,7 @@ House is saved the first time it's asked for and can be changed but not deleted.
 import copy
 import re
 
-from casino_server import floor, plan
+from casino_server import floor, plan, seating
 
 KEY = "table_styles"
 HOUSE_ID = "house"
@@ -36,6 +36,7 @@ HOUSE = {
     "print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
     "back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
     "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
+    "chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 
 # What the built-in presets are written as changes to (Mike's first pick on the mockup), so they stay as they
@@ -52,6 +53,7 @@ _PRESET_BASE = {
     "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
     "back": "emerald", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
     "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
+    "chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 
 # Each card back's colour before the colour was its own choice (Card2D.BACKS): what a design saved then takes.
@@ -116,12 +118,13 @@ CHOICES = {
     "jackpot": ("clear", "gold", "led"),
     "jackpotRim": ("thin", "standard", "heavy"),
     "chips": ("classic", "clay", "ceramic", "stripes", "metal", "house", "vintage"),
+    "chairs.frame": seating.CHOICES["frame"],
 }
 # The printing's colours: ink (titles, rules, follow-up bets like Play), primary (the bet every hand must have: the
 # Ante, Blackjack's bet), side (the optional bonus bets) and accent, the trim (gilt, double and deco borders, the
 # House chips, the Master Table's crest).
 COLOURS = ("felt.colour", "led", "rail.leather", "print.ink", "print.primary", "print.side", "print.accent",
-           "shufflerTint", "shoeTint", "rackTint", "backColour", "cardColour")
+           "shufflerTint", "shoeTint", "rackTint", "backColour", "cardColour", "chairs.upholstery")
 RANGES = {"felt.vignette": (0.0, 1.0)}
 
 CARD_GAMES = ("three_card_poker", "blackjack", "mississippi_stud", "pai_gow_fortune", "pai_gow_face_up",
@@ -141,6 +144,7 @@ ROULETTE_HOUSE = {
     "numbers": {"red": "#e0453d", "black": "#1a0d0b", "zero": "#1f8a52"},
     "float": "wood",
     "wheel": {"wood": "match", "metal": "brass"},
+    "chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 ROULETTE_BUILT_IN = {
     "grand": _preset("Grand Mahogany", ROULETTE_HOUSE, felt__texture="weave", felt__vignette=0.55, border="gilt"),
@@ -195,9 +199,10 @@ KINDS = {
                  "choices": {"felt.texture": FELT_TEXTURES, "border": CHOICES["border"], "rail.wood": WOODS,
                              "rail.armrest": ("none", "all"), "rail.bead": CHOICES["rail.bead"],
                              "print.font": CHOICES["print.font"], "float": ("wood", "steel", "lid"),
-                             "wheel.wood": ("match",) + WOODS, "wheel.metal": ("brass", "gold", "chrome")},
+                             "wheel.wood": ("match",) + WOODS, "wheel.metal": ("brass", "gold", "chrome"),
+                             "chairs.frame": seating.CHOICES["frame"]},
                  "colours": ("felt.colour", "led", "rail.leather", "print.ink", "print.accent",
-                             "numbers.red", "numbers.black", "numbers.zero")},
+                             "numbers.red", "numbers.black", "numbers.zero", "chairs.upholstery")},
     "craps": {"key": KEY + "_craps", "label": "craps table", "games": ("craps",), "house": CRAPS_HOUSE,
               "built_in": CRAPS_BUILT_IN, "ranges": RANGES,
               "choices": {"felt.texture": FELT_TEXTURES, "rail.wood": WOODS, "rail.armrest": ("none", "dealer", "all"),

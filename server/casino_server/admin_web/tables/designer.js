@@ -17,6 +17,7 @@ const VIEW = { cards: { game: "tcp", view: "seated", play: true, lit: true, fixe
 let view = VIEW.cards;     // the stage's settings, kept for each kind
 let placing = {};          // table id -> style id ("" for the default), as edited
 let placingDefault = "house";
+let seating = null;        // the Default seating style (Settings), for the chairs' shape
 const q = () => "?kind=" + kind;
 
 export function init(h) {
@@ -35,6 +36,7 @@ export async function load() {
   try {
     host.textContent = "Loading…";
     await loadAssets(BASE);
+    try { seating = (await ctx.api("GET", "/api/seating")).styles.default; } catch (e) { /* (the stool) */ }
     build();
     try { const k = ctx.remember.get("tables.kind"); if (KINDS[k]) kind = k; } catch (e) { /* (Card Games) */ }
     setKind(kind);
@@ -367,13 +369,13 @@ function drawStage() {
   const rect = viewRect(), canvas = $("#ts-stage");
   fit(canvas, rect);
   if (kind !== "cards") {
-    render(canvas, cur.design, KINDS[kind].game, rect, { play: view.play });
+    render(canvas, cur.design, KINDS[kind].game, rect, { play: view.play, seating });
     $("#ts-legend").hidden = true;
     $("#ts-warn").hidden = true;
     syncButtons();
     return;
   }
-  render(canvas, cur.design, view.game, rect, { play: view.play, lit: view.lit, fixed: view.fixed });
+  render(canvas, cur.design, view.game, rect, { play: view.play, lit: view.lit, fixed: view.fixed, seating });
   if (ctx.view.querySelector('[data-slot="tray"]')?.open) for (const mode of ["ledge", "sunk"]) {
     render($("#ts-cmp-" + mode), { ...cur.design, tray: { ...cur.design.tray, mode } }, view.game, KINDS.cards.views.bay[1], { play: view.play });
   }

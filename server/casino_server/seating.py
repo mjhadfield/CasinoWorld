@@ -12,7 +12,8 @@ A style:
     name         what the admin page calls it
     chair        "stool" (low horseshoe back, footring) or "lounge" (padded tub back, disc base)
     upholstery   the seat and back's colour, "#rrggbb"
-    frame        "brass", "chrome" or "gunmetal"
+    frame        "brass", "gold", "chrome", "gunmetal", "copper" or "black" (the card tables' and Roulette's chairs
+                 take theirs from their table style's `chairs`; these colour the slot stools)
     back         back height, 0.6-1.4 of the chair's own
     size         0.85-1.15 (1 fits a slot bank's 34px spacing with room to spare)
     sit          "swivel" (the chair turns to you, then turns you to the game), "pull" (pulled
@@ -30,7 +31,7 @@ DEFAULT_STYLE = {
 }
 CHOICES = {
     "chair": ("stool", "lounge"),
-    "frame": ("brass", "chrome", "gunmetal"),
+    "frame": ("brass", "gold", "chrome", "gunmetal", "copper", "black"),
     "sit": ("swivel", "pull", "glide"),
     "slot_screen": ("after_sit", "at_once"),
     "craps_spot": ("footprints", "spotlight", "medallion", "ring"),

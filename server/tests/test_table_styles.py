@@ -73,6 +73,19 @@ def test_a_card_back_saved_before_its_colour_keeps_its_look():
         raise AssertionError(bad)
 
 
+def test_card_and_roulette_styles_colour_their_chairs():
+    assert table_styles.clean_design({})["chairs"] == {"frame": "brass", "upholstery": "#2a2320"}
+    assert table_styles.clean_design({"chairs": {"frame": "copper", "upholstery": "#1D4A2A"}})["chairs"] == {"frame": "copper", "upholstery": "#1d4a2a"}
+    assert table_styles.clean_design({"chairs": {"frame": "chrome"}}, "roulette")["chairs"]["frame"] == "chrome"
+    assert "chairs" not in table_styles.clean_design({}, "craps")
+    for bad in ({"chairs": {"frame": "wood"}}, {"chairs": {"upholstery": "red"}}):
+        try:
+            table_styles.clean_design(bad)
+        except ValueError:
+            continue
+        raise AssertionError(bad)
+
+
 def test_new_styles_go_on_some_tables_and_the_built_ins_stay(client):
     r = client.put("/api/table-styles/styles/pit_blue", json={"name": "Pit blue", "design": table_styles.BUILT_IN["vegas"]["design"]})
     assert r.status_code == 200, r.text

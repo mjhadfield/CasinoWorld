@@ -179,6 +179,12 @@ func rest_chair(seat: int) -> void:
 	redraw_chairs()
 
 
+## The chairs' colours ({frame, upholstery}), where the table's style gives them (the card tables and
+## Roulette); empty keeps the seating style's own (slot cabinets).
+func chair_colours() -> Dictionary:
+	return {}
+
+
 func redraw_chairs() -> void:
 	queue_redraw()
 	for b in _backs.values():
@@ -189,7 +195,7 @@ func redraw_chairs() -> void:
 ## turned or not): "seat" is what's under the sitter, "back" what's over them. A free chair
 ## glows while you're walking.
 func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
-	var st := Seating.style(table_id)
+	var st := Seating.style(table_id, chair_colours())
 	var glow := offer_seats and not occupants.has(seat) and not Engine.is_editor_hint()
 	var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 5.0) if glow and Settings.value("seat_glow") else 0.8
 	var cs: Dictionary = chair_state.get(seat, {})

@@ -243,15 +243,16 @@ sections:
   part swappable. Card Games: pick the game, the view, a hand in play, the Jackpot lit, and "Fixed layout" to see
   where the game puts every spot and card; the parts are the felt, border line, rail (wood, leather armrest or
   leather all round, the bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting
-  spots, Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, and chips. Roulette: the felt, border, rail,
-  printing, number colours, float and wheel. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
+  spots, Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
+  border, rail, printing, number colours, float, wheel and chairs. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to
   change one); Roulette's and Craps' House is how they looked before styles. The designer is in
   `admin_web/tables/` and draws with the game's own tiles and fonts.
 - **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
-  game opens, and the craps standing spot). Saving updates the floor straight away. The API
+  game opens, and the craps standing spot). The card tables and Roulette take their chairs' frame and upholstery
+  from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API
   (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`).
 
 ## Money

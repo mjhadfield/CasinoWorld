@@ -25,7 +25,7 @@ export function init(h) {
         <div class="grid2">
           <label class="field"><span>Chair</span><select id="st-chair"><option value="stool">Low-back stool</option><option value="lounge">Lounge chair</option></select></label>
           <label class="field"><span>Upholstery</span><input type="color" id="st-upholstery"></label>
-          <label class="field"><span>Frame</span><select id="st-frame"><option value="brass">Brass</option><option value="chrome">Chrome</option><option value="gunmetal">Gunmetal</option></select></label>
+          <label class="field"><span>Frame</span><select id="st-frame"><option value="brass">Brass</option><option value="gold">Gold</option><option value="chrome">Chrome</option><option value="gunmetal">Gunmetal</option><option value="copper">Copper</option><option value="black">Black</option></select></label>
           <label class="field"><span>Back height (×)</span><input type="number" id="st-back" min="0.6" max="1.4" step="0.05"></label>
           <label class="field"><span>Size (×)</span><input type="number" id="st-size" min="0.85" max="1.15" step="0.05"></label>
           <label class="field"><span>Sitting down</span><select id="st-sit"><option value="swivel">Swivel</option><option value="pull">Pull out</option><option value="glide">Glide (no chair animation)</option></select></label>
@@ -33,7 +33,7 @@ export function init(h) {
           <label class="field"><span>Slot screen opens</span><select id="st-slot_screen"><option value="after_sit">After the sit</option><option value="at_once">At once</option></select></label>
           <label class="field"><span>Craps standing spot</span><select id="st-craps_spot"><option value="footprints">Footprints</option><option value="spotlight">Spotlight</option><option value="medallion">Medallion</option><option value="ring">Ring</option></select></label>
         </div>
-        <p class="hint">Every table and slot cabinet uses this style; saving updates the floor straight away.</p>
+        <p class="hint">Every table and slot cabinet uses this style; saving updates the floor straight away. The card tables and Roulette take their chairs' frame and upholstery from their table style (Tables tab); these colour the slot stools.</p>
       </div>
     </form>
     <div class="panel flat"></div>

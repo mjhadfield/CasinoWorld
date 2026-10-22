@@ -32,10 +32,15 @@ export async function loadTables(api) {
   styles = Object.fromEntries(kinds.map((k, i) => [k, got[i]]));
 }
 
+// A table's style: its id and design.
+function styleOf(game, tableId) {
+  if (!styles) return {};
+  const st = styles[KIND[game] || "cards"], sid = (st.tables || {})[tableId] || st.default;
+  return { sid, design: (st.styles[sid] || st.styles[st.default] || {}).design };
+}
+
 function tableThumb(game, tableId) {
-  if (!styles) return null;
-  const kind = KIND[game] || "cards", st = styles[kind];
-  const sid = (st.tables || {})[tableId] || st.default, design = (st.styles[sid] || st.styles[st.default] || {}).design;
+  const { sid, design } = styleOf(game, tableId);
   const key = `${game}|${sid}`;
   if (!design) return null;
   if (!thumbs[key]) {
@@ -252,7 +257,7 @@ function drawTable(ctx, item, x, y, s) {
     const q = [x + p[0], y + p[1]];
     if (facing) planDealer(ctx, q, facing);
     else if (game === "craps") planSpot(ctx, q);
-    else planChair(ctx, q, Math.PI / 2 + rot);
+    else planChair(ctx, q, Math.PI / 2 + rot, (styleOf(game, item.id).design || {}).chairs);
   }
 }
 

@@ -51,6 +51,10 @@ const BACK_COLOURS = [["Charcoal", "#34373c"], ["Red", "#8e1a22"], ["Garnet", "#
   ["Emerald", "#145238"], ["Navy", "#14284a"], ["Royal blue", "#1a3f93"], ["Plum", "#4a1d47"]];
 const CARD_COLOURS = [["White", "#f4f2ec"], ["Ivory", "#efe4c8"], ["Silver", "#cfd3d6"], ["Gold", "#d9b453"], ["Black", "#1c1c1e"]];
 export const FRONTS = { classic: "Classic (today)", jumbo: "Jumbo index", vintage: "Vintage", minimal: "Minimal" };
+// The chairs' frame metals (Seating.METALS) and upholstery.
+export const FRAMES = [["brass", "Brass (today)"], ["gold", "Gold"], ["chrome", "Chrome"], ["gunmetal", "Gunmetal"], ["copper", "Copper"], ["black", "Black"]];
+const UPHOLSTERY = [["Espresso (today)", "#2a2320"], ["Black", "#1b1a1a"], ["Oxblood", "#4a1418"], ["Burgundy", "#6a1424"], ["Tan", "#7a4a26"],
+  ["Navy", "#1a2234"], ["Forest", "#1d4a2a"], ["Bone", "#cfc3a8"]];
 
 export const SLOTS = [
   { id: "felt", label: "Felt", keys: ["felt"], ctl: [
@@ -96,6 +100,9 @@ export const SLOTS = [
   { id: "front", label: "Card front", keys: ["front", "suits"], ctl: [
     { key: "front", type: "seg", options: Object.entries(FRONTS), label: "Design" },
     { key: "suits", type: "seg", options: [["two", "Red and black"], ["four", "Four-colour (blue diamonds, green clubs)"]], label: "Suit colours" }] },
+  { id: "chairs", label: "Chairs", keys: ["chairs"], hint: "shape and sitting from Settings, Seating", ctl: [
+    { key: "chairs.frame", type: "seg", options: FRAMES, label: "Frame" },
+    { key: "chairs.upholstery", type: "swatch", options: UPHOLSTERY, custom: true, label: "Upholstery" }] },
   { id: "chips", label: "Chips", keys: ["chips"], hint: "Roulette and Craps keep today's", ctl: [
     { key: "chips", type: "seg", options: [["classic", "Today's"], ["clay", "Clay inlay"], ["ceramic", "Ceramic"], ["stripes", "Striped edge"], ["metal", "Metal ring"], ["house", "House colours"], ["vintage", "Vintage suits"]] }] },
 ];
@@ -133,6 +140,9 @@ export const ROULETTE_SLOTS = [
     { key: "numbers.zero", type: "swatch", options: [["Today's green", "#1f8a52"], ["Emerald", "#0f6b45"], ["Jade", "#2fa37a"], ["Gold", "#b8902e"]], custom: true, label: "Zero" }] },
   { id: "float", label: "Float (chip tray)", ctl: [
     { key: "float", type: "seg", options: [["wood", "Wood frame (today)"], ["steel", "Brushed steel"], ["lid", "Wood, smoked lid"]] }] },
+  { id: "chairs", label: "Chairs", hint: "shape and sitting from Settings, Seating", ctl: [
+    { key: "chairs.frame", type: "seg", options: FRAMES, label: "Frame" },
+    { key: "chairs.upholstery", type: "swatch", options: UPHOLSTERY, custom: true, label: "Upholstery" }] },
   { id: "wheel", label: "Wheel", ctl: [
     { key: "wheel.wood", type: "seg", options: WOOD_PICKS, label: "Bowl wood" },
     { key: "wheel.metal", type: "seg", options: [["brass", "Brass (today)"], ["gold", "Gold"], ["chrome", "Chrome"]], label: "Metal (frets, turret, rims, the chip hole)" }] },
@@ -861,17 +871,83 @@ function rack(ctx, D, at, n = 3) {
   ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(-w / 2, h / 2); ctx.lineTo(w / 2, h / 2); ctx.stroke();
   ctx.restore();
 }
-function chair(ctx, at) {
-  if (forPlan) return;
-  const [x, y] = at;
-  ctx.save(); ctx.translate(x, y);
-  ctx.beginPath(); ctx.ellipse(0.6, 9, 11, 4, 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0, 5, 7.5, 3, 0, 0, 7); ctx.strokeStyle = "#b8913e"; ctx.lineWidth = 1.2; ctx.stroke();   // footring
-  ctx.fillStyle = "#8a6a28"; ctx.fillRect(-1, -2, 2, 8);
-  ctx.beginPath(); ctx.ellipse(0, -2, 9, 5, 0, 0, 7); ctx.fillStyle = "#2a2320"; ctx.fill(); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, -2.6, 6.5, 3, 0, 0, 7); ctx.fillStyle = "rgba(255,255,255,.07)"; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0, 0.5, 9.5, 5.5, 0, 0.15, Math.PI - 0.15); ctx.strokeStyle = "#1a1412"; ctx.lineWidth = 2.6; ctx.stroke();   // the low back
+// ---------------------------------------------------------------- chairs (scripts/seating.gd, the seating mockup)
+// The frame metals: hi, mid, lo, piping (Seating.METALS).
+const METALS = { brass: ["#fbe7a1", "#c99a3c", "#6e4f1c", "#e2bb5c"], chrome: ["#ffffff", "#aeb6c0", "#4b525c", "#d5dbe2"],
+  gunmetal: ["#9aa0a8", "#4a4e55", "#1d1f23", "#7e858f"], gold: ["#fff3b8", "#d9b453", "#7a5a1c", "#f0cf6e"],
+  copper: ["#ffd3b4", "#c8794a", "#6b3418", "#e39d70"], black: ["#6a6e75", "#26282c", "#0c0d0f", "#4a4e55"] };
+const CHAIR_COLOURS = { frame: "brass", upholstery: "#2a2320" };
+let seatShape = { chair: "stool", back: 1.4, size: 1 };   // the Default seating style's shape (render's opts.seating)
+
+function chairGeom() {
+  const s = +seatShape.size || 1, back = +seatShape.back || 1.4;
+  if (seatShape.chair === "lounge") return { rx: 11.5 * s, ry: 5.2 * s, seatY: -11 * s, thick: 3.6 * s, h: 13 * s * back, hs: 1.22, t: 2.4 * s, inset: 1, baseRx: 9.5 * s, ring: false, col: 3.2 * s, lounge: true };
+  return { rx: 10 * s, ry: 4.6 * s, seatY: -13.5 * s, thick: 2.8 * s, h: 7.5 * s * back, hs: 1, t: 1.7 * s, inset: 0.6, baseRx: 7 * s, ring: true, col: 2.4 * s, lounge: false };
+}
+function chairPalette(colours) {
+  const c = { ...CHAIR_COLOURS, ...(colours || {}) }, u = c.upholstery;
+  return { main: u, top: lighten(u, 0.16), edge: darken(u, 0.28), side: darken(u, 0.5), rear: darken(u, 0.32), cap: lighten(u, 0.26), m: METALS[c.frame] || METALS.brass };
+}
+function ellPath(ctx, x, y, rx, ry, a0 = 0, a1 = Math.PI * 2) { ctx.beginPath(); ctx.ellipse(x, y, Math.max(rx, 0.01), Math.max(ry, 0.01), 0, a0, a1); }
+function quadFill(ctx, q, c) { ctx.beginPath(); ctx.moveTo(...q[0]); for (let i = 1; i < q.length; i++) ctx.lineTo(...q[i]); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 0.15; ctx.stroke(); }
+function shade(c, k) { return k > 0 ? lighten(c, k) : darken(c, -k); }
+
+/** A chair at `at` (where its sitter's feet go), its back pointing `theta` on screen (PI / 2: towards us), in a table
+ *  style's chair colours: the base, the seat, the back (Seating.draw_chair, with no one in it). */
+function seatChair(ctx, at, theta, colours) {
+  const g = chairGeom(), p = chairPalette(colours), m = p.m;
+  ctx.save(); ctx.translate(at[0], at[1]); ctx.lineCap = "butt";
+  // the base
+  ctx.fillStyle = "rgba(0,0,0,.38)"; ellPath(ctx, 0, 1.2, g.rx + 1.5, 3.8); ctx.fill();
+  ctx.fillStyle = m[2]; ellPath(ctx, 0, 0.7, g.baseRx, g.baseRx * 0.36); ctx.fill();
+  let gr = ctx.createLinearGradient(-g.baseRx * 0.9, 0, g.baseRx * 0.9, 0); gr.addColorStop(0, m[1]); gr.addColorStop(0.35, m[0]); gr.addColorStop(1, m[2]);
+  ctx.fillStyle = gr; ellPath(ctx, 0, -0.1, g.baseRx * 0.9, g.baseRx * 0.3); ctx.fill();
+  const ringY = -4.2 * g.rx / 10, rr = 0.76 * g.rx, top = g.seatY + g.thick, w = g.col;
+  if (g.ring) { ctx.strokeStyle = m[2]; ctx.lineWidth = 1.1; ellPath(ctx, 0, ringY, rr, rr * 0.32, Math.PI, Math.PI * 2); ctx.stroke(); }
+  gr = ctx.createLinearGradient(-w / 2, 0, w / 2, 0); gr.addColorStop(0, m[2]); gr.addColorStop(0.35, m[0]); gr.addColorStop(0.6, m[1]); gr.addColorStop(1, m[2]);
+  ctx.fillStyle = gr; ctx.fillRect(-w / 2, top, w, -top);
+  if (g.ring) {
+    ctx.strokeStyle = m[1]; ctx.lineWidth = 1.2; ellPath(ctx, 0, ringY, rr, rr * 0.32, 0, Math.PI); ctx.stroke();
+    ctx.strokeStyle = rgba(m[0], 0.8); ctx.lineWidth = 0.4; ellPath(ctx, 0, ringY - 0.3, rr, rr * 0.32, 0.3, 1.6); ctx.stroke();
+  } else { ctx.fillStyle = m[2]; ellPath(ctx, 0, top + 0.6, g.rx * 0.42, g.ry * 0.42); ctx.fill(); }
+  // the seat
+  const y = g.seatY, th = g.thick;
+  ctx.fillStyle = p.side; ellPath(ctx, 0, y + th, g.rx, g.ry); ctx.fill(); ctx.fillRect(-g.rx, y, 2 * g.rx, th);
+  ctx.fillStyle = rgba(m[3], 0.55); ctx.fillRect(-g.rx, y + th * 0.55, 2 * g.rx, 0.35);
+  ctx.fillStyle = p.edge; ellPath(ctx, 0, y, g.rx, g.ry); ctx.fill();
+  ctx.fillStyle = p.main; ellPath(ctx, -g.rx * 0.06, y - g.ry * 0.1, g.rx * 0.88, g.ry * 0.8); ctx.fill();
+  ctx.fillStyle = rgba(p.top, 0.75); ellPath(ctx, -g.rx * 0.3, y - g.ry * 0.35, g.rx * 0.45, g.ry * 0.4); ctx.fill();
+  if (g.lounge) { ctx.strokeStyle = rgba(darken(p.main, 0.5), 0.45); ctx.lineWidth = 0.4; ellPath(ctx, 0, y + 0.2, g.rx * 0.62, g.ry * 0.58); ctx.stroke(); }
+  ctx.strokeStyle = m[3]; ctx.lineWidth = 0.6; ellPath(ctx, 0, y, g.rx - 0.3, g.ry - 0.15); ctx.stroke();
+  // the back: a curved band standing on the seat's edge round theta
+  const n = 14, hs = g.hs;
+  const pt = (a, inner, up) => { const rb = g.rx - g.inset - (inner ? g.t : 0), rby = (g.ry - g.inset * 0.45) * rb / (g.rx - g.inset);
+    return [rb * Math.cos(a), g.seatY + rby * Math.sin(a) - (up ? g.h : 0)]; };
+  const segs = [];
+  for (let i = 0; i < n; i++) { const a1 = theta - hs + 2 * hs * i / n, a2 = theta - hs + 2 * hs * (i + 1) / n; segs.push([a1, a2, (a1 + a2) / 2]); }
+  segs.sort((a, b) => Math.sin(a[2]) - Math.sin(b[2]));
+  for (const [a1, a2, mid] of segs) {
+    const outer = Math.sin(mid) > 0, k = -Math.cos(mid) * 0.13 * (outer ? 1 : -1);
+    quadFill(ctx, [pt(a1, outer, false), pt(a2, outer, false), pt(a2, outer, true), pt(a1, outer, true)], shade(outer ? p.rear : p.main, k));
+  }
+  for (const f of g.lounge ? [0.2, 0.4, 0.6, 0.8] : [0.5]) {
+    const a = theta - hs + 2 * hs * f, outer = Math.sin(a) > 0;
+    if (!outer && !g.lounge) continue;
+    const b = pt(a, outer, false), t = pt(a, outer, true);
+    ctx.beginPath(); ctx.moveTo(b[0], b[1] - 0.6); ctx.lineTo(t[0], t[1] + 1.2);
+    ctx.strokeStyle = g.lounge ? rgba(darken(p.main, 0.55), 0.55) : m[1]; ctx.lineWidth = g.lounge ? 0.45 : 0.9; ctx.stroke();
+  }
+  for (const a of [theta - hs, theta + hs]) quadFill(ctx, [pt(a, false, false), pt(a, true, false), pt(a, true, true), pt(a, false, true)], p.side);
+  for (const [a1, a2] of segs) quadFill(ctx, [pt(a1, false, true), pt(a2, false, true), pt(a2, true, true), pt(a1, true, true)], g.lounge ? p.cap : m[1]);
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++) { const q = pt(theta - hs + 2 * hs * i / n, false, true); i ? ctx.lineTo(...q) : ctx.moveTo(...q); }
+  ctx.strokeStyle = g.lounge ? m[3] : m[0]; ctx.lineWidth = g.lounge ? 0.6 : 0.55; ctx.lineJoin = "round"; ctx.stroke();
   ctx.restore();
+}
+// A table's chair at rest: every sitter faces up the table (FloorGame.sit_facing), so its back is towards us.
+function chair(ctx, at, D) {
+  if (forPlan) return;
+  seatChair(ctx, at, Math.PI / 2, D.chairs);
 }
 
 // ---------------------------------------------------------------- a hand in play
@@ -1065,7 +1141,7 @@ function drawRoulette(ctx, D, rect, opts) {
   for (const [i, s] of [[0, "1 – 18"], [1, "EVEN"], [4, "ODD"], [5, "19 – 36"]]) text(ctx, s, g.gx + i * 2 * g.bw + g.bw, g.ey + g.eh / 2, 4.6, ink, D);
   wheel(ctx, D, R.wheel, R.wheel_order);
   if (opts.play) Object.values(R.chips).forEach((at, i) => rouChip(ctx, at[0] + (i % 2) * 1.5, at[1], SEAT_COLOURS[i % SEAT_COLOURS.length], 1 + (i % 3)));
-  R.chairs.forEach(c => chair(ctx, c));
+  R.chairs.forEach(c => chair(ctx, c, D));
 }
 
 // A printed die on the craps layout, and a real one.
@@ -1180,6 +1256,7 @@ export function render(canvas, D, game, rect, opts = {}) {
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
   bare = !!opts.bare;
   forPlan = !!opts.plan;
+  if (opts.seating) seatShape = opts.seating;
   if (game === "rou" || game === "crp") { (game === "rou" ? drawRoulette : drawCraps)(ctx, D, rect, opts); return; }
   const S = CARD_SHAPE, ledge = D.tray.mode === "ledge", felt = feltPoly(D.tray.mode);
   drawCarpet(ctx, rect);
@@ -1202,7 +1279,7 @@ export function render(canvas, D, game, rect, opts = {}) {
   if (opts.play && SAMPLE[game]) drawPlay(ctx, D, game, T);
   if (T.shoe) shoe(ctx, D, T.shoe);
   if (T.shuffler) shuffler(ctx, D, T.shuffler);
-  T.chairs.forEach(c => chair(ctx, c));
+  T.chairs.forEach(c => chair(ctx, c, D));
   if (opts.fixed) drawFixed(ctx, T);
 }
 
@@ -1216,24 +1293,10 @@ export function planShadow(ctx, game, down) {
   fillPoly(ctx, shift(small, down[0] * 2, down[1] * 2), "rgba(0,0,0,.3)");
 }
 
-/** A stool at `at` (where its sitter's feet go), upright on screen, its back pointing `back` (radians on screen:
- *  PI / 2 is towards us) -- drawn behind the seat when it's beyond it, in front when it's between it and us. */
-export function planChair(ctx, at, back) {
-  const [x, y] = at, near = Math.sin(back) > 0;
-  const backArc = () => {
-    ctx.beginPath(); ctx.ellipse(0, near ? 0.5 : -3, 9.5, 5.5, 0, back - Math.PI / 2 + 0.15, back + Math.PI / 2 - 0.15);
-    ctx.strokeStyle = "#1a1412"; ctx.lineWidth = 2.6; ctx.stroke();
-    if (!near) { ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.5; ctx.stroke(); }
-  };
-  ctx.save(); ctx.translate(x, y);
-  ctx.beginPath(); ctx.ellipse(0.6, 9, 11, 4, 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0, 5, 7.5, 3, 0, 0, 7); ctx.strokeStyle = "#b8913e"; ctx.lineWidth = 1.2; ctx.stroke();   // footring
-  ctx.fillStyle = "#8a6a28"; ctx.fillRect(-1, -2, 2, 8);
-  if (!near) backArc();
-  ctx.beginPath(); ctx.ellipse(0, -2, 9, 5, 0, 0, 7); ctx.fillStyle = "#2a2320"; ctx.fill(); ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 0.6; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, -2.6, 6.5, 3, 0, 0, 7); ctx.fillStyle = "rgba(255,255,255,.07)"; ctx.fill();
-  if (near) backArc();
-  ctx.restore();
+/** A chair at `at` (where its sitter's feet go), upright on screen, its back pointing `back` (radians on screen:
+ *  PI / 2 is towards us), in `colours` ({frame, upholstery}: its table style's `chairs`). */
+export function planChair(ctx, at, back, colours) {
+  seatChair(ctx, at, back, colours);
 }
 
 /** A craps player's standing spot at `at`: a brass-rimmed plate on the floor. */

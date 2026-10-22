@@ -21,12 +21,16 @@ const METALS := {
 	"brass": [Color("fbe7a1"), Color("c99a3c"), Color("6e4f1c"), Color("e2bb5c")],
 	"chrome": [Color("ffffff"), Color("aeb6c0"), Color("4b525c"), Color("d5dbe2")],
 	"gunmetal": [Color("9aa0a8"), Color("4a4e55"), Color("1d1f23"), Color("7e858f")],
+	"gold": [Color("fff3b8"), Color("d9b453"), Color("7a5a1c"), Color("f0cf6e")],
+	"copper": [Color("ffd3b4"), Color("c8794a"), Color("6b3418"), Color("e39d70")],
+	"black": [Color("6a6e75"), Color("26282c"), Color("0c0d0f"), Color("4a4e55")],
 }
 const GOLD := Color("ffd56a")
 const WALK_SPEED := 105.0
 
 static var styles := {}   # style id -> the style, filled out (its geometry in _g, its colours in _p)
 static var tables := {}   # table id -> style id, where it isn't the default
+static var _coloured := {}   # a style in a table style's chair colours (style()), by style id and colours
 
 
 ## The seating from the server: {styles, tables}.
@@ -38,12 +42,29 @@ static func configure(data: Dictionary) -> void:
 	if not styles.has("default"):
 		styles["default"] = _fill(DEFAULT)
 	tables = data.get("tables", {})
+	_coloured = {}
 
 
-static func style(table_id: String) -> Dictionary:
+## A table's chair style; `colours` ({frame, upholstery}, from its table style's `chairs`) recolours it,
+## the shape and the sit staying the seating style's.
+static func style(table_id: String, colours := {}) -> Dictionary:
 	if styles.is_empty():
 		styles["default"] = _fill(DEFAULT)
-	return styles.get(tables.get(table_id, "default"), styles["default"])
+	var id: String = tables.get(table_id, "default")
+	var st: Dictionary = styles.get(id, styles["default"])
+	if colours.is_empty():
+		return st
+	var key := "%s/%s/%s" % [id, colours.get("frame", ""), colours.get("upholstery", "")]
+	if not _coloured.has(key):
+		var given := {}
+		for k in st:
+			if not str(k).begins_with("_"):
+				given[k] = st[k]
+		for k in ["frame", "upholstery"]:
+			if colours.has(k):
+				given[k] = colours[k]
+		_coloured[key] = _fill(given)
+	return _coloured[key]
 
 
 static func _fill(given: Dictionary) -> Dictionary:
