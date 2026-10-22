@@ -87,6 +87,11 @@ func _build_menu() -> void:
 	_menu.custom_minimum_size = Vector2(400, 0)
 	_menu.hide()
 	add_child(_menu)
+	# (Nothing sizes the panel but itself, and a size only ever grows to fit: on the first open its wrapped lines are
+	# measured before they've had a width, so it comes out too tall. Shrink it back as they settle.)
+	_menu.minimum_size_changed.connect(func():
+		if _menu.visible:
+			_menu.size = Vector2.ZERO)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	_menu.add_child(box)
