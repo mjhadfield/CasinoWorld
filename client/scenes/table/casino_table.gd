@@ -63,6 +63,7 @@ var _timer_total := 1.0
 var timer_quiet := false  # this countdown doesn't tick (a Rebet's 3 seconds)
 var _seat_cards := {}     # seat -> [Card2D]
 var _seat_chips := {}     # seat -> {spot: ChipStack2D}
+var _flying := {}         # seat -> {spot: amount}: chips still sliding onto the spot
 var _payouts := {}        # seat -> [ChipStack2D] (winnings beside the stake)
 var _queued := {}         # seat -> {spot: ChipStack2D}: bets for the next hand, put down during this one (faded)
 const QUEUED_TINT := Color(1, 1, 1, 0.55)
@@ -502,6 +503,7 @@ func _reset_felt(keep := []) -> void:
 	_queued.clear()
 	_seat_cards.clear()
 	_seat_chips.clear()
+	_flying.clear()
 	_payouts.clear()
 	_dealer_cards.clear()
 	ready_seats.clear()
@@ -878,13 +880,40 @@ func _add_stack_from(seat: int, spot: String, amount: int, from: Vector2, d: flo
 	moving.amount = amount
 	moving.position = from
 	_dyn.add_child(moving)
-	var total := amount + (int(_chips_for(seat)[spot].amount) if _chips_for(seat).has(spot) else 0)
+	_set_flying(seat, spot, _in_flight(seat, spot) + amount)
 	var dest := to if to != Vector2.INF else spot_pos(seat, spot)
 	var tw := _tween()
 	tw.tween_property(moving, "position", dest, 0.28 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func():
 		moving.queue_free()
-		_set_stack(seat, spot, total, dest))
+		_set_stack(seat, spot, _landed(seat, spot) + _land(seat, spot, amount), dest))
+
+
+## What's sitting on a seat's spot, and what's on its way there.
+func _landed(seat: int, spot: String) -> int:
+	var chips := _chips_for(seat)
+	return int(chips[spot].amount) if chips.has(spot) else 0
+
+
+func _in_flight(seat: int, spot: String) -> int:
+	return int(_flying.get(seat, {}).get(spot, 0))
+
+
+## Chips arriving on a spot: how many of them still count (a bet taken back
+## mid-slide has already been taken off what's in flight).
+func _land(seat: int, spot: String, amount: int) -> int:
+	var flying: Dictionary = _flying.get(seat, {})
+	var landing := mini(amount, int(flying.get(spot, 0)))
+	_set_flying(seat, spot, int(flying.get(spot, 0)) - landing)
+	return landing
+
+
+func _set_flying(seat: int, spot: String, amount: int) -> void:
+	var flying: Dictionary = _flying.get_or_add(seat, {})
+	if amount > 0:
+		flying[spot] = amount
+	else:
+		flying.erase(spot)
 
 
 ## A seat's whole stack on `spot` slides to `to` and disappears.
@@ -914,12 +943,16 @@ func _show_bets(seat: int, bets: Dictionary, d: float) -> void:
 	var chips := _chips_for(seat)
 	for spot in bet_spots():
 		var new := int(bets.get(spot, 0))
-		var old := int(chips[spot].amount) if chips.has(spot) else 0
+		# Chips still sliding out from the last change count as down already (or a quick
+		# second bet would send them out again).
+		var old := _landed(seat, spot) + _in_flight(seat, spot)
 		if new > old:
 			sfx_at("bet", to_global(spot_pos(seat, spot)))
 			_add_stack_from(seat, spot, new - old, chair_pos(seat), d)
 		elif new < old:
-			_set_stack(seat, spot, new)
+			var flying := mini(_in_flight(seat, spot), new)
+			_set_flying(seat, spot, flying)
+			_set_stack(seat, spot, new - flying)
 			var back := _make_stack(seat)
 			back.amount = old - new
 			back.position = spot_pos(seat, spot)
