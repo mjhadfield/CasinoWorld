@@ -268,9 +268,8 @@ function duplicateRoom(i) {
 function deleteRoom(i) {
   const r = S.draft.rooms[i], tables = r.items.filter(it => G.kindOf(it.asset) !== "piece" && G.kindOf(it.asset) !== "furniture").length;
   if (!confirm(`Delete ${r.name}${tables ? ` and its ${tables} tables and cabinets (their ids aren't used again)` : ""}?`)) return;
-  edit(() => S.draft.rooms.splice(i, 1));
-  S.pick = -1;
-  if (S.room === i) setMode("plan", -1);
+  if (S.mode === "room" && S.room === i) setMode("plan", -1);   // out of it first, so nothing refreshes a room that's gone
+  edit(() => { S.draft.rooms.splice(i, 1); S.pick = -1; S.room = S.room === i ? -1 : S.room - (S.room > i); });
 }
 
 function togglePlaced(i) {
@@ -613,9 +612,8 @@ function removeSelected() {
   edit(() => {
     const lists = { item: r.items, point: r.paths.points, zone: r.paths.zones, door: r.doors, patch: r.patches };
     for (const s of S.sel.slice().sort((a, b) => b.i - a.i)) lists[s.t].splice(s.i, 1);
+    S.sel = [];   // before edit() refreshes: the inspector would otherwise look up what's just gone
   });
-  S.sel = [];
-  refresh();
 }
 
 /** Resize a room by moving one wall to `to` (plan coordinates): what's inside stays where it is on the plan. */
