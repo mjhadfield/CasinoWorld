@@ -30,6 +30,7 @@ var painting := false        # this is FeltCache's copy, which paints the pictur
 ## Master Table changing game shows its base while MasterSwap moves the two games' printing over it.
 var layer := "all"
 var table_ref: CasinoTable   # (the copy's table: it isn't the copy's parent)
+var held := false            # drawn nothing for now: MasterSwap shows it once the change is drawn over it (release())
 var _cache: FeltCache
 
 
@@ -40,6 +41,14 @@ func _ready() -> void:
 
 func _attach_cache() -> void:
 	_cache = FeltCache.attach(self)
+	_cache.visible = not held
+	queue_redraw()
+
+
+func release() -> void:
+	held = false
+	if _cache:
+		_cache.visible = true
 	queue_redraw()
 
 
@@ -58,7 +67,8 @@ func _draw() -> void:
 	if _cache:   # shown as FeltCache's picture: have it painted again instead
 		_cache.repaint()
 		return
-	paint()
+	if not held:
+		paint()
 
 
 ## The table's drawing (FeltCache paints it).

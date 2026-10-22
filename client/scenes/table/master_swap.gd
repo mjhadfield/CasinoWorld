@@ -59,6 +59,7 @@ static func start(from_t: CasinoTable, to_t: CasinoTable, ev: Dictionary) -> Mas
 	s.speed = maxf(0.25, float(ev.get("speed", 1.0)))
 	s.mapping = ev.get("map", [])
 	s.name = "MasterSwap"
+	(to_t._felt as TableFelt).held = true   # (painted bare, it would hide the old printing before this draws it)
 	to_t._felt.add_child(s)
 	to_t._felt.move_child(s, 0)   # (the felt's picture goes under it when it's attached: then this is just over it)
 	s.position = -to_t._felt.position
@@ -101,19 +102,10 @@ func run() -> void:
 		m.node.position = m.from
 	if anim == "dust":
 		_make_dust(images[0], images[1])
-	# The old table's felt picture stays up until the new one's is painted (its first paint waits a frame or two):
-	# the tables' geometry is the same, so only the printing is seen to change.
-	for i in 30:
-		var cache := (to_table._felt as TableFelt)._cache
-		if cache and cache._scale > 0.0:
-			break
-		await get_tree().process_frame
-		if not _alive():
-			return _finish()
-	var old_cache := (from_table._felt as TableFelt)._cache
-	if old_cache:
-		old_cache.visible = false
+	# The new felt shows from the frame this does, and the old one's picture stays up under it until the new one's
+	# is painted (a frame or two): the tables' geometry is the same, so only the printing is seen to change.
 	visible = true
+	(to_table._felt as TableFelt).release()
 	_bob()
 	var tw := create_tween()
 	tw.tween_method(_step, 0.0, 1.0, SECONDS[anim] / speed)
@@ -218,6 +210,11 @@ func _step(v: float) -> void:
 	k = v
 	if not _alive():
 		return
+	var old_cache := (from_table._felt as TableFelt)._cache
+	if old_cache and old_cache.visible:
+		var cache := (to_table._felt as TableFelt)._cache
+		if cache and cache._scale > 0.0:
+			old_cache.visible = false
 	var w: Dictionary = WINDOWS[anim]
 	_move_machines(w)
 	_move_chairs(clampf(inverse_lerp(w.chairs[0], w.chairs[1], k), 0.0, 1.0))
@@ -525,7 +522,7 @@ func _finish() -> void:
 			to_table.move_sitters()
 			to_table.redraw_chairs()
 		to_table._felt.layer = "all"
-		to_table._felt.queue_redraw()
+		(to_table._felt as TableFelt).release()
 	if _ghost_chair and is_instance_valid(_ghost_chair):
 		_ghost_chair.queue_free()
 	if is_instance_valid(from_table):

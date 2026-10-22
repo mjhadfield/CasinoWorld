@@ -1012,6 +1012,8 @@ func _master_node(old: CasinoTable, game: String, bare := false) -> CasinoTable:
 	t.add_to_group("navigation_obstacles")
 	var room := old.get_parent()
 	room.add_child(t)
+	t.dealer.look = old.dealer.look   # (the same dealer stays on: the snapshot that follows would say so a frame late)
+	t.dealer.display_name = old.dealer.display_name
 	if room is PlanRoom:
 		var i: int = room.games.find(old)
 		if i >= 0:
