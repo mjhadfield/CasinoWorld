@@ -116,7 +116,10 @@ sections:
     upload can be named, put in a category, stood on the floor / laid flat (a rug) / hung on the back wall, given
     its anchor (where it stands) and footprint (what blocks walking) by dragging on its picture, given pictures for
     other facings (or a mirrored one), and deleted unless a room uses it. Built-ins are read-only. The game fetches
-    the pictures at runtime, so new art needs no export.
+    the pictures at runtime, so new art needs no export. The Modern lobby's 21 pieces (`modern_*`: reception
+    counters, lounge seating, planters, ATM, kiosk, jackpot board...) and its porcelain and basalt floors are
+    installed as uploads by `tools/build_modern_pieces.py`, so they can be edited or deleted like any upload. A
+    piece can carry a `screen` the game draws live on it: the jackpot board shows the progressive jackpot.
   - The first run puts just the lobby on the floor (the spawn, with a door top centre) and keeps the old
     hand-built floor and pit in the library as "Classic floor" and "Classic pit" (also git tag `classic-floor`).
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
@@ -305,6 +308,13 @@ textures (`server/plan_assets/`) from LPC packs on OpenGameArt (pinned by checks
 `.dev/plan_assets_src/`), with their credits in `server/plan_assets/CREDITS.md` (served at `/plan-art-credits`).
 Each piece is a box on a pack's sheet in the script; it writes a contact sheet to check them.
 
+`server/.venv/bin/python tools/build_modern_pieces.py [--data DIR] [--only sofa,atm]` draws the Modern lobby's
+furniture (`tools/modern_pieces/pieces.js`, pixel art drawn in code, from the mockup at
+https://claude.ai/artifact/3Jvh1mDYRmzbknFaWE8fpA) in headless Chromium and installs it into a data dir's library as
+uploads (`<data>/plan_assets/`, default the live `server/data`), merged with the other uploads; restart the server
+afterwards. Running it again brings back pieces deleted on the admin page. A contact sheet goes to
+`.dev/modern_pieces_contact.png`.
+
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
 library that Armadillo's saved picks (`<data dir>/slot_art.json`) come from. New slot art is designed on the
 admin page's Slot design tab.
@@ -353,6 +363,7 @@ admin page's Slot design tab.
     and `plan_art` (the floor plan's furniture and floor pictures, fetched at runtime).
 - **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`,
   `plan_catalogue.gd` (the tables' and cabinet's shapes for the floor plan: rerun it if a table changes shape),
-  `build_plan_assets.py` (the floor plan's built-in furniture from LPC packs),
+  `build_plan_assets.py` (the floor plan's built-in furniture from LPC packs), `build_modern_pieces.py` and
+  `modern_pieces/` (the Modern lobby's furniture, drawn in code and installed as uploads),
   `build_table_tiles.py` (the table styles' wood, leather and felt tiles from Poly Haven, for the game and the
   designer), `table_geometry.gd` (the card tables' layout for the designer: rerun it if a table's layout changes).

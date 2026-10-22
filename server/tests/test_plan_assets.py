@@ -1,6 +1,7 @@
 """The floor plan's asset library (plan_assets.py): the built-in furniture, uploads, edits, and deletes refused while
 a room uses them."""
 import io
+import json
 
 from PIL import Image
 
@@ -95,3 +96,28 @@ def test_players_are_told_when_the_art_changes(client):
         recv_until(ws, "entity_spawn")
         client.put("/api/plan-assets/lamp.png", content=png())
         assert recv_until(ws, "plan_art_changed")["version"] > 0
+
+
+def test_a_screen_reaches_the_game_and_survives_edits(tmp_path):
+    """The Modern lobby's jackpot board is an upload (tools/build_modern_pieces.py) whose screen the game draws on."""
+    from casino_server.plan_assets import AssetLibrary
+    lib_dir = tmp_path / "plan_assets"
+    lib_dir.mkdir()
+    (lib_dir / "modern_board.png").write_bytes(png(108, 34))
+    (lib_dir / "uploads.json").write_text(json.dumps({"assets": {"modern_board": {
+        "name": "Jackpot display", "category": "Wall decor", "mount": "wall", "credit": "",
+        "facings": {"down": {"file": "modern_board.png", "anchor": [54, 34]}}, "rect": [-54, -34, 108, 34], "body": None,
+        "screen": {"show": "jackpot", "rect": [4, 13, 100, 15]}}}, "floors": {}}))
+    lib = AssetLibrary(tmp_path)
+    assert lib.manifest()["assets"]["modern_board"]["screen"] == {"show": "jackpot", "rect": [4, 13, 100, 15]}
+    assert "screen" not in lib.manifest()["assets"]["fountain"]
+    lib.update("modern_board", {"name": "Board"})
+    assert lib.manifest()["assets"]["modern_board"]["screen"]["show"] == "jackpot"
+    lib.delete("modern_board", [])
+    assert "modern_board" not in plan.ASSETS
+
+
+def test_the_modern_wall_styles_are_kept():
+    p = plan.clean({"spawn": "lobby/spawn", "rooms": [{**plan.lobby(), "walls": {"style": "onyx", "sign": "LOBBY"}}]},
+                       {"rooms": [], "next": {}})
+    assert p["rooms"][0]["walls"]["style"] == "onyx" and "travertine" in plan.WALL_STYLES

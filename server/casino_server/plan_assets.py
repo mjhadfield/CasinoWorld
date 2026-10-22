@@ -8,9 +8,12 @@ manifest() and the pictures, so new art needs no export).
   <data dir>/plan_assets/        uploads: their pictures and uploads.json (the same shape as the catalogue)
 
 An asset: {"name", "category", "mount": floor|flat|wall, "credit", "facings": {facing: {"file", "anchor": [x, y],
-"mirror"}}, "rect", "body", "by_facing": {facing: {"rect", "body"}}}. Its pictures stand on their anchor (the middle
-of the base; a rug's middle); rect is the picture about the anchor, body the footprint that blocks walking (none
-for rugs and wall pieces). A floor: {"name", "file", "credit"}, one seamless tile.
+"mirror"}}, "rect", "body", "by_facing": {facing: {"rect", "body"}}, "screen"}. Its pictures stand on their anchor (the
+middle of the base; a rug's middle); rect is the picture about the anchor, body the footprint that blocks walking (none
+for rugs and wall pieces). An optional screen, {"show": "jackpot", "rect": [x, y, w, h] on the picture}, is a display
+the game draws live on it (the Modern lobby's jackpot board). A floor: {"name", "file", "credit"}, one seamless tile.
+
+The Modern lobby's pieces (tools/build_modern_pieces.py) are installed as uploads, so they can be edited and deleted.
 
 install() puts every asset and floor into plan.ASSETS and plan.FLOORS (with each picture's URL); uploads, edits and
 deletes call it again and bump the version the game refetches by.
@@ -92,10 +95,11 @@ class AssetLibrary:
 
     def manifest(self) -> dict:
         """What the game draws with: {version, assets: {id: {mount, facings: {f: {url, anchor, mirror}}, body,
-        by_facing}}, floors: {id: url}}."""
+        by_facing, screen}}, floors: {id: url}}."""
         return {"version": self.version,
                 "assets": {aid: {"mount": a["mount"], "body": a.get("body"), "by_facing": a.get("by_facing", {}),
-                                 "facings": {f: {k: v[k] for k in ("url", "anchor", "mirror") if k in v} for f, v in a["facings"].items()}}
+                                 "facings": {f: {k: v[k] for k in ("url", "anchor", "mirror") if k in v} for f, v in a["facings"].items()},
+                                 **({"screen": a["screen"]} if a.get("screen") else {})}
                            for aid, a in plan.ASSETS.items()},
                 "floors": {fid: f["url"] for fid, f in plan.FLOORS.items() if "url" in f}}
 

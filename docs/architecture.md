@@ -142,7 +142,8 @@ A Godot 4.7 project exported to the web.
   holds them and `StyledFelt` paints every table in its style. The floor itself is built from the floor plan in
   the welcome (`world`): a `PlanRoom` (`scenes/world/plan_room.gd`) per room under `World/Rooms`, drawing its floor
   and walls in code (so they stay sharp at any zoom), cutting its doorways (`PlanDoor` swings a door open as
-  anyone nears it), and placing its tables, cabinets, pieces and standing figures. A `world` message rebuilds it,
+  anyone nears it), and placing its tables, cabinets, pieces (`Furniture`; a piece with a `screen`, the jackpot
+  board, gets a `PlanScreen` drawing the live jackpot) and standing figures. A `world` message rebuilds it,
   after you stand up if you're sitting, and resyncs for fresh table states. Rooms joined by archways show
   together; a room through a door shows once you're in the doorway; hidden rooms keep running (`visible` only),
   people in them are hidden and their sounds go unheard (`Sfx.audible`), and the camera keeps to the rooms on

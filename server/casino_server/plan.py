@@ -81,6 +81,8 @@ WALL_STYLES = {
     "ivory": {"name": "Ivory", "paper": "#d9cdb4", "stripe": "#cfc1a3", "wainscot": "#6b4a2e", "trim": "#b08a3e", "edge": "#3a2716"},
     "walnut": {"name": "Walnut panels", "paper": "#5a3a22", "stripe": "#4c3020", "wainscot": "#2e1d12", "trim": "#c9a24a", "edge": "#1e130b"},
     "charcoal": {"name": "Charcoal", "paper": "#26262b", "stripe": "#2e2e34", "wainscot": "#151518", "trim": "#d4af37", "edge": "#0c0c0e"},
+    "onyx": {"name": "Onyx & gold", "paper": "#1e1e23", "stripe": "#25252b", "wainscot": "#111114", "trim": "#d4af5a", "edge": "#09090b"},
+    "travertine": {"name": "Travertine", "paper": "#c8baa2", "stripe": "#c0b199", "wainscot": "#3b352e", "trim": "#b8955a", "edge": "#27231e"},
 }
 # Floors (the asset library adds more): "carpet" is the casino's own, "plain" just its tint.
 FLOORS = {"carpet": {"name": "Casino carpet"}, "plain": {"name": "Plain"}}
