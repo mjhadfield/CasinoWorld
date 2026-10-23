@@ -172,8 +172,8 @@ A Godot 4.7 project exported to the web.
   name, how many are seated and what you have on the felt on the left, the table's chips dead centre with the line
   saying what's happening (and its draining countdown) above them, Ready (Repeat Bet until you've bet; Craps: the
   dice) on their left, Undo, Clear, Auto rebet and Sit out (Craps: Working) on their right, and a decision in the
-  chips' place while it's open; the table's jackpot (only at tables with one) top left under your balance, Paytable
-  and Stand up top right. Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
+  chips' place while it's open, and Stand up at the bar's right edge; the table's jackpot (only at tables with one)
+  top left under your balance, Paytable top right. Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
   `switch` a switch, else a decision). Game-specific panels (the Pai Gow sorter, the slot screen) sit alongside it.
 
 ## Working on it

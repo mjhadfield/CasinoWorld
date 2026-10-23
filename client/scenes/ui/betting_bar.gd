@@ -6,8 +6,8 @@ extends Control
 ## centre, in the table's own style, with the line above them saying what's happening (its countdown draining in
 ## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
 ## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
-## place while it's open. The table's jackpot, if it has one, sits top left under your balance; Paytable and Stand
-## up top right, left of the HUD's Settings.
+## place while it's open. Stand up sits at the bar's right edge. The table's jackpot, if it has one, sits top left
+## under your balance; Paytable top right, left of the HUD's Settings.
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
 signal chip_picked(value: int)
@@ -70,6 +70,7 @@ var _jackpot_in: Label
 var _jackpot_amount: Label
 var _corner: HBoxContainer
 var _pay: BarButton
+var _stand: BarButton
 var _shown := ""          # the action list the dynamic buttons were built from
 
 
@@ -194,10 +195,10 @@ func _build_corners() -> void:
 		_pay.queue_redraw()
 		paytable_toggled.emit(on))
 	_corner.add_child(_pay)
-	var stand := BarButton.new()
-	stand.setup("Stand up", "Esc", "ghost", "stand")
-	stand.pressed.connect(stand_pressed.emit)
-	_corner.add_child(stand)
+	_stand = BarButton.new()
+	_stand.setup("Stand up", "Esc", "ghost", "stand")
+	_stand.pressed.connect(stand_pressed.emit)
+	add_child(_stand)
 
 
 func _label(text: String, size: int, colour: Color) -> Label:
@@ -431,6 +432,7 @@ func _layout() -> void:
 	var phone := vs.x < 700.0
 	_undo.compact = narrow
 	_clear.compact = narrow
+	_stand.hide_key = narrow
 	for b in _commit.get_children():
 		if b is BarButton:
 			b.hide_key = narrow
@@ -443,6 +445,7 @@ func _layout() -> void:
 	var cs := centre.get_combined_minimum_size()
 	var commit := _commit.get_combined_minimum_size()
 	var tools := _tools.get_combined_minimum_size()
+	var stand := _stand.get_combined_minimum_size()
 	var wallet := _where.get_combined_minimum_size()
 	wallet.x = maxf(wallet.x, _natural_width(_title))
 	var base_h: float
@@ -468,15 +471,19 @@ func _layout() -> void:
 		var tools_y := row_y + row_h + 12.0
 		_place(_tools, Vector2((vs.x - tools.x) / 2.0, tools_y), tools)
 		var foot := tools_y + tools.y + 14.0
-		wallet.x = minf(wallet.x, vs.x - 16.0 - commit.x - 12.0 - 16.0)
-		_place(_where, Vector2(16, foot + (maxf(commit.y, wallet.y) - wallet.y) / 2.0), wallet)
-		_place(_commit, Vector2(vs.x - 16.0 - commit.x, foot), commit)
+		var foot_h := maxf(maxf(commit.y, wallet.y), stand.y)
+		_place(_stand, Vector2(vs.x - 16.0 - stand.x, foot + (foot_h - stand.y) / 2.0), stand)
+		var commit_x := vs.x - 16.0 - stand.x - 10.0 - commit.x
+		wallet.x = minf(wallet.x, commit_x - 12.0 - 16.0)
+		_place(_where, Vector2(16, foot + (foot_h - wallet.y) / 2.0), wallet)
+		_place(_commit, Vector2(commit_x, foot + (foot_h - commit.y) / 2.0), commit)
 	else:
 		_place(_commit, Vector2(left - SIDE_GAP - commit.x, mid - commit.y / 2.0), commit)
 		_place(_tools, Vector2(left + chips_w + SIDE_GAP, mid - tools.y / 2.0), tools)
 		var commit_left := left - SIDE_GAP - commit.x if commit.x > 0 else left
 		wallet.x = minf(wallet.x, commit_left - 22.0 - 16.0)   # a long table name trims rather than run under Ready
 		_place(_where, Vector2(22, top + PAD_TOP + (base_h - PAD_TOP - PAD_BOTTOM - wallet.y) / 2.0), wallet)
+		_place(_stand, Vector2(vs.x - 22.0 - stand.x, mid - stand.y / 2.0), stand)
 	var corner := _corner.get_combined_minimum_size()
 	_place(_corner, Vector2(vs.x - right_inset - corner.x, CORNER_INSET.y), corner)
 	_jackpot.size = Vector2.ZERO

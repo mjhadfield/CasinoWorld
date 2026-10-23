@@ -97,7 +97,7 @@ func _ready() -> void:
 	_set_status(Net.is_open())
 
 
-## Top right, with the betting bar's Paytable and Stand up to its left.
+## Top right, with the betting bar's Paytable to its left.
 func _place_settings_button() -> void:
 	var w := settings_button.get_combined_minimum_size().x
 	settings_button.size = Vector2(w, 40)
