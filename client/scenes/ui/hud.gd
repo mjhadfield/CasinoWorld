@@ -101,8 +101,8 @@ func _ready() -> void:
 func _place_settings_button() -> void:
 	var w := settings_button.get_combined_minimum_size().x
 	settings_button.size = Vector2(w, 40)
-	settings_button.position = Vector2(get_viewport().get_visible_rect().size.x - 12.0 - w, 12)
-	bar.right_inset = w + 20.0
+	settings_button.position = Vector2(get_viewport().get_visible_rect().size.x - BettingBar.CORNER_INSET.x - w, BettingBar.CORNER_INSET.y)
+	bar.right_inset = w + BettingBar.CORNER_INSET.x + 8.0
 
 
 func _click_if_button(node: Node) -> void:

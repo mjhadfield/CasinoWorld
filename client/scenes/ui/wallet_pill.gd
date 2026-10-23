@@ -15,7 +15,7 @@ var top_up: BettingBar.BarButton
 
 
 func _ready() -> void:
-	position = Vector2(12, 12)
+	position = BettingBar.CORNER_INSET
 	add_theme_constant_override("separation", 8)
 	mouse_filter = MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()

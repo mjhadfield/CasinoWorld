@@ -38,13 +38,14 @@ const CHIP := 50.0
 const CHIP_PHONE := 36.0
 const BUTTON_H := 50.0     # Ready and the decisions: as tall as the chips
 const SIDE_GAP := 16.0     # the chips to Ready on one side, to Undo on the other
-const TOP_LEFT_Y := 64.0   # under the HUD's wallet pill, top left
+const CORNER_INSET := Vector2(24, 16)   # the HUD's corner pills from the screen's edges, clear of a wall at the floor's edge
+const TOP_LEFT_Y := 68.0   # under the HUD's wallet pill, top left
 
 ## The top of the bar's fade, in screen pixels (the Master Table's pills and the Pai Gow sorter sit above it).
 var bar_top := 0.0
 var selected_chip := 100
 ## The HUD's Settings button and its gap, top right: the corner buttons sit left of it.
-var right_inset := 124.0
+var right_inset := 136.0
 
 var _fade: TextureRect
 var _info: RichTextLabel
@@ -164,7 +165,7 @@ func _build_where() -> void:
 
 func _build_corners() -> void:
 	_jackpot = PanelContainer.new()
-	_jackpot.position = Vector2(12, TOP_LEFT_Y)
+	_jackpot.position = Vector2(CORNER_INSET.x, TOP_LEFT_Y)
 	add_child(_jackpot)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
@@ -477,7 +478,7 @@ func _layout() -> void:
 		wallet.x = minf(wallet.x, commit_left - 22.0 - 16.0)   # a long table name trims rather than run under Ready
 		_place(_where, Vector2(22, top + PAD_TOP + (base_h - PAD_TOP - PAD_BOTTOM - wallet.y) / 2.0), wallet)
 	var corner := _corner.get_combined_minimum_size()
-	_place(_corner, Vector2(vs.x - right_inset - corner.x, 12), corner)
+	_place(_corner, Vector2(vs.x - right_inset - corner.x, CORNER_INSET.y), corner)
 	_jackpot.size = Vector2.ZERO
 
 
