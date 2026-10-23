@@ -39,8 +39,9 @@ INACTIVE_ROLLS = 40   # a human with nothing on the table for this many rolls is
 
 @dataclass
 class Timings:
-    betting: float = 5.0           # an NPC shooter's betting window: "Dice out in 5"
+    betting: float = 7.0           # an NPC shooter's betting window: "Dice out in 7"
     betting_npc_only: float = 5.0
+    bet_reset: float = 5.0         # a real player's chips going down with less than this left put it back to this
     human_roll: float = 20.0       # a human shooter's time to roll
     min_betting: float = 2.0       # bets are open at least this long
     rebet: float = 3.0             # (the base class's; there's no Rebet at craps)
@@ -212,7 +213,18 @@ class CrapsMachine(TableMachine):
             events[0]["vig_back"] = vig_back
         self.locked[seat] = kept
         s.bets = new
+        if s.participant.is_human and any(new[spot] > old.get(spot, 0) for spot in self.SPOTS):
+            events += self._bet_reset(now)
         return events
+
+    def _bet_reset(self, now: float) -> list:
+        """A real player's bet going down late puts the dice-out countdown back up to
+        `timings.bet_reset` seconds (an NPC shooter's window only: a human shooter rolls when ready)."""
+        if (self.deadline is None or self.shoot_called or self.is_human(self.shooter)
+                or self.deadline - now >= self.timings.bet_reset):
+            return []
+        self.deadline = now + self.timings.bet_reset
+        return [{"kind": "betting_timer", "seconds": self.timings.bet_reset}]
 
     def clear_bets(self, seat: int, now: float) -> list:
         """Take down everything that can come down (contract bets stay)."""

@@ -54,8 +54,9 @@ debit per seat per roll), and taking a paid-for bet down refunds it at once.
 
 ## A roll
 
-1. **Betting:** the dice are in the middle and bets go down. An NPC shooter rolls when the 5-second window
-   closes ("Dice out in 5"). A human shooter rolls with **Roll** (or **Space**) within 20 seconds, or the dice
+1. **Betting:** the dice are in the middle and bets go down. An NPC shooter rolls when the window closes:
+   7 seconds with a real player seated ("Dice out in 7"), 5 at an all-NPC table. A real player putting chips
+   down with less than 5 seconds left puts the countdown back to 5 (NPCs' bets don't). A human shooter rolls with **Roll** (or **Space**) within 20 seconds, or the dice
    pass on.
 2. **"Dice are out":** no more bets. The dice are drawn and their path is planned on the server
    (`engines/craps.plan_throw`), so every viewer sees the same throw bounce off the walls, the chips, the

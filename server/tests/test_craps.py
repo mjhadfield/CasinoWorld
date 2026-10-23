@@ -475,6 +475,21 @@ def test_taking_bets_down():
         m.rebet(4, now)
 
 
+def test_a_late_bet_from_a_real_player_puts_the_dice_out_countdown_back_to_5():
+    m = table(8, 8)
+    npc, you = FakeParticipant("Nora", human=False), FakeParticipant("You")
+    m.sit(0, npc, 0)
+    m.sit(4, you, 0)
+    m.pass_dice(0, 0)                     # the dice come to you; you pass them back
+    m.pass_dice(4, 0)
+    assert m.shooter == 0 and m.deadline == 7.0                   # "Dice out in 7" with a real player seated
+    assert kinds(m.set_bet(4, "field", 500, 1)) == ["bet_changed"]   # 6s left: no change
+    ev = m.set_bet(4, "field", 1000, 4)                           # 3s left: back up to 5
+    assert ev[-1] == {"kind": "betting_timer", "seconds": 5.0} and m.deadline == 9.0
+    assert kinds(m.set_bet(4, "field", 0, 8)) == ["bet_changed"]   # taking it down doesn't
+    assert kinds(m.set_bet(0, "pass", 500, 8.5)) == ["bet_changed"] and m.deadline == 9.0   # nor do NPCs
+
+
 def test_a_lay_bet_pays_its_vig_up_front():
     m = table(7)                         # coming out 7: the lay wins
     p, q = FakeParticipant("Pat"), FakeParticipant("Quin", human=False)
