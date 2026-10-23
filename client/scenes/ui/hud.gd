@@ -30,6 +30,7 @@ var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the tabl
 var settings_menu: SettingsMenu
 var atm: AtmPanel         # the lobby's cash machine, while you're using it
 var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM, Play), under your feet
+const PROMPT_SCALE := 0.5   # the prompt is a betting-bar button drawn at half size
 var _prompt_feet := Vector2.ZERO   # where your feet are on screen (place_prompt)
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: BettingBar.BarButton
@@ -58,6 +59,7 @@ func _ready() -> void:
 	master = MasterPanel.new()
 	add_child(master)
 	prompt = BettingBar.BarButton.new()
+	prompt.scale = Vector2.ONE * PROMPT_SCALE
 	prompt.hide()
 	prompt.pressed.connect(interact_pressed.emit)
 	add_child(prompt)
@@ -202,8 +204,8 @@ func place_prompt(feet: Vector2) -> void:
 
 
 func _place_prompt() -> void:
-	var w := prompt.get_combined_minimum_size()
-	prompt.size = w
+	prompt.size = prompt.get_combined_minimum_size()
+	var w := prompt.size * PROMPT_SCALE   # what it covers on screen
 	var vp := get_viewport().get_visible_rect().size
 	var at := Vector2(_prompt_feet.x - w.x / 2.0, _prompt_feet.y + 14.0)
 	prompt.position = Vector2(round(clampf(at.x, 8.0, vp.x - 8.0 - w.x)), round(clampf(at.y, 8.0, vp.y - 8.0 - w.y)))
