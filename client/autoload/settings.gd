@@ -27,6 +27,11 @@ const DEFAULTS := {
 	"resolution": "sharp",  # "sharp": the screen's own pixels; "fast": drawn at 720p and scaled up
 	"seat_glow": true,      # free chairs breathe while you walk (else they glow steadily)
 	"slot_effects": "full", # "reduced": half the coins, no screen shake
+	"show_minimap": true,       # the minimap, top right (off: nothing there at all)
+	"minimap_collapsed": true,  # folded to its map button until opened
+	"minimap_size": "large",    # small, medium or large
+	"minimap_labels": "all",    # "all": the rooms next door name their tables too; "here": only yours
+	"minimap_zoom": 2,          # its +/- step (Minimap.ZOOMS)
 }
 const PRESETS := {
 	"high": {"fps_cap": 60, "resolution": "sharp", "seat_glow": true, "slot_effects": "full"},

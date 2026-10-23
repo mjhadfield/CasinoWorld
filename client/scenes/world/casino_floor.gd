@@ -24,6 +24,10 @@ extends Node2D
 ## Y-sort turns with it, so who's in front of whom stays right. Standing turns it
 ## back. The camera stays unturned, and avatars stand upright whatever the turn.
 ##
+## The HUD's minimap is fed from here every frame (where you are, which room, the turn, the other real players), and
+## its Find is worked out here: the nearest table of a kind by the navigation map's path (one with a free seat if
+## there is one), drawn on the floor (RouteLine) and the map until you get there, sit down anywhere, or stop it.
+##
 ## A preview (Session.preview: the admin page's Preview button) builds the draft's floor instead, to walk round
 ## alone: nobody else is there, and the tables can't be sat at.
 
@@ -74,6 +78,10 @@ var _last_tick := -1      # the countdown second last ticked
 var _placed: Array = []   # this round's chips, newest last ([spot, amount added]): what Undo takes back
 var _round_start := -1    # your balance as this round's betting opened (its result flashes in the bar at the next)
 var _staked := false      # whether you had bets in this round
+var route_line: RouteLine  # Find's way there, on the floor
+var _guide := {}           # while Find guides you: {kind, name, goal, replan}
+const GUIDE_ARRIVED := 24.0   # this close to where you'd stand, you're there
+const PX_PER_METRE := 32.0
 
 
 func _ready() -> void:
@@ -90,6 +98,16 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit_limits)
 	PlanArt.art_changed.connect(func(): _bake_navigation.call_deferred())   # (furniture blocks once its picture's in)
 	Sfx.start_room()
+	route_line = RouteLine.new()
+	world.add_child(route_line)
+	hud.minimap.find_opened.connect(func(): hud.minimap.show_find(_find_options()))
+	hud.minimap.find_picked.connect(_guide_to)
+	hud.minimap.walk_pressed.connect(func():
+		if not _guide.is_empty() and state == "walking":
+			_heading_for = {}
+			_heading_atm = null
+			player.walk_to(_guide.goal))
+	hud.minimap.guide_closed.connect(_stop_guide)
 
 	hud.rebet_pressed.connect(func():
 		_placed.clear()
@@ -190,6 +208,8 @@ func _build_world(w: Dictionary) -> void:
 	_redraw_chairs()
 	_bake_navigation()
 	_offer_seats(state == "walking")
+	hud.minimap.set_world(rooms, tables, _zone_of)
+	_stop_guide()
 	if not first and Session.preview == "":
 		Net.resync()
 
@@ -317,7 +337,7 @@ func _seen(p: Vector2) -> bool:
 	return false
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# Under a slot's full-screen game the floor isn't drawn (it plays on: the tables keep up).
 	var covered := slot_screen.covers_floor()
 	if world.visible == covered:
@@ -337,6 +357,12 @@ func _process(_delta: float) -> void:
 		var view := _seated_view()
 		hud.update_seated(view)
 		_play_cues(view)
+	var people := PackedVector2Array()
+	for e in entities.values():
+		if e.kind == "player":
+			people.append(e.position)
+	hud.minimap.follow(_here, player.position, player.avatar.facing, world.rotation, people, delta)
+	_update_guide(delta)
 
 
 ## Your cues: a chime when it's your turn, and a tick each second through the
@@ -401,6 +427,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
+	if get_viewport().gui_get_hovered_control() != null:
+		return   # (the HUD's: the minimap over a chair, say)
 	var at := get_global_mouse_position()
 	for f in get_tree().get_nodes_in_group("interactables"):
 		if f.is_visible_in_tree() and f.hit(at):
@@ -441,6 +469,114 @@ func _update_cursor() -> void:
 	if hand != _hand:
 		_hand = hand
 		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hand else Input.CURSOR_ARROW)
+
+
+# ------------------------------------------------------------------ Find
+## Find's list: each kind on the floor (and the ATM), how many, whether any has a free seat, and how far the nearest is.
+func _find_options() -> Array:
+	var groups := {}
+	for t in tables.values():
+		groups.get_or_add(Minimap.kind_of(t), []).append(t)
+	for f in _atms():
+		groups.get_or_add("atm", []).append(f)
+	var out := []
+	for kind in groups:
+		var near := _nearest(kind)
+		out.append({"kind": kind, "name": Minimap.kind_name(kind, groups[kind][0]), "count": groups[kind].size(),
+			"free": near.get("free", false), "metres": roundi(near.get("length", 0.0) / PX_PER_METRE)})
+	var order := func(o: Dictionary) -> String:   # the Master Table, the card games, roulette, craps, the slots, the ATM
+		var rank: int = {"master_table": 0, "roulette": 2, "craps": 3, "slot": 4, "atm": 5}.get(o.kind, 1)
+		return "%d%s" % [rank, o.name]
+	out.sort_custom(func(a, b): return order.call(a) < order.call(b))
+	return out
+
+
+func _atms() -> Array:
+	return get_tree().get_nodes_in_group("interactables").filter(func(f): return f.interact == "atm" and f.is_inside_tree())
+
+
+## The nearest of a kind by the walk there, preferring one with a free seat: {goal, path, length, free}, or {}.
+func _nearest(kind: String) -> Dictionary:
+	var best := {}
+	var targets: Array = _atms() if kind == "atm" else tables.values().filter(func(t): return Minimap.kind_of(t) == kind)
+	for t in targets:
+		var goal: Vector2
+		var free := true
+		if t is FloorGame:
+			var seats: Array = t.free_seats()
+			free = not seats.is_empty()
+			var from: Vector2 = t.to_local(player.global_position)
+			var seat: int = 0
+			for s in seats:   # its free seat nearest you
+				if seat not in seats or t.seat_pos(s).distance_to(from) < t.seat_pos(seat).distance_to(from):
+					seat = s
+			goal = _on_floor(t, Seating.approach(t, seat, from))
+		else:
+			goal = world.to_local(t.stand_spot())
+		var path := _path_to(goal)
+		if path.is_empty():
+			continue
+		var length := 0.0
+		for i in range(1, path.size()):
+			length += path[i - 1].distance_to(path[i])
+		if best.is_empty() or (free and not best.free) or (free == best.free and length < best.length):
+			best = {"goal": goal, "path": path, "length": length, "free": free}
+	return best
+
+
+## The navigation map's way from you to `goal` (World's frame; the map is in it, and Find only runs while it's upright).
+func _path_to(goal: Vector2) -> PackedVector2Array:
+	var map := player.get_world_2d().navigation_map
+	if NavigationServer2D.map_get_iteration_id(map) <= 0:
+		return PackedVector2Array([player.position, goal])
+	return NavigationServer2D.map_get_path(map, player.position, goal, true)
+
+
+func _guide_to(kind: String) -> void:
+	if state != "walking":
+		return
+	var near := _nearest(kind)
+	if near.is_empty():
+		hud.show_toast("There's no way there from here")
+		return
+	var what: String = Minimap.kind_name(kind, tables.values().filter(func(t): return Minimap.kind_of(t) == kind).front() if kind != "atm" else null)
+	what = {"slot": "a slot", "atm": "the ATM"}.get(kind, what)
+	_guide = {"kind": kind, "name": what + ("" if near.free else " (full)"), "goal": near.goal, "replan": 0.4}
+	_show_guide(near.path)
+
+
+func _show_guide(path: PackedVector2Array) -> void:
+	var length := 0.0
+	for i in range(1, path.size()):
+		length += path[i - 1].distance_to(path[i])
+	route_line.path = path
+	hud.minimap.set_route(path, _guide.goal, _guide.name, roundi(length / PX_PER_METRE))
+
+
+func _stop_guide() -> void:
+	_guide = {}
+	if route_line:
+		route_line.path = PackedVector2Array()
+	hud.minimap.set_route(PackedVector2Array())
+
+
+## While guiding: the way re-planned as you go, and over once you're there or sat down anywhere.
+func _update_guide(delta: float) -> void:
+	if _guide.is_empty():
+		return
+	if state != "walking":
+		_stop_guide()
+		return
+	if player.position.distance_to(_guide.goal) < GUIDE_ARRIVED:
+		hud.show_toast("You're at %s" % str(_guide.name).trim_suffix(" (full)"))
+		_stop_guide()
+		return
+	_guide.replan -= delta
+	if _guide.replan <= 0.0 and is_zero_approx(world.rotation):
+		_guide.replan = 0.4
+		var path := _path_to(_guide.goal)
+		if not path.is_empty():
+			_show_guide(path)
 
 
 # ------------------------------------------------------------------ taking a seat
@@ -1166,6 +1302,7 @@ func _master_node(old: CasinoTable, game: String, bare := false) -> CasinoTable:
 	t.table_id = old.table_id
 	t.is_master = true
 	t.master_game = game
+	t.game = "master_table"
 	t.game_label = MasterPanel.name_of(game) if game != "" else old.game_label if old is MasterTable else "Master Table"
 	if game == "pai_gow_face_up":
 		t.set("face_up", true)

@@ -7,7 +7,7 @@ extends Control
 ## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
 ## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
 ## place while it's open. Stand up sits at the bar's right edge. The table's jackpot, if it has one, sits top left
-## under your balance; Paytable top right, left of the HUD's Settings.
+## under your balance; Paytable top right, left of the HUD's minimap.
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
 signal chip_picked(value: int)
@@ -44,7 +44,7 @@ const TOP_LEFT_Y := 68.0   # under the HUD's wallet pill, top left
 ## The top of the bar's fade, in screen pixels (the Master Table's pills and the Pai Gow sorter sit above it).
 var bar_top := 0.0
 var selected_chip := 100
-## The HUD's Settings button and its gap, top right: the corner buttons sit left of it.
+## The HUD's minimap and its gap, top right: the corner buttons sit left of it.
 var right_inset := 136.0
 
 var _fade: TextureRect
@@ -694,6 +694,11 @@ class BarButton extends Button:
 				for i in 8:
 					var d := Vector2.from_angle(i * TAU / 8.0)
 					draw_line(c + d * 5.5, c + d * 8.0, col, 2.4, true)
+			"map":   # a folded map
+				draw_polyline(PackedVector2Array([c + Vector2(-8, -4.5), c + Vector2(-3, -7), c + Vector2(3, -4.5), c + Vector2(8, -7),
+					c + Vector2(8, 4.5), c + Vector2(3, 7), c + Vector2(-3, 4.5), c + Vector2(-8, 7), c + Vector2(-8, -4.5)]), col, 1.6, true)
+				draw_line(c + Vector2(-3, -7), c + Vector2(-3, 4.5), col, 1.4, true)
+				draw_line(c + Vector2(3, -4.5), c + Vector2(3, 7), col, 1.4, true)
 			"stand":
 				draw_polyline(PackedVector2Array([c + Vector2(-2, -7), c + Vector2(-6.5, -7), c + Vector2(-6.5, 7), c + Vector2(-2, 7)]), col, 1.6, true)
 				draw_line(c + Vector2(-2, 0), c + Vector2(7, 0), col, 1.6, true)

@@ -98,6 +98,7 @@ func _place(item: Dictionary) -> void:
 		var t: CasinoTable = TABLE_SCENES[game].instantiate()
 		t.table_id = str(item.id)            # (set before it's in the tree: several scenes default to tcp_1)
 		t.game_label = str(item.get("name", t.game_label))
+		t.game = game
 		if game == "pai_gow_face_up":
 			t.face_up = true
 		t.sign_side = str(item.get("props", {}).get("sign", ""))

@@ -1,5 +1,6 @@
 extends CanvasLayer
-## Screen-space overlay. Top left, walking or seated: your name and cash in hand (WalletPill); top right: Settings.
+## Screen-space overlay. Top left, walking or seated: Settings, then your name and cash in hand (WalletPill); top
+## right: the minimap (Minimap, with Find and its guide under it).
 ## Walking: the interact prompt (Use ATM) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
@@ -32,6 +33,7 @@ var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM), bottom
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
+var minimap: Minimap
 var _toast_tween: Tween
 var _banner_tween: Tween
 
@@ -66,6 +68,10 @@ func _ready() -> void:
 	wallet = WalletPill.new()
 	add_child(wallet)
 	move_child(wallet, bar.get_index() + 1)
+	minimap = Minimap.new()
+	add_child(minimap)
+	move_child(minimap, wallet.get_index() + 1)
+	minimap.corner_changed.connect(_place_corners)
 	settings_button = BettingBar.BarButton.new()
 	settings_button.setup("Settings", "", "ghost", "settings")
 	settings_button.compact = true   # just the cog, in a circle
@@ -111,12 +117,19 @@ func _ready() -> void:
 	_set_status(Net.is_open())
 
 
-## Top right, with the betting bar's Paytable to its left.
+## Top left, with your wallet to its right.
 func _place_settings_button() -> void:
 	var w := settings_button.get_combined_minimum_size().x
 	settings_button.size = Vector2(w, 40)
-	settings_button.position = Vector2(get_viewport().get_visible_rect().size.x - BettingBar.CORNER_INSET.x - w, BettingBar.CORNER_INSET.y)
-	bar.right_inset = w + BettingBar.CORNER_INSET.x + 8.0
+	settings_button.position = BettingBar.CORNER_INSET
+	wallet.position = BettingBar.CORNER_INSET + Vector2(w + 8.0, 0)
+
+
+## Round the minimap, top right: the betting bar's Paytable to its left, the paytable itself under it.
+func _place_corners() -> void:
+	var w: float = minimap.corner_width()
+	bar.right_inset = BettingBar.CORNER_INSET.x + (w + 8.0 if w > 0.0 else 0.0)
+	%Paytable.offset_top = maxf(64.0, minimap.corner_bottom() + 8.0)
 
 
 func _smooth(node: Node) -> void:
@@ -152,6 +165,7 @@ func set_mode(new_mode: String) -> void:
 	bar.visible = mode == "seated"
 	wallet.visible = mode != "slot"   # the slot screen has its credit meter...
 	settings_button.visible = mode != "slot"   # ...and its own Settings button
+	minimap.set_mode(mode)
 	if mode != "seated":
 		sorter.close()
 		master.close_all()

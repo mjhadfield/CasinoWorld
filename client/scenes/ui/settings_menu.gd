@@ -1,6 +1,6 @@
 class_name SettingsMenu
 extends PanelContainer
-## The settings panel, opened from the Settings button at the top right (or the slot screen's own). It
+## The settings panel, opened from the Settings button at the top left (or the slot screen's own). It
 ## edits the Settings autoload directly, so every change applies (and is saved) at once. Esc or Close
 ## shuts it. While it's open the floor ignores game keys.
 ##
@@ -20,6 +20,8 @@ var _choices := {}   # setting key -> [[Button, value], ...]
 var _switches := {}  # setting key -> [BettingBar.BarSwitch, value when on]
 var _grabber: ImageTexture
 var _grabber_hi: ImageTexture
+var _scroll: ScrollContainer   # (a short screen scrolls the rows)
+var _box: VBoxContainer
 
 
 func _ready() -> void:
@@ -30,10 +32,15 @@ func _ready() -> void:
 	_grabber = _dot_texture(9.0, BRASS_HI)
 	_grabber_hi = _dot_texture(10.0, Color("fff2cc"))
 
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_scroll)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	box.custom_minimum_size = Vector2(480, 0)
-	add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(box)
+	_box = box
 	var top := HBoxContainer.new()
 	box.add_child(top)
 	var title := _label("SETTINGS", 26, BRASS_HI)
@@ -57,6 +64,11 @@ func _ready() -> void:
 	_switch_row(box, "Free seats glow and breathe", "seat_glow", true, false)
 	_switch_row(box, "Fewer coins, no shaking", "slot_effects", "reduced", "full", "At the slot machines")
 	_switch_row(box, "Show the frame rate", "show_fps", true, false, "Also F3")
+
+	_heading(box, "Minimap")
+	_switch_row(box, "Show the minimap", "show_minimap", true, false, "Your room and the rooms next to it, top right")
+	_choice_row(box, "Size", "minimap_size", [["Small", "small"], ["Medium", "medium"], ["Large", "large"]])
+	_choice_row(box, "Table names", "minimap_labels", [["Your room", "here"], ["Every room", "all"]], "In the rooms next door too, or only yours")
 	Settings.changed.connect(func(_k, _v): _refresh())
 
 	var foot := _label("Saved on this device as you change them.", 15, MUTED)
@@ -144,7 +156,7 @@ func _slider_row(parent: Control, text: String, key: String, hint := "") -> void
 
 ## Choices side by side in a dark tray, the current one in brass: `options` is [[label, value]]. Quality
 ## picks a preset, and its Custom only shows (lit, not clickable) once a row below has been changed by
-## hand; the others are set by hand (Settings.set_graphics).
+## hand; the others are set by hand (_change).
 func _choice_row(parent: Control, text: String, key: String, options: Array, hint := "") -> void:
 	var row := _row(parent, text, hint)
 	var tray := PanelContainer.new()
@@ -173,7 +185,7 @@ func _choice_row(parent: Control, text: String, key: String, options: Array, hin
 				Settings.use_preset(value)
 				Settings.set_value("graphics_auto", false)
 			else:
-				Settings.set_graphics(key, value)
+				_change(key, value)
 			_refresh())
 		segs.add_child(b)
 		buttons.append([b, value])
@@ -191,8 +203,7 @@ func _style_choice(b: Button, on: bool) -> void:
 		b.add_theme_color_override(c, ink)
 
 
-## A switch on the right: `on` when it's on, `off` when not. Graphics rows go through Settings.set_graphics
-## (they make the Quality "Custom"); the rest are plain settings.
+## A switch on the right: `on` when it's on, `off` when not.
 func _switch_row(parent: Control, text: String, key: String, on, off, hint := "") -> void:
 	var row := _row(parent, text, hint)
 	var holder := Control.new()
@@ -202,12 +213,17 @@ func _switch_row(parent: Control, text: String, key: String, on, off, hint := ""
 	sw.words = ""
 	holder.add_child(sw)
 	sw.position = Vector2(CONTROL_W - 34.0, 0)   # its track's right edge in line with the trays'
-	sw.toggled.connect(func(ticked: bool):
-		if key in ["muted", "show_fps"]:
-			Settings.set_value(key, on if ticked else off)
-		else:
-			Settings.set_graphics(key, on if ticked else off))
+	sw.toggled.connect(func(ticked: bool): _change(key, on if ticked else off))
 	_switches[key] = [sw, on]
+
+
+## A row's setting: a graphics preset's setting goes through Settings.set_graphics (the Quality turns "Custom"); the
+## rest are plain settings.
+func _change(key: String, v) -> void:
+	if Settings.PRESETS.high.has(key):
+		Settings.set_graphics(key, v)
+	else:
+		Settings.set_value(key, v)
 
 
 ## A soft-edged dot for the sliders' handles.
@@ -258,8 +274,10 @@ func toggle() -> void:
 func _place() -> void:
 	if not visible:
 		return
+	var vs := get_viewport().get_visible_rect().size
+	_scroll.custom_minimum_size = Vector2(_box.get_combined_minimum_size().x, minf(_box.get_combined_minimum_size().y, vs.y - 72.0))
 	reset_size()
-	position = ((get_viewport().get_visible_rect().size - size) / 2).round()
+	position = ((vs - size) / 2).round()
 
 
 func _input(event: InputEvent) -> void:

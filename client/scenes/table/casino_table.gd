@@ -51,6 +51,8 @@ const SEAT_COUNT := 6
 
 ## How the game is named on the floor ("Take a seat -- Three Card Poker").
 @export var game_label := "Three Card Poker"
+## The plan's game ("three_card_poker"; "master_table" for a Master Table, whatever it's playing), for the minimap.
+var game := ""
 ## Which end its results sign stands past, as the players see it: "left", "right", or "" (the
 ## usual end: _stand_sign()). Only Roulette and Craps have one; the floor plan sets it.
 @export var sign_side := ""

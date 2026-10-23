@@ -1,0 +1,1030 @@
+<title>Minimap and Find</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600&display=swap">
+<style>
+/* Layout: the game's floor (a schematic of the live plan, walkable) with the proposed corners over it -- cog and
+   wallet top left, minimap top right -- and a review panel beside it. One dark look on purpose, as the game is. */
+:root {
+  --ground: #0b0d0e;
+  --panel: #14181a;
+  --raised: #1c2124;
+  --line: #2b3133;
+  --brass: #c9a24a;
+  --brass-hi: #ecd396;
+  --ink: #ece4d2;
+  --muted: #9ba39e;
+  --ok: #5fd3a0;
+  --bad: #ef7a6b;
+  --corner: rgba(10, 12, 13, .94);
+  --display: "Cinzel", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 14px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-block: 12px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line);
+}
+header.top h1 { margin: 0; font: 600 20px/1.1 var(--display); letter-spacing: .08em; color: var(--brass-hi); }
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+main.layout {
+  min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.stage { position: relative; min-height: 520px; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
+#world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+/* ---------------------------------------------------------------- the corners (game pixels) */
+.cog { position: absolute; top: 16px; left: 24px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(201,162,74,.35);
+  background: var(--corner); display: grid; place-items: center; padding: 0; }
+.cog:hover, .cog[aria-pressed="true"] { border-color: var(--brass-hi); }
+.cog svg { width: 22px; height: 22px; }
+.wallet { position: absolute; top: 16px; left: 72px; height: 40px; display: flex; gap: 10px; align-items: center; padding: 0 16px 0 12px;
+  background: var(--corner); border: 1px solid rgba(201,162,74,.28); border-radius: 999px; font-family: var(--cond); letter-spacing: .03em; }
+.wallet .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 7px var(--ok); }
+.wallet .name { font-size: 17px; font-weight: 600; }
+.wallet .bal { font-size: 25px; font-weight: 700; color: var(--brass-hi); font-variant-numeric: tabular-nums; }
+
+.settings { position: absolute; top: 64px; left: 24px; width: 300px; padding: 14px 16px 16px; border-radius: 12px; background: var(--corner);
+  border: 1px solid rgba(201,162,74,.45); box-shadow: 0 12px 30px rgba(0,0,0,.5); display: grid; gap: 10px; z-index: 5; }
+.settings h3 { margin: 0 0 2px; font: 700 18px var(--cond); letter-spacing: .06em; text-transform: uppercase; color: var(--brass-hi); }
+.srow { display: flex; align-items: center; gap: 10px; font: 600 15px var(--cond); letter-spacing: .03em; }
+.srow.dim { color: var(--muted); }
+.srow .hint { display: block; font: 400 12px var(--body); color: var(--muted); letter-spacing: 0; }
+.srow > span { flex: 1; }
+.switch { width: 44px; height: 24px; border-radius: 12px; border: 1px solid var(--line); background: #232a2d; position: relative; padding: 0; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.switch[aria-checked="true"] { background: rgba(201,162,74,.35); border-color: var(--brass); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--brass-hi); }
+.switch[disabled] { opacity: .45; cursor: default; }
+
+.mm { position: absolute; top: 16px; right: 24px; border-radius: 12px; background: var(--corner); border: 1px solid rgba(201,162,74,.38);
+  box-shadow: 0 8px 22px rgba(0,0,0,.45); overflow: hidden; display: grid; grid-template-rows: 30px auto; }
+.mm-head { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 11px; border-bottom: 1px solid rgba(201,162,74,.18); }
+.mm-head .here { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 600 14px var(--cond); letter-spacing: .06em; text-transform: uppercase; color: var(--brass-hi); }
+.hbtn { height: 22px; border-radius: 6px; border: 1px solid transparent; background: none; padding: 0 7px; display: flex; align-items: center; gap: 4px;
+  font: 600 13px var(--cond); letter-spacing: .05em; text-transform: uppercase; color: var(--ink); }
+.hbtn:hover, .hbtn[aria-expanded="true"] { border-color: rgba(201,162,74,.5); background: rgba(201,162,74,.1); }
+.hbtn svg { width: 13px; height: 13px; }
+.hbtn.x { width: 24px; padding: 0; justify-content: center; color: var(--muted); }
+#mmc { display: block; }
+.mm-zoom { position: absolute; right: 6px; bottom: 6px; display: grid; gap: 4px; }
+.mm-zoom button { width: 24px; height: 24px; border-radius: 50%; padding: 0; display: grid; place-items: center; background: rgba(10,12,13,.85);
+  border: 1px solid rgba(201,162,74,.45); color: var(--brass-hi); }
+.mm-zoom button:hover:not(:disabled) { border-color: var(--brass-hi); background: rgba(201,162,74,.15); }
+.mm-zoom button:disabled { opacity: .35; cursor: default; }
+.mm-zoom svg { width: 12px; height: 12px; }
+.mm-fold { position: absolute; top: 16px; right: 24px; width: 40px; height: 40px; border-radius: 50%; background: var(--corner);
+  border: 1px solid rgba(201,162,74,.35); display: grid; place-items: center; padding: 0; }
+.mm-fold:hover { border-color: var(--brass-hi); }
+.mm-fold svg { width: 22px; height: 22px; }
+
+.find { position: absolute; right: 24px; border-radius: 12px; background: var(--corner); border: 1px solid rgba(201,162,74,.45);
+  box-shadow: 0 12px 30px rgba(0,0,0,.5); padding: 6px; display: grid; gap: 2px; z-index: 4; }
+.find .fh { padding: 4px 8px 6px; font: 600 12px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.find button { display: grid; grid-template-columns: 14px 1fr auto; gap: 9px; align-items: center; text-align: left; border: 0; background: none;
+  padding: 7px 8px; border-radius: 8px; font: 600 15px var(--cond); letter-spacing: .03em; }
+.find button:hover { background: rgba(201,162,74,.12); }
+.find .sw { width: 12px; height: 12px; border-radius: 3px; }
+.find .meta { font: 500 13px var(--cond); color: var(--muted); font-variant-numeric: tabular-nums; }
+.find .meta b { color: var(--bad); font-weight: 600; }
+
+.guide { position: absolute; right: 24px; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 999px;
+  background: var(--corner); border: 1px solid var(--brass); box-shadow: 0 8px 22px rgba(0,0,0,.45); font: 600 15px var(--cond); letter-spacing: .03em; z-index: 3; }
+.guide .d { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.pill { height: 28px; border-radius: 999px; border: 1px solid var(--brass); background: var(--brass); color: #1b1307; padding: 0 12px;
+  font: 700 14px var(--cond); letter-spacing: .05em; text-transform: uppercase; }
+.pill.ghost { background: none; color: var(--ink); border-color: rgba(201,162,74,.45); width: 28px; padding: 0; }
+.pill[aria-pressed="true"] { background: none; color: var(--brass-hi); }
+
+.paybtn { position: absolute; top: 16px; height: 40px; border-radius: 999px; background: var(--corner); border: 1px solid rgba(201,162,74,.35);
+  padding: 0 14px; font: 600 15px var(--cond); letter-spacing: .05em; text-transform: uppercase; }
+.paybtn[aria-pressed="true"] { border-color: var(--brass-hi); color: var(--brass-hi); }
+.paytable { position: absolute; right: 12px; width: 258px; bottom: 96px; border-radius: 12px; background: rgba(10,12,13,.9); border: 1px solid rgba(201,162,74,.4);
+  padding: 12px 14px; font: 500 14px/1.6 var(--cond); overflow: auto; }
+.paytable h4 { margin: 0 0 6px; font: 700 15px var(--cond); letter-spacing: .08em; text-transform: uppercase; color: var(--brass-hi); }
+.paytable div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; padding: 10px 14px;
+  border-radius: 14px; background: rgba(10,12,13,.88); border: 1px solid var(--line); font: 600 14px var(--cond); letter-spacing: .04em; color: var(--muted); }
+.toast { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); padding: 7px 16px; border-radius: 999px; background: rgba(10,12,13,.85);
+  font: 600 17px var(--cond); letter-spacing: .04em; color: var(--ink); pointer-events: none; transition: opacity .3s; }
+
+/* ---------------------------------------------------------------- review panel */
+aside.review { min-height: 0; overflow: auto; display: grid; align-content: start; gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+.card h2 { margin: 0; font: 600 12px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--raised); border-radius: 8px; padding: 7px 10px; font: 600 14px var(--cond); letter-spacing: .03em; }
+.seg button[aria-pressed="true"] { border-color: var(--brass); color: var(--brass-hi); background: rgba(201,162,74,.12); }
+.opt { display: grid; gap: 6px; }
+.opt > span { font: 600 14px var(--cond); letter-spacing: .03em; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink); line-height: 1.4; }
+.card li::marker { color: var(--brass); }
+.card p { margin: 0; color: var(--muted); line-height: 1.45; }
+kbd { font: 600 12px var(--cond); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line); background: var(--raised); }
+
+@media (max-width: 900px) {
+  main.layout { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-height: 560px; }
+}
+@media (prefers-reduced-motion: reduce) { .switch::after { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Minimap &amp; Find</h1>
+    <p>Walk with <kbd>WASD</kbd>, the arrow keys, or a click. Drawn from the live floor plan.</p>
+  </header>
+  <main class="layout">
+    <div class="stage" id="stage">
+      <canvas id="world" tabindex="0" aria-label="The casino floor"></canvas>
+
+      <button class="cog" id="cog" aria-pressed="false" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ecd396" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.9 1.9M16.6 16.6l1.9 1.9M5.5 18.5l1.9-1.9M16.6 7.4l1.9-1.9"/><circle cx="12" cy="12" r="6.4"/></svg>
+      </button>
+      <div class="wallet"><span class="dot"></span><span class="name">Mike</span><span class="bal">£1,240</span></div>
+
+      <div class="settings" id="settings" hidden>
+        <h3>Settings</h3>
+        <div class="srow dim"><span>Sound</span><button class="switch" aria-checked="true" disabled aria-label="Sound"></button></div>
+        <div class="srow"><span>Show the minimap<span class="hint">Your room and the rooms next to it, top right.</span></span><button class="switch" id="setMap" role="switch" aria-checked="true" aria-label="Show the minimap"></button></div>
+        <div class="srow dim"><span>Show FPS</span><button class="switch" aria-checked="false" disabled aria-label="Show FPS"></button></div>
+      </div>
+
+      <div class="mm" id="mm">
+        <div class="mm-head">
+          <span class="here" id="here">Modern lobby</span>
+          <button class="hbtn" id="findBtn" aria-expanded="false">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.8" cy="6.8" r="4.4"/><path d="M10.2 10.2 14 14"/></svg>Find
+          </button>
+          <button class="hbtn x" id="foldBtn" aria-label="Fold the minimap">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </div>
+        <canvas id="mmc" aria-label="Minimap"></canvas>
+        <div class="mm-zoom">
+          <button id="zIn" aria-label="Zoom in"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 1.5v9M1.5 6h9"/></svg></button>
+          <button id="zOut" aria-label="Zoom out"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 6h9"/></svg></button>
+        </div>
+      </div>
+      <button class="mm-fold" id="unfold" hidden aria-label="Show the minimap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ecd396" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6.5 8.5 4l7 2.5L21 4v13.5L15.5 20l-7-2.5L3 20z"/><path d="M8.5 4v13.5M15.5 6.5V20"/></svg>
+      </button>
+      <div class="find" id="find" hidden></div>
+      <div class="guide" id="guide" hidden>
+        <span>Guiding to <span id="gname">Craps</span></span><span class="d" id="gdist">14 m</span>
+        <button class="pill" id="walkBtn" aria-pressed="false">Walk there</button>
+        <button class="pill ghost" id="gx" aria-label="Stop guiding">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+
+      <button class="paybtn" id="payBtn" hidden aria-pressed="false">Paytable</button>
+      <div class="paytable" id="paytable" hidden></div>
+      <div class="bar" id="bar" hidden>Betting bar as it is today <button class="pill" id="standBtn">Stand up</button></div>
+      <div class="toast" id="toast" style="opacity:0"></div>
+    </div>
+
+    <aside class="review">
+      <div class="card">
+        <h2>Where you are</h2>
+        <div class="seg" id="scen">
+          <button data-s="lobby" aria-pressed="true">In the lobby</button>
+          <button data-s="floor" aria-pressed="false">Walking the floor</button>
+          <button data-s="master" aria-pressed="false">Seated at the Master Table</button>
+          <button data-s="turned" aria-pressed="false">Seated at a turned table</button>
+        </div>
+        <p id="scenNote">Standing at the lobby's spawn. The door hides the Scratch Room, but the minimap shows it through the door.</p>
+      </div>
+      <div class="card">
+        <h2>Choices</h2>
+        <div class="opt"><span>Minimap size</span>
+          <div class="seg" id="optSize"><button data-v="200" aria-pressed="false">Small</button><button data-v="240" aria-pressed="true">Medium</button><button data-v="280" aria-pressed="false">Large</button></div></div>
+        <div class="opt"><span>Table names in the rooms next door</span>
+          <div class="seg" id="optLabels"><button data-v="0" aria-pressed="false">Your room only</button><button data-v="1" aria-pressed="true">Every room shown</button></div></div>
+        <div class="opt"><span>Casino</span>
+          <div class="seg" id="optCasino"><button data-v="live" aria-pressed="true">The live plan</button><button data-v="big" aria-pressed="false">A bigger example</button></div></div>
+      </div>
+      <div class="card">
+        <h2>How it behaves</h2>
+        <ul>
+          <li>It shows your room, and every room one doorway away. Rooms joined by an archway count as one.</li>
+          <li>When that's too big to fit, it pans with you instead of shrinking past readable.</li>
+          <li>A door to a room further away gets a tab with the room's name.</li>
+          <li>A table with no free seat is drawn faint. Other real players are dots; NPCs aren't shown.</li>
+          <li>At a turned table the map turns with the view, so what's behind you on screen is behind you on the map.</li>
+          <li>It starts folded to the map button, top right; a click opens it. ✕ folds it again. Settings › Show the minimap (on by default) removes it altogether.</li>
+          <li>+ and − zoom it, from everything-fits up to a close look round you, and the game remembers your zoom.</li>
+          <li>Find lists what's in the casino and picks the nearest by walking distance, preferring a free seat. The route clears when you get there, sit down, or press ✕.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+"use strict";
+// ------------------------------------------------------------------ the plan (live.json, rev 376), plus a bigger example
+const WALL = { top: 70, side: 8, bottom: 10 };
+const CARD_RECT = { 0: [-163.5, -175, 327, 223], 180: [-163.5, -54, 327, 203.5] };
+const CARD_BODY = { 0: [-163.5, -149.5, 327, 158], 180: [-163.5, -8.5, 327, 158] };
+const SHAPES = {
+  card: { body: CARD_BODY },
+  roulette: { body: { 0: [-177.5, -123.5, 355, 133], 180: [-177.5, -9.5, 355, 133] } },
+  craps: { body: { 0: [-198.5, -130.5, 397, 140], 180: [-198.5, -9.5, 397, 140] } },
+};
+const SEAT_X = [122.5, 73.5, 24.5, -24.5, -73.5, -122.5];
+const KIND = {   // minimap colour and short label per kind of thing
+  master_table: { col: "#d4ad55", short: "Master" },
+  three_card_poker: { col: "#c0473f", short: "3 Card" },
+  blackjack: { col: "#c0473f", short: "Blackjack" },
+  baccarat: { col: "#c0473f", short: "Baccarat" },
+  ultimate_texas_holdem: { col: "#c0473f", short: "Hold'em" },
+  mississippi_stud: { col: "#c0473f", short: "Stud" },
+  roulette: { col: "#3fa36b", short: "Roulette" },
+  craps: { col: "#3f9aa3", short: "Craps" },
+  slot: { col: "#9a6fd0", short: "Slots" },
+  atm: { col: "#7fb7c9", short: "ATM" },
+};
+const NAMES = { master_table: "Master Table", three_card_poker: "Three Card Poker", blackjack: "Blackjack", baccarat: "Baccarat",
+  ultimate_texas_holdem: "Ultimate Texas Hold'em", mississippi_stud: "Mississippi Stud", roulette: "Roulette", craps: "Craps", slot: "Slots", atm: "ATM" };
+
+function livePlan() {
+  return [
+    { id: "modern_lobby", name: "Modern lobby", x: 0, y: 0, w: 608, h: 400, floor: "#2a2d32", carpet: false,
+      doors: [{ side: "top", at: 304, width: 64, kind: "door" }, { side: "bottom", at: 304, width: 64, kind: "door" }],
+      items: [
+        { kind: "atm", x: 380, y: 88, id: "i14" },
+        { deco: "screen", x: 140, y: 62 }, { deco: "sofa", x: 138, y: 180 }, { deco: "sofa", x: 138, y: 304 },
+        { deco: "coffee", x: 138, y: 250 }, { deco: "chair", x: 62, y: 252 }, { deco: "chair", x: 214, y: 252 },
+        { deco: "plant", x: 30, y: 112 }, { deco: "plant", x: 32, y: 382 }, { deco: "plant", x: 566, y: 116 }, { deco: "plant", x: 568, y: 382 },
+        { deco: "console", x: 452, y: 100 }, { deco: "desk", x: 516, y: 318 }, { deco: "stanchion", x: 460, y: 300 }, { deco: "dice", x: 410, y: 356 },
+        { deco: "npc", x: 562, y: 214 }, { deco: "npc", x: 562, y: 278 },
+      ] },
+    { id: "room_5_2", name: "Scratch Room", x: -64, y: -1120, w: 736, h: 1120, floor: "#2c5550", carpet: true, doors: [],
+      items: [
+        { kind: "craps", id: "crp_5", x: 368, y: 632, rot: 0, seats: 8, taken: 3 },
+        { kind: "roulette", id: "rou_5", x: 360, y: 320, rot: 0, seats: 6, taken: 6 },
+        { kind: "master_table", id: "mt_1", x: 368, y: 976, rot: 0, seats: 6, taken: 2, playing: "Blackjack" },
+        { kind: "slot", id: "slot_8", x: 400, y: 88 }, { kind: "slot", id: "slot_9", x: 456, y: 88, taken: 1 },
+        { kind: "slot", id: "slot_10", x: 288, y: 88 }, { kind: "slot", id: "slot_11", x: 232, y: 88 },
+        { deco: "coffee", x: 344, y: 104 },
+      ] },
+  ];
+}
+function bigPlan() {
+  const p = livePlan();
+  p[1].doors = [{ side: "top", at: 120, width: 64, kind: "door" }, { side: "right", at: 560, width: 128, kind: "archway" }];
+  p.push(
+    { id: "pit", name: "Blackjack Pit", x: 672, y: -1120, w: 800, h: 720, floor: "#3a2c42", carpet: true,
+      doors: [{ side: "right", at: 360, width: 64, kind: "door" }],
+      items: [
+        { kind: "blackjack", id: "bj_2", x: 240, y: 160, rot: 180, seats: 6, taken: 3 },
+        { kind: "blackjack", id: "bj_3", x: 560, y: 160, rot: 180, seats: 6, taken: 6 },
+        { kind: "blackjack", id: "bj_4", x: 240, y: 560, rot: 0, seats: 6, taken: 1 },
+        { kind: "blackjack", id: "bj_5", x: 560, y: 560, rot: 0, seats: 6, taken: 4 },
+      ] },
+    { id: "high", name: "High Limit", x: 1472, y: -1120, w: 640, h: 720, floor: "#3b3326", carpet: true, doors: [],
+      items: [
+        { kind: "three_card_poker", id: "tcp_2", x: 320, y: 300, rot: 0, seats: 6, taken: 2 },
+        { kind: "baccarat", id: "bac_1", x: 320, y: 600, rot: 0, seats: 6, taken: 0 },
+      ] },
+    { id: "poker", name: "Poker Room", x: -64, y: -1920, w: 736, h: 800, floor: "#26384a", carpet: true, doors: [],
+      items: [
+        { kind: "ultimate_texas_holdem", id: "uth_1", x: 368, y: 330, rot: 0, seats: 6, taken: 5 },
+        { kind: "mississippi_stud", id: "ms_1", x: 368, y: 640, rot: 0, seats: 6, taken: 0 },
+      ] },
+  );
+  return p;
+}
+
+// ------------------------------------------------------------------ derived: openings, zones, footprints
+let rooms = [], byId = {}, things = [], zoneOf = {}, grid = null;
+
+function gapRect(r, d) {   // the doorway through r's wall, absolute
+  const a = d.at - d.width / 2;
+  if (d.side === "top") return { x: r.x + a, y: r.y, w: d.width, h: WALL.top };
+  if (d.side === "bottom") return { x: r.x + a, y: r.y + r.h - WALL.bottom, w: d.width, h: WALL.bottom };
+  if (d.side === "left") return { x: r.x, y: r.y + a, w: WALL.side, h: d.width };
+  return { x: r.x + r.w - WALL.side, y: r.y + a, w: WALL.side, h: d.width };
+}
+function buildPlan(plan) {
+  rooms = plan; byId = {}; things = [];
+  for (const r of rooms) { byId[r.id] = r; r.openings = []; }
+  for (const r of rooms) for (const d of r.doors) {   // which room is through each door (walls on the same line)
+    let to = null;
+    for (const o of rooms) {
+      if (o === r) continue;
+      if (d.side === "top" && o.y + o.h === r.y && r.x + d.at > o.x && r.x + d.at < o.x + o.w) to = o;
+      if (d.side === "bottom" && o.y === r.y + r.h && r.x + d.at > o.x && r.x + d.at < o.x + o.w) to = o;
+      if (d.side === "right" && o.x === r.x + r.w && r.y + d.at > o.y && r.y + d.at < o.y + o.h) to = o;
+      if (d.side === "left" && o.x + o.w === r.x && r.y + d.at > o.y && r.y + d.at < o.y + o.h) to = o;
+    }
+    const g = gapRect(r, d);
+    r.openings.push({ ...d, to: to && to.id, gap: g, own: true });
+    if (to) {   // the neighbour's side of the same doorway, through its wall
+      const side = { top: "bottom", bottom: "top", left: "right", right: "left" }[d.side];
+      const at = side === "bottom" || side === "top" ? r.x + d.at - to.x : r.y + d.at - to.y;
+      to.openings.push({ side, at, width: d.width, kind: d.kind, to: r.id, gap: gapRect(to, { side, at, width: d.width }), own: false });
+    }
+  }
+  zoneOf = {};   // rooms joined by archways show together
+  let z = 0;
+  for (const r of rooms) {
+    if (zoneOf[r.id] !== undefined) continue;
+    const stack = [r]; zoneOf[r.id] = z;
+    while (stack.length) {
+      const c = stack.pop();
+      for (const o of c.openings) if (o.kind === "archway" && o.to && zoneOf[o.to] === undefined) { zoneOf[o.to] = z; stack.push(byId[o.to]); }
+    }
+    z++;
+  }
+  for (const r of rooms) for (const it of r.items) {
+    const t = { ...it, room: r.id, ax: r.x + it.x, ay: r.y + it.y, rot: it.rot || 0 };
+    const sk = t.kind && (SHAPES[t.kind] ? t.kind : (t.kind === "slot" || t.kind === "atm" ? null : "card"));
+    if (sk) {
+      const b = SHAPES[sk].body[t.rot];
+      t.body = { x: t.ax + b[0], y: t.ay + b[1], w: b[2], h: b[3] };
+      t.shape = sk;
+    } else if (t.kind === "slot") t.body = { x: t.ax - 16, y: t.ay - 13, w: 32, h: 14 };
+    else if (t.kind === "atm") t.body = { x: t.ax - 20, y: t.ay - 16, w: 40, h: 22 };
+    else t.body = decoBody(t);
+    things.push(t);
+  }
+  buildGrid();
+}
+function decoBody(t) {
+  const s = { sofa: [120, 34], coffee: [44, 30], chair: [30, 30], plant: [26, 22], console: [70, 22], desk: [44, 170], stanchion: [10, 56], dice: [30, 22], screen: [0, 0], npc: [0, 0] }[t.deco];
+  if (!s || !s[0]) return null;
+  return { x: t.ax - s[0] / 2, y: t.ay - s[1] / 2, w: s[0], h: s[1] };
+}
+function seatSpot(t, i) {   // where you'd stand to take seat i (and where you'd sit)
+  if (t.kind === "slot") return { stand: { x: t.ax, y: t.ay + 36 }, sit: { x: t.ax, y: t.ay + 20 } };
+  if (t.kind === "atm") return { stand: { x: t.ax, y: t.ay + 30 }, sit: null };
+  const flip = t.rot === 180 ? -1 : 1;
+  const xs = t.kind === "craps" ? [150, 100, 50, 0, -50, -100, -150, 175] : t.kind === "roulette" ? [140, 90, 40, -10, -60, -110] : SEAT_X;
+  const cy = t.kind === "craps" ? 22 : t.kind === "roulette" ? 34 : 40;
+  const x = xs[i % xs.length];
+  return { sit: { x: t.ax + x * flip, y: t.ay + cy * flip }, stand: { x: t.ax + x * flip, y: t.ay + (cy + 26) * flip } };
+}
+function freeSeats(t) { return Math.max(0, (t.kind === "slot" ? 1 : t.seats || 0) - (t.taken || 0)); }
+function kindOf(t) { return t.kind; }
+
+// ------------------------------------------------------------------ the walking grid (the game's nav map stand-in)
+const CELL = 8, RADIUS = 9;
+function buildGrid() {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of rooms) { x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y); x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h); }
+  const W = Math.ceil((x1 - x0) / CELL), H = Math.ceil((y1 - y0) / CELL);
+  const walk = new Uint8Array(W * H);
+  const open = [];
+  for (const r of rooms) {
+    open.push({ x: r.x + WALL.side + RADIUS, y: r.y + WALL.top + RADIUS, w: r.w - 2 * WALL.side - 2 * RADIUS, h: r.h - WALL.top - WALL.bottom - 2 * RADIUS });
+    for (const o of r.openings) if (o.to) {
+      const g = o.gap, v = o.side === "top" || o.side === "bottom";
+      open.push(v ? { x: g.x + RADIUS, y: g.y - RADIUS - 2, w: g.w - 2 * RADIUS, h: g.h + 2 * RADIUS + 4 } : { x: g.x - RADIUS - 2, y: g.y + RADIUS, w: g.w + 2 * RADIUS + 4, h: g.h - 2 * RADIUS });
+    }
+  }
+  const blocks = things.filter(t => t.body).map(t => ({ x: t.body.x - RADIUS, y: t.body.y - RADIUS, w: t.body.w + 2 * RADIUS, h: t.body.h + 2 * RADIUS }));
+  const inside = (q, x, y) => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = x0 + (i + .5) * CELL, y = y0 + (j + .5) * CELL;
+    if (open.some(q => inside(q, x, y)) && !blocks.some(q => inside(q, x, y))) walk[j * W + i] = 1;
+  }
+  grid = { x0, y0, W, H, walk };
+}
+function cellOf(x, y) { return [Math.floor((x - grid.x0) / CELL), Math.floor((y - grid.y0) / CELL)]; }
+function walkable(x, y) {
+  const [i, j] = cellOf(x, y);
+  return i >= 0 && j >= 0 && i < grid.W && j < grid.H && grid.walk[j * grid.W + i] === 1;
+}
+function nearestWalkable(x, y) {
+  if (walkable(x, y)) return { x, y };
+  for (let r = CELL; r < 160; r += CELL) for (let a = 0; a < 16; a++) {
+    const px = x + Math.cos(a / 16 * Math.PI * 2) * r, py = y + Math.sin(a / 16 * Math.PI * 2) * r;
+    if (walkable(px, py)) return { x: px, y: py };
+  }
+  return null;
+}
+function findPath(from, to) {   // A* on the grid, then pulled straight where the way is clear
+  const g = grid, s = nearestWalkable(from.x, from.y), e = nearestWalkable(to.x, to.y);
+  if (!s || !e) return null;
+  const [si, sj] = cellOf(s.x, s.y), [ei, ej] = cellOf(e.x, e.y);
+  const N = g.W * g.H, cost = new Float32Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N);
+  const heap = [], push = (k, f) => { heap.push([f, k]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; [heap[p], heap[c]] = [heap[c], heap[p]]; c = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
+  const h = (i, j) => { const dx = Math.abs(i - ei), dy = Math.abs(j - ej); return Math.max(dx, dy) + .414 * Math.min(dx, dy); };
+  const start = sj * g.W + si, goal = ej * g.W + ei;
+  cost[start] = 0; push(start, h(si, sj));
+  while (heap.length) {
+    const [, k] = pop();
+    if (done[k]) continue;
+    done[k] = 1;
+    if (k === goal) break;
+    const i = k % g.W, j = (k / g.W) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const ni = i + di, nj = j + dj;
+      if (ni < 0 || nj < 0 || ni >= g.W || nj >= g.H) continue;
+      const nk = nj * g.W + ni;
+      if (!g.walk[nk] || (di && dj && (!g.walk[j * g.W + ni] || !g.walk[nj * g.W + i]))) continue;
+      const c = cost[k] + (di && dj ? 1.414 : 1);
+      if (c < cost[nk]) { cost[nk] = c; prev[nk] = k; push(nk, c + h(ni, nj)); }
+    }
+  }
+  if (prev[goal] < 0 && goal !== start) return null;
+  const cells = [];
+  for (let k = goal; k >= 0; k = prev[k]) cells.push(k);
+  cells.reverse();
+  const pts = cells.map(k => ({ x: g.x0 + (k % g.W + .5) * CELL, y: g.y0 + (((k / g.W) | 0) + .5) * CELL }));
+  pts[0] = { x: from.x, y: from.y }; pts.push({ x: to.x, y: to.y });
+  const clear = (a, b) => { const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4); for (let q = 1; q < n; q++) if (!walkable(a.x + (b.x - a.x) * q / n, a.y + (b.y - a.y) * q / n)) return false; return true; };
+  const out = [pts[0]];
+  let a = 0;
+  while (a < pts.length - 1) {
+    let b = pts.length - 1;
+    while (b > a + 1 && !clear(pts[a], pts[b])) b--;
+    out.push(pts[b]); a = b;
+  }
+  return out;
+}
+const pathLength = p => p.reduce((s, q, i) => i ? s + Math.hypot(q.x - p[i - 1].x, q.y - p[i - 1].y) : 0, 0);
+
+// ------------------------------------------------------------------ state
+const S = {
+  me: { x: 304, y: 360, face: -Math.PI / 2 },
+  others: [],
+  seated: null,            // { t, sit }
+  viewRot: 0, viewRotTo: 0,
+  zoom: 1.25,
+  cam: { x: 304, y: 300 },
+  walk: null,              // the path being walked
+  route: null,             // { kind, label, t, stand, path, full }
+  showMap: true, folded: true, zoomI: 2, size: 240, labelsAll: true, casino: "live",
+  scenario: "lobby", keys: new Set(), t: 0,
+};
+const $ = id => document.getElementById(id);
+const stage = $("stage"), cv = $("world"), ctx = cv.getContext("2d"), mmc = $("mmc"), mctx = mmc.getContext("2d");
+
+function roomAt(x, y) { for (const r of rooms) if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return r; return null; }
+let lastHere = "modern_lobby";
+function hereId() { const r = roomAt(S.me.x, S.me.y); if (r) lastHere = r.id; return lastHere; }
+
+// ------------------------------------------------------------------ the game's own rule for what the floor shows
+function stageShown() {
+  const here = hereId(), shown = new Set(rooms.filter(r => zoneOf[r.id] === zoneOf[here]).map(r => r.id));
+  for (const id of [...shown]) for (const o of byId[id].openings) {
+    if (o.kind !== "door" || !o.to) continue;
+    const g = o.gap;
+    if (S.me.x > g.x - 40 && S.me.x < g.x + g.w + 40 && S.me.y > g.y - 40 && S.me.y < g.y + g.h + 40)
+      for (const r of rooms) if (zoneOf[r.id] === zoneOf[o.to]) shown.add(r.id);
+  }
+  return shown;
+}
+// ------------------------------------------------------------------ what the minimap shows: your zone and one door on
+function mapShown() {
+  const here = hereId(), shown = new Set(rooms.filter(r => zoneOf[r.id] === zoneOf[here]).map(r => r.id));
+  for (const id of [...shown]) for (const o of byId[id].openings) if (o.to) for (const r of rooms) if (zoneOf[r.id] === zoneOf[o.to]) shown.add(r.id);
+  return shown;
+}
+
+// ------------------------------------------------------------------ drawing the floor
+function drawStage() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, H / 2); ctx.rotate(S.viewRot); ctx.scale(S.zoom, S.zoom); ctx.translate(-S.cam.x, -S.cam.y);
+  const shown = stageShown();
+  for (const r of rooms) if (shown.has(r.id)) drawRoomFloor(r);
+  for (const r of rooms) if (shown.has(r.id)) drawTopWall(r);
+  if (S.route) drawRoute(ctx, S.route.path, 1, true);
+  const sprites = [];
+  for (const t of things) if (shown.has(t.room)) sprites.push({ y: t.ay, f: () => drawThing(t) });
+  for (const o of S.others) if (shown.has(roomAt(o.x, o.y)?.id)) sprites.push({ y: o.y, f: () => drawPerson(o.x, o.y, "#8fb3d9", o.name) });
+  sprites.push({ y: S.me.y + .1, f: () => drawPerson(S.me.x, S.me.y, "#e0b85a", "Mike", true) });
+  sprites.sort((a, b) => a.y - b.y).forEach(s => s.f());
+  if (S.route) drawTarget(ctx, S.route.stand, 1);
+  ctx.restore();
+}
+function drawRoomFloor(r) {
+  ctx.fillStyle = r.floor; ctx.fillRect(r.x, r.y, r.w, r.h);
+  if (r.carpet) {   // a faint diamond weave, so walking reads
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+    ctx.strokeStyle = "rgba(255,255,255,.035)"; ctx.lineWidth = 1;
+    for (let k = -r.h; k < r.w; k += 32) { ctx.beginPath(); ctx.moveTo(r.x + k, r.y); ctx.lineTo(r.x + k + r.h, r.y + r.h); ctx.moveTo(r.x + k + r.h, r.y); ctx.lineTo(r.x + k, r.y + r.h); ctx.stroke(); }
+    ctx.restore();
+  } else {
+    ctx.strokeStyle = "rgba(255,255,255,.04)";
+    for (let x = r.x; x < r.x + r.w; x += 48) { ctx.beginPath(); ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); ctx.stroke(); }
+    for (let y = r.y; y < r.y + r.h; y += 48) { ctx.beginPath(); ctx.moveTo(r.x, y); ctx.lineTo(r.x + r.w, y); ctx.stroke(); }
+  }
+  ctx.fillStyle = "#121416";   // side and bottom walls
+  ctx.fillRect(r.x, r.y, WALL.side, r.h); ctx.fillRect(r.x + r.w - WALL.side, r.y, WALL.side, r.h); ctx.fillRect(r.x, r.y + r.h - WALL.bottom, r.w, WALL.bottom);
+  for (const o of r.openings) if (o.side !== "top") { ctx.fillStyle = o.to ? r.floor : "#3a2a1c"; ctx.fillRect(o.gap.x, o.gap.y, o.gap.w, o.gap.h); }
+}
+function drawTopWall(r) {
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + WALL.top);
+  g.addColorStop(0, "#0d0f11"); g.addColorStop(.8, "#1b1e22"); g.addColorStop(1, "#24282c");
+  ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, WALL.top);
+  ctx.fillStyle = "#c9a24a"; ctx.fillRect(r.x, r.y + WALL.top - 4, r.w, 1.5);
+  for (const o of r.openings) if (o.side === "top") {
+    const q = o.gap;
+    ctx.fillStyle = o.to ? r.floor : "#3a2a1c"; ctx.fillRect(q.x, q.y, q.w, q.h);
+    ctx.fillStyle = "#6b5530"; ctx.fillRect(q.x - 4, q.y + 8, 4, q.h - 8); ctx.fillRect(q.x + q.w, q.y + 8, 4, q.h - 8);
+  }
+  for (const t of things) if (t.room === r.id && t.deco === "screen") {   // the jackpot board on the wall
+    ctx.fillStyle = "#08090a"; ctx.fillRect(t.ax - 60, t.ay - 50, 120, 38);
+    ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1.5; ctx.strokeRect(t.ax - 60, t.ay - 50, 120, 38);
+    upright(t.ax, t.ay - 31, () => { ctx.fillStyle = "#f2c14e"; ctx.font = "700 15px 'Barlow Condensed'"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("JACKPOT £12,480", 0, 0); });
+  }
+  if (r.id === "modern_lobby") upright(r.x + 500, r.y + 34, () => { ctx.fillStyle = "#ecd396"; ctx.font = "600 18px Cinzel"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("LOBBY", 0, 0); });
+}
+function upright(x, y, f) { ctx.save(); ctx.translate(x, y); ctx.rotate(-S.viewRot); f(); ctx.restore(); }
+function rrect(c, x, y, w, h, r) { c.beginPath(); c.roundRect(x, y, w, h, r); }
+function drawThing(t) {
+  ctx.save(); ctx.translate(t.ax, t.ay);
+  if (t.shape) {
+    ctx.rotate(t.rot * Math.PI / 180); ROT_OFF = t.rot * Math.PI / 180;
+    const b = SHAPES[t.shape].body[0], full = freeSeats(t) === 0;
+    if (t.shape === "card") {
+      ctx.fillStyle = "#5b3420"; rrect(ctx, b[0], b[1], b[2], b[3], [70, 70, 18, 18]); ctx.fill();
+      ctx.fillStyle = t.kind === "master_table" ? "#7d1f24" : "#8a1f27"; rrect(ctx, b[0] + 7, b[1] + 7, b[2] - 14, b[3] - 14, [62, 62, 12, 12]); ctx.fill();
+      ctx.fillStyle = "#1a1210"; ctx.fillRect(-31, b[1], 62, 12);
+      if (t.kind === "master_table") { ctx.strokeStyle = "#d4ad55"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -60, 22, 0, 7); ctx.stroke(); }
+      drawPerson(0, -123, "#d9d1c0", null, false, true);
+    } else if (t.shape === "roulette") {
+      ctx.fillStyle = "#4a2c1a"; rrect(ctx, b[0], b[1], b[2], b[3], 16); ctx.fill();
+      ctx.fillStyle = "#1f6a44"; rrect(ctx, b[0] + 7, b[1] + 7, b[2] - 14, b[3] - 14, 10); ctx.fill();
+      ctx.fillStyle = "#3a2214"; ctx.beginPath(); ctx.arc(-115, -57, 50, 0, 7); ctx.fill();
+      ctx.fillStyle = "#20140c"; ctx.beginPath(); ctx.arc(-115, -57, 34, 0, 7); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) ctx.strokeRect(-50 + i * 17, -100 + j * 26, 17, 26);
+    } else {
+      ctx.fillStyle = "#4a2c1a"; rrect(ctx, b[0], b[1], b[2], b[3], 60); ctx.fill();
+      ctx.fillStyle = "#1f5f64"; rrect(ctx, b[0] + 9, b[1] + 9, b[2] - 18, b[3] - 18, 52); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 1.5; rrect(ctx, b[0] + 24, b[1] + 24, b[2] - 48, b[3] - 48, 40); ctx.stroke();
+      drawPerson(0, -142, "#d9d1c0", null, false, true);
+    }
+    const n = t.kind === "craps" ? 0 : t.seats;   // chairs (craps is standing)
+    for (let i = 0; i < n; i++) {
+      const s = seatSpot({ ...t, ax: 0, ay: 0, rot: 0 }, i).sit;
+      ctx.fillStyle = "#2a1a12"; ctx.beginPath(); ctx.arc(s.x, s.y, 9, 0, 7); ctx.fill();
+      if (i < (t.taken || 0) && !(S.seated && S.seated.t === t && i === 2)) drawPerson(s.x, s.y - 2, "#8f8676", null, false, true);
+    }
+    ROT_OFF = 0;
+    ctx.restore();
+    ctx.save(); ctx.translate(t.ax, t.ay);
+    const cy = (t.body.y + t.body.h / 2 - t.ay) * Math.cos(S.viewRot);   // the felt's middle, upright on screen
+    ctx.rotate(-S.viewRot);
+    ctx.fillStyle = full ? "rgba(239,122,107,.85)" : "rgba(236,228,210,.5)"; ctx.font = "600 13px Cinzel"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(NAMES[t.kind].toUpperCase(), 0, cy + (t.shape === "card" ? 14 : 0));
+  } else if (t.kind === "slot") {
+    ctx.fillStyle = "#2a1f3a"; rrect(ctx, -16, -39, 32, 50, 4); ctx.fill();
+    ctx.fillStyle = "#b28ef0"; ctx.fillRect(-11, -33, 22, 16);
+    ctx.fillStyle = "#c9a24a"; ctx.fillRect(-16, -12, 32, 3);
+    if (t.taken) drawPerson(0, 22, "#8fb3d9", "Sam");
+  } else if (t.kind === "atm") {
+    ctx.fillStyle = "#1d2a30"; rrect(ctx, -20, -44, 40, 50, 4); ctx.fill();
+    ctx.fillStyle = "#7fb7c9"; ctx.fillRect(-13, -38, 26, 16);
+    upright(0, -14, () => { ctx.fillStyle = "#ecd396"; ctx.font = "700 11px 'Barlow Condensed'"; ctx.textAlign = "center"; ctx.fillText("ATM", 0, 0); });
+  } else {
+    const d = t.deco;
+    const fill = { sofa: "#3c4248", coffee: "#6b5a44", chair: "#4a5056", plant: "#2f6b3e", console: "#5b4a36", desk: "#d8d2c4", stanchion: "#c9a24a", dice: "#e8e2d4" }[d];
+    if (d === "npc") drawPerson(0, 0, "#d9d1c0", null, false, true);
+    else if (fill) {
+      const b = t.body;
+      ctx.fillStyle = fill;
+      if (d === "plant" || d === "coffee") { ctx.beginPath(); ctx.ellipse(0, 0, b.w / 2, b.h / 2, 0, 0, 7); ctx.fill(); }
+      else { rrect(ctx, b.x - t.ax, b.y - t.ay, b.w, b.h, 5); ctx.fill(); }
+    }
+  }
+  ctx.restore();
+}
+let ROT_OFF = 0;   // the frame's own turn while drawing inside a turned table
+function drawPerson(x, y, col, name, me) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-S.viewRot - ROT_OFF);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(0, 2, 8, 3.5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = col; rrect(ctx, -6, -18, 12, 18, 5); ctx.fill();
+  ctx.fillStyle = "#e9c9a6"; ctx.beginPath(); ctx.arc(0, -23, 6, 0, 7); ctx.fill();
+  if (me) { ctx.strokeStyle = "#ecd396"; ctx.lineWidth = 1.5; rrect(ctx, -6, -18, 12, 18, 5); ctx.stroke(); }
+  if (name) { ctx.fillStyle = "#ece4d2"; ctx.font = "600 11px 'Barlow Condensed'"; ctx.textAlign = "center"; ctx.fillText(name, 0, -33); }
+  ctx.restore();
+}
+function drawRoute(c, path, lw, floor) {
+  if (!path || path.length < 2) return;
+  c.save();
+  c.lineCap = "round"; c.lineJoin = "round";
+  c.beginPath(); c.moveTo(path[0].x, path[0].y); for (const p of path.slice(1)) c.lineTo(p.x, p.y);
+  if (floor) { c.strokeStyle = "rgba(236,211,150,.18)"; c.lineWidth = 9; c.stroke(); }
+  c.setLineDash(floor ? [10, 10] : [5 * lw, 5 * lw]); c.lineDashOffset = -S.t * (floor ? 30 : 30 * lw);
+  c.strokeStyle = "#ecd396"; c.lineWidth = floor ? 3 : 2.2 * lw; c.stroke();
+  c.restore();
+}
+function drawTarget(c, p, k) {
+  const ph = (S.t * 1.2) % 1;
+  c.save();
+  c.strokeStyle = `rgba(236,211,150,${1 - ph})`; c.lineWidth = 2.5 * k;
+  c.beginPath(); c.arc(p.x, p.y, (10 + ph * 18) * k, 0, 7); c.stroke();
+  c.fillStyle = "#ecd396"; c.beginPath(); c.arc(p.x, p.y, 3.5 * k, 0, 7); c.fill();
+  c.restore();
+}
+
+// ------------------------------------------------------------------ drawing the minimap
+const ZOOMS = [0.5, 0.7, 1, 1.4, 2, 2.8], ZOOM_MAX = 0.6;
+const MIN_SCALE = 0.16, MAX_SCALE = 0.32, MAP_H_RATIO = .9;
+function mapSize() { const w = S.size; return { w, h: Math.round(w * MAP_H_RATIO) }; }
+function drawMinimap() {
+  const { w, h } = mapSize(), dpr = devicePixelRatio || 1;
+  if (mmc.width !== w * dpr || mmc.height !== h * dpr) { mmc.width = w * dpr; mmc.height = h * dpr; mmc.style.width = w + "px"; mmc.style.height = h + "px"; }
+  const c = mctx;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const shown = mapShown(), here = hereId();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const id of shown) { const r = byId[id]; x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y); x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h); }
+  const pad = 10, fit = Math.min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (y1 - y0));
+  // the zoom buttons scale from the map's own choice, down to where everything fits and up to ZOOM_MAX
+  const base = Math.min(MAX_SCALE, Math.max(MIN_SCALE, fit)), least = Math.min(fit, base);
+  const sc = Math.max(least, Math.min(ZOOM_MAX, base * ZOOMS[S.zoomI]));
+  $("zOut").disabled = sc <= least * 1.001 || S.zoomI === 0;
+  $("zIn").disabled = sc >= ZOOM_MAX * .999 || S.zoomI === ZOOMS.length - 1;
+  let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  if (sc > fit) {   // it can't all fit: keep the neighbourhood in view as far as possible, with you inside the middle 80%
+    const hx = w / 2 / sc * .8, hy = h / 2 / sc * .8;
+    cx = Math.min(Math.max(cx, S.me.x - hx), S.me.x + hx);
+    cy = Math.min(Math.max(cy, S.me.y - hy), S.me.y + hy);
+  }
+  const view = { cx, cy, sc };
+  c.save();
+  c.translate(w / 2, h / 2); c.rotate(S.viewRot); c.scale(sc, sc); c.translate(-cx, -cy);
+  const px = 1 / sc;   // one screen pixel, in world units
+  for (const id of shown) {
+    const r = byId[id], mine = zoneOf[id] === zoneOf[here];
+    c.fillStyle = mine ? mixFloor(r.floor, .55) : mixFloor(r.floor, .22);
+    c.fillRect(r.x + WALL.side, r.y + WALL.top * .5, r.w - 2 * WALL.side, r.h - WALL.top * .5 - WALL.bottom);
+    c.strokeStyle = mine ? "rgba(236,211,150,.55)" : "rgba(236,211,150,.22)"; c.lineWidth = 1.2 * px;
+    c.strokeRect(r.x + WALL.side, r.y + WALL.top * .5, r.w - 2 * WALL.side, r.h - WALL.top * .5 - WALL.bottom);
+  }
+  for (const id of shown) for (const o of byId[id].openings) {   // doorways: dashed brass if they lead on, red to the street
+    const r = byId[id], g = o.gap;
+    c.strokeStyle = o.to ? "#ecd396" : "rgba(239,122,107,.8)"; c.lineWidth = 2.4 * px;
+    c.setLineDash(o.to ? [3 * px, 2 * px] : []);
+    c.beginPath();
+    if (o.side === "top") { c.moveTo(g.x, r.y + WALL.top * .5); c.lineTo(g.x + g.w, r.y + WALL.top * .5); }
+    if (o.side === "bottom") { c.moveTo(g.x, r.y + r.h - WALL.bottom); c.lineTo(g.x + g.w, r.y + r.h - WALL.bottom); }
+    if (o.side === "left") { c.moveTo(r.x + WALL.side, g.y); c.lineTo(r.x + WALL.side, g.y + g.h); }
+    if (o.side === "right") { c.moveTo(r.x + r.w - WALL.side, g.y); c.lineTo(r.x + r.w - WALL.side, g.y + g.h); }
+    c.stroke(); c.setLineDash([]);
+  }
+  const labels = [];
+  for (const t of things) {   // tables, the slot banks, the ATM
+    if (!shown.has(t.room) || !t.kind || t.kind === "slot") continue;
+    const k = KIND[t.kind], full = freeSeats(t) === 0;
+    c.globalAlpha = full ? .42 : 1;
+    c.fillStyle = k.col;
+    const b = t.body;
+    if (t.kind === "atm") { c.beginPath(); c.arc(t.ax, t.ay - 10, 9 * px, 0, 7); c.fill(); }
+    else if (t.shape === "craps") { rrect(c, b.x, b.y, b.w, b.h, 60); c.fill(); }
+    else if (t.shape === "roulette") { rrect(c, b.x, b.y, b.w, b.h, 14); c.fill(); c.fillStyle = "rgba(0,0,0,.35)"; c.beginPath(); c.arc(t.ax - 115, t.ay + (t.rot ? 57 : -57), 46, 0, 7); c.fill(); }
+    else { rrect(c, b.x, b.y, b.w, b.h, t.rot ? [18, 18, 70, 70] : [70, 70, 18, 18]); c.fill(); }
+    c.globalAlpha = 1;
+    if (zoneOf[t.room] === zoneOf[here] || S.labelsAll)
+      labels.push({ near: zoneOf[t.room] !== zoneOf[here], x: t.ax, y: t.kind === "atm" ? t.ay - 10 : b.y + b.h / 2, text: t.kind === "atm" ? "ATM" : k.short, sub: t.kind === "master_table" ? t.playing : full ? "Full" : null, w: b.w, atm: t.kind === "atm", full });
+  }
+  for (const bank of slotBanks(shown)) {
+    const full = bank.free === 0;
+    c.globalAlpha = full ? .42 : 1;
+    c.fillStyle = KIND.slot.col; rrect(c, bank.x, bank.y, bank.w, bank.h, 6); c.fill();
+    c.fillStyle = "rgba(0,0,0,.35)";
+    for (const s of bank.cabs) c.fillRect(s.ax - 1 * px, bank.y, 2 * px, bank.h);
+    c.globalAlpha = 1;
+    if (zoneOf[bank.room] === zoneOf[here] || S.labelsAll) labels.push({ near: zoneOf[bank.room] !== zoneOf[here], x: bank.x + bank.w / 2, y: bank.y + bank.h + 14 * px, text: "Slots", w: bank.w * 3 });
+  }
+  if (S.route) { drawRoute(c, S.route.path, px, false); drawTarget(c, S.route.stand, px); }
+  for (const o of S.others) if (shown.has(roomAt(o.x, o.y)?.id)) {
+    c.fillStyle = "#ece4d2"; c.beginPath(); c.arc(o.x, o.y, 3 * px, 0, 7); c.fill();
+    c.strokeStyle = "rgba(0,0,0,.6)"; c.lineWidth = 1 * px; c.stroke();
+  }
+  // room names, door tabs and labels, all upright
+  const tabs = [];
+  for (const id of shown) for (const o of byId[id].openings) if (o.to && !shown.has(o.to)) tabs.push({ o, room: byId[o.to] });
+  c.restore();
+  const toScreen = (x, y) => { const dx = (x - cx) * sc, dy = (y - cy) * sc, s = Math.sin(S.viewRot), co = Math.cos(S.viewRot); return { x: w / 2 + dx * co - dy * s, y: h / 2 + dx * s + dy * co }; };
+  c.textAlign = "center"; c.textBaseline = "middle";
+  for (const id of shown) {   // room names, at the top of each room as it lies on screen
+    const r = byId[id], mine = zoneOf[id] === zoneOf[here];
+    const cs = [toScreen(r.x, r.y + WALL.top * .5), toScreen(r.x + r.w, r.y + WALL.top * .5), toScreen(r.x, r.y + r.h), toScreen(r.x + r.w, r.y + r.h)];
+    const sx0 = Math.min(...cs.map(q => q.x)), sx1 = Math.max(...cs.map(q => q.x)), sy0 = Math.max(0, Math.min(...cs.map(q => q.y))), sy1 = Math.max(...cs.map(q => q.y));
+    if (sy1 - sy0 < 24) continue;
+    c.font = "600 10px 'Barlow Condensed'"; c.fillStyle = mine ? "rgba(236,211,150,.95)" : "rgba(236,228,210,.6)";
+    const txt = r.name.toUpperCase();
+    if (c.measureText(txt).width < sx1 - sx0 - 8 && sy0 + 9 > 0 && sy0 + 9 < h) { c.save(); c.letterSpacing = "1px"; const tw = c.measureText(txt).width + txt.length; c.fillText(txt, Math.min(w - tw / 2 - 4, Math.max(tw / 2 + 4, (Math.max(sx0, 0) + Math.min(sx1, w)) / 2)), sy0 + 9); c.restore(); }
+  }
+  const placed = [];
+  for (const L of labels) {
+    const p = toScreen(L.x, L.y);
+    c.font = "700 10.5px 'Barlow Condensed'";
+    const tw = c.measureText(L.text).width;
+    if (L.atm) { c.fillStyle = "#0b0d0e"; c.font = "700 9px 'Barlow Condensed'"; const q = toScreen(L.x, L.y); c.fillText("£", q.x, q.y); continue; }
+    if (tw > L.w * sc + 18) continue;
+    const box = { x: p.x - tw / 2 - 3, y: p.y - (L.sub ? 11 : 6.5), w: tw + 6, h: L.sub ? 22 : 13 };
+    if (placed.some(q => box.x < q.x + q.w && q.x < box.x + box.w && box.y < q.y + q.h && q.y < box.y + box.h)) continue;
+    if (box.x < 2 || box.y < 2 || box.x + box.w > w - 2 || box.y + box.h > h - 2) continue;
+    placed.push(box);
+    c.globalAlpha = L.near ? .7 : 1;
+    c.fillStyle = "rgba(10,12,13,.75)"; rrect(c, p.x - tw / 2 - 3, p.y - (L.sub ? 11 : 6.5), tw + 6, L.sub ? 22 : 13, 3); c.fill();
+    c.fillStyle = L.full ? "rgba(236,228,210,.6)" : "#ece4d2"; c.fillText(L.text, p.x, p.y - (L.sub ? 4 : 0));
+    if (L.sub) { c.font = "600 9px 'Barlow Condensed'"; c.fillStyle = L.full ? "#ef7a6b" : "#ecd396"; c.fillText(L.sub, p.x, p.y + 6); }
+    c.globalAlpha = 1;
+  }
+  for (const T of tabs) {   // a door to a room further on: a tab with the room's name, pointing through the door
+    const g = T.o.gap, mid = { x: g.x + g.w / 2, y: g.y + g.h / 2 };
+    const dir = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }[T.o.side];
+    const a = toScreen(mid.x, mid.y), b = toScreen(mid.x + dir[0], mid.y + dir[1]);
+    let ux = b.x - a.x, uy = b.y - a.y; const L = Math.hypot(ux, uy); ux /= L; uy /= L;
+    const p = { x: Math.min(w - 8, Math.max(8, a.x + ux * 12)), y: Math.min(h - 8, Math.max(8, a.y + uy * 12)) };
+    c.font = "600 10px 'Barlow Condensed'";
+    const txt = T.room.name, tw = c.measureText(txt).width;
+    let bx = p.x - tw / 2 - 12, by = p.y - 8;
+    bx = Math.min(w - tw - 22, Math.max(3, bx)); by = Math.min(h - 19, Math.max(3, by));
+    c.fillStyle = "rgba(20,18,12,.92)"; rrect(c, bx, by, tw + 20, 16, 8); c.fill();
+    c.strokeStyle = "rgba(236,211,150,.7)"; c.lineWidth = 1; c.stroke();
+    c.fillStyle = "#ecd396"; c.textAlign = "left"; c.fillText(txt, bx + 6, by + 8.5);
+    arrow(c, bx + tw + 13, by + 8, Math.atan2(uy, ux), 4, "#ecd396");
+    c.textAlign = "center";
+  }
+  // you: a brass arrow the way you face
+  const me = toScreen(S.me.x, S.me.y);
+  arrow(c, me.x, me.y, S.me.face + S.viewRot, 7, "#ecd396", true);
+  // a target off the map: an arrow on the edge pointing to it
+  if (S.route) {
+    const q = toScreen(S.route.stand.x, S.route.stand.y);
+    if (q.x < 6 || q.y < 6 || q.x > w - 6 || q.y > h - 6) {
+      const ang = Math.atan2(q.y - h / 2, q.x - w / 2);
+      const k = Math.min((w / 2 - 10) / Math.abs(Math.cos(ang) || 1e-6), (h / 2 - 10) / Math.abs(Math.sin(ang) || 1e-6));
+      arrow(c, w / 2 + Math.cos(ang) * k, h / 2 + Math.sin(ang) * k, ang, 7, "#ecd396", true);
+    }
+  }
+  return view;
+}
+function arrow(c, x, y, ang, s, col, outlined) {
+  c.save(); c.translate(x, y); c.rotate(ang);
+  c.beginPath(); c.moveTo(s * 1.25, 0); c.lineTo(-s * .8, -s * .8); c.lineTo(-s * .35, 0); c.lineTo(-s * .8, s * .8); c.closePath();
+  c.fillStyle = col; c.fill();
+  if (outlined) { c.strokeStyle = "#0b0d0e"; c.lineWidth = 1.5; c.stroke(); }
+  c.restore();
+}
+function mixFloor(hex, k) {   // a room's floor colour, lifted towards the house ink
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const m = (a, t) => Math.round(a + (t - a) * k * .35);
+  return `rgb(${m(r, 236)},${m(g, 228)},${m(b, 210)})`;
+}
+function slotBanks(shown) {   // cabinets side by side make one bank
+  const cabs = things.filter(t => t.kind === "slot" && shown.has(t.room)).sort((a, b) => a.ay - b.ay || a.ax - b.ax);
+  const banks = [];
+  for (const s of cabs) {
+    const b = banks.find(q => q.room === s.room && Math.abs(q.y0 - s.ay) < 20 && s.ax - q.x1 < 130);
+    if (b) { b.x1 = s.ax; b.cabs.push(s); } else banks.push({ room: s.room, y0: s.ay, x0: s.ax, x1: s.ax, cabs: [s] });
+  }
+  return banks.map(b => ({ ...b, x: b.x0 - 16, y: b.y0 - 26, w: b.x1 - b.x0 + 32, h: 30, free: b.cabs.reduce((n, s) => n + freeSeats(s), 0) }));
+}
+
+// ------------------------------------------------------------------ Find
+function findKinds() {
+  const groups = {};
+  for (const t of things) if (t.kind) (groups[t.kind] ||= []).push(t);
+  const order = ["master_table", "blackjack", "three_card_poker", "baccarat", "ultimate_texas_holdem", "mississippi_stud", "roulette", "craps", "slot", "atm"];
+  return order.filter(k => groups[k]).map(k => ({ kind: k, list: groups[k] }));
+}
+function nearest(kind) {
+  let best = null;
+  for (const t of things.filter(q => q.kind === kind)) {
+    const free = freeSeats(t) > 0 || t.kind === "atm";
+    const seat = t.kind === "slot" || t.kind === "atm" ? 0 : Math.max(0, (t.taken || 0) % (t.seats || 1));
+    const stand = seatSpot(t, free ? seat : 0).stand;
+    const path = findPath(S.me, stand);
+    if (!path) continue;
+    const len = pathLength(path);
+    const better = !best || (free && !best.free) || (free === best.free && len < best.len);
+    if (better) best = { t, stand, path, len, free };
+  }
+  return best;
+}
+const metres = px => Math.max(1, Math.round(px / 32)) + " m";
+function openFind() {
+  const f = $("find");
+  f.innerHTML = '<div class="fh">Find the nearest</div>';
+  for (const g of findKinds()) {
+    const n = nearest(g.kind);
+    const free = g.list.filter(t => freeSeats(t) > 0).length;
+    const b = document.createElement("button");
+    const meta = g.kind === "atm" ? (n ? metres(n.len) : "") : (free ? `${g.list.length > 1 ? g.list.length + " · " : ""}${n ? metres(n.len) : ""}` : `<b>full</b> · ${n ? metres(n.len) : ""}`);
+    b.innerHTML = `<span class="sw" style="background:${KIND[g.kind].col}"></span><span>${NAMES[g.kind]}</span><span class="meta">${meta}</span>`;
+    b.onclick = () => { closeFind(); startRoute(g.kind); };
+    f.appendChild(b);
+  }
+  f.hidden = false; $("findBtn").setAttribute("aria-expanded", "true");
+  layout();
+}
+function closeFind() { $("find").hidden = true; $("findBtn").setAttribute("aria-expanded", "false"); }
+function startRoute(kind) {
+  const n = nearest(kind);
+  if (!n) return toast("No way there from here");
+  S.route = { kind, t: n.t, stand: n.stand, path: n.path, full: !n.free, replan: 0 };
+  $("gname").textContent = (kind === "slot" ? "a slot" : NAMES[kind]) + (n.free ? "" : " (full)");
+  $("walkBtn").setAttribute("aria-pressed", "false"); $("walkBtn").textContent = "Walk there";
+  S.walk = null;
+  updateGuide(); layout();
+}
+function stopRoute() { S.route = null; S.walk = null; layout(); }
+function updateGuide() {
+  if (!S.route) return;
+  $("gdist").textContent = metres(pathLength(S.route.path));
+}
+
+// ------------------------------------------------------------------ the corners' layout (as hud.gd will place them)
+function layout() {
+  const seated = !!S.seated;
+  const mm = $("mm"), fold = $("unfold");
+  const showMm = S.showMap && !S.folded, showFold = S.showMap && S.folded;
+  mm.hidden = !showMm; fold.hidden = !showFold;
+  $("findBtn").hidden = seated;
+  const { h } = mapSize();
+  const mmH = showMm ? 30 + h + 2 : showFold ? 40 : 0;
+  const mmW = showMm ? S.size + 2 : showFold ? 40 : 0;
+  let y = 16 + mmH + 8;
+  const guide = $("guide");   // the guide sits right under the minimap, and the Find list under that
+  guide.hidden = !S.route || seated || !S.showMap;
+  guide.style.top = y + "px";
+  const find = $("find");
+  if (!showMm || seated) closeFind();
+  find.style.top = (guide.hidden ? y : y + guide.offsetHeight + 8) + "px"; find.style.width = Math.max(220, mmW) + "px";
+  const pay = $("payBtn");
+  pay.hidden = !seated;
+  pay.style.right = (24 + (mmW ? mmW + 8 : 0)) + "px";
+  const pt = $("paytable");
+  pt.hidden = !(seated && pay.getAttribute("aria-pressed") === "true");
+  pt.style.top = (mmW ? y : 64) + "px";
+  $("bar").hidden = !seated;
+  $("here").textContent = byId[hereId()].name;
+}
+
+// ------------------------------------------------------------------ scenarios
+const NOTES = {
+  lobby: "Standing at the lobby's spawn. The door hides the Scratch Room, but the minimap shows it through the door.",
+  floor: "Between Craps and Roulette. The lobby is one door away, so it stays on the map.",
+  master: "Seated at the Master Table, the paytable open below the minimap. Craps is above you, with Roulette above that. Find is walking-only.",
+  turned: "Seated at a turned Blackjack table in the Blackjack Pit (the bigger example). The floor and the map both turn, so the pit's far side is at the top.",
+};
+function setCasino(v) {
+  S.casino = v;
+  buildPlan(v === "big" ? bigPlan() : livePlan());
+  S.others = [{ x: 420, y: -1000, name: "Sam" }, { x: 210, y: 336, name: "Jo" }];
+  if (v === "big") S.others.push({ x: 1200, y: -700, name: "Priya" }, { x: 300, y: -1500, name: "Tom" });
+  segPress("optCasino", v);
+  S.route = null; S.walk = null;
+}
+function scenario(s) {
+  S.scenario = s;
+  if (s === "turned" && S.casino !== "big") setCasino("big");
+  S.route = null; S.walk = null; S.seated = null;
+  $("payBtn").setAttribute("aria-pressed", "false");
+  if (s === "lobby") { S.me = { x: 304, y: 360, face: -Math.PI / 2 }; lastHere = "modern_lobby"; }
+  if (s === "floor") { S.me = { x: 150, y: -560, face: -Math.PI / 2 }; lastHere = "room_5_2"; }
+  if (s === "master" || s === "turned") {
+    const t = things.find(q => q.id === (s === "master" ? "mt_1" : "bj_2"));
+    const sp = seatSpot(t, 2);
+    S.me = { x: sp.sit.x, y: sp.sit.y, face: t.rot ? Math.PI / 2 : -Math.PI / 2 };
+    S.seated = { t };
+    lastHere = t.room;
+    $("payBtn").setAttribute("aria-pressed", "true");
+  }
+  S.viewRotTo = S.seated && S.seated.t.rot === 180 ? Math.PI : 0;
+  S.viewRot = S.viewRotTo;
+  S.zoom = S.seated ? 1.55 : 1.25;
+  if (S.seated) S.cam = { x: S.seated.t.ax, y: S.seated.t.ay + (S.seated.t.rot ? -20 : 20) };
+  else S.cam = { x: S.me.x, y: S.me.y - 40 };
+  segPress("scen", s, "s");
+  $("scenNote").textContent = NOTES[s];
+  layout();
+}
+function standUp() {
+  if (!S.seated) return;
+  const t = S.seated.t;
+  const st = seatSpot(t, 2).stand;
+  S.me = { x: st.x, y: st.y, face: t.rot ? -Math.PI / 2 : Math.PI / 2 };
+  S.seated = null; S.viewRotTo = 0; S.zoom = 1.25;
+  $("payBtn").setAttribute("aria-pressed", "false");
+  layout();
+}
+function segPress(id, v, key = "v") { for (const b of $(id).querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset[key] === String(v))); }
+
+// ------------------------------------------------------------------ input and the loop
+const SPEED = 150;
+function step(dt) {
+  S.t += dt;
+  if (Math.abs(S.viewRot - S.viewRotTo) > .001) S.viewRot += (S.viewRotTo - S.viewRot) * Math.min(1, dt * 5);
+  if (!S.seated) {
+    let vx = 0, vy = 0;
+    const k = S.keys;
+    if (k.has("a") || k.has("arrowleft")) vx -= 1;
+    if (k.has("d") || k.has("arrowright")) vx += 1;
+    if (k.has("w") || k.has("arrowup")) vy -= 1;
+    if (k.has("s") || k.has("arrowdown")) vy += 1;
+    if (vx || vy) {
+      S.walk = null; setWalkBtn(false);
+      const L = Math.hypot(vx, vy); vx /= L; vy /= L;
+      const r = -S.viewRot; const wx = vx * Math.cos(r) - vy * Math.sin(r), wy = vx * Math.sin(r) + vy * Math.cos(r);
+      moveBy(wx * SPEED * dt, wy * SPEED * dt);
+    } else if (S.walk && S.walk.length) {
+      const goal = S.walk[0];
+      const dx = goal.x - S.me.x, dy = goal.y - S.me.y, d = Math.hypot(dx, dy), st = SPEED * dt;
+      if (d <= st) { S.me.x = goal.x; S.me.y = goal.y; S.walk.shift(); if (!S.walk.length) { S.walk = null; setWalkBtn(false); } }
+      else { S.me.x += dx / d * st; S.me.y += dy / d * st; S.me.face = Math.atan2(dy, dx); }
+    }
+    S.cam.x += (S.me.x - S.cam.x) * Math.min(1, dt * 8);
+    S.cam.y += (S.me.y - 40 - S.cam.y) * Math.min(1, dt * 8);
+  }
+  if (S.route) {
+    S.route.replan -= dt;
+    if (Math.hypot(S.me.x - S.route.stand.x, S.me.y - S.route.stand.y) < 24) {
+      toast(`You're at ${S.route.kind === "slot" ? "the slots" : NAMES[S.route.kind]}`);
+      stopRoute();
+    } else if (S.route.replan <= 0) {
+      S.route.replan = .4;
+      const p = S.walk ? [{ ...S.me }, ...S.walk] : findPath(S.me, S.route.stand);
+      if (p) { S.route.path = p; updateGuide(); }
+    }
+  }
+  const h = byId[hereId()].name;
+  if ($("here").textContent !== h) $("here").textContent = h;
+}
+function moveBy(dx, dy) {
+  if (walkable(S.me.x + dx, S.me.y)) S.me.x += dx;
+  if (walkable(S.me.x, S.me.y + dy)) S.me.y += dy;
+  S.me.face = Math.atan2(dy, dx);
+}
+function setWalkBtn(on) { $("walkBtn").setAttribute("aria-pressed", String(on)); $("walkBtn").textContent = on ? "Walking" : "Walk there"; }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); }
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") { if (!$("find").hidden) closeFind(); else if (!$("settings").hidden) toggleSettings(false); else if (S.route) stopRoute(); return; }
+  const k = e.key.toLowerCase();
+  if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k) && document.activeElement?.tagName !== "INPUT") { S.keys.add(k); e.preventDefault(); }
+});
+window.addEventListener("keyup", e => S.keys.delete(e.key.toLowerCase()));
+window.addEventListener("blur", () => S.keys.clear());
+cv.addEventListener("pointerdown", e => {
+  cv.focus();
+  closeFind(); toggleSettings(false);
+  if (S.seated) return;
+  const r = cv.getBoundingClientRect();
+  let x = (e.clientX - r.left - r.width / 2) / S.zoom, y = (e.clientY - r.top - r.height / 2) / S.zoom;
+  const a = -S.viewRot; [x, y] = [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+  const p = findPath(S.me, { x: x + S.cam.x, y: y + S.cam.y });
+  if (p) { S.walk = p.slice(1); setWalkBtn(false); }
+});
+function toggleSettings(on) { $("settings").hidden = !on; $("cog").setAttribute("aria-pressed", String(on)); }
+$("cog").onclick = () => toggleSettings($("settings").hidden);
+$("setMap").onclick = () => { S.showMap = !S.showMap; $("setMap").setAttribute("aria-checked", String(S.showMap)); if (!S.showMap) S.route && stopRoute(); layout(); };
+$("foldBtn").onclick = () => { S.folded = true; layout(); };
+$("unfold").onclick = () => { S.folded = false; layout(); };
+$("zIn").onclick = () => { S.zoomI = Math.min(ZOOMS.length - 1, S.zoomI + 1); };
+$("zOut").onclick = () => { S.zoomI = Math.max(0, S.zoomI - 1); };
+$("findBtn").onclick = () => $("find").hidden ? openFind() : (closeFind(), layout());
+$("gx").onclick = stopRoute;
+$("walkBtn").onclick = () => { if (!S.route) return; S.walk = findPath(S.me, S.route.stand)?.slice(1) || null; setWalkBtn(!!S.walk); };
+$("payBtn").onclick = () => { const b = $("payBtn"); b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); layout(); };
+$("standBtn").onclick = standUp;
+for (const b of $("scen").querySelectorAll("button")) b.onclick = () => scenario(b.dataset.s);
+for (const b of $("optSize").querySelectorAll("button")) b.onclick = () => { S.size = +b.dataset.v; segPress("optSize", S.size); layout(); };
+for (const b of $("optLabels").querySelectorAll("button")) b.onclick = () => { S.labelsAll = b.dataset.v === "1"; segPress("optLabels", b.dataset.v); };
+for (const b of $("optCasino").querySelectorAll("button")) b.onclick = () => { setCasino(b.dataset.v); scenario(b.dataset.v === "live" && S.scenario === "turned" ? "lobby" : S.scenario); };
+$("paytable").innerHTML = "<h4>Blackjack</h4><div><span>Blackjack</span><span>3 to 2</span></div><div><span>Win</span><span>1 to 1</span></div><div><span>Insurance</span><span>2 to 1</span></div><h4 style='margin-top:10px'>21+3</h4><div><span>Suited trips</span><span>100 to 1</span></div><div><span>Straight flush</span><span>40 to 1</span></div><div><span>Three of a kind</span><span>30 to 1</span></div><div><span>Straight</span><span>10 to 1</span></div><div><span>Flush</span><span>5 to 1</span></div>";
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  step(dt);
+  drawStage();
+  if (S.showMap && !S.folded) drawMinimap();
+  requestAnimationFrame(frame);
+}
+setCasino("live");
+scenario("lobby");
+document.fonts?.ready.then(() => layout());
+requestAnimationFrame(frame);
+</script>

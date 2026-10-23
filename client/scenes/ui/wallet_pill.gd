@@ -1,8 +1,8 @@
 class_name WalletPill
 extends HBoxContainer
-## The top-left corner, walking or seated: whether you're online, your name, your cash in hand (less what's on the
+## Top left, right of the HUD's Settings, walking or seated: whether you're online, your name, your cash in hand (less what's on the
 ## felt) with a round's result flashing beside it. (Your bank balance is at the lobby's ATM.) In the betting bar's
-## look, the same height as the corner buttons on the right.
+## look, the same height as the Settings button beside it.
 
 var _panel: PanelContainer
 var _dot: Control
@@ -14,7 +14,6 @@ var _online := false
 
 
 func _ready() -> void:
-	position = BettingBar.CORNER_INSET
 	add_theme_constant_override("separation", 8)
 	mouse_filter = MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()
