@@ -26,7 +26,7 @@ Mockup: https://claude.ai/artifact/Y1pgFdZCarVzZtUv5LJc24 (source `docs/atm/mock
 - **Style B, the cash machine.** It has a blue screen, side keys lined up with the labelled options, a keypad, and a cash slot that deals notes. Style A is dropped.
 - **The ATM shows no cash-in-hand amount.** The top-left already shows it. The screens show the bank balance only.
 - **The top-left pill shows just the amount,** with no "On hand" label.
-- **Withdrawals are in £50 steps,** presets and Other amount alike, and the server checks it. Under "Most you can take", the Other amount screen says "£50 increments only". A wrong amount suggests the nearest one: "Can't pay £120. Try £100." Deposits can be any amount.
+- **Withdrawals are in £50 steps,** presets and Other amount alike, and the server checks it. Under "Most you can take", the Other amount screen says "£50 increments only". A wrong amount suggests the nearest one: "Can't pay £120. Try £100." Deposits can be any amount, to the penny: the keypad's "." (or the keyboard's) works on the deposit Other amount screen, with two decimal places.
 - **The cash slot deals real £50 notes** (`docs/atm/mockup/img/note50.png`, 360×199), one per £50 up to a stack of 10. They come out over the slot's lit rim and hang down the fascia, each a little lower and askew.
 - Undecided, so the mockup's defaults stand: the Recent screen (the last 4 ATM transactions) and the presets £50/£100/£250/£500.
 

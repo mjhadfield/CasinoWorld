@@ -30,14 +30,14 @@ const ROW_H := 62.0
 const PAD := Rect2(18, 404, 288, 182)
 const CARD_SLOT := Rect2(322, 404, 200, 40)
 const CASH_SLOT := Rect2(322, 456, 200, 54)
-const KEYS := ["1", "2", "3", "cancel", "4", "5", "6", "clear", "7", "8", "9", "enter", "", "0", "", ""]
+const KEYS := ["1", "2", "3", "cancel", "4", "5", "6", "clear", "7", "8", "9", "enter", ".", "0", "", ""]
 
 var waiting := false        # opened, the server's state not here yet
 var _st := {}               # the server's last `atm`
 var _st_at := 0.0           # when it came (the overdrawn countdown runs from it)
 var _busy := false          # a withdrawal or deposit sent, its answer not back yet
 var _screen := "home"
-var _entry := ""            # the Other amount typed, whole pounds
+var _entry := ""            # the Other amount typed: pounds, and for a deposit pence after a "."
 var _msg := ""              # an error on the screen
 var _done := {}             # {kind, amount} for the done screen
 var _notes := 0             # notes in the cash slot
@@ -243,10 +243,12 @@ func _act(id: String) -> void:
 
 
 func _enter() -> void:
-	if _entry == "":
+	var parts := _entry.split(".")
+	var pence := int(parts[0]) * 100 + (int(parts[1].rpad(2, "0")) if parts.size() > 1 else 0)
+	if pence <= 0:
 		_msg = "Enter an amount."
 		return
-	_send("atm_withdraw" if _screen == "w_other" else "atm_deposit", int(_entry) * 100)
+	_send("atm_withdraw" if _screen == "w_other" else "atm_deposit", pence)
 
 
 func _send(kind: String, pence: int) -> void:
@@ -273,9 +275,16 @@ func _key(k: String) -> void:
 			_entry = _entry.left(-1)
 		"enter":
 			_enter()
+		".":   # pence, for a deposit (withdrawals are whole £50 notes)
+			if _screen == "d_other" and not "." in _entry:
+				_entry = (_entry if _entry != "" else "0") + "."
 		_:
-			if _entry.length() < 5:
-				_entry = (_entry + k).lstrip("0")
+			var dot := _entry.find(".")
+			if dot >= 0:
+				if _entry.length() - dot <= 2:
+					_entry += k
+			elif _entry.length() < 5:
+				_entry = k if _entry == "0" else _entry + k
 	queue_redraw()
 
 
@@ -293,6 +302,8 @@ func _input(event: InputEvent) -> void:
 		_key(str(code - KEY_0))
 	elif code >= KEY_KP_0 and code <= KEY_KP_9:
 		_key(str(code - KEY_KP_0))
+	elif code == KEY_PERIOD or code == KEY_KP_PERIOD:
+		_key(".")
 	elif code == KEY_BACKSPACE:
 		_key("back")
 	elif code == KEY_ENTER or code == KEY_KP_ENTER:
