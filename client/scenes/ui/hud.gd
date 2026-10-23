@@ -36,6 +36,11 @@ var _banner_tween: Tween
 
 func _ready() -> void:
 	show()  # always on in the game, even if it was hidden in the editor to see the floor
+	# The HUD's text is MSDF, which needs linear filtering to draw crisp edges; the project default is nearest (for the
+	# pixel-art floor). Every top-level piece gets it, including ones added later, unless it picked its own filter.
+	child_entered_tree.connect(_smooth)
+	for n in get_children():
+		_smooth(n)
 	# Every button in the HUD clicks, including ones built later (actions, the sorter's).
 	get_tree().node_added.connect(_click_if_button)
 	_click_all(self)
@@ -105,6 +110,11 @@ func _place_settings_button() -> void:
 	settings_button.size = Vector2(w, 40)
 	settings_button.position = Vector2(get_viewport().get_visible_rect().size.x - BettingBar.CORNER_INSET.x - w, BettingBar.CORNER_INSET.y)
 	bar.right_inset = w + BettingBar.CORNER_INSET.x + 8.0
+
+
+func _smooth(node: Node) -> void:
+	if node is CanvasItem and node.get_parent() == self and node.texture_filter == CanvasItem.TEXTURE_FILTER_PARENT_NODE:
+		node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func _click_if_button(node: Node) -> void:
