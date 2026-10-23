@@ -188,12 +188,14 @@ A Godot 4.7 project exported to the web.
 - **The HUD (`scenes/ui/hud.tscn`)** keeps Settings and then your name, connection and cash in hand top left
   (`wallet_pill.gd`, with a round's result flashing beside it), and the minimap top right, walking or seated. The
   minimap (`scenes/ui/minimap.gd`, signed off on `docs/minimap/mockup/`) draws your room and every room one doorway
-  on (an archway's rooms count as one), with the tables, slot banks and ATM in their kinds' colours, full tables
-  faint, other real players as dots and you as an arrow; past a readable scale it pans with you, a door to a room
-  further on gets a named tab, and it turns with a turned table. It starts folded to a map button, and its size,
-  table names and zoom are settings. The floor feeds it each frame (`follow`) and works out its Find: the nearest
-  table of a kind by the nav map's path (one with a free seat first), drawn on the floor (`scenes/world/route_line.gd`)
-  and the map, with Walk there, until you arrive, sit anywhere, or stop it. Walking, standing at a piece
+  on (an archway's rooms count as one), with the tables, slot banks and ATM (a square saying ATM) in their kinds'
+  colours, full tables faint, other real players as dots and you as an arrow; past a readable scale it pans with you,
+  a door to a room further on gets a named tab, and it turns with a turned table. It starts folded to a map button;
+  its size (Small by default), table names (the ATM's too) and zoom (steps from its smallest view, two in by default)
+  are settings. The floor feeds it each frame (`follow`) and works out its Find: the nearest table of a kind by the
+  nav map's path (one with a free seat first), or, clicking a table, bank or ATM the map names, that one; drawn on the
+  floor (`scenes/world/route_line.gd`) and the map, with Walk there, until you arrive, sit anywhere, or stop it. On
+  the small map Find's list keeps to its width. Walking, standing at a piece
   you can use (furniture in group `interactables`: the ATM) shows a prompt (E, or click the piece), and the ATM's
   screen (`scenes/ui/atm_panel.gd`, drawn like the slot screen and signed off on `docs/atm/mockup/`) holds you
   still until you leave it. Seated, its betting bar

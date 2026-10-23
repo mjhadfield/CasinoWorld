@@ -102,6 +102,7 @@ func _ready() -> void:
 	world.add_child(route_line)
 	hud.minimap.find_opened.connect(func(): hud.minimap.show_find(_find_options()))
 	hud.minimap.find_picked.connect(_guide_to)
+	hud.minimap.map_picked.connect(func(targets: Array): _guide_to(Minimap.kind_of(targets[0]) if targets[0] is FloorGame else "atm", targets))
 	hud.minimap.walk_pressed.connect(func():
 		if not _guide.is_empty() and state == "walking":
 			_heading_for = {}
@@ -495,10 +496,12 @@ func _atms() -> Array:
 	return get_tree().get_nodes_in_group("interactables").filter(func(f): return f.interact == "atm" and f.is_inside_tree())
 
 
-## The nearest of a kind by the walk there, preferring one with a free seat: {goal, path, length, free}, or {}.
-func _nearest(kind: String) -> Dictionary:
+## The nearest of a kind by the walk there (or of `among`: a slot bank's cabinets, say), preferring one with a free
+## seat: {goal, path, length, free}, or {}.
+func _nearest(kind: String, among := []) -> Dictionary:
 	var best := {}
-	var targets: Array = _atms() if kind == "atm" else tables.values().filter(func(t): return Minimap.kind_of(t) == kind)
+	var targets: Array = among if not among.is_empty() else _atms() if kind == "atm" \
+		else tables.values().filter(func(t): return Minimap.kind_of(t) == kind)
 	for t in targets:
 		var goal: Vector2
 		var free := true
@@ -532,14 +535,16 @@ func _path_to(goal: Vector2) -> PackedVector2Array:
 	return NavigationServer2D.map_get_path(map, player.position, goal, true)
 
 
-func _guide_to(kind: String) -> void:
+## Find's pick (the nearest of a kind), or the map's (one table, bank or ATM: `among`).
+func _guide_to(kind: String, among := []) -> void:
 	if state != "walking":
 		return
-	var near := _nearest(kind)
+	var near := _nearest(kind, among)
 	if near.is_empty():
 		hud.show_toast("There's no way there from here")
 		return
-	var what: String = Minimap.kind_name(kind, tables.values().filter(func(t): return Minimap.kind_of(t) == kind).front() if kind != "atm" else null)
+	var first = among[0] if not among.is_empty() else tables.values().filter(func(t): return Minimap.kind_of(t) == kind).front() if kind != "atm" else null
+	var what: String = Minimap.kind_name(kind, first if first is FloorGame else null)
 	what = {"slot": "a slot", "atm": "the ATM"}.get(kind, what)
 	_guide = {"kind": kind, "name": what + ("" if near.free else " (full)"), "goal": near.goal, "replan": 0.4}
 	_show_guide(near.path)

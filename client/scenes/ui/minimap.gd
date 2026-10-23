@@ -4,7 +4,11 @@ extends Control
 ## your room and every room one doorway away (rooms joined by archways count as one), with the tables, slot banks and
 ## ATM drawn in their kinds' colours and named, a full table faint, other real players as dots (no NPCs) and you as a
 ## brass arrow. When that won't fit at a readable scale it pans with you instead, and a door to a room further on
-## gets a tab with that room's name. At a turned table it turns with the view. + and - zoom it.
+## gets a tab with that room's name. At a turned table it turns with the view. + and - zoom it, in steps from the
+## smallest view (everything shown, or the least it pans at).
+##
+## Walking, a table, slot bank or ATM the map names (Settings: minimap_labels) is clickable: it guides you there the
+## way Find does, to that one rather than the nearest of its kind.
 ##
 ## It starts folded to a map button (Settings: minimap_collapsed); its x folds it again, and Settings › Show the
 ## minimap takes it away. Its size and whether the rooms next door name their tables are settings too.
@@ -15,6 +19,8 @@ extends Control
 
 signal find_opened
 signal find_picked(kind: String)
+## A named table, slot bank (its cabinets) or ATM clicked on the map: guide there.
+signal map_picked(targets: Array)
 signal walk_pressed
 signal guide_closed
 ## Its corner changed (shown, folded, resized): what the HUD lays out round it.
@@ -30,7 +36,7 @@ const MAP_RATIO := 0.9      # the map's height to its width
 const HEAD_H := 30.0
 const MIN_SCALE := 0.16     # smaller than this and the tables get too small to read: it pans instead
 const MAX_SCALE := 0.32
-const ZOOMS := [0.5, 0.7, 1.0, 1.4, 2.0, 2.8]   # the +/- steps, on the scale it would pick itself
+const ZOOMS := [1.0, 1.4, 2.0, 2.8, 4.0, 5.6]   # the +/- steps, on its smallest view
 const ZOOM_MAX := 0.6
 const PAD := 10.0
 ## Each kind's colour on the map, and its name there when the table's own is too long.
@@ -76,6 +82,8 @@ var _target: Variant = null
 var _mode := "walking"
 var _redraw_in := 0.0
 var _drawn := []      # what the map last drew from, to redraw only on a change
+var _zoom_top := 0    # the last zoom step that still zooms in this room (past it, ZOOM_MAX)
+var _hits := []       # [screen rect, [what it guides to]]: what a click on the map picks, as last drawn
 
 
 func _ready() -> void:
@@ -91,6 +99,8 @@ func _ready() -> void:
 	_fold.pressed.connect(func(): Settings.set_value("minimap_collapsed", false))
 	add_child(_fold)
 	Settings.changed.connect(func(key: String, _v):
+		if key == "minimap_size":
+			close_find()   # (its rows are sized for the old one)
 		if key.begins_with("minimap") or key == "show_minimap":
 			_layout())
 	get_viewport().size_changed.connect(_layout)
@@ -136,6 +146,7 @@ func _build_panel() -> void:
 	_map.clip_contents = true
 	_map.mouse_filter = MOUSE_FILTER_PASS
 	_map.draw.connect(_draw_map)
+	_map.gui_input.connect(_map_input)
 	box.add_child(_map)
 	var zoom := VBoxContainer.new()
 	zoom.add_theme_constant_override("separation", 4)
@@ -146,7 +157,7 @@ func _build_panel() -> void:
 	zoom.add_child(_zoom_in)
 	_zoom_out = MapButton.new("minus", "", true)
 	_zoom_out.tooltip_text = "Zoom out"
-	_zoom_out.pressed.connect(func(): Settings.set_value("minimap_zoom", maxi(int(Settings.value("minimap_zoom")) - 1, 0)))
+	_zoom_out.pressed.connect(func(): Settings.set_value("minimap_zoom", maxi(mini(int(Settings.value("minimap_zoom")), _zoom_top) - 1, 0)))
 	zoom.add_child(_zoom_out)
 	_map.resized.connect(func(): zoom.position = _map.size - zoom.get_combined_minimum_size() - Vector2(6, 6))
 
@@ -235,6 +246,11 @@ func corner_bottom() -> float:
 	return _fold.position.y + _fold.size.y if _fold.visible else 0.0
 
 
+## The small map, whose Find list keeps to its width.
+func _compact() -> bool:
+	return str(Settings.value("minimap_size")) == "small"
+
+
 func _width() -> float:
 	var vs := get_viewport_rect().size
 	return roundf(minf(WIDTHS.get(str(Settings.value("minimap_size")), WIDTHS.large), maxf(160.0, vs.x * 0.36)))
@@ -266,7 +282,10 @@ func _layout() -> void:
 	if _guide.visible:
 		y += _guide.size.y + 8.0
 	_find.reset_size()
-	_find.size.x = maxf(_find.get_combined_minimum_size().x, maxf(230.0, _panel.size.x))
+	if _compact():   # the small map: its list exactly as wide, long names cut short
+		_find.size.x = _panel.size.x
+	else:
+		_find.size.x = maxf(_find.get_combined_minimum_size().x, maxf(230.0, _panel.size.x))
 	_find.position = Vector2(vs.x - BettingBar.CORNER_INSET.x - _find.size.x, y)
 	_drawn = []
 	_map.queue_redraw()
@@ -329,30 +348,35 @@ func show_find(options: Array) -> void:
 	_find_rows.add_child(head)
 	if options.is_empty():
 		_find_rows.add_child(_label("Nothing to find here yet", 16, MUTED))
+	var small := _compact()
 	for o in options:
 		var b := Button.new()
 		b.focus_mode = FOCUS_NONE
 		b.mouse_default_cursor_shape = CURSOR_POINTING_HAND
-		b.custom_minimum_size = Vector2(0, 32)
+		b.custom_minimum_size = Vector2(0, 30 if small else 32)
 		b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 		b.add_theme_stylebox_override("hover", BettingBar._box(Color(BRASS, 0.12), Color(0, 0, 0, 0), 8, Vector4.ZERO))
 		b.add_theme_stylebox_override("pressed", BettingBar._box(Color(BRASS, 0.2), Color(0, 0, 0, 0), 8, Vector4.ZERO))
 		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		var row := HBoxContainer.new()
 		row.set_anchors_preset(Control.PRESET_FULL_RECT)
-		row.offset_left = 8
-		row.offset_right = -8
-		row.add_theme_constant_override("separation", 9)
+		row.offset_left = 6 if small else 8
+		row.offset_right = -6 if small else -8
+		row.add_theme_constant_override("separation", 7 if small else 9)
 		row.mouse_filter = MOUSE_FILTER_IGNORE
 		b.add_child(row)
 		var swatch := Panel.new()
-		swatch.custom_minimum_size = Vector2(12, 12)
+		swatch.custom_minimum_size = Vector2(10, 10) if small else Vector2(12, 12)
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		swatch.mouse_filter = MOUSE_FILTER_IGNORE
 		swatch.add_theme_stylebox_override("panel", BettingBar._box(kind_colour(o.kind), kind_colour(o.kind), 3, Vector4.ZERO))
 		row.add_child(swatch)
-		var n := _label(str(o.name), 17, INK)
+		var n := _label(str(o.name), 15 if small else 17, INK)
 		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if small:
+			n.clip_text = true
+			n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			b.tooltip_text = str(o.name)
 		row.add_child(n)
 		var bits := []
 		if int(o.count) > 1:
@@ -361,9 +385,10 @@ func show_find(options: Array) -> void:
 			bits.append("full")
 		if int(o.metres) > 0:
 			bits.append("%d m" % o.metres)
-		var meta := _label("  ·  ".join(bits), 15, BettingBar.LOSS if not o.free else MUTED)
+		var meta := _label((" · " if small else "  ·  ").join(bits), 13 if small else 15, BettingBar.LOSS if not o.free else MUTED)
 		row.add_child(meta)
-		b.custom_minimum_size.x = 12 + 9 + n.get_combined_minimum_size().x + 9 + meta.get_combined_minimum_size().x + 16 + 24
+		if not small:
+			b.custom_minimum_size.x = 12 + 9 + n.get_combined_minimum_size().x + 9 + meta.get_combined_minimum_size().x + 16 + 24
 		var kind: String = o.kind
 		b.pressed.connect(func():
 			close_find()
@@ -455,10 +480,15 @@ func _draw_map() -> void:
 	var fit := minf((w - 2.0 * PAD) / box.size.x, (h - 2.0 * PAD) / box.size.y)
 	var base := clampf(fit, MIN_SCALE, MAX_SCALE)
 	var least := minf(fit, base)
-	var z := int(Settings.value("minimap_zoom"))
-	var sc := maxf(least, minf(ZOOM_MAX, base * ZOOMS[clampi(z, 0, ZOOMS.size() - 1)]))
-	_zoom_out.disabled = sc <= least * 1.001 or z <= 0
-	_zoom_in.disabled = sc >= ZOOM_MAX * 0.999 or z >= ZOOMS.size() - 1
+	var z := clampi(int(Settings.value("minimap_zoom")), 0, ZOOMS.size() - 1)
+	_zoom_top = ZOOMS.size() - 1
+	for i in ZOOMS.size():
+		if least * ZOOMS[i] >= ZOOM_MAX:
+			_zoom_top = i
+			break
+	var sc := maxf(least, minf(ZOOM_MAX, least * ZOOMS[z]))
+	_zoom_out.disabled = z <= 0
+	_zoom_in.disabled = z >= _zoom_top
 	var centre := box.get_center()
 	if sc > fit * 1.001:   # it won't all fit: keep as much of it in view as it can, with you in the middle 80%
 		var half := Vector2(w, h) / 2.0 / sc * 0.8
@@ -467,6 +497,8 @@ func _draw_map() -> void:
 	var px := 1.0 / sc
 	var here_zone = _zone_of.get(_room_id)
 	var all_names := str(Settings.value("minimap_labels")) == "all"
+	var picking := _mode == "walking"
+	_hits = []
 	_map.draw_set_transform_matrix(xf)
 	for id in shown:   # the rooms: yours lit, the others dim
 		var r: PlanRoom = _rooms[id]
@@ -504,6 +536,8 @@ func _draw_map() -> void:
 			_map.draw_circle(Vector2(-115, -57), 46, Color(0, 0, 0, 0.35))
 		_map.draw_set_transform_matrix(xf)
 		if _zone_of.get(_room_of(t)) == here_zone or all_names:
+			if picking:
+				_hits.append([_screen_rect(xf * Transform2D(t.rotation, at), body), [t]])
 			var text: String = KINDS[kind][1] if KINDS.has(kind) else SHORT.get(kind, (t as CasinoTable).game_label)
 			var sub := ""
 			if kind == "master_table" and (t as CasinoTable).master_game != "":
@@ -520,11 +554,10 @@ func _draw_map() -> void:
 		for c in b.cabs:
 			_map.draw_line(Vector2(_at(c).x, b.rect.position.y), Vector2(_at(c).x, b.rect.end.y), Color(0, 0, 0, 0.35), 2.0 * px)
 		if _zone_of.get(b.room) == here_zone or all_names:
+			if picking:
+				_hits.append([_screen_rect(xf, b.rect), b.cabs])
 			labels.append({"at": b.rect.get_center(), "text": "Slots", "sub": "Full" if b.free == 0 else "", "w": maxf(b.rect.size.x, 200.0) * sc,
 				"near": _zone_of.get(b.room) != here_zone, "full": b.free == 0})
-	for f in get_tree().get_nodes_in_group("interactables"):   # the ATMs
-		if f.interact == "atm" and shown.has(_room_of(f)):
-			_map.draw_circle(_at(f) + Vector2(0, -10), 9.0 * px, kind_colour("atm"))
 	if _target != null:
 		for i in range(1, _route.size()):
 			_map.draw_dashed_line(_route[i - 1], _route[i], BRASS_HI, 2.2 * px, 5.0 * px)
@@ -536,7 +569,21 @@ func _draw_map() -> void:
 			_map.draw_circle(p, 2.8 * px, INK)
 	_map.draw_set_transform_matrix(Transform2D.IDENTITY)
 	# ...and on top, upright whatever the turn: the rooms' names, the doors' tabs, the labels, you
-	var placed: Array[Rect2] = []   # (labels keep off the names and each other)
+	var placed: Array[Rect2] = []   # (labels keep off the ATMs, the names and each other)
+	for f in get_tree().get_nodes_in_group("interactables"):   # the ATMs: a square saying so where tables are named
+		if f.interact != "atm" or not shown.has(_room_of(f)):
+			continue
+		var q: Vector2 = xf * (_at(f) + Vector2(0, -10))
+		var near: bool = _zone_of.get(_room_of(f)) != here_zone
+		if near and not all_names:
+			_map.draw_rect(Rect2(q - Vector2(5, 5), Vector2(10, 10)), Color(kind_colour("atm"), 0.7))
+			continue
+		var sq := Rect2(q - Vector2(11, 11), Vector2(22, 22))
+		_map.draw_style_box(BettingBar._box(Color(kind_colour("atm"), 0.7 if near else 1.0), Color(0, 0, 0, 0.6), 3, Vector4.ZERO), sq)
+		_text(q, "ATM", 9, Color("0b0d0e"))
+		placed.append(sq)
+		if picking:
+			_hits.append([sq, [f]])
 	for id in shown:
 		var r: PlanRoom = _rooms[id]
 		var s := _screen_rect(xf, _inner(r))
@@ -546,7 +593,10 @@ func _draw_map() -> void:
 		if s.end.y - top < 24.0 or tw > s.size.x - 8.0 or top + 9.0 > h:
 			continue
 		var cx := clampf((maxf(s.position.x, 0.0) + minf(s.end.x, w)) / 2.0, tw / 2.0 + 4.0, w - tw / 2.0 - 4.0)
-		placed.append(Rect2(cx - tw / 2.0 - 2.0, top + 2.0, tw + 4.0, 14.0))
+		var nr := Rect2(cx - tw / 2.0 - 2.0, top + 2.0, tw + 4.0, 14.0)
+		if placed.any(func(q): return q.intersects(nr)):
+			continue   # (an ATM against the back wall: the header names your room anyway)
+		placed.append(nr)
 		_text(Vector2(cx, top + 9.0), text, 11, Color(BRASS_HI, 0.95) if _zone_of.get(id) == here_zone else Color(INK, 0.6))
 	for l in labels:
 		var at: Vector2 = xf * l.at
@@ -558,6 +608,11 @@ func _draw_map() -> void:
 		if r.position.x < 2 or r.position.y < 2 or r.end.x > w - 2 or r.end.y > h - 2 or placed.any(func(q): return q.intersects(r)):
 			continue
 		placed.append(r)
+		if picking:   # (a name is clickable too, where it overhangs its table)
+			for hit in _hits:
+				if hit[0].has_point(at):
+					hit[0] = hit[0].merge(r)
+					break
 		var a := 0.7 if l.near else 1.0
 		_map.draw_style_box(BettingBar._box(Color(0.04, 0.047, 0.05, 0.75 * a), Color(0, 0, 0, 0), 3, Vector4.ZERO), r)
 		_text(Vector2(at.x, at.y - (4.0 if l.sub != "" else 0.0)), l.text, 11, Color(INK, (0.6 if l.full else 1.0) * a))
@@ -582,6 +637,28 @@ func _draw_map() -> void:
 			var d := (q - Vector2(w, h) / 2.0).normalized()
 			var k := minf((w / 2.0 - 10.0) / maxf(absf(d.x), 0.001), (h / 2.0 - 10.0) / maxf(absf(d.y), 0.001))
 			_arrow(Vector2(w, h) / 2.0 + d * k, d, 7.0)
+
+
+## A click on something the map names guides you there; the pointing hand over it.
+func _map_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_map.mouse_default_cursor_shape = CURSOR_POINTING_HAND if not _hit_at(event.position).is_empty() else CURSOR_ARROW
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var targets := _hit_at(event.position)
+		if not targets.is_empty():
+			close_find()
+			map_picked.emit(targets)
+			_map.accept_event()
+
+
+## What's under `at` on the map (the last drawn first), still on the floor.
+func _hit_at(at: Vector2) -> Array:
+	for i in range(_hits.size() - 1, -1, -1):
+		if _hits[i][0].has_point(at):
+			var alive: Array = _hits[i][1].filter(func(n): return is_instance_valid(n))
+			if not alive.is_empty():
+				return alive
+	return []
 
 
 ## A room inside its walls (its back wall's lower half counts: the map shows where you can walk).

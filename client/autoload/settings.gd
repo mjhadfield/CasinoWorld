@@ -29,9 +29,9 @@ const DEFAULTS := {
 	"slot_effects": "full", # "reduced": half the coins, no screen shake
 	"show_minimap": true,       # the minimap, top right (off: nothing there at all)
 	"minimap_collapsed": true,  # folded to its map button until opened
-	"minimap_size": "large",    # small, medium or large
+	"minimap_size": "small",    # small, medium or large
 	"minimap_labels": "all",    # "all": the rooms next door name their tables too; "here": only yours
-	"minimap_zoom": 2,          # its +/- step (Minimap.ZOOMS)
+	"minimap_zoom": 2,          # its +/- step, from its smallest view (Minimap.ZOOMS)
 }
 const PRESETS := {
 	"high": {"fps_cap": 60, "resolution": "sharp", "seat_glow": true, "slot_effects": "full"},
