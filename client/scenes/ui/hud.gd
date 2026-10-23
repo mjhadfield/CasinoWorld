@@ -54,6 +54,8 @@ func _ready() -> void:
 	move_child(wallet, bar.get_index() + 1)
 	settings_button = BettingBar.BarButton.new()
 	settings_button.setup("Settings", "", "ghost", "settings")
+	settings_button.compact = true   # just the cog, in a circle
+	settings_button.tooltip_text = "Settings"
 	settings_button.toggle_mode = true
 	settings_button.pressed.connect(settings_menu.toggle)
 	settings_menu.visibility_changed.connect(func():
