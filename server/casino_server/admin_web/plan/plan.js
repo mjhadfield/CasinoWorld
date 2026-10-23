@@ -410,6 +410,8 @@ function refreshInspector() {
   if (!S.sel.length) {
     ins.replaceChildren(el("h3", { textContent: "This room" }),
       field("Name", text(r.name, v => { r.name = v || r.name; })),
+      field("Minimap name", Object.assign(text(r.map_name || "", v => { if (v.trim()) r.map_name = v; else delete r.map_name; }),
+        { placeholder: r.name, title: "What players see it called, on the minimap and its door tabs. Blank: its name." })),
       field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: G.CAT.min_width })),
       field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: G.minHeight(r) })),
       field("Floor", texture(r.floor)),

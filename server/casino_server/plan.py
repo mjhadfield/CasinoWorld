@@ -11,6 +11,7 @@ No folder: the first run seeds both with the lobby (live) and the classic floor 
 
 A plan: {"rev", "next": {prefix: serial}, "spawn": "room/point", "rooms": [room]}. A room:
   {"id", "name", "placed",           # unplaced: a blueprint in the library, not on the floor
+   "map_name",                       # (only when set) what players see it called, on the minimap; name is the builder's
    "npc_only": true,                 # (only when set) NPCs walk in and out, players can't: a lift, a back room
    "x", "y", "w", "h",               # its place on the plan and its size, walls included (pixels)
    "floor": {"texture", "tint"},     # tint multiplies the texture: #ffffff is none ("plain" is just the tint)
@@ -497,7 +498,9 @@ def clean(raw, old: dict) -> dict:
                                          "sign": _str(walls.get("sign"), 24),
                                          "sign_at": min(max(_num(walls.get("sign_at", w / 2), f"{name}'s sign"), 0), w)},
                 "doors": [], "items": [], "paths": {"points": [], "zones": []}}
-        if rr.get("npc_only"):   # (these two left out otherwise, so older plans compare the same)
+        if _str(rr.get("map_name"), 40):   # (these three left out otherwise, so older plans compare the same)
+            room["map_name"] = _str(rr.get("map_name"), 40)
+        if rr.get("npc_only"):
             room["npc_only"] = True
         if top != WALL_TOP:
             room["walls"]["back"] = "thin"
@@ -900,8 +903,8 @@ def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> 
             elif piece(item["asset"]) is None:
                 continue
             items.append(it)
-        out_rooms.append({k: room[k] for k in ("id", "name", "x", "y", "w", "h", "floor", "patches", "walls")}
-                         | {"npc_only": bool(room.get("npc_only")), "openings": ops.get(room["id"], []), "items": items,
+        out_rooms.append({k: room[k] for k in ("id", "x", "y", "w", "h", "floor", "patches", "walls")}
+                         | {"name": room.get("map_name") or room["name"], "npc_only": bool(room.get("npc_only")), "openings": ops.get(room["id"], []), "items": items,
                             "points": room["paths"]["points"], "zones": room["paths"]["zones"]})
     out = {"rev": plan.get("rev", 0), "spawn": plan.get("spawn", ""), "rooms": out_rooms,
            "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM}, "styles": WALL_STYLES}

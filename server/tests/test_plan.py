@@ -194,6 +194,18 @@ def test_a_plan_needs_somewhere_for_players_to_appear():
     assert "Players have nowhere to appear: give a placed room a spawn point." in messages(p)
 
 
+def test_a_rooms_minimap_name_is_what_players_see_it_called():
+    p = lobby_only()
+    room(p, "lobby")["map_name"] = "  Main   Floor "
+    cleaned = plan.clean(p, p)
+    assert room(cleaned, "lobby")["name"] == "Lobby" and room(cleaned, "lobby")["map_name"] == "Main Floor"
+    assert plan.world(cleaned)["rooms"][0]["name"] == "Main Floor"
+    # left blank it isn't kept, and players see the room's own name
+    room(p, "lobby")["map_name"] = " "
+    cleaned = plan.clean(p, p)
+    assert "map_name" not in room(cleaned, "lobby") and plan.world(cleaned)["rooms"][0]["name"] == "Lobby"
+
+
 def lift(y=200) -> dict:
     """A lift on the lobby's left wall: the smallest room, NPCs only, its door in its right wall."""
     return {"id": "lift", "name": "Lift", "placed": True, "npc_only": True, "x": -48, "y": y, "w": 48, "h": 128,
