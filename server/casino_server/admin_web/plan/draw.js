@@ -148,29 +148,34 @@ export function drawRoom(ctx, room, ops, opts = {}) {
   if (opts.dim) ctx.globalAlpha = 0.45;
   paint(ctx, [x, y, w, h], room.floor.texture, room.floor.tint);
   for (const p of room.patches) drawPatch(ctx, x + p.x, y + p.y, p);
-  // the back wall
-  ctx.fillStyle = st.paper; ctx.fillRect(x, y, w, W.top);
-  ctx.fillStyle = st.stripe;
-  for (let sx = 0; sx < w; sx += 24) ctx.fillRect(x + sx, y, Math.min(10, w - sx), W.top * 0.6);
-  ctx.fillStyle = st.wainscot; ctx.fillRect(x, y + W.top * 0.6, w, W.top * 0.31);
-  ctx.fillStyle = st.trim; ctx.fillRect(x, y + W.top - 8, w, 4);
-  ctx.fillStyle = st.edge; ctx.fillRect(x, y + W.top - 4, w, 4);
-  ctx.fillRect(x, y, W.side, h); ctx.fillRect(x + w - W.side, y, W.side, h); ctx.fillRect(x, y + h - W.bottom, w, W.bottom);
-  const sign = room.walls.sign;
-  if (sign) {
-    const sw = Math.min(420, Math.max(120, sign.length * 12 + 40)), sx = x + room.walls.sign_at - sw / 2;
-    ctx.fillStyle = SIGN.back; ctx.fillRect(sx, y + 6, sw, 30);
-    ctx.strokeStyle = SIGN.rim; ctx.lineWidth = 2; ctx.strokeRect(sx, y + 6, sw, 30);
-    ctx.fillStyle = SIGN.text; ctx.font = "bold 18px 'DejaVu Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(sign, sx + sw / 2, y + 22);
+  const bare = room.walls.style === "none";   // no walls drawn: just the floor, and its doors
+  if (!bare) {
+    // the back wall
+    ctx.fillStyle = st.paper; ctx.fillRect(x, y, w, W.top);
+    ctx.fillStyle = st.stripe;
+    for (let sx = 0; sx < w; sx += 24) ctx.fillRect(x + sx, y, Math.min(10, w - sx), W.top * 0.6);
+    ctx.fillStyle = st.wainscot; ctx.fillRect(x, y + W.top * 0.6, w, W.top * 0.31);
+    ctx.fillStyle = st.trim; ctx.fillRect(x, y + W.top - 8, w, 4);
+    ctx.fillStyle = st.edge; ctx.fillRect(x, y + W.top - 4, w, 4);
+    ctx.fillRect(x, y, W.side, h); ctx.fillRect(x + w - W.side, y, W.side, h); ctx.fillRect(x, y + h - W.bottom, w, W.bottom);
+    const sign = room.walls.sign;
+    if (sign) {
+      const sw = Math.min(420, Math.max(120, sign.length * 12 + 40)), sx = x + room.walls.sign_at - sw / 2;
+      ctx.fillStyle = SIGN.back; ctx.fillRect(sx, y + 6, sw, 30);
+      ctx.strokeStyle = SIGN.rim; ctx.lineWidth = 2; ctx.strokeRect(sx, y + 6, sw, 30);
+      ctx.fillStyle = SIGN.text; ctx.font = "bold 18px 'DejaVu Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(sign, sx + sw / 2, y + 22);
+    }
   }
   for (const o of ops || []) {
     const g = gap(room, o);
-    paint(ctx, g, room.floor.texture, room.floor.tint);
-    ctx.fillStyle = st.trim;
-    if (o.side === "top") { ctx.fillRect(g[0] - 5, g[1], 5, g[3]); ctx.fillRect(g[0] + g[2], g[1], 5, g[3]); }
-    else if (o.side === "bottom") { ctx.fillRect(g[0] - 4, g[1] - 2, 4, g[3] + 2); ctx.fillRect(g[0] + g[2], g[1] - 2, 4, g[3] + 2); }
-    else { ctx.fillRect(g[0] - 2, g[1] - 3, g[2] + 4, 6); ctx.fillRect(g[0] - 2, g[1] + g[3] - 3, g[2] + 4, 6); }
+    if (!bare) {
+      paint(ctx, g, room.floor.texture, room.floor.tint);
+      ctx.fillStyle = st.trim;
+      if (o.side === "top") { ctx.fillRect(g[0] - 5, g[1], 5, g[3]); ctx.fillRect(g[0] + g[2], g[1], 5, g[3]); }
+      else if (o.side === "bottom") { ctx.fillRect(g[0] - 4, g[1] - 2, 4, g[3] + 2); ctx.fillRect(g[0] + g[2], g[1] - 2, 4, g[3] + 2); }
+      else { ctx.fillRect(g[0] - 2, g[1] - 3, g[2] + 4, 6); ctx.fillRect(g[0] - 2, g[1] + g[3] - 3, g[2] + 4, 6); }
+    }
     if (o.kind === "door" || o.to == null) {   // shut: leaves across the gap (a door to nowhere stays shut)
       ctx.fillStyle = o.side === "bottom" ? "rgba(153,204,230,.6)" : "#4a2a1c";
       if (o.side === "top") ctx.fillRect(g[0], g[1] + 8, g[2], g[3] - 12);

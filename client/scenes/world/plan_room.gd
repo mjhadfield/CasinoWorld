@@ -407,6 +407,8 @@ func _box(x: float, y: float, w: float, h: float) -> PackedVector2Array:
 
 
 func _draw_walls(ci: CanvasItem) -> void:
+	if str(data.get("walls", {}).get("style", "")) == "none":   # no walls drawn: the floor runs to the edges
+		return
 	var size := rect.size
 	var top: float = wall.top
 	var edge := _c("edge", "1a0508")

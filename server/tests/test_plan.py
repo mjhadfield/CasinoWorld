@@ -209,6 +209,9 @@ def test_an_npcs_only_lift_is_the_smallest_room_and_players_cant_use_it():
     cleaned = plan.clean(p, p)
     assert room(cleaned, "lift")["npc_only"] is True and "npc_only" not in room(cleaned, "lobby")
     assert [r["npc_only"] for r in plan.world(cleaned)["rooms"]] == [False, True]
+    # no walls drawn; a sign left where it was before the room shrank comes back onto the wall
+    shrunk = plan.clean({**p, "rooms": [{**lift(), "walls": {"style": "none", "sign": "LIFT", "sign_at": 512}}]}, p)
+    assert shrunk["rooms"][0]["walls"] == {"style": "none", "sign": "LIFT", "sign_at": 48}
     # anything smaller won't do
     with pytest.raises(plan.PlanError):
         plan.clean({**p, "rooms": [{**lift(), "h": 120}]}, p)

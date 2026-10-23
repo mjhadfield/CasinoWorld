@@ -694,7 +694,7 @@ function removeSelected() {
 function resize(r, side, to) {
   to = Math.round(to);
   const [minW, minH] = G.CAT.min_size;
-  if (side === "right") r.w = Math.max(minW, to - r.x);
+  if (side === "right") { r.w = Math.max(minW, to - r.x); r.walls.sign_at = Math.min(r.walls.sign_at, r.w); }
   else if (side === "bottom") r.h = Math.max(minH, to - r.y);
   else {
     const d = side === "left" ? Math.min(to - r.x, r.w - minW) : Math.min(to - r.y, r.h - minH);

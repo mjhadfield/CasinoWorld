@@ -88,7 +88,8 @@ SLOT_PREFIX = "slot"
 ITEM_PREFIX = "i"
 
 # The walls' looks (the client and the page draw them from these): paper and its stripe, the wainscot below,
-# the brass trim, the dark edge (side and front walls) and the sign.
+# the brass trim, the dark edge (side and front walls) and the sign. "none" draws no walls at all, just the floor
+# to the room's edges (a lift): only the look, as the walls still keep people to the floor inside them.
 WALL_STYLES = {
     "crimson": {"name": "Crimson", "paper": "#4a0f1d", "stripe": "#561526", "wainscot": "#2b0a10", "trim": "#c9a24a", "edge": "#1a0508"},
     "emerald": {"name": "Emerald", "paper": "#0f3a2a", "stripe": "#144734", "wainscot": "#0a2219", "trim": "#c9a24a", "edge": "#06140e"},
@@ -98,6 +99,7 @@ WALL_STYLES = {
     "charcoal": {"name": "Charcoal", "paper": "#26262b", "stripe": "#2e2e34", "wainscot": "#151518", "trim": "#d4af37", "edge": "#0c0c0e"},
     "onyx": {"name": "Onyx & gold", "paper": "#1e1e23", "stripe": "#25252b", "wainscot": "#111114", "trim": "#d4af5a", "edge": "#09090b"},
     "travertine": {"name": "Travertine", "paper": "#c8baa2", "stripe": "#c0b199", "wainscot": "#3b352e", "trim": "#b8955a", "edge": "#27231e"},
+    "none": {"name": "None (just the floor)"},
 }
 # Floors (the asset library adds more): "carpet" is the casino's own, "plain" just its tint.
 FLOORS = {"carpet": {"name": "Casino carpet"}, "plain": {"name": "Plain"}}
@@ -484,7 +486,7 @@ def clean(raw, old: dict) -> dict:
                 "floor": {"texture": str(fl.get("texture") or "carpet"), "tint": _colour(fl.get("tint"))},
                 "patches": [], "walls": {"style": walls.get("style") if walls.get("style") in WALL_STYLES else "crimson",
                                          "sign": _str(walls.get("sign"), 24),
-                                         "sign_at": _num(walls.get("sign_at", w / 2), f"{name}'s sign", 0, w)},
+                                         "sign_at": min(max(_num(walls.get("sign_at", w / 2), f"{name}'s sign"), 0), w)},
                 "doors": [], "items": [], "paths": {"points": [], "zones": []}}
         if rr.get("npc_only"):   # (left out otherwise, so older plans compare the same)
             room["npc_only"] = True

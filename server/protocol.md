@@ -327,7 +327,8 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 ## The world
 `world` (in `welcome` and the `world` message) is `{rev, spawn, rooms, walls, styles}`, plus `start` {`x`, `y`} in a
 preview (where to put the viewer). `walls` gives the wall sizes ({`top` 70, `side` 8, `bottom` 10}) and `styles` the
-wall looks by style id ({`name`, `paper`, `stripe`, `wainscot`, `trim`, `edge`} colours). Each room is
+wall looks by style id ({`name`, `paper`, `stripe`, `wainscot`, `trim`, `edge`} colours; `none` has only a name and
+draws no walls). Each room is
 {`id`, `name`, `x`, `y`, `w`, `h` (on the plan, walls included), `floor` {`texture`, `tint`}, `patches`,
 `walls` {`style`, `sign`, `sign_at`}, `npc_only` (a lift or back room: NPCs come and go through it, players are
 kept out and never shown it), `openings`, `items`, `points`, `zones`}. Everything in a room is placed from its
