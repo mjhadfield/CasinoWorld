@@ -377,9 +377,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif key == KEY_BACKSPACE:
 			_undo()
 			get_viewport().set_input_as_handled()
-		elif key == KEY_R and _can_bet() and played_a_hand and _total(my_bets) == 0 and not active_table is CrapsTable:
-			hud.rebet_pressed.emit()
-			get_viewport().set_input_as_handled()
 
 
 ## A click on a glowing chair, caught before the click-to-walk sees it.
@@ -607,9 +604,11 @@ func _undo() -> void:
 
 
 func _on_ready() -> void:
-	if not active_table.can_ready():
+	if _total(my_bets) == 0 and not active_table is CrapsTable:   # Space with no bets is Repeat Bet (sitting out is
+		if played_a_hand:                                           # the switch's job; Space rolls at Craps)
+			hud.rebet_pressed.emit()
 		return
-	if _total(my_bets) == 0 and not active_table is CrapsTable:   # (sitting out is the switch's job; Space rolls at Craps)
+	if not active_table.can_ready():
 		return
 	var main := active_table.main_spot()
 	if _total(my_bets) > 0 and not active_table.has_main_bet(my_bets):

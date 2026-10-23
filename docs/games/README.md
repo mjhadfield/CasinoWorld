@@ -52,7 +52,7 @@ up, and turn back when they stand.
 
 - Pick a chip in the tray and click the spots *on the felt* in front of you. Right-click takes a chip off, and
   **Undo** takes back your last chip this round.
-- **Repeat Bet** (or **R**) puts your last hand's bets down again, and cuts the countdown to 3 quiet seconds. It
+- **Repeat Bet** (or **Space**) puts your last hand's bets down again, and cuts the countdown to 3 quiet seconds. It
   sits where Ready does until you've bet, then the button turns back into Ready. **Auto rebet** puts last hand's
   bets back down as each hand ends; timing out of any decision unticks it.
 - **Ready** (or **Space**) locks you in. Betting closes 15 seconds after the first bet, or as soon as every

@@ -357,7 +357,7 @@ func update_view(s: Dictionary) -> void:
 		_ready_btn.setup("Ready" if has_bets else "Sitting out", "", "done")
 		_ready_btn.disabled = true
 	elif repeat:
-		_ready_btn.setup("Repeat Bet", "R", "normal")
+		_ready_btn.setup("Repeat Bet", "Space", "normal")
 		_ready_btn.tooltip_text = "Put last round's bets down again"
 		_ready_btn.disabled = false
 	else:
