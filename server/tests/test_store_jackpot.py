@@ -1,7 +1,7 @@
 import pytest
 
 from casino_server.jackpot import JACKPOT_CEILING, JACKPOT_FLOOR, Jackpot
-from casino_server.store import STARTING_BALANCE, InsufficientFunds, Store
+from casino_server.store import STARTING_BANK, InsufficientFunds, Store
 
 
 @pytest.fixture
@@ -12,20 +12,20 @@ def store(tmp_path):
 
 
 def test_new_player_gets_starting_balance_and_ledger_reconciles(store):
-    p = store.create_player()
-    assert p.balance == STARTING_BALANCE and p.name.startswith("Guest")
+    p = store.create_player(hand=100_000)
+    assert p.balance == 100_000 and p.bank == STARTING_BANK and p.name.startswith("Guest")
     store.adjust(p.id, -2_500, "bet", "three_card_poker")
     store.adjust(p.id, 5_000, "payout", "three_card_poker")
-    total = store.db.execute("SELECT SUM(amount) FROM ledger WHERE player_id = ?", (p.id,)).fetchone()[0]
-    assert total == store.balance(p.id) == STARTING_BALANCE + 2_500
+    total = store.db.execute("SELECT SUM(amount) FROM ledger WHERE player_id = ? AND account = 'hand'", (p.id,)).fetchone()[0]
+    assert total == store.balance(p.id) == 100_000 + 2_500
     assert store.player_by_token(p.token).id == p.id
 
 
 def test_balance_never_goes_negative(store):
-    p = store.create_player()
+    p = store.create_player(hand=100_000)
     with pytest.raises(InsufficientFunds):
-        store.adjust(p.id, -(STARTING_BALANCE + 1), "bet")
-    assert store.balance(p.id) == STARTING_BALANCE
+        store.adjust(p.id, -(100_000 + 1), "bet")
+    assert store.balance(p.id) == 100_000
 
 
 def test_jackpot_grows_caps_resets_and_persists(store):
@@ -45,7 +45,7 @@ def test_jackpot_grows_caps_resets_and_persists(store):
 
 def test_set_balance_repairs_a_hand_edited_balance(tmp_path):
     store = Store(tmp_path / "c.sqlite")
-    player = store.create_player("Mike")
+    player = store.create_player("Mike", hand=100_000)
     store.adjust(player.id, -2500, "bet")
     store.db.execute("UPDATE players SET balance = '100,000' WHERE id = ?", (player.id,))  # what a hand edit does
     store.db.commit()
@@ -54,5 +54,5 @@ def test_set_balance_repairs_a_hand_edited_balance(tmp_path):
     assert store.balance(player.id) == 150000 and store.players()[0]["stored_as"] == "integer"
     last = store.db.execute("SELECT kind, amount, balance_after FROM ledger ORDER BY id DESC LIMIT 1").fetchone()
     assert tuple(last) == ("adjust", 150000 - 97500, 150000)  # measured from the last good balance
-    total = store.db.execute("SELECT SUM(amount) FROM ledger WHERE player_id = ?", (player.id,)).fetchone()[0]
+    total = store.db.execute("SELECT SUM(amount) FROM ledger WHERE player_id = ? AND account = 'hand'", (player.id,)).fetchone()[0]
     assert total == store.balance(player.id)  # the ledger still reconciles

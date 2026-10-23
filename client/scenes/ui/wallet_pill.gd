@@ -1,8 +1,8 @@
 class_name WalletPill
 extends HBoxContainer
-## The top-left corner, walking or seated: whether you're online, your name, your balance (less what's on the felt)
-## with a round's result flashing beside it, and Top up when you're nearly out. In the betting bar's look, the same
-## height as the corner buttons on the right.
+## The top-left corner, walking or seated: whether you're online, your name, your cash in hand (less what's on the
+## felt) with a round's result flashing beside it. (Your bank balance is at the lobby's ATM.) In the betting bar's
+## look, the same height as the corner buttons on the right.
 
 var _panel: PanelContainer
 var _dot: Control
@@ -11,7 +11,6 @@ var _balance: Label
 var _delta: Label
 var _delta_tween: Tween
 var _online := false
-var top_up: BettingBar.BarButton
 
 
 func _ready() -> void:
@@ -42,10 +41,6 @@ func _ready() -> void:
 	_delta = _label("", 19, BettingBar.WIN)
 	_delta.hide()
 	row.add_child(_delta)
-	top_up = BettingBar.BarButton.new()
-	top_up.setup("Top up £1,000", "", "ghost")
-	top_up.hide()
-	add_child(top_up)
 
 
 func _label(text: String, size: int, colour: Color) -> Label:

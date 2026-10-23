@@ -1,9 +1,14 @@
 """
-SQLite persistence: players (identified by a per-device token), their wallet,
+SQLite persistence: players (identified by a per-device token), their money,
 a ledger of every balance change, and the progressive jackpot.
 
-All money is integer pence. Every balance change goes through adjust(), which
-writes the ledger row in the same transaction, so balances always reconcile.
+A player has cash in hand (`balance`: what they bet with, and what the game's
+top-left shows) and a bank balance (`bank`, which may go overdrawn), and the
+lobby's ATM moves money between them (bank.py's rules, transfer() here).
+
+All money is integer pence. Every change to cash in hand goes through adjust(),
+and every ATM move through transfer(), each writing its ledger rows (one per
+account) in the same transaction, so both balances always reconcile.
 """
 import json
 import secrets
@@ -12,25 +17,29 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-STARTING_BALANCE = 100_000  # £1,000
+STARTING_BANK = 100_000  # £1,000 (new players get bank.py's setting; this is its default, and what existing
+                         # players were given when the bank arrived)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS players (
     id         INTEGER PRIMARY KEY,
     token      TEXT    NOT NULL UNIQUE,
     name       TEXT    NOT NULL,
-    balance    INTEGER NOT NULL,
-    created_at TEXT    NOT NULL
+    balance    INTEGER NOT NULL,           -- cash in hand
+    created_at TEXT    NOT NULL,
+    bank       INTEGER NOT NULL DEFAULT 0, -- may be negative (overdrawn)
+    last_withdraw_at REAL                  -- unix time of the last ATM withdrawal
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY,
     player_id     INTEGER NOT NULL REFERENCES players(id),
     at            TEXT    NOT NULL,
-    kind          TEXT    NOT NULL,  -- 'start' | 'bet' | 'payout' | 'top_up'
+    kind          TEXT    NOT NULL,  -- 'start' | 'bet' | 'payout' | 'adjust' | 'withdraw' | 'deposit' (and old 'top_up')
     amount        INTEGER NOT NULL,  -- signed pence
     balance_after INTEGER NOT NULL,
     game          TEXT,
-    note          TEXT
+    note          TEXT,
+    account       TEXT    NOT NULL DEFAULT 'hand'  -- 'hand' | 'bank'
 );
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -91,7 +100,9 @@ class Player:
     id: int
     token: str
     name: str
-    balance: int
+    balance: int                  # cash in hand
+    bank: int = 0
+    last_withdraw_at: float | None = None
 
 
 def _now() -> str:
@@ -111,26 +122,46 @@ class Store:
         self.db.execute("PRAGMA journal_mode = WAL")
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
+        self._add_bank()
         self.db.commit()
+
+    def _add_bank(self):
+        """A database from before the bank: add its columns, and give everyone already playing the starting bank
+        (their balance stays as their cash in hand)."""
+        if "bank" in {r["name"] for r in self.db.execute("PRAGMA table_info(players)")}:
+            return
+        with self.db:
+            self.db.execute("ALTER TABLE players ADD COLUMN bank INTEGER NOT NULL DEFAULT 0")
+            self.db.execute("ALTER TABLE players ADD COLUMN last_withdraw_at REAL")
+            self.db.execute("ALTER TABLE ledger ADD COLUMN account TEXT NOT NULL DEFAULT 'hand'")
+            self.db.execute("UPDATE players SET bank = ?", (STARTING_BANK,))
+            self.db.execute(
+                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, account, note)"
+                " SELECT id, ?, 'start', ?, ?, 'bank', 'the bank opened' FROM players", (_now(), STARTING_BANK, STARTING_BANK))
 
     def close(self):
         self.db.close()
 
     # ------------------------------------------------------------------ players
     def player_by_token(self, token: str) -> Player | None:
-        row = self.db.execute("SELECT id, token, name, balance FROM players WHERE token = ?", (token,)).fetchone()
+        row = self.db.execute("SELECT id, token, name, balance, bank, last_withdraw_at FROM players WHERE token = ?",
+                              (token,)).fetchone()
         return Player(**dict(row)) if row else None
 
-    def create_player(self, name: str = "") -> Player:
+    def create_player(self, name: str = "", bank: int = STARTING_BANK, hand: int = 0) -> Player:
         token = secrets.token_urlsafe(24)
         with self.db:
             cur = self.db.execute(
-                "INSERT INTO players (token, name, balance, created_at) VALUES (?, ?, 0, ?)",
-                (token, name or "Guest", _now()))
+                "INSERT INTO players (token, name, balance, bank, created_at) VALUES (?, ?, 0, ?, ?)",
+                (token, name or "Guest", bank, _now()))
             player_id = cur.lastrowid
             if not name:
                 self.db.execute("UPDATE players SET name = ? WHERE id = ?", (f"Guest {player_id}", player_id))
-        self.adjust(player_id, STARTING_BALANCE, "start")
+            self.db.execute(
+                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, account) VALUES (?, ?, 'start', ?, ?, 'bank')",
+                (player_id, _now(), bank, bank))
+        if hand:
+            self.adjust(player_id, hand, "start")
         return self.player_by_token(token)
 
     def set_name(self, player_id: int, name: str):
@@ -140,8 +171,13 @@ class Store:
     def balance(self, player_id: int) -> int:
         return self.db.execute("SELECT balance FROM players WHERE id = ?", (player_id,)).fetchone()[0]
 
+    def bank(self, player_id: int) -> tuple[int, float | None]:
+        """(bank balance, unix time of the last withdrawal or None)."""
+        row = self.db.execute("SELECT bank, last_withdraw_at FROM players WHERE id = ?", (player_id,)).fetchone()
+        return row[0], row[1]
+
     def adjust(self, player_id: int, amount: int, kind: str, game: str | None = None, note: str | None = None) -> int:
-        """Changes a balance by `amount` (signed pence) and records it. Raises
+        """Changes cash in hand by `amount` (signed pence) and records it. Raises
         InsufficientFunds rather than ever going below zero. Returns the new balance."""
         with self.db:
             balance = self.balance(player_id) + amount
@@ -153,11 +189,47 @@ class Store:
                 (player_id, _now(), kind, amount, balance, game, note))
         return balance
 
+    def transfer(self, player_id: int, to_hand: int, now: float) -> tuple[int, int]:
+        """The ATM: moves `to_hand` pence from the bank to cash in hand (a withdrawal, which notes the time), or the
+        other way when it's negative (a deposit). The bank may go overdrawn; cash in hand can't go below zero
+        (InsufficientFunds). The rules on what's allowed are bank.py's. Returns (bank, cash in hand)."""
+        kind = "withdraw" if to_hand > 0 else "deposit"
+        with self.db:
+            bank = self.bank(player_id)[0] - to_hand
+            hand = self.balance(player_id) + to_hand
+            if hand < 0:
+                raise InsufficientFunds()
+            self.db.execute("UPDATE players SET bank = ?, balance = ? WHERE id = ?", (bank, hand, player_id))
+            if kind == "withdraw":
+                self.db.execute("UPDATE players SET last_withdraw_at = ? WHERE id = ?", (now, player_id))
+            at = _now()
+            for account, amount, after in (("bank", -to_hand, bank), ("hand", to_hand, hand)):
+                self.db.execute(
+                    "INSERT INTO ledger (player_id, at, kind, amount, balance_after, account) VALUES (?, ?, ?, ?, ?, ?)",
+                    (player_id, at, kind, amount, after, account))
+        return bank, hand
+
+    def atm_history(self, player_id: int, n: int = 4) -> list[dict]:
+        """The last `n` ATM moves, newest first: [{"kind": withdraw|deposit, "amount" (pence, positive), "at" (ISO)}]."""
+        return [{"kind": r["kind"], "amount": abs(r["amount"]), "at": r["at"]} for r in self.db.execute(
+            "SELECT kind, amount, at FROM ledger WHERE player_id = ? AND account = 'hand' AND kind IN ('withdraw', 'deposit')"
+            " ORDER BY id DESC LIMIT ?", (player_id, n))]
+
+    def set_bank(self, player_id: int, pence: int, note: str = "set by admin") -> int:
+        """Sets a bank balance outright (it may be negative), with a ledger row for the difference."""
+        with self.db:
+            old = self.bank(player_id)[0]
+            self.db.execute("UPDATE players SET bank = ? WHERE id = ?", (pence, player_id))
+            self.db.execute(
+                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, account, note) VALUES (?, ?, ?, ?, ?, 'bank', ?)",
+                (player_id, _now(), "adjust", pence - old, pence, note))
+        return pence
+
     def players(self) -> list[dict]:
         """Every player, with how SQLite is holding the balance (it should be an
         integer of pence; a hand edit like '100,000' gets stored as text)."""
         return [dict(r) for r in self.db.execute(
-            "SELECT id, name, balance, typeof(balance) AS stored_as FROM players ORDER BY id")]
+            "SELECT id, name, balance, bank, typeof(balance) AS stored_as FROM players ORDER BY id")]
 
     def set_balance(self, player_id: int, pence: int, note: str = "set by admin") -> int:
         """Sets a balance outright, with a ledger row for the difference so the
@@ -169,7 +241,8 @@ class Store:
         with self.db:
             raw = self.balance(player_id)
             if not isinstance(raw, int):
-                last = self.db.execute("SELECT balance_after FROM ledger WHERE player_id = ? ORDER BY id DESC LIMIT 1",
+                last = self.db.execute("SELECT balance_after FROM ledger WHERE player_id = ? AND account = 'hand'"
+                                       " ORDER BY id DESC LIMIT 1",
                                        (player_id,)).fetchone()
                 raw = last[0] if last else 0
             self.db.execute("UPDATE players SET balance = ? WHERE id = ?", (pence, player_id))
@@ -182,7 +255,7 @@ class Store:
         """Every player's lifetime figures from the ledger: staked, returned, net, last
         activity, and the same per game."""
         rows = self.db.execute("""
-            SELECT p.id, p.name, p.balance, l.game,
+            SELECT p.id, p.name, p.balance, p.bank, l.game,
                    COALESCE(SUM(CASE WHEN l.kind = 'bet' THEN -l.amount END), 0) AS wagered,
                    COALESCE(SUM(CASE WHEN l.kind = 'payout' THEN l.amount END), 0) AS returned,
                    COUNT(CASE WHEN l.kind = 'bet' AND l.amount < 0 THEN 1 END) AS bets,
@@ -192,7 +265,7 @@ class Store:
         players: dict[int, dict] = {}
         for r in rows:
             p = players.setdefault(r["id"], {"id": r["id"], "name": r["name"], "balance": r["balance"],
-                                             "wagered": 0, "returned": 0, "bets": 0, "last_at": None, "games": {}})
+                                             "bank": r["bank"], "wagered": 0, "returned": 0, "bets": 0, "last_at": None, "games": {}})
             p["wagered"] += r["wagered"]
             p["returned"] += r["returned"]
             p["bets"] += r["bets"]

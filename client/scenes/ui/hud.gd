@@ -1,6 +1,6 @@
 extends CanvasLayer
-## Screen-space overlay. Top left, walking or seated: your name and balance (WalletPill); top right: Settings.
-## Walking: the "take a seat" prompt. Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
+## Screen-space overlay. Top left, walking or seated: your name and cash in hand (WalletPill); top right: Settings.
+## Walking: the interact prompt (Use ATM) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
@@ -27,6 +27,8 @@ var pending := 0  # your bets on the felt that haven't been taken from your bala
 var bar: BettingBar        # the seated controls
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
 var settings_menu: SettingsMenu
+var atm: AtmPanel         # the lobby's cash machine, while you're using it
+var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM), bottom centre
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
@@ -52,6 +54,13 @@ func _ready() -> void:
 	add_child(sorter)
 	master = MasterPanel.new()
 	add_child(master)
+	prompt = BettingBar.BarButton.new()
+	prompt.hide()
+	prompt.pressed.connect(interact_pressed.emit)
+	add_child(prompt)
+	get_viewport().size_changed.connect(_place_prompt)
+	atm = AtmPanel.new()
+	add_child(atm)
 	settings_menu = SettingsMenu.new()
 	add_child(settings_menu)
 	wallet = WalletPill.new()
@@ -72,9 +81,8 @@ func _ready() -> void:
 	_place_settings_button()
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
-	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand]:
+	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand]:
 		n.hide()
-	%InteractButton.pressed.connect(interact_pressed.emit)
 	bar.chip_picked.connect(chip_selected.emit)
 	bar.chip_picked.connect(func(v: int): selected_chip = v)
 	bar.rebet_pressed.connect(rebet_pressed.emit)
@@ -87,7 +95,6 @@ func _ready() -> void:
 	bar.stand_pressed.connect(stand_pressed.emit)
 	bar.paytable_toggled.connect(func(on): %Paytable.visible = on)
 	%CancelChooseButton.pressed.connect(cancel_choose_pressed.emit)
-	wallet.top_up.pressed.connect(func(): Net.send("top_up"))
 	%ConfirmYes.pressed.connect(func():
 		%ConfirmStand.hide()
 		if _on_yes.is_valid():
@@ -154,17 +161,26 @@ func set_mode(new_mode: String) -> void:
 		%ConfirmStand.hide()
 		set_pending(0)
 	if mode != "walking":
-		%InteractButton.hide()
+		prompt.hide()
+		atm.close_atm()
 
 
 func show_prompt(text: String) -> void:
 	if mode == "walking":
-		%InteractButton.text = text
-		%InteractButton.show()
+		prompt.setup(text, "E", "primary")
+		prompt.show()
+		_place_prompt()
 
 
 func hide_prompt() -> void:
-	%InteractButton.hide()
+	prompt.hide()
+
+
+func _place_prompt() -> void:
+	var w := prompt.get_combined_minimum_size()
+	prompt.size = w
+	var vp := get_viewport().get_visible_rect().size
+	prompt.position = Vector2(round((vp.x - w.x) / 2.0), vp.y - 28.0 - w.y)
 
 
 func show_toast(text: String, seconds := 2.8) -> void:
@@ -202,7 +218,7 @@ func show_name_prompt(current := "") -> void:
 
 ## True while a panel that takes the keyboard is open (the floor ignores game keys then).
 func is_typing() -> bool:
-	return %NamePrompt.visible or settings_menu.visible or master.menu_open()
+	return %NamePrompt.visible or settings_menu.visible or master.menu_open() or atm.visible
 
 
 func confirm_stand(text := "You're in this hand -- standing up folds it. Stand up anyway?") -> void:
@@ -307,7 +323,6 @@ func set_pending(pence: int) -> void:
 
 func _refresh_balance() -> void:
 	wallet.set_balance(Session.shown_balance - pending)
-	wallet.top_up.visible = mode == "walking" and Session.balance < 200 and Session.balance > -1 and Session.player.size() > 0
 
 
 func _set_status(online: bool) -> void:

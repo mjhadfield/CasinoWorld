@@ -1,4 +1,5 @@
-// Settings: how the floor runs (NPCs on or off, the population, cooldowns, dealer shifts) and the Default seating style, side by side.
+// Settings: how the floor runs (NPCs on or off, the population, cooldowns, dealer shifts), the Default seating style, and
+// the Bank (the lobby ATM's rules and what new players start with), side by side.
 let H;
 
 export function init(h) {
@@ -37,7 +38,21 @@ export function init(h) {
         <p class="hint">Every table and slot cabinet uses this style; saving updates the floor straight away. The card tables and Roulette take their chairs' frame and upholstery from their table style (Tables tab); these colour the slot stools.</p>
       </div>
     </form>
-    <div class="panel flat"></div>
+    <form class="panel" id="bank-form">
+      <div class="ph">Bank <span class="grow"></span><button type="submit" class="primary">Save</button></div>
+      <div class="pb padded">
+        <div class="grid2">
+          <label class="field"><span>New players' bank (£)</span><input type="number" id="b-start_bank" step="1"></label>
+          <label class="field"><span>New players' cash in hand (£)</span><input type="number" id="b-start_hand" min="0" step="1"></label>
+          <label class="field"><span>Withdraw only while holding under (£)</span><input type="number" id="b-hand_under" min="0" step="1"></label>
+          <label class="field"><span>Overdrawn: wait between withdrawals (min)</span><input type="number" id="b-cooldown_min" min="0" step="1"></label>
+          <label class="field"><span>Withdrawal limit (£)</span><input type="number" id="b-low_cap" min="50" step="50"></label>
+          <label class="field"><span>Bank threshold (£)</span><input type="number" id="b-threshold" min="0" step="50"></label>
+          <label class="field"><span>Limit at or over the threshold (£)</span><input type="number" id="b-high_cap" min="50" step="50"></label>
+        </div>
+        <p class="hint">The lobby's ATM moves money between a player's bank and the cash they play with. Withdrawals come in £50 notes, so the limits are multiples of £50. The bank can go overdrawn without limit; the wait applies only while it is. Changes apply to the next use of the ATM, and the starting amounts to players who arrive from now on.</p>
+      </div>
+    </form>
   </div>`;
   const $ = s => h.view.querySelector(s);
   $("#s-npcs-on").addEventListener("change", async e => {
@@ -56,6 +71,15 @@ export function init(h) {
       H.status("Settings saved.", "ok");
     } catch (err) { H.status(err.message, "warn"); }
   });
+  $("#bank-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = {};
+    for (const k of BANK) body[k] = +$("#b-" + k).value;
+    try {
+      await H.api("PUT", "/api/bank-settings", body);
+      H.status("Bank settings saved.", "ok");
+    } catch (err) { H.status(err.message, "warn"); }
+  });
   $("#seating-form").addEventListener("submit", async e => {
     e.preventDefault();
     const body = {};
@@ -67,6 +91,7 @@ export function init(h) {
   });
 }
 
+const BANK = ["start_bank", "start_hand", "hand_under", "cooldown_min", "low_cap", "threshold", "high_cap"];
 const SEATING = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
 const NUMBERS = ["back", "size", "sit_speed"];
 
@@ -81,6 +106,8 @@ export async function load() {
     $("#s-shift").value = s.dealer_shift_min; $("#s-stagger").value = s.dealer_stagger_min;
     const st = (await H.api("GET", "/api/seating")).styles.default;
     for (const k of SEATING) $("#st-" + k).value = st[k];
+    const b = await H.api("GET", "/api/bank-settings");
+    for (const k of BANK) $("#b-" + k).value = b[k];
     H.status("Settings loaded.");
   } catch (e) { H.status("Couldn't load settings: " + e.message, "warn"); }
 }

@@ -4,11 +4,11 @@ from fastapi.testclient import TestClient
 
 from casino_server import PROTOCOL_VERSION
 from casino_server.app import app
-from casino_server.store import STARTING_BALANCE
 
 from conftest import recv_until, rig
 
 TABLE = "tcp_1"
+STARTING_BALANCE = 100_000   # the test client's new players' cash in hand (conftest)
 # Seat 0: pair of Kings. Dealer: Queen-high (qualifies). Seat 0 wins.
 CODES = ["Ks", "Kd", "4c", "Qh", "9s", "3d"]
 
@@ -200,16 +200,6 @@ def test_disconnect_mid_hand_stands_you_up_and_table_carries_on(client):
         recv_until(watcher, "table_event", "betting_open")
         machine = client.app.state.casino.tables[TABLE].machine
         assert machine.phase == "betting" and machine.free_seats() == list(range(6))
-
-
-def test_top_up_only_when_broke(client):
-    with client.websocket_connect("/ws") as ws:
-        welcome, *_ = join(ws)
-        ws.send_json({"type": "top_up"})
-        assert recv_until(ws, "error")
-        client.app.state.casino.store.adjust(welcome["player"]["id"], -(STARTING_BALANCE - 50), "bet")
-        ws.send_json({"type": "top_up"})
-        assert recv_until(ws, "wallet")["balance"] == 50 + 100_000
 
 
 def test_ping_and_bad_json(client):

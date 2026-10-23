@@ -6,7 +6,7 @@
 // A piece: def(id, {name, cat, size: [w, h], anchor: [x, y] (the middle of its base; a rug's middle),
 // body: [x, y, w, h] about the anchor (the footprint that blocks walking; null for rugs and wall pieces),
 // facings, mount: floor|flat|wall, uses (which look options colour it), screen (a live display the game draws on),
-// note, draw(p, o, facing)}. Left and right of the tub chair are mirror images.
+// interact ("atm": something you walk up to and use, bank.py), note, draw(p, o, facing)}. Left and right of the tub chair are mirror images.
 
 /* ================================================================ colour */
 const h2r = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -410,6 +410,7 @@ function post(p, x, b, M) {
 
 def("atm", {
   name: "Cash machine", cat: "Services", size: [32, 56], anchor: [16, 54], body: [-13, -12, 26, 12], uses: ["metal"],
+  interact: "atm",
   note: "A slim modern ATM with a glowing screen and a gold CASH header. Faces the room from the back wall.",
   draw(p, o) {
     const M = o.metal;
@@ -529,7 +530,7 @@ function renderAll(look) {
     const pictures = {};
     for (const f of d.facings) if (!(d.id === "lounge_chair" && f === "right")) pictures[f] = renderPiece(d, o, f);
     out.pieces[d.id] = { name: d.name, cat: d.cat, size: d.size, anchor: d.anchor, body: d.body, facings: d.facings,
-                         mount: d.mount, screen: d.screen || null, pictures };
+                         mount: d.mount, screen: d.screen || null, interact: d.interact || null, pictures };
   }
   for (const [k, t] of Object.entries(FLOOR_TILES)) out.floors[k] = { name: t.name, png: t.gen().toDataURL("image/png") };
   return out;

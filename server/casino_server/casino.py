@@ -10,15 +10,16 @@ so table and world state never need locks.
 import asyncio
 import sys
 import time
+from datetime import datetime
 
-from casino_server import PROTOCOL_VERSION, floor, plan, seating, sounds, table_styles
+from casino_server import PROTOCOL_VERSION, bank, floor, plan, seating, sounds, table_styles
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
 from casino_server.npc import NpcDirector
 from casino_server.participants import HumanParticipant
 from casino_server.session import Session
-from casino_server.store import Player, Store
+from casino_server.store import InsufficientFunds, Player, Store
 from casino_server.slots.jackpots import SlotProgressives
 from casino_server.slots.stats import SlotStats
 from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, master, mississippi_stud,
@@ -28,7 +29,6 @@ from casino_server.tables.runner import TableRunner
 from casino_server.world import Entity, World
 
 PLAYER_LOOK = "player_default"
-TOP_UP_AMOUNT = 100_000  # £1,000, only when a player can't afford a £1 Ante plus Play
 MAX_NAME = 16
 MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackjack": blackjack.BlackjackMachine,
             "pai_gow_fortune": pai_gow.FortunePaiGowMachine, "pai_gow_face_up": pai_gow.FaceUpPaiGowMachine,
@@ -54,6 +54,7 @@ class Casino:
         self.slot_jackpots = SlotProgressives(store, clock=clock)   # the slots' own Mini/Minor/Major/Grand
         self.slot_stats = SlotStats(store)                           # each machine's figures (the admin page's Slots)
         self.clock = clock
+        self.wall = wall              # unix time (the ATM's overdrawn wait)
         self.sessions: set[Session] = set()
         self.world = World(self, clock)
         self._speed = speed
@@ -199,7 +200,8 @@ class Casino:
             "bet": self._table_action, "clear_bets": self._table_action, "rebet": self._table_action, "auto_rebet": self._table_action,
             "ready": self._table_action, "decide": self._table_action, "insure": self._table_action,
             "act": self._table_action, "set_hand": self._table_action, "fold": self._table_action, "claim": self._table_action,
-            "pg_suggest": self._pai_gow_query, "pg_check": self._pai_gow_query, "top_up": self._top_up,
+            "pg_suggest": self._pai_gow_query, "pg_check": self._pai_gow_query,
+            "atm_open": self._atm, "atm_withdraw": self._atm, "atm_deposit": self._atm,
             "shoot": self._table_action, "take_dice": self._table_action, "pass_dice": self._table_action,
             "working": self._table_action,
             "spin": self._table_action, "buy_bonus": self._table_action, "trail_fire": self._table_action,
@@ -217,7 +219,8 @@ class Casino:
             return session.error("Already joined.")
         player = self.store.player_by_token(token) if token else None
         if player is None:
-            player = self.store.create_player()
+            s = bank.settings(self.store)
+            player = self.store.create_player(bank=s["start_bank"] * 100, hand=s["start_hand"] * 100)
         session.player = player
         self._serial += 1
         session.entity_id = f"p{player.id}-{self._serial}"
@@ -416,8 +419,41 @@ class Casino:
             return session.error(str(e))
         session.push({"type": msg["type"], "table": session.table, **answer})
 
-    def _top_up(self, session: Session, msg: dict):
-        if self.store.balance(session.player.id) >= 200:
-            return session.error("Top-ups are only for when you can't afford the minimum bet.")
-        self.store.adjust(session.player.id, TOP_UP_AMOUNT, "top_up")
-        self.send_wallet(session)
+    def _atm(self, session: Session, msg: dict):
+        """The lobby's ATM (bank.py): atm_open for its screen, atm_withdraw / atm_deposit {amount} to use it. On foot
+        and in front of one only. Each reply is an `atm` (with `done`, or the `error` its screen shows) and, when money
+        moved, the `wallet`."""
+        if session.table is not None:
+            return session.error("Stand up first to use the ATM.")
+        e = self.world.entities.get(session.entity_id)
+        if e is None or not bank.near_atm(e.x, e.y):
+            return session.error("Walk up to the ATM to use it.")
+        pid = session.player.id
+        s = bank.settings(self.store)
+        amount = msg.get("amount")
+        error = done = None
+        if msg["type"] != "atm_open":
+            balance, (bank_now, last) = self.store.balance(pid), self.store.bank(pid)
+            if msg["type"] == "atm_withdraw":
+                error = bank.withdraw_problem(amount, bank.withdraw_check(bank_now, balance, last, s, self.wall()))
+            elif not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
+                error = "Enter an amount."
+            elif amount > balance:
+                error = "You're not holding that much."
+            if error is None:
+                to_hand = amount if msg["type"] == "atm_withdraw" else -amount
+                try:
+                    self.store.transfer(pid, to_hand, self.wall())
+                except InsufficientFunds:
+                    error = "You're not holding that much."
+                else:
+                    done = {"kind": "withdraw" if to_hand > 0 else "deposit", "amount": amount}
+                    self.send_wallet(session)
+        session.push(self._atm_state(pid, s) | ({"done": done} if done else {}) | ({"error": error} if error else {}))
+
+    def _atm_state(self, pid: int, s: dict) -> dict:
+        balance, (bank_now, last) = self.store.balance(pid), self.store.bank(pid)
+        return {"type": "atm", "bank": bank_now, **bank.withdraw_check(bank_now, balance, last, s, self.wall()),
+                "threshold": s["threshold"] * 100, "hand_under": s["hand_under"] * 100, "cooldown_min": s["cooldown_min"],
+                "history": [{"kind": h["kind"], "amount": h["amount"], "t": datetime.fromisoformat(h["at"]).timestamp()}
+                            for h in self.store.atm_history(pid)]}

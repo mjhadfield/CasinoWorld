@@ -4,9 +4,14 @@ extends Node2D
 ## it faces (PlanArt), standing on its base point so it Y-sorts with the people, and a body where it blocks walking.
 ## Rugs lie flat under everyone; wall pieces hang on the back wall. It shows (and blocks) once its picture has
 ## downloaded, and changes whenever the library does. A piece with a screen (the jackpot board) gets a PlanScreen.
+## A piece you can use (its asset's `interact`: "atm", the lobby's cash machine) is in group "interactables"; the
+## floor offers it when you stand in front of it (stand_spot) or click it (hit).
+
+const STAND := Vector2(0, 14)   # where you stand to use a piece: just in front of its base
 
 var asset_id := ""
 var facing := "down"
+var interact := ""    # "atm", or "" for a piece that's only looked at
 var _pic: Sprite2D
 var _body: StaticBody2D
 var _screen: PlanScreen
@@ -40,6 +45,11 @@ func _apply() -> void:
 		_:
 			z_index = 0
 	_apply_screen(a, pic)
+	interact = str(a.get("interact", "")) if not pic.is_empty() else ""
+	if interact != "" and not is_in_group("interactables"):
+		add_to_group("interactables")
+	elif interact == "" and is_in_group("interactables"):
+		remove_from_group("interactables")
 	var body = a.get("by_facing", {}).get(facing, {}).get("body", a.get("body"))
 	if _body:
 		_body.queue_free()
@@ -54,6 +64,16 @@ func _apply() -> void:
 		shape.position = Vector2(float(body[0]), float(body[1])) + r.size / 2.0
 		_body.add_child(shape)
 		add_child(_body)
+
+
+## Where you stand to use it, in global coordinates.
+func stand_spot() -> Vector2:
+	return to_global(STAND)
+
+
+## Whether a point (global) is on its picture.
+func hit(at: Vector2) -> bool:
+	return _pic.texture != null and Rect2(_pic.offset, _pic.texture.get_size()).has_point(to_local(at))
 
 
 func _apply_screen(a: Dictionary, pic: Dictionary) -> void:

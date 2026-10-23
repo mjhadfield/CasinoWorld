@@ -56,12 +56,14 @@ class RiggedDeck(Deck):
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     """A TestClient on a scratch database and design board -- never the real ones -- with no
-    NPCs and quick table timers (but a long decision window, so tests can act)."""
+    NPCs and quick table timers (but a long decision window, so tests can act). New players arrive with £1,000 in
+    hand (the real default is £0, and a trip to the ATM), so the table tests can bet straight away."""
     monkeypatch.setenv("CASINO_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))  # never the real design board
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))  # nor the real built slots
     monkeypatch.setenv("CASINO_NPCS", "0")
     with TestClient(app) as c:
+        c.app.state.casino.store.set_json("bank_settings", {"start_hand": 1000})
         for runner in c.app.state.casino.tables.values():
             t = type(runner.machine.timings).instant()
             t.betting = t.betting_npc_only = 30.0  # Ready closes betting (min_betting is 0)

@@ -31,23 +31,6 @@ content_margin_bottom = 12.0
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
 
-[node name="InteractButton" type="Button" parent="."]
-unique_name_in_owner = true
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -200.0
-offset_top = -88.0
-offset_right = 200.0
-offset_bottom = -28.0
-grow_horizontal = 2
-grow_vertical = 0
-focus_mode = 0
-theme_override_font_sizes/font_size = 22
-text = "Take a seat"
-
 [node name="Toast" type="Label" parent="."]
 unique_name_in_owner = true
 anchors_preset = 5

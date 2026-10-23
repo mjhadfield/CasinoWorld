@@ -3,7 +3,7 @@ let H, data = null, sort = {key: "wagered", dir: -1}, q = "";
 const openRows = new Set();
 
 const COLS = [
-  ["name", "Player", ""], ["balance", "Balance", "num"], ["wagered", "Staked", "num"], ["returned", "Returned", "num"],
+  ["name", "Player", ""], ["balance", "Cash", "num"], ["bank", "Bank", "num"], ["wagered", "Staked", "num"], ["returned", "Returned", "num"],
   ["net", "Net", "num"], ["bets", "Bets", "num"], ["games", "Games", "num"], ["last_at", "Last played", ""],
 ];
 
@@ -39,14 +39,15 @@ function draw() {
     const games = Object.entries(p.games), opened = openRows.has(p.name);
     const tr = el("tr", {className: games.length ? "click" : ""},
       el("td", {}, games.length ? el("span", {className: "faint", textContent: opened ? "▾ " : "▸ "}) : null, el("b", {textContent: p.name})),
-      el("td", {className: "num", textContent: money(p.balance)}), el("td", {className: "num", textContent: money(p.wagered)}),
+      el("td", {className: "num", textContent: money(p.balance)}), el("td", {className: "num " + (p.bank < 0 ? "neg" : ""), textContent: money(p.bank)}),
+      el("td", {className: "num", textContent: money(p.wagered)}),
       el("td", {className: "num", textContent: money(p.returned)}), el("td", {className: "num " + cls(p.net), textContent: signed(p.net)}),
       el("td", {className: "num", textContent: p.bets}), el("td", {className: "num", textContent: games.length}),
       el("td", {textContent: p.last_at ? new Date(p.last_at).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : "—"}));
     if (games.length) tr.addEventListener("click", () => { opened ? openRows.delete(p.name) : openRows.add(p.name); draw(); });
     body.push(tr);
     if (opened) for (const [g, s] of games.sort((a, b) => b[1].wagered - a[1].wagered)) body.push(el("tr", {},
-      el("td", {className: "muted", style: "padding-left: 34px", textContent: data.games[g] || g}), el("td"),
+      el("td", {className: "muted", style: "padding-left: 34px", textContent: data.games[g] || g}), el("td"), el("td"),
       el("td", {className: "num muted", textContent: money(s.wagered)}), el("td"),
       el("td", {className: "num " + cls(s.net), textContent: signed(s.net)}), el("td", {className: "num muted", textContent: s.bets}), el("td"), el("td")));
   }

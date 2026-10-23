@@ -71,6 +71,8 @@ def entry(pid: str, piece: dict, files: dict) -> dict:
         a["by_facing"] = {f: {"rect": rect, "body": body} for f in others}
     if piece.get("screen"):
         a["screen"] = piece["screen"]
+    if piece.get("interact"):
+        a["interact"] = piece["interact"]
     return a
 
 

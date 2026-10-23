@@ -1,4 +1,4 @@
-# Casino World protocol (v4)
+# Casino World protocol (v5)
 
 Messages are JSON objects with a `type` field, carried over a WebSocket at `/ws`.
 The server is authoritative, so the client sends intents and renders what comes back.
@@ -39,7 +39,9 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `claim` | | Face Up Pai Gow, while claiming: show your cards to collect a side-bet win. |
 | `pg_suggest` | | Pai Gow: the House Way split of your own cards. The reply `pg_suggest` {`front`, `back`, `front_label`, `back_label`} goes only to you. |
 | `pg_check` | `front`, `back` | Pai Gow: name a proposed split and say if it fouls. The reply `pg_check` {`front`, `back`, `front_label`, `back_label`, `foul`} goes only to you. |
-| `top_up` | | Get £1,000 more. Only allowed when you can't afford a £1 Ante plus Play. |
+| `atm_open` | | The lobby's ATM (bank.py): its screen's state. Only on foot, standing at an ATM (within 64px of its base, by your last `move`); otherwise an `error`. The reply is `atm`. |
+| `atm_withdraw` | `amount` | Take `amount` pence from your bank into your cash in hand. It must be whole £50 notes, within the withdrawal limit, while you hold less than the limit on hand and, when overdrawn, not within the wait since your last withdrawal (`atm`'s fields). The reply is `wallet` and then `atm` with `done`, or `atm` with the `error` its screen shows. Same place rules as `atm_open`. |
+| `atm_deposit` | `amount` | Pay `amount` pence of your cash in hand into your bank (any amount you hold). Replies as `atm_withdraw`. |
 | `ping` | `t` | A latency check. |
 | `away` | | The tab was hidden. The server sends nothing more until `resync`; you stay on the floor (and seated). |
 | `resync` | | The tab is visible again. Drop every message until the `resync` reply; the full state follows it. |
@@ -51,7 +53,8 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | type | fields | when |
 |---|---|---|
 | `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `world`, `preview`, `seating`, `table_styles` | The reply to `join` and `set_name`. `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
-| `wallet` | `balance` | Sent on join and after each money-moving table event, straight after that event. |
+| `wallet` | `balance` | Your cash in hand (what you bet with; your bank balance is only on the ATM's `atm`). Sent on join, after each money-moving table event (straight after that event), and after an ATM withdrawal or deposit. |
+| `atm` | `bank`, `can`, `why` (`""`, `carrying`, `overdrawn`), `cap`, `wait` (seconds), `threshold`, `hand_under`, `cooldown_min`, `history` [{`kind` withdraw/deposit, `amount`, `t` (unix)}], `done` {`kind`, `amount`}, `error` | The reply to `atm_open`, `atm_withdraw` and `atm_deposit`: your bank balance (pence, negative when overdrawn); whether you can withdraw now and, if not, why (holding `hand_under` or more, or overdrawn and `wait` seconds from the next); the most a withdrawal can be (`cap`: the low limit, or the high one once the bank is at `threshold` or more); the overdrawn wait in minutes; your last four ATM moves, newest first. `done` comes after a withdrawal or deposit went through, `error` when it didn't. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. |
 | `entity_spawn` | `entity`, `at` | Someone arrived. `at` is where, as a walk target (`point:<room>/<name>`: a player at the spawn point, an NPC at the arrival point it came in by), used while `x` is null. |

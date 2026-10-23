@@ -5,6 +5,9 @@ extends Node2D
 ## press E. The camera glides onto the table and stays in this same world, so
 ## the floor carries on around you. Stand up and the camera glides back.
 ##
+## Walk up to the lobby's ATM (a piece in group "interactables") and the HUD offers it (Use ATM): press E, the prompt,
+## or click the machine (from afar you walk over first). Its screen (AtmPanel) holds you still until you leave it.
+##
 ## The server owns the table and the world; this scene routes its messages to
 ## the right avatar or table and turns your clicks into requests.
 ##
@@ -49,6 +52,8 @@ var _here := ""     # the room you're in
 var entities := {}  # entity id -> EntityAvatar (everyone but you)
 var state := "walking"  # walking | seated (at a table) | slot (at a slot cabinet, full screen)
 var _heading_for := {}  # {table, seat} while walking over to a stool you clicked
+var _heading_atm: Furniture = null   # the ATM you clicked from afar, while you walk over
+var _atm_near: Furniture = null      # the ATM you're standing at (offered by the prompt)
 var active_table: CasinoTable = null
 var active_slot: SlotCabinet = null   # the cabinet you're sitting at (state "slot")
 var _slot_waiting := false   # sat at a cabinet, its game not open yet (the sit-down, then the camera, come first)
@@ -110,6 +115,12 @@ func _ready() -> void:
 	hud.stand_pressed.connect(_request_stand)
 	hud.stand_confirmed.connect(func(): Net.send("stand"))
 	hud.name_entered.connect(Session.choose_name)
+	hud.interact_pressed.connect(func():
+		if _atm_near:
+			_open_atm())
+	hud.atm.closed.connect(func():
+		if state == "walking":
+			player.set_controls(true))
 	hud.master.chosen.connect(func(game: String): Net.send("choose_game", {"game": game}))
 	hud.master.voted.connect(func(accept: bool): Net.send("game_vote", {"accept": accept}))
 	hud.master.cancel_queued.connect(func(): Net.send("cancel_game_change"))
@@ -320,6 +331,7 @@ func _process(_delta: float) -> void:
 	for e in entities.values():
 		e.visible = _seen(e.position)
 	_check_heading()
+	_offer_atm()
 	if state == "seated" and active_table:
 		var view := _seated_view()
 		hud.update_seated(view)
@@ -349,7 +361,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		if state == "walking":
-			_sit_on_stool_underfoot()
+			if _atm_near:
+				_open_atm()
+			else:
+				_sit_on_stool_underfoot()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("cancel"):
 		if state == "seated":
@@ -386,6 +401,16 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var at := get_global_mouse_position()
+	for f in get_tree().get_nodes_in_group("interactables"):
+		if f.is_visible_in_tree() and f.hit(at):
+			if f == _atm_near:
+				_open_atm()
+			else:
+				_heading_atm = f
+				_heading_for = {}
+				player.walk_to(world.to_local(f.stand_spot()))
+			get_viewport().set_input_as_handled()
+			return
 	for t in tables.values():
 		var seat: int = t.stool_at(t.to_local(at))
 		if seat >= 0:
@@ -435,7 +460,14 @@ func _take_seat(t: FloorGame, seat: int) -> void:
 
 ## Walking over to a chair you clicked: sit on arriving (or on stopping close, if
 ## something's in the way); give up if you stop short, steer elsewhere, or someone takes it first.
+## Walking over to the ATM you clicked: use it on arriving, if you got there.
 func _check_heading() -> void:
+	if _heading_atm != null and state == "walking" and not player.is_walking_to_target():
+		var f := _heading_atm
+		_heading_atm = null
+		_offer_atm()
+		if f == _atm_near:
+			_open_atm()
 	if _heading_for.is_empty() or state != "walking":
 		return
 	var t: FloorGame = _heading_for.table
@@ -450,6 +482,38 @@ func _check_heading() -> void:
 	_heading_for = {}
 	if player.position.distance_to(goal) <= 6.0 or player.global_position.distance_to(t.to_global(t.stool_pos(seat))) <= SIT_REACH:
 		Net.send("sit", {"table": t.table_id, "seat": seat})
+
+
+# ------------------------------------------------------------------ the ATM
+const ATM_REACH := 24.0   # this close to the spot in front of an ATM, it's offered
+
+
+## The ATM you're standing at, if any, offered on the HUD's prompt.
+func _offer_atm() -> void:
+	var best: Furniture = null
+	if state == "walking" and not hud.atm.visible:
+		var best_d := ATM_REACH
+		for f in get_tree().get_nodes_in_group("interactables"):
+			var d: float = player.global_position.distance_to(f.stand_spot())
+			if f.is_visible_in_tree() and d < best_d:
+				best = f
+				best_d = d
+	if best == _atm_near:
+		return
+	_atm_near = best
+	if best:
+		hud.show_prompt("Use ATM")
+	else:
+		hud.hide_prompt()
+
+
+func _open_atm() -> void:
+	if not Net.is_open():
+		hud.show_toast("Not connected to the casino")
+		return
+	player.set_controls(false)   # (which reports where you are first: the server checks you're at the machine)
+	hud.hide_prompt()
+	hud.atm.open_atm()
 
 
 ## Every table in its table style again.
@@ -857,6 +921,11 @@ func _on_message(msg: Dictionary) -> void:
 		"table_styles":   # the admin page changed the table styles
 			TableStyle.configure(msg.get("table_styles", {}))
 			_restyle_tables()
+		"atm":
+			hud.atm.apply(msg)
+			var done: Dictionary = msg.get("done", {})
+			if not done.is_empty():
+				hud.wallet.flash_result(int(done.amount) * (1 if str(done.kind) == "withdraw" else -1))
 		"pg_check":
 			hud.sorter.on_check(msg)
 		"pg_suggest":
@@ -865,6 +934,7 @@ func _on_message(msg: Dictionary) -> void:
 			hud.show_toast(msg.get("message", ""), 4.0)
 		"error":
 			hud.show_toast(msg.get("message", "error"))
+			hud.atm.close_atm()   # (the server wouldn't let you use it: you weren't at it)
 			if hud.sorter.is_open():
 				hud.sorter.open_again()
 
@@ -1023,6 +1093,7 @@ func _on_resynced(msg: Dictionary) -> void:
 
 
 func _on_disconnected() -> void:
+	hud.atm.close_atm()
 	if state == "seated" or state == "slot":
 		_leave_table()
 		hud.show_toast("Lost connection to the casino -- reconnecting...")

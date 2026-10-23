@@ -257,9 +257,16 @@ sections:
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
   game opens, and the craps standing spot). The card tables and Roulette take their chairs' frame and upholstery
   from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API
-  (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`).
+  (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`). **Bank**: what new
+  players start with (bank and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
+  the most a withdrawal can be either side of a bank threshold (multiples of £50: it pays in £50 notes), and the wait
+  between withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank.
 
 ## Money
+Each player has cash in hand (their `balance`: what they bet with, shown top left) and a bank balance, which can go
+overdrawn; the lobby's ATM moves money between them (docs/architecture.md, Storage and money). There's no free top-up:
+a broke player goes to the ATM.
+
 `server/data/casino.sqlite` holds players, balances, the ledger and the jackpots; delete it to start
 everyone fresh. Don't edit balances in the database by hand: they're whole numbers of pence, and an edit like
 `100,000` gets stored as text, which disconnects that player when they bet (the server warns about it at
@@ -267,7 +274,8 @@ startup). Use the admin command, which records the change in the ledger and is s
 ```fish
 cd ~/Projects/CasinoWorld/server
 .venv/bin/python -m casino_server.admin list
-.venv/bin/python -m casino_server.admin set-balance Mike 1000      # pounds
+.venv/bin/python -m casino_server.admin set-balance Mike 1000      # cash in hand, pounds
+.venv/bin/python -m casino_server.admin set-bank Mike -250         # the bank, pounds (may be negative)
 ```
 
 ## Tests
@@ -341,7 +349,7 @@ admin page's Slot design tab.
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
   - `npc.py`: the NPC director; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
-  - `store.py`, `jackpot.py`: storage and the progressive pool. `admin.py`: the command-line admin. `admin_web/`: the admin page.
+  - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `admin.py`: the command-line admin. `admin_web/`: the admin page.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `table_styles.py`: the table styles for each kind of table (card tables, Roulette, Craps: House, the
     built-ins, saved designs) and which table uses which;
@@ -367,7 +375,7 @@ admin page's Slot design tab.
     `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD, its top-left `wallet_pill` and its seated `betting_bar` (keys: 1-5 pick a chip, Space Ready or Repeat Bet, Backspace Undo,
-    Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
+    Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the lobby's `atm_panel` (the cash machine), the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
     `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes and the graphics presets.
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.

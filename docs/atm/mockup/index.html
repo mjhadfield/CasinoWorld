@@ -1,0 +1,643 @@
+<title>Lobby Cash Machine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Cinzel:wght@600&family=VT323&display=swap">
+<style>
+/* Layout: the modern lobby around the ATM (drawn from the game's own pieces) with the HUD over it, the ATM screen
+   opening on top, and a review panel beside it. One dark look on purpose, as the game and the other mockups are. */
+:root {
+  --ground: #0d1012;
+  --panel: #14181a;
+  --raised: #1c2124;
+  --line: #2b3133;
+  --brass: #c9a24a;
+  --brass-hi: #ecd396;
+  --ink: #ece4d2;
+  --muted: #9ba39e;
+  --paper: #f6efdc;
+  --paper-ink: #2a1a10;
+  --ok: #5fd3a0;
+  --warn: #f2c14e;
+  --bad: #ef7a6b;
+  --corner: rgba(10, 12, 13, .94);
+  /* the cash machine */
+  --metal-hi: #4a5257;
+  --metal: #2c3236;
+  --metal-lo: #181c1f;
+  --lcd: #0c3d8f;
+  --lcd-deep: #072659;
+  --lcd-ink: #e8f1ff;
+  --lcd-dim: #8fb2e6;
+  --lcd-hi: #ffe28a;
+  --display: "Cinzel", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
+  --screen: "VT323", "Courier New", monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 14px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+.app { min-height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-block: 12px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line);
+}
+header.top h1 { margin: 0; font: 600 20px/1.1 var(--display); letter-spacing: .08em; color: var(--brass-hi); }
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+header.top .tag { margin-left: auto; font: 600 11px var(--cond); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+main.layout {
+  min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (max-width: 860px) { main.layout { grid-template-columns: minmax(0, 1fr); } .stage { position: relative; top: 0; } }
+
+/* ---------------------------------------------------------------- stage */
+.stage { position: sticky; top: 14px; align-self: start; height: min(720px, calc(100vh - 110px)); min-height: 560px; border-radius: 10px; overflow: hidden; background: #08090a; border: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; cursor: default; }
+#cv.hot { cursor: pointer; }
+.hud { position: absolute; inset: 0; pointer-events: none; }
+.hud > * { pointer-events: auto; }
+
+.wallet { position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px 0 13px;
+  background: var(--corner); border: 1px solid rgba(201, 162, 74, .3); border-radius: 20px; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); font-family: var(--cond); }
+.wallet .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2.5px rgba(95, 211, 160, .25); }
+.wallet .name { font: 600 17px var(--cond); color: var(--muted); }
+.wallet b { font: 700 25px var(--cond); color: var(--ink); font-variant-numeric: tabular-nums; }
+.wallet .delta { font: 700 19px var(--cond); color: var(--ok); transition: opacity .6s; }
+.wallet .delta.out { color: var(--bad); }
+.corner { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+.ghost { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 15px; border-radius: 999px; cursor: pointer;
+  background: rgba(10, 12, 13, .74); border: 1px solid rgba(255, 255, 255, .1); font: 600 15.5px var(--cond); letter-spacing: .05em; color: var(--ink); }
+.ghost:hover:not(:disabled) { border-color: rgba(201, 162, 74, .6); }
+kbd { font: 500 12.5px var(--cond); letter-spacing: .04em; color: inherit; opacity: .65; padding: 0 5px; border: 1px solid currentColor; border-radius: 4px; line-height: 17px; }
+
+.prompt { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px 0 14px;
+  border-radius: 999px; cursor: pointer; background: rgba(20, 16, 10, .94); border: 1px solid rgba(236, 211, 150, .75); box-shadow: 0 0 0 4px rgba(201, 162, 74, .12), 0 10px 26px rgba(0, 0, 0, .45);
+  font: 600 19px var(--cond); letter-spacing: .05em; color: var(--brass-hi); animation: rise .25s ease-out; }
+.prompt kbd { font-size: 15px; line-height: 22px; padding: 0 8px; opacity: 1; color: #1b1307; background: var(--brass-hi); border-color: var(--brass-hi); }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+.hint { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); font: 500 14px var(--cond); letter-spacing: .06em; color: var(--muted); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+
+.scrim { position: absolute; inset: 0; display: grid; place-items: center; padding: 70px 14px 14px; background: rgba(4, 5, 6, .55); overflow: auto; animation: fade .18s; }
+@keyframes fade { from { opacity: 0; } }
+
+/* ---------------------------------------------------------------- the cash machine */
+.atm { width: min(540px, 100%); display: grid; gap: 14px; padding: 16px 18px 18px; border-radius: 16px 16px 10px 10px;
+  background: linear-gradient(var(--metal-hi), var(--metal) 14%, var(--metal) 80%, var(--metal-lo));
+  border: 1px solid #5b646a; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15), 0 24px 60px rgba(0, 0, 0, .65); }
+.atm .brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px; border-radius: 6px; background: #0e1113; border: 1px solid #000;
+  font: 600 13px var(--cond); letter-spacing: .24em; text-transform: uppercase; color: var(--brass-hi); }
+.atm .brand .leave { display: inline-flex; align-items: center; gap: 7px; padding: 2px 4px 2px 10px; border: 0; border-radius: 4px; background: none; cursor: pointer; font: 600 13px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+.atm .brand .leave:hover { color: var(--brass-hi); }
+.atm .brand .leave kbd { letter-spacing: .04em; text-transform: none; }
+.atm .face { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; gap: 8px; align-items: stretch; }
+.atm .keys { display: grid; grid-template-rows: repeat(4, 1fr); gap: 0; padding-block: 66px 16px; }
+.side { align-self: center; justify-self: center; width: 30px; height: 22px; border-radius: 4px; cursor: pointer; border: 1px solid #0a0c0d;
+  background: linear-gradient(#9aa3a8, #6b7378); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 2px 0 #0a0c0d; }
+.side:active, .side.down { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4); }
+.side:disabled { cursor: default; opacity: .5; }
+.lcd { position: relative; aspect-ratio: 4 / 3.15; max-width: 100%; display: grid; grid-template-rows: 60px repeat(4, 1fr); padding: 0 6px 10px; overflow: hidden;
+  border-radius: 6px; border: 6px solid #07090a; background: radial-gradient(120% 90% at 50% 20%, var(--lcd), var(--lcd-deep));
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, .55); font: 400 26px/1 var(--screen); color: var(--lcd-ink); }
+.lcd::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, .12) 2px 3px); }
+.lcd .title { align-self: center; text-align: center; font-size: 30px; color: var(--lcd-hi); }
+.lcd .title small { display: block; margin-top: 2px; font-size: 21px; color: var(--lcd-dim); }
+.lcd .title .amt { color: #fff; }
+.lcd .neg { color: #ff9c8f; }
+.lcd .row { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; }
+.lcd .opt { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.lcd .opt.r { justify-content: flex-end; }
+.lcd .opt.off { color: #5d7cae; }
+.lcd .opt.l::before { content: "◀"; font-size: 18px; color: var(--lcd-dim); }
+.lcd .opt.r::after { content: "▶"; font-size: 18px; color: var(--lcd-dim); }
+.lcd .opt.off::before, .lcd .opt.off::after { opacity: .4; }
+.lcd .mid { grid-row: 2 / span 2; display: grid; align-content: center; justify-items: center; gap: 4px; text-align: center; padding: 0 12px; }
+.lcd .mid .big { font-size: 42px; color: var(--lcd-hi); }
+.lcd .mid p { margin: 0; font-size: 23px; line-height: 1.05; color: var(--lcd-ink); }
+.lcd .mid p.dim { color: var(--lcd-dim); }
+.lcd .mid p.err { color: #ff9c8f; }
+.lcd .entry { display: inline-block; min-width: 180px; padding: 0 10px; border-bottom: 2px solid var(--lcd-hi); font-size: 40px; color: #fff; }
+.lcd .entry .cur { animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.lcd .lines { grid-row: 2 / span 3; display: grid; align-content: start; gap: 2px; padding: 6px 16px 0; font-size: 22px; }
+.lcd .lines div { display: flex; justify-content: space-between; gap: 10px; }
+.lcd .lines div span:first-child { color: var(--lcd-dim); }
+.atm .lower { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 16px; align-items: start; }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr) 1.5fr; gap: 6px; padding: 10px; border-radius: 8px; background: #121517; border: 1px solid #000; }
+.pad button { height: 36px; border-radius: 5px; cursor: pointer; border: 1px solid #000; font: 700 18px var(--cond);
+  background: linear-gradient(#d9dde0, #a9b0b4); color: #15191b; box-shadow: inset 0 1px 0 #fff, 0 2px 0 #000; }
+.pad button:active, .pad button.down { transform: translateY(2px); box-shadow: inset 0 1px 0 #fff; }
+.pad .k-cancel { background: linear-gradient(#f08a7c, #c4513f); color: #2a0d08; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.pad .k-clear { background: linear-gradient(#f6d77c, #d6a93a); color: #2a1d05; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.pad .k-enter { background: linear-gradient(#8de2bb, #3fa877); color: #062114; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.slots { display: grid; gap: 12px; }
+.slot { position: relative; height: 54px; border-radius: 6px; background: #0e1113; border: 1px solid #000; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .8); overflow: visible; }
+.slot label { position: absolute; left: 10px; bottom: 4px; font: 600 10.5px var(--cond); letter-spacing: .2em; text-transform: uppercase; color: #6b7378; }
+.slot .mouth { position: absolute; left: 14px; right: 14px; top: 12px; height: 8px; border-radius: 4px; background: #000; box-shadow: 0 0 0 1px #3a4246; }
+.slot.lit .mouth { box-shadow: 0 0 0 1px var(--ok), 0 0 12px rgba(95, 211, 160, .6); }
+.slot label { z-index: 1; }
+/* Notes come out of the mouth's middle, over its lower lip and glow, and hang down the fascia as a stack. */
+.notes { position: absolute; left: 18px; right: 18px; top: 16px; z-index: 2; pointer-events: none; }
+.note { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 360 / 199; border-radius: 2px; background: url(img/note50.png) center / 100% 100%;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .35), 0 4px 10px rgba(0, 0, 0, .35); transform: translate(var(--dx), var(--dy)) rotate(var(--r)); animation: notes .45s ease-out both; }
+@keyframes notes { from { transform: translate(var(--dx), -100%) rotate(0deg); clip-path: inset(100% 0 0 0); } to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); clip-path: inset(0 0 0 0); } }
+.slot.card { height: 40px; }
+
+/* ---------------------------------------------------------------- review panel */
+aside.review { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.sec { display: grid; gap: 10px; padding: 14px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.sec h2 { margin: 0; font: 600 12.5px var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--brass); }
+.sec p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.cases { display: flex; flex-wrap: wrap; gap: 6px; }
+.cases button { padding: 5px 10px; border-radius: 999px; cursor: pointer; background: var(--raised); border: 1px solid var(--line); font: 600 13.5px var(--cond); letter-spacing: .03em; color: var(--ink); }
+.cases button:hover { border-color: rgba(201, 162, 74, .6); }
+.open { height: 42px; border-radius: 10px; cursor: pointer; border: 1px solid #f0d998; background: linear-gradient(#e2c06a, #b98d32); font: 700 18px var(--cond); letter-spacing: .03em; color: #1b1307; }
+.open:hover { background: linear-gradient(#ecd396, #c9a24a); }
+.slider { display: grid; gap: 4px; }
+.slider .lab { display: flex; justify-content: space-between; gap: 8px; font: 600 14px var(--cond); letter-spacing: .03em; }
+.slider .lab b { font-variant-numeric: tabular-nums; color: var(--brass-hi); }
+.slider .lab b.neg { color: var(--bad); }
+input[type="range"] { width: 100%; accent-color: var(--brass); }
+.verdict { padding: 9px 11px; border-radius: 8px; background: var(--ground); border: 1px solid var(--line); font: 600 14.5px/1.35 var(--cond); letter-spacing: .02em; }
+.verdict.ok { border-color: rgba(95, 211, 160, .45); color: var(--ok); }
+.verdict.no { border-color: rgba(242, 193, 78, .45); color: var(--warn); }
+.cfg { display: grid; gap: 7px; }
+.cfg label { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; align-items: center; font-size: 13px; color: var(--ink); }
+.cfg .in { display: flex; align-items: center; height: 30px; padding: 0 8px; border-radius: 6px; background: var(--ground); border: 1px solid var(--line); }
+.cfg .in:focus-within { border-color: var(--brass); }
+.cfg .in span { color: var(--muted); font-size: 13px; }
+.cfg .in input { width: 100%; min-width: 0; border: 0; background: none; outline: none; text-align: right; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+.sec ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.sec ul b { color: var(--ink); font-weight: 600; }
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Lobby Cash Machine</h1>
+    <p>Bank balance and cash in hand, with the lobby ATM you walk up to. A mockup for review: nothing in the game has changed yet.</p>
+    <span class="tag">Casino World · mockup</span>
+  </header>
+
+  <main class="layout">
+    <section class="stage" id="stage" aria-label="The modern lobby around the ATM">
+      <canvas id="cv"></canvas>
+      <div class="hud">
+        <div class="wallet" title="Cash in hand: what you play with. Your bank balance is at the ATM.">
+          <span class="dot"></span>
+          <span class="name">Mike</span>
+          <b id="w-hand">£0</b>
+          <span class="delta" id="w-delta" hidden></span>
+        </div>
+        <div class="corner">
+          <button class="ghost" type="button" tabindex="-1">Settings <kbd>Esc</kbd></button>
+        </div>
+        <div class="hint" id="hint">Arrow keys or click to walk. The prompt shows when you're at the ATM.</div>
+        <button class="prompt" id="prompt" type="button"><kbd>E</kbd> Use ATM</button>
+        <div class="scrim" id="scrim" hidden></div>
+      </div>
+    </section>
+
+    <aside class="review">
+      <section class="sec">
+        <h2>Try a situation</h2>
+        <button class="open" type="button" id="open-atm">Open the ATM</button>
+        <div class="cases" id="cases">
+          <button type="button" data-case="new">New player</button>
+          <button type="button" data-case="migrated">Existing player</button>
+          <button type="button" data-case="flush">Bank over £2,500</button>
+          <button type="button" data-case="carrying">Carrying £500+</button>
+          <button type="button" data-case="overdrawn">Overdrawn, waiting</button>
+          <button type="button" data-case="ready">Overdrawn, wait over</button>
+        </div>
+        <div class="slider">
+          <div class="lab"><span>Bank balance</span><b id="v-bank">£1,000</b></div>
+          <input type="range" id="s-bank" min="-5000" max="6000" step="10" value="1000">
+        </div>
+        <div class="slider">
+          <div class="lab"><span>Cash in hand</span><b id="v-hand">£0</b></div>
+          <input type="range" id="s-hand" min="0" max="1500" step="10" value="0">
+        </div>
+        <div class="slider">
+          <div class="lab"><span>Since last withdrawal</span><b id="v-since">never</b></div>
+          <input type="range" id="s-since" min="-1" max="60" step="1" value="-1">
+        </div>
+        <div class="verdict" id="verdict"></div>
+      </section>
+
+      <section class="sec">
+        <h2>Admin › Settings › Bank</h2>
+        <p>The form for the empty third column of the admin Settings page. Changes here drive the mockup.</p>
+        <form class="cfg" id="cfg">
+          <label for="c-start_bank">Starting bank (new players)<span class="in"><span>£</span><input id="c-start_bank" name="start_bank" inputmode="numeric" value="1000"></span></label>
+          <label for="c-start_hand">Starting cash in hand<span class="in"><span>£</span><input id="c-start_hand" name="start_hand" inputmode="numeric" value="0"></span></label>
+          <label for="c-hand_under">Withdraw only while on hand is under<span class="in"><span>£</span><input id="c-hand_under" name="hand_under" inputmode="numeric" value="500"></span></label>
+          <label for="c-low_cap">Withdrawal limit, bank under threshold<span class="in"><span>£</span><input id="c-low_cap" name="low_cap" inputmode="numeric" value="250"></span></label>
+          <label for="c-threshold">Threshold<span class="in"><span>£</span><input id="c-threshold" name="threshold" inputmode="numeric" value="2500"></span></label>
+          <label for="c-high_cap">Withdrawal limit, at or over threshold<span class="in"><span>£</span><input id="c-high_cap" name="high_cap" inputmode="numeric" value="2000"></span></label>
+          <label for="c-cooldown">Overdrawn: wait between withdrawals<span class="in"><input id="c-cooldown" name="cooldown" inputmode="numeric" value="30"><span>&nbsp;min</span></span></label>
+        </form>
+      </section>
+
+      <section class="sec">
+        <h2>How it behaves</h2>
+        <ul>
+          <li>The top-left shows <b>cash in hand</b>, which is what you bet with. The bank balance only appears at the ATM.</li>
+          <li><b>Withdraw</b> only while you hold under £500. The limit is £250 a time, or £2,000 once the bank is at £2,500 or more. Amounts are in £50 notes. Going above £500 on hand is fine (£400 + £250).</li>
+          <li>The bank can go <b>overdrawn without limit</b>. While it's overdrawn you can withdraw once every 30 minutes. The withdrawal that first takes you overdrawn is allowed, and it starts the clock.</li>
+          <li><b>Deposit</b> any amount you're holding, at any time.</li>
+          <li>Use it on foot only: walk up, then <b>E</b>, the prompt, or a click on the machine. <b>Esc</b> leaves it.</li>
+          <li>Top up is gone. Existing players keep their balance as cash in hand and get £1,000 in the bank.</li>
+        </ul>
+      </section>
+
+    </aside>
+  </main>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- the rules (what bank.py's withdraw_check will do)
+const cfg = { start_bank: 1000, start_hand: 0, hand_under: 500, low_cap: 250, threshold: 2500, high_cap: 2000, cooldown: 30 };
+const st = { bank: 1000, hand: 0, since: null, history: [] };   // since: seconds since the last withdrawal, null = never
+
+function check() {
+  if (st.hand >= cfg.hand_under) return { ok: false, why: "carrying", cap: 0 };
+  const cap = st.bank >= cfg.threshold ? cfg.high_cap : cfg.low_cap;
+  const wait = cfg.cooldown * 60 - (st.since ?? Infinity);
+  if (st.bank < 0 && wait > 0) return { ok: false, why: "overdrawn", cap, wait };
+  return { ok: true, cap };
+}
+function capReason() {
+  return st.bank >= cfg.threshold ? `bank at ${money(cfg.threshold)} or more` : `bank under ${money(cfg.threshold)}`;
+}
+function withdraw(n) {
+  const c = check();
+  if (!c.ok) return c.why === "carrying" ? `You're holding ${money(cfg.hand_under)} or more.` : "Overdrawn: wait for the next withdrawal.";
+  if (!(n > 0)) return "Enter an amount.";
+  if (n % 50) return `Can't pay ${money(n)}. Try ${money(Math.max(50, Math.min(c.cap, Math.round(n / 50) * 50)))}.`;
+  if (n > c.cap) return `The most you can take is ${money(c.cap)}.`;
+  st.bank -= n; st.hand += n; st.since = 0;
+  log("Withdrew", n, +1);
+  return null;
+}
+function deposit(n) {
+  if (!(n > 0)) return "Enter an amount.";
+  if (n > st.hand) return "You're not holding that much.";
+  st.bank += n; st.hand -= n;
+  log("Deposited", n, -1);
+  return null;
+}
+function log(what, n, sign) {
+  st.history.unshift({ at: clock(), what, n });
+  st.history.length = Math.min(st.history.length, 4);
+  walletDelta(sign * n);
+  syncPanel();
+}
+
+const money = n => (n < 0 ? "−£" : "£") + Math.abs(Math.round(n)).toLocaleString("en-GB");
+const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const clock = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const $ = id => document.getElementById(id);
+
+// ---------------------------------------------------------------- the lobby (the game's own pieces, at the live plan's positions)
+const IMG = {};
+const names = ["floor_basalt", "modern_atm", "modern_console_flowers", "modern_planter_snake", "modern_runner", "player"];
+let loaded = 0;
+for (const n of names) { const i = new Image(); i.onload = () => { if (++loaded === names.length) draw(); }; i.src = `img/${n}.png`; IMG[n] = i; }
+
+// Rects are [x, y, w, h] about the item's anchor, as in plan_assets/uploads.json.
+const ITEMS = [
+  { img: "modern_runner", x: 304, y: 230, rect: [-28, -160, 56, 320], flat: true },
+  { img: "modern_atm", x: 380, y: 88, rect: [-16, -54, 32, 56], atm: true },
+  { img: "modern_console_flowers", x: 452, y: 100, rect: [-30, -62, 60, 64] },
+  { img: "modern_planter_snake", x: 566, y: 116, rect: [-12, -48, 24, 50] },
+];
+const ROOM = { w: 608, h: 400, wall: 44 };
+const ATM_SPOT = { x: 380, y: 112 };
+const REACH = 28;
+const me = { x: 352, y: 196, face: 8, step: 0, goal: null };   // walk rows: 8 up, 9 left, 10 down, 11 right
+const keys = new Set();
+
+const cv = $("cv"), ctx = cv.getContext("2d");
+let view = { zoom: 3, ox: 0, oy: 0 };
+
+function fit() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  const zoom = Math.max(1, Math.floor(Math.min(r.width / 300, r.height / 200) * dpr));
+  view = { zoom, ox: cv.width / 2 - 400 * zoom, oy: cv.height / 2 - 130 * zoom };
+  draw();
+}
+function draw() {
+  if (loaded < names.length) return;
+  const z = view.zoom;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#08090a"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(z, 0, 0, z, view.ox, view.oy);
+  ctx.imageSmoothingEnabled = false;
+  // floor
+  for (let y = 0; y < ROOM.h; y += 64) for (let x = 0; x < ROOM.w; x += 64) ctx.drawImage(IMG.floor_basalt, x, y);
+  // the onyx wall along the top, with the north door and the LOBBY sign
+  const g = ctx.createLinearGradient(0, -36, 0, ROOM.wall);
+  g.addColorStop(0, "#15161a"); g.addColorStop(.75, "#25262c"); g.addColorStop(1, "#1a1b1f");
+  ctx.fillStyle = g; ctx.fillRect(0, -36, ROOM.w, ROOM.wall + 36);
+  ctx.strokeStyle = "rgba(220, 210, 190, .07)"; ctx.lineWidth = 1;
+  for (const [a, b] of [[20, 70], [130, 210], [400, 470], [520, 590]]) { ctx.beginPath(); ctx.moveTo(a, -30); ctx.bezierCurveTo(a + 20, -5, b - 30, 10, b, ROOM.wall - 6); ctx.stroke(); }
+  ctx.fillStyle = "#c9a24a"; ctx.fillRect(0, ROOM.wall - 2, ROOM.w, 2);
+  ctx.fillStyle = "#050607"; ctx.fillRect(272, -36, 64, ROOM.wall + 36);
+  ctx.fillStyle = "#c9a24a"; ctx.fillRect(270, -36, 2, ROOM.wall + 36); ctx.fillRect(336, -36, 2, ROOM.wall + 36);
+  ctx.fillStyle = "#ecd396"; ctx.font = "600 9px Cinzel, Georgia, serif"; ctx.textAlign = "center"; ctx.fillText("LOBBY", 500, 6);
+  // flat pieces, then everything else in depth order with the player
+  const things = ITEMS.filter(i => !i.flat).map(i => ({ y: i.y, fn: () => item(i) }));
+  things.push({ y: me.y, fn: player });
+  ITEMS.filter(i => i.flat).forEach(item);
+  if (near()) glow();
+  things.sort((a, b) => a.y - b.y).forEach(t => t.fn());
+}
+function item(i) { ctx.drawImage(IMG[i.img], i.x + i.rect[0], i.y + i.rect[1], i.rect[2], i.rect[3]); }
+function glow() {
+  const t = performance.now() / 600, a = .22 + .1 * Math.sin(t);
+  ctx.fillStyle = `rgba(236, 211, 150, ${a})`;
+  ctx.beginPath(); ctx.ellipse(380, 90, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
+}
+function player() {
+  ctx.fillStyle = "rgba(0, 0, 0, .35)"; ctx.beginPath(); ctx.ellipse(me.x, me.y, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+  const frame = me.goal || keys.size ? 1 + (Math.floor(me.step) % 8) : 0;
+  ctx.drawImage(IMG.player, frame * 64, me.face * 64, 64, 64, me.x - 32, me.y - 60, 64, 64);
+}
+function near() { return Math.hypot(me.x - ATM_SPOT.x, me.y - ATM_SPOT.y) <= REACH; }
+function blocked(x, y) {
+  if (y < ROOM.wall + 14 || y > ROOM.h - 6 || x < 10 || x > ROOM.w - 10) return true;
+  return [[367, 76, 26, 12], [427, 92, 50, 8], [559, 110, 14, 6]].some(([bx, by, bw, bh]) => x > bx - 6 && x < bx + bw + 6 && y > by - 2 && y < by + bh + 6);
+}
+
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  let dx = 0, dy = 0;
+  if (!panelOpen) {
+    if (keys.has("ArrowLeft") || keys.has("a")) dx--;
+    if (keys.has("ArrowRight") || keys.has("d")) dx++;
+    if (keys.has("ArrowUp") || keys.has("w")) dy--;
+    if (keys.has("ArrowDown") || keys.has("s")) dy++;
+    if (dx || dy) me.goal = null;
+    else if (me.goal) {
+      const vx = me.goal.x - me.x, vy = me.goal.y - me.y, d = Math.hypot(vx, vy);
+      if (d < 2) { me.x = me.goal.x; me.y = me.goal.y; if (me.goal.open) { me.face = 8; openPanel(); } me.goal = null; }
+      else { dx = vx / d; dy = vy / d; }
+    }
+  }
+  if (dx || dy) {
+    const l = Math.hypot(dx, dy), sp = 90 * dt, nx = me.x + dx / l * sp, ny = me.y + dy / l * sp;
+    if (!blocked(nx, me.y)) me.x = nx;
+    if (!blocked(me.x, ny)) me.y = ny;
+    me.face = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 9 : 11) : (dy < 0 ? 8 : 10);
+    me.step += dt * 10;
+  }
+  $("prompt").hidden = !near() || panelOpen;
+  $("hint").hidden = near() || panelOpen;
+  draw();
+  requestAnimationFrame(tick);
+}
+function toWorld(e) {
+  const r = cv.getBoundingClientRect(), dpr = cv.width / r.width;
+  return { x: ((e.clientX - r.left) * dpr - view.ox) / view.zoom, y: ((e.clientY - r.top) * dpr - view.oy) / view.zoom };
+}
+const onAtm = p => p.x > 364 && p.x < 396 && p.y > 34 && p.y < 90;
+cv.addEventListener("mousemove", e => cv.classList.toggle("hot", onAtm(toWorld(e))));
+cv.addEventListener("click", e => {
+  if (panelOpen) return;
+  const p = toWorld(e);
+  if (onAtm(p)) { if (near()) openPanel(); else me.goal = { ...ATM_SPOT, open: true }; }
+  else if (!blocked(p.x, p.y)) me.goal = p;
+});
+$("prompt").addEventListener("click", () => openPanel());
+addEventListener("resize", fit);
+
+// ---------------------------------------------------------------- the HUD pill
+let deltaTimer;
+function walletDelta(n) {
+  const d = $("w-delta");
+  d.textContent = (n > 0 ? "+" : "−") + money(Math.abs(n));
+  d.classList.toggle("out", n < 0); d.hidden = false; d.style.opacity = 1;
+  clearTimeout(deltaTimer); deltaTimer = setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.hidden = true, 600); }, 1600);
+}
+
+// ---------------------------------------------------------------- the ATM screens
+let panelOpen = false;
+let screen = "home", entry = "", aMsg = "", lastDone = null;
+
+function openPanel() { panelOpen = true; screen = "home"; entry = ""; aMsg = ""; renderPanel(); }
+function closePanel() { panelOpen = false; $("scrim").hidden = true; $("scrim").innerHTML = ""; }
+function syncPanel() { syncReview(); if (panelOpen) renderPanel(); }
+
+function renderPanel() {
+  const s = $("scrim");
+  s.hidden = false;
+  s.innerHTML = atmHTML();
+  wireAtm();
+}
+
+// B: the cash machine. Each screen is a title plus up to four options a side, next to the side keys.
+function atmScreen() {
+  const c = check();
+  const S = { L: [null, null, null, null], R: [null, null, null, null] };
+  const opt = (label, fn, off) => ({ label, fn, off });
+  const back = opt("Back", () => go("home"));
+  switch (screen) {
+    case "home":
+      S.title = `Welcome, Mike<small>Balance <span class="${st.bank < 0 ? "neg" : "amt"}">${money(st.bank)}</span></small>`;
+      S.R = [opt("Withdraw cash", () => go(c.ok ? "withdraw" : "nowd")), opt("Deposit cash", () => go("deposit"), st.hand <= 0), opt("Recent", () => go("recent")), opt("Exit", closePanel)];
+      break;
+    case "withdraw": {
+      S.title = `Withdraw cash<small>Up to ${money(c.cap)}, ${capReason()}</small>`;
+      const pick = n => opt(money(n), () => done("withdraw", n), n > c.cap);
+      S.L = [pick(50), pick(100), null, back];
+      S.R = [pick(250), pick(500), null, opt("Other amount", () => { entry = ""; go("wd-other"); })];
+      break;
+    }
+    case "nowd":
+      if (c.why === "carrying") {
+        S.title = `Withdrawals paused`;
+        S.mid = `<p>You're holding ${money(cfg.hand_under)} or more.</p><p class="dim">Withdraw again once you have less on you.</p>`;
+      } else if (c.why === "overdrawn") {
+        S.title = `Account overdrawn`;
+        S.mid = `<p class="dim">Next withdrawal in</p><div class="big" id="a-clock">${mmss(c.wait)}</div><p class="dim">Once every ${cfg.cooldown} minutes while overdrawn</p>`;
+      } else { go("withdraw"); return atmScreen(); }
+      S.R[3] = opt("Back", () => go("home"));
+      break;
+    case "deposit": {
+      S.title = `Deposit cash<small>Choose an amount</small>`;
+      const pick = n => opt(money(n), () => done("deposit", n), n > st.hand);
+      S.L = [pick(50), pick(100), null, back];
+      S.R = [pick(250), opt("All my cash", () => done("deposit", st.hand), st.hand <= 0), null, opt("Other amount", () => { entry = ""; go("dp-other"); })];
+      break;
+    }
+    case "wd-other": case "dp-other": {
+      const wd = screen === "wd-other";
+      S.title = `${wd ? "Withdraw cash" : "Deposit cash"}<small>Enter an amount, then press Enter</small>`;
+      S.mid = `<div class="entry">£${entry}<span class="cur">_</span></div>
+        <p class="${aMsg ? "err" : "dim"}">${aMsg || (wd ? `Most you can take: ${money(c.cap)}` : "Up to the cash you're holding")}</p>
+        ${wd ? `<p class="dim">£50 increments only</p>` : ""}`;
+      S.L[3] = opt("Back", () => go(wd ? "withdraw" : "deposit"));
+      S.R[3] = opt("Enter", enter);
+      break;
+    }
+    case "recent":
+      S.title = `Recent`;
+      S.lines = st.history.length ? st.history.map(h => `<div><span>${h.at} ${h.what}</span><span>${money(h.n)}</span></div>`).join("") : `<div><span>No ATM transactions yet</span></div>`;
+      S.R[3] = back;
+      break;
+    case "done": {
+      const wd = lastDone.kind === "withdraw";
+      S.title = wd ? `Please take your cash` : `Deposit received`;
+      S.mid = `<div class="big">${money(lastDone.n)}</div><p class="dim">Balance <span class="${st.bank < 0 ? "neg" : ""}">${money(st.bank)}</span></p>`;
+      S.R = [null, null, opt("Another service", () => go("home")), opt("Finish", closePanel)];
+      break;
+    }
+  }
+  return S;
+}
+function go(s) { screen = s; aMsg = ""; renderPanel(); }
+function done(kind, n) {
+  const err = kind === "withdraw" ? withdraw(n) : deposit(n);
+  if (err) { aMsg = err; renderPanel(); return; }
+  lastDone = { kind, n }; screen = "done"; renderPanel();
+  const notes = $("a-notes");
+  if (notes && kind === "withdraw") {
+    // One £50 note per £50, up to a stack of ten; each lands a little lower and askew so the stack reads as thick.
+    const count = Math.min(10, Math.max(1, Math.floor(n / 50)));
+    notes.innerHTML = Array.from({ length: count }, (_, i) => {
+      const dx = ((i * 37) % 7) - 3, r = (((i * 53) % 9) - 4) * .35;
+      return `<div class="note" style="--dx:${dx}px;--dy:${i * 2}px;--r:${r}deg;animation-delay:${i * .09}s"></div>`;
+    }).join("");
+    $("a-cash").classList.add("lit");
+  }
+}
+function enter() {
+  const n = parseInt(entry, 10);
+  if (screen === "wd-other") done("withdraw", n); else done("deposit", n);
+}
+let screenNow = null;
+function atmHTML() {
+  const S = screenNow = atmScreen();
+  const cell = (o, side) => o ? `<div class="opt ${side} ${o.off ? "off" : ""}">${o.label}</div>` : `<div></div>`;
+  const free = S.mid ? [2, 3] : S.lines ? [3] : [0, 1, 2, 3];
+  const rows = free.map(i => `<div class="row" style="grid-row:${i + 2}">${cell(S.L[i], "l")}${cell(S.R[i], "r")}</div>`).join("");
+  const mid = S.mid ? `<div class="mid">${S.mid}</div>` : S.lines ? `<div class="lines">${S.lines}</div>` : "";
+  const keysFor = side => S[side].map((o, i) => `<button class="side" type="button" data-side="${side}${i}" aria-label="${o ? o.label : "Unused key"}" ${o && !o.off ? "" : "disabled"}></button>`).join("");
+  const pad = ["1", "2", "3", "cancel", "4", "5", "6", "clear", "7", "8", "9", "enter", "", "0", "", ""]
+    .map(k => k === "" ? `<span></span>` : `<button type="button" data-key="${k}" class="k-${k}">${k}</button>`).join("");
+  return `<div class="atm" role="dialog" aria-label="Cash machine">
+    <div class="brand"><span>Casino World · Cash</span><button class="leave" type="button" id="a-leave">Leave <kbd>Esc</kbd></button></div>
+    <div class="face">
+      <div class="keys">${keysFor("L")}</div>
+      <div class="lcd"><div class="title">${S.title}</div>${mid}${rows}</div>
+      <div class="keys">${keysFor("R")}</div>
+    </div>
+    <div class="lower">
+      <div class="pad">${pad}</div>
+      <div class="slots">
+        <div class="slot card"><div class="mouth"></div><label>Card · receipt</label></div>
+        <div class="slot" id="a-cash"><div class="mouth"></div><div class="notes" id="a-notes"></div><label>Cash</label></div>
+      </div>
+    </div>
+  </div>`;
+}
+function wireAtm() {
+  const s = $("scrim");
+  s.querySelectorAll("[data-side]").forEach(b => b.onclick = () => {
+    const side = b.dataset.side[0], i = +b.dataset.side[1], o = screenNow[side][i];
+    if (o && !o.off) o.fn();
+  });
+  s.querySelectorAll("[data-key]").forEach(b => b.onclick = () => padKey(b.dataset.key));
+  $("a-leave").onclick = closePanel;
+}
+function padKey(k) {
+  const typing = screen === "wd-other" || screen === "dp-other";
+  if (k === "cancel") return screen === "home" ? closePanel() : go("home");
+  if (!typing) return;
+  if (k === "clear") entry = "";
+  else if (k === "enter") return enter();
+  else if (entry.length < 5) entry = (entry + k).replace(/^0+/, "");
+  aMsg = ""; renderPanel();
+}
+
+// ---------------------------------------------------------------- keys
+addEventListener("keydown", e => {
+  if (e.target.matches("input")) { if (e.key === "Escape") { e.target.blur(); closePanel(); } return; }
+  if (panelOpen) {
+    if (e.key === "Escape") return closePanel();
+    if (/^[0-9]$/.test(e.key)) padKey(e.key);
+    else if (e.key === "Backspace") { entry = entry.slice(0, -1); renderPanel(); }
+    else if (e.key === "Enter") padKey("enter");
+    return;
+  }
+  if ((e.key === "e" || e.key === "E") && near()) { e.preventDefault(); return openPanel(); }
+  if (e.key.startsWith("Arrow") || "wasd".includes(e.key)) { if (e.target === document.body || e.target === cv) e.preventDefault(); keys.add(e.key); }
+});
+addEventListener("keyup", e => keys.delete(e.key));
+addEventListener("blur", () => keys.clear());
+
+// ---------------------------------------------------------------- review panel
+function syncReview() {
+  $("w-hand").textContent = money(st.hand);
+  $("s-bank").value = st.bank; $("s-hand").value = st.hand;
+  $("s-since").value = st.since === null ? -1 : Math.min(60, Math.floor(st.since / 60));
+  $("v-bank").textContent = money(st.bank); $("v-bank").classList.toggle("neg", st.bank < 0);
+  $("v-hand").textContent = money(st.hand);
+  $("v-since").textContent = st.since === null ? "never" : st.since < 60 ? `${Math.floor(st.since)} s` : `${Math.floor(st.since / 60)} min`;
+  const c = check(), v = $("verdict");
+  v.className = "verdict " + (c.ok ? "ok" : "no");
+  v.textContent = c.ok ? `Can withdraw up to ${money(c.cap)} (${capReason()}).`
+    : c.why === "carrying" ? `Can't withdraw: holding ${money(cfg.hand_under)} or more.`
+    : `Can't withdraw: overdrawn, next in ${mmss(c.wait)}.`;
+}
+$("s-bank").oninput = e => { st.bank = +e.target.value; syncPanel(); };
+$("s-hand").oninput = e => { st.hand = +e.target.value; syncPanel(); };
+$("s-since").oninput = e => { const m = +e.target.value; st.since = m < 0 ? null : m * 60; syncPanel(); };
+const CASES = {
+  new: () => ({ bank: cfg.start_bank, hand: cfg.start_hand, since: null }),
+  migrated: () => ({ bank: 1000, hand: 2340, since: null }),
+  flush: () => ({ bank: 4200, hand: 120, since: null }),
+  carrying: () => ({ bank: 800, hand: 620, since: null }),
+  overdrawn: () => ({ bank: -650, hand: 0, since: 6 * 60 + 19 }),
+  ready: () => ({ bank: -650, hand: 0, since: 31 * 60 }),
+};
+$("cases").onclick = e => {
+  const b = e.target.closest("[data-case]"); if (!b) return;
+  Object.assign(st, CASES[b.dataset.case]());
+  if (panelOpen) screen = "home";
+  syncPanel();
+};
+$("cfg").addEventListener("input", e => {
+  const n = parseInt(e.target.value, 10);
+  if (Number.isFinite(n) && n >= 0) { cfg[e.target.name] = n; syncPanel(); }
+});
+$("cfg").addEventListener("submit", e => e.preventDefault());
+$("open-atm").onclick = () => { me.x = ATM_SPOT.x; me.y = ATM_SPOT.y; me.face = 8; me.goal = null; openPanel(); };
+
+// The overdrawn clock runs for real; only the countdown text updates so typing isn't disturbed.
+setInterval(() => {
+  if (st.since === null) return;
+  st.since++;
+  syncReview();
+  const c = check();
+  if (!panelOpen) return;
+  const ac = $("a-clock");
+  if (c.ok && ac) return renderPanel();
+  if (ac) ac.textContent = mmss(c.wait);
+}, 1000);
+
+syncReview();
+fit();
+requestAnimationFrame(tick);
+</script>
