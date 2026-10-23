@@ -32,11 +32,12 @@ const S = {
   sel: [],                          // [{t: item|point|zone|door|patch, i}] in the room being edited
   pick: -1,                         // the room picked on the plan
   tool: "select", placing: null, pointKind: "wander", zoneKind: "npc_block",
-  layers: { paths: true, reach: false },
+  layers: { paths: true, reach: false, grid: savedGrid() },
   undo: [], redo: [], history: [], timer: null, edits: 0, saving: false, error: "",
   cam: { x: 0, y: 0, s: 0.5 }, mouse: null, drag: null, clip: null, search: "", tab: "Tables",
 };
 const SNAP = { item: 8, room: 32 };
+function savedGrid() { try { return localStorage.getItem("plan.grid") === "1"; } catch { return false; } }
 let app, canvas, ctx, reach = null;
 
 export async function load() {
@@ -339,7 +340,11 @@ function palette() {
 function refreshTools() {
   const t = $("#pl-tools");
   if (!t) return;
-  const layer = (k, text) => el("label", { className: "pl-check" }, el("input", { type: "checkbox", checked: S.layers[k], onchange: e => { S.layers[k] = e.target.checked; draw(); } }), text);
+  const layer = (k, text) => el("label", { className: "pl-check" }, el("input", { type: "checkbox", checked: S.layers[k], onchange: e => {
+    S.layers[k] = e.target.checked;
+    if (k === "grid") try { localStorage.setItem("plan.grid", e.target.checked ? "1" : "0"); } catch {}
+    draw();
+  } }), text);
   const zoom = (f, text) => el("button", { textContent: text, onclick: () => { const c = center(); zoomAt(c, f); } });
   if (S.mode !== "room") {
     t.replaceChildren(zoom(1.25, "+"), zoom(0.8, "−"), el("button", { textContent: "Fit", onclick: () => { fitPlan(); draw(); } }), layer("reach", "Where NPCs can walk"));
@@ -355,7 +360,7 @@ function refreshTools() {
     S.tool === "point" ? el("select", { onchange: e => { S.pointKind = e.target.value; } }, ...G.CAT.point_kinds.map(k => el("option", { value: k, textContent: k, selected: k === S.pointKind }))) : null,
     S.tool === "zone" ? el("select", { onchange: e => { S.zoneKind = e.target.value; } }, ...G.CAT.zone_kinds.map(k => el("option", { value: k, textContent: k === "npc_block" ? "NPCs keep out" : "Everyone keeps out", selected: k === S.zoneKind }))) : null,
     el("span", { className: "pl-grow" }),
-    layer("paths", "Points & zones"), layer("reach", "Where NPCs can walk"),
+    layer("grid", "Show grid"), layer("paths", "Points & zones"), layer("reach", "Where NPCs can walk"),
     zoom(1.25, "+"), zoom(0.8, "−"), el("button", { textContent: "Fit", onclick: () => { fitRoom(); draw(); } })].filter(Boolean));
 }
 
@@ -574,6 +579,7 @@ function draw() {
     for (const [i, it] of order) drawItem(ctx, r, it, { picked: r === cur && S.sel.some(s => s.t === "item" && s.i === i), bad: bad.has(i) });
     if (r === cur && S.layers.paths) drawPaths(ctx, r, { point: pickedIndex("point"), zone: pickedIndex("zone") });
   }
+  if (cur && S.layers.grid) overlayGrid(cur);
   if (cur) {
     S.sel.filter(s => s.t === "door").forEach(s => { const d = cur.doors[s.i]; if (d) outlineRect(G.gap(cur, d), "#ffd36b"); });
     S.sel.filter(s => s.t === "patch").forEach(s => { const p = cur.patches[s.i]; if (p) outlineRect([cur.x + p.x, cur.y + p.y, p.w, p.h], "#ffd36b"); });
@@ -608,6 +614,23 @@ function grid(r) {
   ctx.strokeStyle = "rgba(255,255,255,.05)"; ctx.lineWidth = 1 / S.cam.s;
   for (let x = r.x; x <= r.x + r.w; x += 32) { ctx.beginPath(); ctx.moveTo(x, r.y - 200); ctx.lineTo(x, r.y + r.h + 200); ctx.stroke(); }
   for (let y = r.y; y <= r.y + r.h; y += 32) { ctx.beginPath(); ctx.moveTo(r.x - 200, y); ctx.lineTo(r.x + r.w + 200, y); ctx.stroke(); }
+  ctx.restore();
+}
+
+// "Show grid": drawn over the floor and everything on it, inside the room. Lines every 32px, and every 8px (the snap
+// step) once they're far enough apart to read; the room's top-left corner is the origin, as positions are.
+function overlayGrid(r) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(...G.outline(r)); ctx.clip();
+  const lines = (step, colour) => {
+    ctx.strokeStyle = colour; ctx.beginPath();
+    for (let x = r.x + step; x < r.x + r.w; x += step) { ctx.moveTo(x, r.y); ctx.lineTo(x, r.y + r.h); }
+    for (let y = r.y + step; y < r.y + r.h; y += step) { ctx.moveTo(r.x, y); ctx.lineTo(r.x + r.w, y); }
+    ctx.stroke();
+  };
+  ctx.lineWidth = 1 / S.cam.s;
+  if (SNAP.item * S.cam.s >= 6) lines(SNAP.item, "rgba(255,255,255,.10)");
+  lines(32, "rgba(255,255,255,.28)");
   ctx.restore();
 }
 

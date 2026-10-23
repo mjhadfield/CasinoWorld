@@ -114,7 +114,7 @@ sections:
     everyone does) and Floor patch (a rug or inlay: a texture, or plain colour; rectangle, rounded or oval; a pattern
     of stripes, diagonals, checks, diamonds, dots or a grid in a second colour; a line, double line or inlay border.
     A texture's tint has None to take it off). "Where NPCs can walk" shades everywhere they can reach from their arrival
-    points. The inspector edits whatever's picked, or the room (name, size, floor and tint, wall style, sign).
+    points, and "Show grid" lays a grid over the room (32px lines, 8px ones too when zoomed in; remembered per browser). The inspector edits whatever's picked, or the room (name, size, floor and tint, wall style, sign).
   - Things in each other's way or off the floor show red at once; the server's problems list (seats or points
     nobody can reach, doors that don't line up) blocks Publish until it's clear.
   - **Assets:** the furniture library the palette offers (`plan_assets.py`): 57 built-in pieces in categories
