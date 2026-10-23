@@ -76,7 +76,6 @@ def remap(occupied: list[bool], to_n: int) -> list[int]:
 
 
 class MasterMachine:
-    game = GAME_KEY       # (while blank; the chosen game's machine answers once there is one)
     label = GAME_LABEL
     DEALER = True
 
@@ -120,6 +119,11 @@ class MasterMachine:
         def refuse(*args, **kwargs):
             raise TableError(message)
         return refuse
+
+    @property
+    def game(self) -> str:
+        """The chosen game's key (what the NPCs play and the ledger books bets as), or GAME_KEY while blank."""
+        return self.inner.game if self.inner is not None else GAME_KEY
 
     @property
     def current(self) -> str:

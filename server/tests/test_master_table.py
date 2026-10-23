@@ -297,9 +297,9 @@ def test_choosing_over_the_websocket(master_client):
 
 
 # ------------------------------------------------------------------ with NPCs
-def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
-    """NPCs playing at a Master Table on a fake clock while a person keeps changing its game between six seats
-    and five: every NPC that thinks it's sitting there is in the seat it thinks, and none is lost."""
+def npc_master(tmp_path):
+    """A floor with just a Master Table and twelve NPCs on a fake clock, me sitting at it playing Three Card Poker.
+    Returns (casino, runner, machine, me, run(seconds))."""
     import random
 
     from casino_server.casino import Casino
@@ -321,26 +321,66 @@ def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
     me = FakeParticipant("me")
     runner.act("sit", 2, me)
     runner.act("choose_game", 2, "three_card_poker")
+
+    def run(seconds: float, each=None):
+        for _ in range(int(seconds * 4)):
+            now[0] += 0.25
+            casino.npcs.tick(now[0])
+            for r in casino.tables.values():
+                r.publish(r.machine.tick(now[0]))
+            mine = m.seat_of(me)
+            if mine is not None:
+                m.seats[mine].sat_out = 0   # (I watch: the table doesn't stand me up for sitting out)
+            if each:
+                each()
+
+    return casino, runner, m, me, run
+
+
+def seated_npcs(casino):
+    return [n for n in casino.npcs.npcs.values() if n.table == "mt_1" and n.state == "seated"]
+
+
+def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
+    """NPCs playing at a Master Table on a fake clock while a person keeps changing its game between six seats
+    and five: every NPC that thinks it's sitting there is in the seat it thinks, and none is lost."""
+    casino, runner, m, me, run = npc_master(tmp_path)
     games = ["let_it_ride", "blackjack", "high_card_flush", "baccarat"]
-    changes, npcs_seen = 0, set()
-    for step in range(8000):
-        now[0] += 0.25
-        casino.npcs.tick(now[0])
-        for r in casino.tables.values():
-            r.publish(r.machine.tick(now[0]))
-        mine = m.seat_of(me)
-        if mine is not None:
-            m.seats[mine].sat_out = 0   # (I watch: the table doesn't stand me up for sitting out)
-        here = [n for n in casino.npcs.npcs.values() if n.table == "mt_1" and n.state == "seated"]
-        for n in here:
-            assert m.seats[n.seat].participant is n.participant, (step, n.name, n.seat)
+    changes, npcs_seen, step = 0, set(), [0]
+
+    def check():
+        nonlocal changes
+        step[0] += 1
+        for n in seated_npcs(casino):
+            assert m.seats[n.seat].participant is n.participant, (step[0], n.name, n.seat)
             npcs_seen.add(n.entity_id)
-        if step % 400 == 399 and m.phase == "betting" and m.vote is None:
+        if step[0] % 400 == 0 and m.phase == "betting" and m.vote is None:
             game = games[changes % len(games)]
-            seat = m.seat_of(me)
             try:
-                runner.act("choose_game", seat, game)
+                runner.act("choose_game", m.seat_of(me), game)
                 changes += 1
             except TableError:
                 pass   # (every seat taken: no five-seat game for now)
+
+    run(2000, check)
     assert changes >= 6 and npcs_seen and m.seat_of(me) is not None
+
+
+def test_npcs_who_stay_for_the_new_game_play_it(tmp_path):
+    """An NPC still sitting once the game has changed bets in the new game (not the old game's bets, refused)."""
+    casino, runner, m, me, run = npc_master(tmp_path)
+    run(300)
+    played = {}
+    for game in ("blackjack", "baccarat", "let_it_ride", "three_card_poker"):
+        while not (m.phase == "betting" and m.vote is None):
+            run(0.25)
+        stayers = {n.entity_id for n in seated_npcs(casino)}
+        runner.act("choose_game", m.seat_of(me), game)
+        stayers &= {n.entity_id for n in seated_npcs(casino)}
+        rounds = {n.entity_id: n.games.get(game, 0) for n in seated_npcs(casino)}
+        run(60)
+        for n in seated_npcs(casino):
+            if n.entity_id in stayers:
+                played[game] = played.get(game, 0) + 1
+                assert n.games.get(game, 0) > rounds[n.entity_id], (game, n.name)
+    assert len(played) >= 2   # (half of them leave at a change: this seed keeps someone for most games)

@@ -401,7 +401,8 @@ class NpcDirector:
 
     def reseated(self, table_id: str, mapping: list):
         """A Master Table's seats were renumbered (`mapping`: for each new seat, the old seat it took over, or -1):
-        NPCs sitting there, or on their way to a seat there, follow. One walking to a seat that's gone looks again."""
+        NPCs sitting there, or on their way to a seat there, follow. One walking to a seat that's gone looks again.
+        Those who stay start the new game afresh: the change handed their bets back, so no round was played."""
         machine = self.casino.tables[table_id].machine
         now = self.clock()
         for npc in list(self.npcs.values()):
@@ -1040,10 +1041,10 @@ class NpcDirector:
         """(bets, what they could cost in all) at one unit."""
         r = self.rng
 
-        def side(base: float) -> int:   # their share of the main bet, a few pounds at least, never more than it
+        def side(base: float) -> int:
             if not with_sides or not self._side(npc, base):
                 return 0
-            return min(u, roster.nice_unit(max(u * npc.prof.side_share * r.uniform(0.8, 1.25), r.choice([100, 200, 500]))))
+            return r.choice([500, 1_000, 2_500]) if npc.prof.aggressive else r.choice([100, 500])
 
         def flat(bet: int, base: float) -> int:
             return bet if with_sides and self._side(npc, base) else 0
@@ -1071,7 +1072,7 @@ class NpcDirector:
         if game == bj.GAME_KEY:
             plus3 = side(0.25)
             bets = {"bet": u, "super_pairs": side(0.25), "twenty_one_plus_three": plus3,
-                    "top_three": side(0.3) if plus3 else 0, "jackpot": flat(bj.JACKPOT_BET, 0.25)}
+                    "top_three": 100 if plus3 and self._side(npc, 0.3) else 0, "jackpot": flat(bj.JACKPOT_BET, 0.25)}
             return bets, sum(bets.values()) + u   # room to double
         bets = {"ante": u, "pair_plus": side(0.5), "prime": side(0.2), "jackpot": flat(tcp.JACKPOT_BET, 0.3)}
         return bets, sum(bets.values()) + u       # the Play bet

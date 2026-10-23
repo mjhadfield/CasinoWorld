@@ -284,7 +284,7 @@ def test_npcs_wander_to_one_point_and_walk_as_far_as_the_doors_take_them(tmp_pat
     assert 20 < npc.until - now[0] < 45
     npc.at = floor.position("point:classic_pit/pit_n")
     casino.npcs._walk(npc, "point:classic_pit/pit_s", now[0])
-    assert 6 < npc.until - now[0] < 16   # ~8s at an easy pace, +-15%
+    assert 8 < npc.until - now[0] < 16
 
 
 def test_a_tables_style_outlives_its_room_leaving_the_floor(client):

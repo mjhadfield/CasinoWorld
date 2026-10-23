@@ -64,10 +64,11 @@ game result and every penny is decided on the server; the client only renders an
 - **Timings** are a dataclass per game. `CASINO_SPEED` scales them, and tests use instant ones.
 - **The Master Table (`tables/master.py`)** is a machine that holds another: whichever card game it's been asked
   for, built by the Casino's `_make_machine` and passed everything it doesn't handle itself, so the runner, the NPCs
-  and the message handling see an ordinary table of that game. It swaps the inner machine between hands (seats
-  renumbered when the count changes 6↔5: the runner sends everyone a fresh `table_state`, and `Casino.on_reseated`
-  moves sessions, the world's seats and NPCs to their new seats; `floor.SEATS` follows the seat count). The client
-  swaps in that game's own table scene (`casino_floor.gd`, `MasterSwap`).
+  and the message handling see an ordinary table of that game (its `game` too: `master_table` only while blank).
+  It swaps the inner machine between hands (seats renumbered when the count changes 6↔5: the runner sends everyone
+  a fresh `table_state`, and `Casino.on_reseated` moves sessions, the world's seats and NPCs to their new seats;
+  `floor.SEATS` follows the seat count). The client swaps in that game's own table scene (`casino_floor.gd`,
+  `MasterSwap`).
 
 ### NPCs, dealers and the roster
 
@@ -76,8 +77,8 @@ game result and every penny is decided on the server; the client only renders an
 - **The NPC director (`npc.py`)** brings punters in to fill the floor population. Each visit has a budget
   they're willing to lose, and they leave bust, done for the day, or ahead depending on their traits, then sit
   out a cooldown. They pick games by preference, play each game's published strategy (with style-dependent
-  mistakes and side bets, each side bet a share of their main bet that they keep for the visit), and never
-  take a table's last two free seats. The craps table is kept to at least two NPCs.
+  mistakes and side bets), and never take a table's last two free seats. The craps table is kept to at least
+  two NPCs.
 - **Dealers (`dealers.py`)** come from the same roster and work staggered shifts, relieved only between
   hands. Their lines are in `dealer_lines.toml` (`dealer.py`), reread on every line.
 - **Looks** are built server-side from LPC layers (`art.py`, shared with `tools/build_art.py`) and fetched by
