@@ -1,8 +1,8 @@
 extends CanvasLayer
-## Screen-space overlay. Walking: balance, jackpot, the "take a seat" prompt.
-## Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: your balance,
-## the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions when you
-## have one, the line saying what's happening), the table's name and jackpot, Paytable and Stand up.
+## Screen-space overlay. Top left, walking or seated: your name and balance (WalletPill); top right: Settings.
+## Walking: the "take a seat" prompt. Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
+## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
+## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 
 signal interact_pressed
@@ -28,7 +28,8 @@ var bar: BettingBar        # the seated controls
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
 var settings_menu: SettingsMenu
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
-var settings_button: Button
+var settings_button: BettingBar.BarButton
+var wallet: WalletPill
 var _toast_tween: Tween
 var _banner_tween: Tween
 
@@ -48,20 +49,23 @@ func _ready() -> void:
 	add_child(master)
 	settings_menu = SettingsMenu.new()
 	add_child(settings_menu)
-	settings_button = Button.new()
-	settings_button.text = "Settings"
-	settings_button.focus_mode = Control.FOCUS_NONE
-	settings_button.add_theme_font_size_override("font_size", 16)
-	settings_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	settings_button.offset_left = -112
-	settings_button.offset_right = -12
-	settings_button.offset_top = 12
-	settings_button.offset_bottom = 52
+	wallet = WalletPill.new()
+	add_child(wallet)
+	move_child(wallet, bar.get_index() + 1)
+	settings_button = BettingBar.BarButton.new()
+	settings_button.setup("Settings", "", "ghost", "settings")
+	settings_button.toggle_mode = true
 	settings_button.pressed.connect(settings_menu.toggle)
+	settings_menu.visibility_changed.connect(func():
+		settings_button.set_pressed_no_signal(settings_menu.visible)
+		settings_button.queue_redraw())
 	add_child(settings_button)
+	settings_button.resized.connect(_place_settings_button)
+	get_viewport().size_changed.connect(_place_settings_button)
+	_place_settings_button()
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
-	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand, %TopUpButton]:
+	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand]:
 		n.hide()
 	%InteractButton.pressed.connect(interact_pressed.emit)
 	bar.chip_picked.connect(chip_selected.emit)
@@ -76,7 +80,7 @@ func _ready() -> void:
 	bar.stand_pressed.connect(stand_pressed.emit)
 	bar.paytable_toggled.connect(func(on): %Paytable.visible = on)
 	%CancelChooseButton.pressed.connect(cancel_choose_pressed.emit)
-	%TopUpButton.pressed.connect(func(): Net.send("top_up"))
+	wallet.top_up.pressed.connect(func(): Net.send("top_up"))
 	%ConfirmYes.pressed.connect(func():
 		%ConfirmStand.hide()
 		if _on_yes.is_valid():
@@ -87,15 +91,18 @@ func _ready() -> void:
 	%NameOk.pressed.connect(_submit_name)
 	%NameEdit.text_submitted.connect(func(_t): _submit_name())
 	Session.balance_changed.connect(func(_p): _refresh_balance())
-	Session.joined.connect(func(p): %PlayerName.text = p.get("name", ""))
+	Session.joined.connect(func(p): wallet.set_player_name(p.get("name", "")))
 	Net.connected.connect(func(): _set_status(true))
 	Net.disconnected.connect(func(): _set_status(false))
 	_set_status(Net.is_open())
 
 
-func _process(_delta: float) -> void:
-	var amount := Session.jackpot_now()
-	%Jackpot.text = ("Jackpot " + Money.format(int(amount))) if amount > 0 else ""
+## Top right, with the betting bar's Paytable and Stand up to its left.
+func _place_settings_button() -> void:
+	var w := settings_button.get_combined_minimum_size().x
+	settings_button.size = Vector2(w, 40)
+	settings_button.position = Vector2(get_viewport().get_visible_rect().size.x - 12.0 - w, 12)
+	bar.right_inset = w + 20.0
 
 
 func _click_if_button(node: Node) -> void:
@@ -124,7 +131,7 @@ func set_mode(new_mode: String) -> void:
 	mode = new_mode
 	%ChooseBar.visible = mode == "choosing"
 	bar.visible = mode == "seated"
-	$TopBar.visible = mode != "slot" and mode != "seated"   # the bar has your balance; the slot screen its credit meter...
+	wallet.visible = mode != "slot"   # the slot screen has its credit meter...
 	settings_button.visible = mode != "slot"   # ...and its own Settings button
 	if mode != "seated":
 		sorter.close()
@@ -261,9 +268,9 @@ func set_sit_out(on: bool) -> void:
 	bar.set_sit_out(on)
 
 
-## A round's result beside the balance in the bar.
+## A round's result beside the balance, top left.
 func flash_result(net: int) -> void:
-	bar.flash_result(net)
+	wallet.flash_result(net)
 
 
 func show_my_hand(cards: Array, hand: String) -> void:
@@ -287,12 +294,9 @@ func set_pending(pence: int) -> void:
 
 
 func _refresh_balance() -> void:
-	%Balance.text = Money.format(Session.shown_balance - pending)
-	bar.set_balance(Session.shown_balance - pending)
-	%TopUpButton.visible = mode == "walking" and Session.balance < 200 and Session.balance > -1 and Session.player.size() > 0
+	wallet.set_balance(Session.shown_balance - pending)
+	wallet.top_up.visible = mode == "walking" and Session.balance < 200 and Session.balance > -1 and Session.player.size() > 0
 
 
 func _set_status(online: bool) -> void:
-	%Status.text = "Online" if online else "Connecting..."
-	%Status.modulate = Color("7fd17f") if online else Color("e0a040")
-	bar.set_online(online)
+	wallet.set_online(online)

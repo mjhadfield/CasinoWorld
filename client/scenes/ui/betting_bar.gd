@@ -1,11 +1,13 @@
 class_name BettingBar
 extends Control
 ## The seated controls, signed off on the Betting Bar mockup (docs/betting_ui/mockup/): one bar at the foot of the
-## screen over a short, firm fade. Your balance sits on the left, large and centred on the bar. The chips are dead
+## screen over a short, firm fade. The table's name, how many are seated and what you have on the felt sit on the
+## left, centred on the bar (your balance is the HUD's, top left). The chips are dead
 ## centre, in the table's own style, with the line above them saying what's happening (its countdown draining in
 ## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
 ## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
-## place while it's open. The table's name and the jackpot sit top left, Paytable and Stand up top right.
+## place while it's open. The table's jackpot, if it has one, sits top left under your balance; Paytable and Stand
+## up top right, left of the HUD's Settings.
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
 signal chip_picked(value: int)
@@ -29,23 +31,27 @@ const WIN := Color("5fd3a0")
 const LOSS := Color("ef7a6b")
 const WARN := Color("f2c14e")
 const PAD_TOP := 30.0      # the fade's ramp, above the line
-const ROW_GAP := 22.0      # the line to the chips (a picked chip lifts clear of the timer)
-const PAD_BOTTOM := 16.0
-const CHIP := 62.0
+const ROW_GAP := 18.0      # the line to the chips (a picked chip lifts clear of the timer)
+const PAD_BOTTOM := 14.0
+const CHIP := 50.0
+const CHIP_PHONE := 36.0
+const BUTTON_H := 50.0     # Ready and the decisions: as tall as the chips
 const SIDE_GAP := 16.0     # the chips to Ready on one side, to Undo on the other
-const SETTINGS_W := 124.0  # the HUD's Settings button, top right: the corner buttons sit left of it
+const TOP_LEFT_Y := 64.0   # under the HUD's wallet pill, top left
 
 ## The top of the bar's fade, in screen pixels (the Master Table's pills and the Pai Gow sorter sit above it).
 var bar_top := 0.0
 var selected_chip := 100
+## The HUD's Settings button and its gap, top right: the corner buttons sit left of it.
+var right_inset := 124.0
 
 var _fade: TextureRect
 var _info: RichTextLabel
 var _timer: ColorRect
 var _timer_fill: ColorRect
-var _wallet: VBoxContainer
-var _balance: Label
-var _delta: Label
+var _where: VBoxContainer   # bottom left: the table, its seats, what's on the felt
+var _title: Label
+var _seats: Label
 var _felt: HBoxContainer
 var _felt_amount: Label
 var _commit: HBoxContainer
@@ -57,18 +63,12 @@ var _undo: BarButton
 var _clear: BarButton
 var _auto: BarSwitch
 var _sit_out: BarSwitch
-var _status: PanelContainer
-var _status_dot: Control
-var _status_name: Label
-var _status_sub: Label
 var _jackpot: PanelContainer
 var _jackpot_in: Label
 var _jackpot_amount: Label
 var _corner: HBoxContainer
 var _pay: BarButton
 var _shown := ""          # the action list the dynamic buttons were built from
-var _delta_tween: Tween
-var _online := true
 
 
 func _ready() -> void:
@@ -100,7 +100,7 @@ func _ready() -> void:
 	_timer_fill.size = Vector2(260, 3)
 	_timer.add_child(_timer_fill)
 	add_child(_timer)
-	_build_wallet()
+	_build_where()
 	_commit = HBoxContainer.new()
 	_commit.add_theme_constant_override("separation", 8)
 	_commit.alignment = BoxContainer.ALIGNMENT_END
@@ -110,7 +110,7 @@ func _ready() -> void:
 	_ready_btn.pressed.connect(func(): (rebet_pressed if _ready_btn.words == "Repeat Bet" else ready_pressed).emit())
 	_commit.add_child(_ready_btn)
 	_chips = HBoxContainer.new()
-	_chips.add_theme_constant_override("separation", 11)
+	_chips.add_theme_constant_override("separation", 9)
 	add_child(_chips)
 	_decide = HBoxContainer.new()
 	_decide.add_theme_constant_override("separation", 10)
@@ -143,51 +143,27 @@ func _ready() -> void:
 	resized.connect(_layout)
 
 
-func _build_wallet() -> void:
-	_wallet = VBoxContainer.new()
-	_wallet.add_theme_constant_override("separation", 2)
-	_wallet.mouse_filter = MOUSE_FILTER_IGNORE
-	add_child(_wallet)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	_wallet.add_child(row)
-	_balance = _label("£0", 36, INK)
-	row.add_child(_balance)
-	_delta = _label("", 21, WIN)
-	_delta.size_flags_vertical = Control.SIZE_SHRINK_END
-	_delta.modulate.a = 0.0
-	row.add_child(_delta)
+func _build_where() -> void:
+	_where = VBoxContainer.new()
+	_where.add_theme_constant_override("separation", 0)
+	_where.mouse_filter = MOUSE_FILTER_IGNORE
+	add_child(_where)
+	_title = _label("", 26, INK)
+	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_where.add_child(_title)
+	_seats = _label("", 17, MUTED)
+	_where.add_child(_seats)
 	_felt = HBoxContainer.new()
 	_felt.add_theme_constant_override("separation", 5)
-	_wallet.add_child(_felt)
+	_where.add_child(_felt)
 	_felt_amount = _label("£0", 17, BRASS_HI)
 	_felt.add_child(_felt_amount)
 	_felt.add_child(_label("on the felt", 17, MUTED))
 
 
 func _build_corners() -> void:
-	_status = PanelContainer.new()
-	_status.add_theme_stylebox_override("panel", _box(Color(0.04, 0.047, 0.05, 0.78), Color(0.79, 0.64, 0.29, 0.3), 20, Vector4(12, 7, 16, 7)))
-	_status.position = Vector2(14, 14)
-	add_child(_status)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	_status.add_child(row)
-	_status_dot = Control.new()
-	_status_dot.custom_minimum_size = Vector2(10, 10)
-	_status_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_status_dot.draw.connect(func():
-		var c := WIN if _online else WARN
-		_status_dot.draw_circle(Vector2(5, 5), 6.5, Color(c, 0.25))
-		_status_dot.draw_circle(Vector2(5, 5), 4.5, c))
-	row.add_child(_status_dot)
-	_status_name = _label("", 17, INK)
-	row.add_child(_status_name)
-	_status_sub = _label("", 16, MUTED)
-	row.add_child(_status_sub)
-
 	_jackpot = PanelContainer.new()
-	_jackpot.position = Vector2(14, 66)
+	_jackpot.position = Vector2(12, TOP_LEFT_Y)
 	add_child(_jackpot)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
@@ -299,30 +275,9 @@ func set_sit_out(on: bool) -> void:
 	_sit_out.queue_redraw()
 
 
-func set_balance(pence: int) -> void:
-	_balance.text = Money.format(pence)
-
-
-func set_online(on: bool) -> void:
-	_online = on
-	_status_dot.queue_redraw()
-
-
 func close_paytable() -> void:
 	_pay.set_pressed_no_signal(false)
 	_pay.queue_redraw()
-
-
-## A round's result beside the balance: green for a win, red for a loss, fading after a few seconds.
-func flash_result(net: int) -> void:
-	_delta.text = ("+" if net > 0 else "−") + Money.format(absi(net), true)
-	_delta.add_theme_color_override("font_color", WIN if net > 0 else LOSS)
-	if _delta_tween:
-		_delta_tween.kill()
-	_delta.modulate.a = 1.0
-	_delta_tween = create_tween()
-	_delta_tween.tween_interval(3.2)
-	_delta_tween.tween_property(_delta, "modulate:a", 0.0, 0.6)
 
 
 ## What the bar offers right now (the floor's _seated_view): can_bet, can_ready, can_undo, has_bets, can_rebet,
@@ -364,7 +319,10 @@ func update_view(s: Dictionary) -> void:
 		_ready_btn.setup("Ready", "Space", "primary" if has_bets else "quiet")
 		_ready_btn.tooltip_text = ""
 		_ready_btn.disabled = not has_bets
-	# the wallet
+	# the left: the table, its seats, what's on the felt
+	_title.text = str(s.get("title", ""))
+	_seats.text = str(s.get("seats", ""))
+	_seats.visible = _seats.text != ""
 	var felt := int(s.get("on_felt", 0))
 	_felt_amount.text = Money.format(felt, true)
 	_felt.modulate.a = 1.0 if felt > 0 else 0.0
@@ -375,10 +333,7 @@ func update_view(s: Dictionary) -> void:
 	if t >= 0.0:
 		_timer_fill.size.x = _timer.size.x * clampf(t, 0.0, 1.0)
 		_timer_fill.color = WARN if s.get("timer_low", false) else BRASS_HI
-	# the corners
-	_status_name.text = str(s.get("title", ""))
-	_status_sub.text = str(s.get("seats", ""))
-	_status_sub.visible = _status_sub.text != ""
+	# top left: the jackpot
 	var jp := float(s.get("jackpot", -1.0))
 	_jackpot.visible = jp > 0.0
 	if jp > 0.0:
@@ -470,15 +425,16 @@ func _layout() -> void:
 		if b is BarButton:
 			b.hide_key = narrow
 	for c in _chips.get_children():
-		c.custom_minimum_size = Vector2.ONE * (44.0 if phone else CHIP)
+		c.custom_minimum_size = Vector2.ONE * (CHIP_PHONE if phone else CHIP)
 	var info_h := maxf(22.0, _info.get_content_height())
 	var block_h := info_h + 10.0   # the line, then its timer
-	var row_h := (44.0 if phone else CHIP)
+	var row_h := (CHIP_PHONE if phone else CHIP)
 	var centre: Control = _decide if _decide.visible else _chips
 	var cs := centre.get_combined_minimum_size()
 	var commit := _commit.get_combined_minimum_size()
 	var tools := _tools.get_combined_minimum_size()
-	var wallet := _wallet.get_combined_minimum_size()
+	var wallet := _where.get_combined_minimum_size()
+	wallet.x = maxf(wallet.x, _natural_width(_title))
 	var base_h: float
 	if phone:
 		base_h = PAD_TOP + block_h + 14.0 + row_h + 12.0 + tools.y + 14.0 + maxf(commit.y, wallet.y) + PAD_BOTTOM
@@ -502,17 +458,23 @@ func _layout() -> void:
 		var tools_y := row_y + row_h + 12.0
 		_place(_tools, Vector2((vs.x - tools.x) / 2.0, tools_y), tools)
 		var foot := tools_y + tools.y + 14.0
-		_place(_wallet, Vector2(16, foot + (maxf(commit.y, wallet.y) - wallet.y) / 2.0), wallet)
+		wallet.x = minf(wallet.x, vs.x - 16.0 - commit.x - 12.0 - 16.0)
+		_place(_where, Vector2(16, foot + (maxf(commit.y, wallet.y) - wallet.y) / 2.0), wallet)
 		_place(_commit, Vector2(vs.x - 16.0 - commit.x, foot), commit)
 	else:
 		_place(_commit, Vector2(left - SIDE_GAP - commit.x, mid - commit.y / 2.0), commit)
 		_place(_tools, Vector2(left + chips_w + SIDE_GAP, mid - tools.y / 2.0), tools)
-		_place(_wallet, Vector2(22, top + PAD_TOP + (base_h - PAD_TOP - PAD_BOTTOM - wallet.y) / 2.0), wallet)
+		var commit_left := left - SIDE_GAP - commit.x if commit.x > 0 else left
+		wallet.x = minf(wallet.x, commit_left - 22.0 - 16.0)   # a long table name trims rather than run under Ready
+		_place(_where, Vector2(22, top + PAD_TOP + (base_h - PAD_TOP - PAD_BOTTOM - wallet.y) / 2.0), wallet)
 	var corner := _corner.get_combined_minimum_size()
-	_place(_corner, Vector2(vs.x - SETTINGS_W - corner.x, 12), corner)
-	_status.size = Vector2.ZERO
+	_place(_corner, Vector2(vs.x - right_inset - corner.x, 12), corner)
 	_jackpot.size = Vector2.ZERO
-	_jackpot.position.y = _status.position.y + _status.get_combined_minimum_size().y + 12.0
+
+
+## A label's width with nothing trimmed (its minimum shrinks to the ellipsis once it may trim).
+static func _natural_width(l: Label) -> float:
+	return FONT.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, l.get_theme_font_size("font_size")).x
 
 
 func _place(c: Control, at: Vector2, sz: Vector2) -> void:
@@ -559,7 +521,7 @@ class BarChip extends Button:
 	func _init() -> void:
 		flat = true
 		focus_mode = FOCUS_NONE
-		custom_minimum_size = Vector2(62, 62)
+		custom_minimum_size = Vector2(CHIP, CHIP)
 		mouse_entered.connect(queue_redraw)
 		mouse_exited.connect(queue_redraw)
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -568,14 +530,14 @@ class BarChip extends Button:
 		var r := minf(size.x, size.y) / 2.0
 		var lift := 0.0
 		if not disabled:
-			lift = -7.0 if selected else (-3.0 if is_hovered() else 0.0)
+			lift = -6.0 if selected else (-2.5 if is_hovered() else 0.0)
 		var centre := size / 2.0 + Vector2(0, lift)
 		var dim := 0.35 if disabled or short else 1.0
 		if modulate.a != dim:
 			modulate.a = dim
 		if selected and not disabled:
-			draw_circle(centre, r + 9.0, Color(BRASS_HI, 0.12))
-			draw_arc(centre, r + 5.0, 0, TAU, 48, BRASS_HI, 2.5, true)
+			draw_circle(centre, r + 7.0, Color(BRASS_HI, 0.12))
+			draw_arc(centre, r + 4.0, 0, TAU, 48, BRASS_HI, 2.0, true)
 		ChipFace.draw(self, centre, r, value, str(value / 100), design)
 
 
@@ -643,7 +605,7 @@ class BarButton extends Button:
 		return 0.0 if key == "" or hide_key else FONT.get_string_size(key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 10.0
 
 	func _size() -> void:
-		var h: float = {"tool": 40.0, "ghost": 40.0}.get(kind, 56.0)
+		var h: float = {"tool": 40.0, "ghost": 40.0}.get(kind, BUTTON_H)
 		var pad: float = {"tool": 14.0, "ghost": 15.0}.get(kind, 24.0)
 		var w := 0.0
 		if glyph != "":
@@ -706,6 +668,12 @@ class BarButton extends Button:
 				draw_style_box(BettingBar._box(Color(0, 0, 0, 0), col, 2, Vector4.ZERO), Rect2(c - Vector2(6, 7), Vector2(12, 14)))
 				for y in [-3.0, 0.5, 4.0]:
 					draw_line(c + Vector2(-3, y), c + Vector2(3 if y < 3 else 1, y), col, 1.4, true)
+			"settings":
+				draw_arc(c, 5.0, 0, TAU, 24, col, 1.8, true)
+				draw_circle(c, 1.8, col)
+				for i in 8:
+					var d := Vector2.from_angle(i * TAU / 8.0)
+					draw_line(c + d * 5.5, c + d * 8.0, col, 2.4, true)
 			"stand":
 				draw_polyline(PackedVector2Array([c + Vector2(-2, -7), c + Vector2(-6.5, -7), c + Vector2(-6.5, 7), c + Vector2(-2, 7)]), col, 1.6, true)
 				draw_line(c + Vector2(-2, 0), c + Vector2(7, 0), col, 1.6, true)
