@@ -108,6 +108,8 @@ var _puck := {1: Vector2(49, -106), -1: Vector2(-49, -106)}
 var _bet_size := {}              # seat -> the biggest bet (not odds) they've had down since sitting
 var _marks: Node2D               # over the chips: the OFF buttons and the come-and-odds tags
 var _off_drawn := []             # the OFF buttons shown: [[at, radius], ...]
+var _seen_seat := -1             # the seat the local player last sat in (a new sit mid-point waits)
+var _waiting := false            # sat down with a point on: out until the next come-out
 var _tags_drawn := []            # the tags shown: [[at, text, seat], ...]
 var _rail_drawn := {}            # what the chip rail shows: seat -> bet size
 var _rail: Node2D                # the chips in the rail (redrawn only when they change)
@@ -217,7 +219,17 @@ func has_main_bet(b: Dictionary) -> bool:
 
 
 func accepting_bets() -> bool:
-	return phase == "betting"
+	return phase == "betting" and not waiting_to_join()
+
+
+## Sat down with a point on: you watch until the next come-out roll, then join.
+func waiting_to_join() -> bool:
+	if my_seat != _seen_seat:
+		_seen_seat = my_seat
+		_waiting = my_seat >= 0 and point > 0 and _chips_for(my_seat).is_empty()
+	if point < 0 or (shooter == my_seat and my_seat >= 0):
+		_waiting = false
+	return _waiting and my_seat >= 0
 
 
 func can_ready() -> bool:
@@ -354,15 +366,6 @@ func deciding() -> bool:
 
 func stand_warning() -> String:
 	return "Your Pass Line and come bets stay on the table until they're decided -- walk away now and they're lost. Walk away anyway?"
-
-
-func on_seated_prompt() -> Dictionary:
-	if shooter < 0 or shooter == my_seat or not occupants.has(shooter):
-		return {}   # (a quiet table: the dice are yours anyway)
-	var name: String = occupants[shooter].name
-	var text := "%s is shooting. Do you want the dice? You'd get them %s." % [
-		name, "now" if point < 0 and not occupants[shooter].human else "once this point is decided"]
-	return {"text": text, "yes": "Take the dice", "no": "Just play", "message": ["take_dice", {"on": true}]}
 
 
 # ------------------------------------------------------------------ geometry
@@ -836,6 +839,9 @@ func _build_collision() -> void:
 func seated_view(ctx: Dictionary) -> Dictionary:
 	var info_text := ""
 	var my_roll := phase == "betting" and shooter == my_seat and my_seat >= 0
+	if waiting_to_join():
+		return {"info": "Game in progress, wait for the next come out roll to join", "actions": [],
+			"hide": ["ready", "rebet", "auto_rebet"], "quiet_betting": true}
 	if not hover.is_empty():
 		var spot := spot_for(hover.id)
 		var i := info(spot)
