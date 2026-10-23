@@ -30,6 +30,7 @@ const PAPER := Color("f6efdc")
 const WIN := Color("5fd3a0")
 const LOSS := Color("ef7a6b")
 const WARN := Color("f2c14e")
+const CORNER_BG := Color(0.04, 0.047, 0.05, 0.94)   # the corners' pills: near solid, so a wall's edge doesn't show through
 const PAD_TOP := 30.0      # the fade's ramp, above the line
 const ROW_GAP := 18.0      # the line to the chips (a picked chip lifts clear of the timer)
 const PAD_BOTTOM := 14.0
@@ -219,6 +220,14 @@ static func _box(bg: Color, border: Color, radius: int, margins := Vector4(12, 8
 	s.content_margin_right = margins.z
 	s.content_margin_bottom = margins.w
 	s.anti_aliasing = true
+	return s
+
+
+## A corner pill lifted off whatever's under it (carpet, a wall, a wall's edge) by a soft shadow.
+static func _lifted(s: StyleBoxFlat) -> StyleBoxFlat:
+	s.shadow_color = Color(0, 0, 0, 0.45)
+	s.shadow_size = 8
+	s.shadow_offset = Vector2(0, 2)
 	return s
 
 
@@ -581,16 +590,19 @@ class BarButton extends Button:
 		_font.spacing_glyph = int(WIDE) if big else 0
 		var radius := 10 if big else 999
 		var bg: Color = {"primary": BRASS, "normal": Color("232a2d"), "quiet": Color(0.137, 0.165, 0.176, 0.85), "fold": Color("232a2d"),
-			"done": Color(0.055, 0.047, 0.031, 0.6), "tool": Color(0.137, 0.165, 0.176, 0.85), "ghost": Color(0.04, 0.047, 0.05, 0.78)}[kind]
+			"done": Color(0.055, 0.047, 0.031, 0.6), "tool": Color(0.137, 0.165, 0.176, 0.85), "ghost": CORNER_BG}[kind]
 		var edge: Color = {"primary": BRASS, "normal": Color("39413f"), "quiet": Color("39413f"), "fold": Color(LOSS, 0.55),
 			"done": Color(BRASS, 0.45), "tool": Color("39413f"), "ghost": Color(1, 1, 1, 0.1)}[kind]
 		var hover_edge := Color(BRASS, 0.7) if kind != "primary" else BRASS
 		var hover_bg: Color = Color("d6b05a") if kind == "primary" else bg
-		add_theme_stylebox_override("normal", BettingBar._box(bg, edge, radius, Vector4.ZERO))
-		add_theme_stylebox_override("hover", BettingBar._box(hover_bg, hover_edge, radius, Vector4.ZERO))
-		add_theme_stylebox_override("pressed", BettingBar._box(hover_bg, hover_edge if kind != "ghost" else BRASS, radius, Vector4.ZERO))
-		add_theme_stylebox_override("hover_pressed", BettingBar._box(hover_bg, BRASS, radius, Vector4.ZERO))
-		add_theme_stylebox_override("disabled", BettingBar._box(bg, edge, radius, Vector4.ZERO))
+		var box := func(b: Color, e: Color) -> StyleBoxFlat:
+			var st := BettingBar._box(b, e, radius, Vector4.ZERO)
+			return BettingBar._lifted(st) if kind == "ghost" else st
+		add_theme_stylebox_override("normal", box.call(bg, edge))
+		add_theme_stylebox_override("hover", box.call(hover_bg, hover_edge))
+		add_theme_stylebox_override("pressed", box.call(hover_bg, hover_edge if kind != "ghost" else BRASS))
+		add_theme_stylebox_override("hover_pressed", box.call(hover_bg, BRASS))
+		add_theme_stylebox_override("disabled", box.call(bg, edge))
 		add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		_size()
 		queue_redraw()
