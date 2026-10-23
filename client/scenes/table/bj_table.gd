@@ -566,10 +566,10 @@ func _bust(ev: Dictionary, d: float) -> float:
 func _settle(ev: Dictionary, d: float) -> float:
 	phase = "settling"
 	var seat := int(ev.seat)
-	var pause := float(ev.get("pause", 0.8)) * d
+	var pause := float(ev.get("pause", 0.64)) * d
 	var hands := _hands_for(seat)
 	var n := hands.size()
-	var t := 0.3 * d
+	var t := 0.24 * d
 	if str(ev.get("say", "")) != "":
 		_after(t).timeout.connect(dealer.say.bind(ev.say, 2.0 + pause * 2))
 	t += pause
@@ -578,7 +578,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 		if idx >= n:
 			continue
 		_after(t).timeout.connect(_settle_hand.bind(seat, idx, n, entry, d))
-		t += 0.45 * d
+		t += 0.36 * d
 	_after(t).timeout.connect(func():  # the cards go last
 		var k := 0
 		for hand in hands:
@@ -587,7 +587,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 				k += 1
 			hand.cards = []
 			hand.gone = true)
-	t += 0.4 * d
+	t += 0.32 * d
 	return t + pause
 
 
