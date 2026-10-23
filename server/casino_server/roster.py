@@ -47,11 +47,15 @@ MODIFIERS = {
     "vip": {"label": "VIP", "about": "A friend of the casino, known to the staff. (Perks to come.)"},
 }
 
-# Archetype -> session rounds, mistake rate, unit as a share of the budget, side-bet appetite, budget (pence).
+# Archetype -> session rounds, mistake rate, unit as a share of the budget, side-bet appetite, side-bet size
+# as a share of the main bet, budget (pence).
 _SESSIONS = {
-    "grinder": {"rounds": (40, 120), "mistakes": 0.0, "unit": (0.01, 0.02), "side": 0.4, "budget": (30_000, 150_000)},
-    "casual": {"rounds": (10, 30), "mistakes": 0.15, "unit": (0.02, 0.04), "side": 1.0, "budget": (10_000, 60_000)},
-    "gambler": {"rounds": (3, 10), "mistakes": 0.05, "unit": (0.08, 0.15), "side": 1.6, "budget": (20_000, 200_000)},
+    "grinder": {"rounds": (40, 120), "mistakes": 0.0, "unit": (0.01, 0.02), "side": 0.4, "side_size": (0.05, 0.1),
+                "budget": (30_000, 150_000)},
+    "casual": {"rounds": (10, 30), "mistakes": 0.15, "unit": (0.02, 0.04), "side": 1.0, "side_size": (0.05, 0.2),
+               "budget": (10_000, 60_000)},
+    "gambler": {"rounds": (3, 10), "mistakes": 0.05, "unit": (0.08, 0.15), "side": 1.6, "side_size": (0.1, 0.3),
+                "budget": (20_000, 200_000)},
 }
 WHALE_BUDGET = (10, 30)       # x the archetype's budget
 NICE_UNITS = (100, 200, 500, 1_000, 1_500, 2_000, 2_500, 5_000, 7_500, 10_000, 15_000, 20_000, 25_000, 50_000)
@@ -74,6 +78,7 @@ class Profile:
     mistakes: float
     unit_share: float
     side_appetite: float
+    side_share: float             # a side bet as a share of the main bet
     aggressive: bool
     chaser: bool
     hit_and_run: float | None     # leave once up this share of the budget
@@ -105,7 +110,8 @@ def profile(npc: dict, rng: random.Random) -> Profile:
     lo, hi = budget_range(npc)
     return Profile(
         archetype=arch, rounds=rng.randint(*base["rounds"]), mistakes=base["mistakes"],
-        unit_share=rng.uniform(*base["unit"]), side_appetite=base["side"], aggressive=arch == "gambler",
+        unit_share=rng.uniform(*base["unit"]), side_appetite=base["side"],
+        side_share=rng.uniform(*base["side_size"]), aggressive=arch == "gambler",
         chaser="chaser" in traits,
         hit_and_run=float(s.get("hit_and_run_pct", 50)) / 100 if "hit_and_run" in traits else None,
         riches=2.0 if arch == "gambler" else None,

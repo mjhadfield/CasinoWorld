@@ -76,8 +76,8 @@ game result and every penny is decided on the server; the client only renders an
 - **The NPC director (`npc.py`)** brings punters in to fill the floor population. Each visit has a budget
   they're willing to lose, and they leave bust, done for the day, or ahead depending on their traits, then sit
   out a cooldown. They pick games by preference, play each game's published strategy (with style-dependent
-  mistakes and side bets), and never take a table's last two free seats. The craps table is kept to at least
-  two NPCs.
+  mistakes and side bets, each side bet a share of their main bet that they keep for the visit), and never
+  take a table's last two free seats. The craps table is kept to at least two NPCs.
 - **Dealers (`dealers.py`)** come from the same roster and work staggered shifts, relieved only between
   hands. Their lines are in `dealer_lines.toml` (`dealer.py`), reread on every line.
 - **Looks** are built server-side from LPC layers (`art.py`, shared with `tools/build_art.py`) and fetched by

@@ -1040,10 +1040,10 @@ class NpcDirector:
         """(bets, what they could cost in all) at one unit."""
         r = self.rng
 
-        def side(base: float) -> int:
+        def side(base: float) -> int:   # their share of the main bet, a few pounds at least, never more than it
             if not with_sides or not self._side(npc, base):
                 return 0
-            return r.choice([500, 1_000, 2_500]) if npc.prof.aggressive else r.choice([100, 500])
+            return min(u, roster.nice_unit(max(u * npc.prof.side_share * r.uniform(0.8, 1.25), r.choice([100, 200, 500]))))
 
         def flat(bet: int, base: float) -> int:
             return bet if with_sides and self._side(npc, base) else 0
@@ -1071,7 +1071,7 @@ class NpcDirector:
         if game == bj.GAME_KEY:
             plus3 = side(0.25)
             bets = {"bet": u, "super_pairs": side(0.25), "twenty_one_plus_three": plus3,
-                    "top_three": 100 if plus3 and self._side(npc, 0.3) else 0, "jackpot": flat(bj.JACKPOT_BET, 0.25)}
+                    "top_three": side(0.3) if plus3 else 0, "jackpot": flat(bj.JACKPOT_BET, 0.25)}
             return bets, sum(bets.values()) + u   # room to double
         bets = {"ante": u, "pair_plus": side(0.5), "prime": side(0.2), "jackpot": flat(tcp.JACKPOT_BET, 0.3)}
         return bets, sum(bets.values()) + u       # the Play bet
