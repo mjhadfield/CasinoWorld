@@ -1,6 +1,6 @@
 # Betting UI overhaul
 
-**Branch:** `main` (not started)
+**Branch:** `main` (done 2026-10-23)
 
 ## Goal
 Mike much prefers the betting UI in the Master Table mockup to the game's current one, and wants it to replace
@@ -19,8 +19,6 @@ does differently from today's `SeatedBar` in `client/scenes/ui/hud.tscn` / `hud.
   "Play or fold? · 9", "Settling, third base first…").
 - **Pills above the bar** for anything pending: "After this hand: Baccarat ✕", and a vote card ("Anna wants to switch
   to …  Switch / Keep playing · 10").
-- **On the felt:** the spot under the pointer gets a breathing gold ring when you can bet on it. A felt countdown pill
-  shows at the table's `countdown_pos()`. Right-click takes a chip off.
 - A status chip top-left: the table's name and "n of 6 seated".
 
 ## Files
@@ -29,12 +27,13 @@ countdown drawing. Every game's `seated_view()` feeds the bar. Today's Auto rebe
 extras need a home in the new bar.
 
 ## Done when
-- [ ] Mike signs off the new bar at a card table, then at Roulette and Craps
-- [ ] Auto rebet, Paytable and the game-specific actions all still work
-- [ ] `tools/dev.sh test` passes
+- [x] Mike signs off the new bar at a card table, then at Roulette and Craps (mockup, 2026-10-23)
+- [x] Auto rebet, Paytable and the game-specific actions all still work
+- [x] `tools/dev.sh test` passes
 
 ## Handoff
-- **State:** not started; this note only.
-- **Questions for Mike:** does it replace the HUD at Roulette, Craps and the slot screen too, or only at the card
-  tables? Which parts he likes most (the chips, the layout, the info line, the felt highlight), in case some of it
-  should stay as it is.
+- **State:** built and live (2026-10-23): `scenes/ui/betting_bar.gd` replaces the HUD's SeatedBar. The mockup stays in
+  `docs/betting_ui/mockup/` (https://claude.ai/artifact/ECYKm3w3qpQaFVgKmEY7EH). Checked with `tools/shot.py` at Three
+  Card Poker (betting, Play/Fold, the result flash), Roulette and Craps on a dev instance.
+- **Not done:** the slot screen keeps its own controls (Mike hasn't said); the dealer's speech bubble in the game is
+  unchanged (the mockup's bigger one was the mockup's own).

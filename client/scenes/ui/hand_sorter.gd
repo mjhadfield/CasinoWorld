@@ -175,7 +175,9 @@ func _place() -> void:
 		return
 	reset_size()
 	var screen := get_viewport().get_visible_rect().size
-	position = Vector2((screen.x - size.x) / 2, screen.y - size.y - 84)
+	var hud := get_parent()   # (over the bottom of the table, clear of the betting bar)
+	var bar_h: float = screen.y - hud.bar.bar_top if hud and "bar" in hud and hud.bar.bar_top > 0 else 170.0
+	position = Vector2((screen.x - size.x) / 2, screen.y - size.y - bar_h - 6)
 
 
 ## The server turned the hand down (it shouldn't happen -- Set is only offered

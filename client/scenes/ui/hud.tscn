@@ -162,97 +162,6 @@ theme_override_font_sizes/font_size = 18
 text = "Cancel  [Esc]"
 
 
-[node name="SeatedBar" type="PanelContainer" parent="."]
-unique_name_in_owner = true
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -76.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
-[node name="Row" type="HBoxContainer" parent="SeatedBar"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="ChipTray" type="HBoxContainer" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="RebetButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(92, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Rebet"
-
-[node name="AutoRebetCheck" type="CheckBox" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 16
-text = "Auto rebet"
-
-[node name="UndoButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Undo"
-
-[node name="ClearButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Clear"
-
-[node name="ReadyButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Ready"
-
-[node name="Actions" type="HBoxContainer" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Info" type="Label" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = ""
-size_flags_horizontal = 3
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
-
-[node name="PaytableButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Paytable"
-toggle_mode = true
-[node name="StandButton" type="Button" parent="SeatedBar/Row"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(110, 50)
-layout_mode = 2
-focus_mode = 0
-theme_override_font_sizes/font_size = 18
-text = "Stand up"
-
-
 [node name="MyHand" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 anchors_preset = 3
@@ -305,7 +214,7 @@ anchor_bottom = 1.0
 offset_left = -270.0
 offset_top = 64.0
 offset_right = -12.0
-offset_bottom = -260.0
+offset_bottom = -176.0
 grow_horizontal = 0
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_box")

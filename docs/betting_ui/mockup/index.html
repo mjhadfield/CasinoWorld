@@ -1,0 +1,1471 @@
+<title>Betting Bar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: the seated view of a real card table (drawn by the game's own renderer) with the proposed betting bar over
+   its foot, and a review panel beside it. One dark look on purpose: it's the casino floor at night, as the game is. */
+:root {
+  --ground: #0d1012;
+  --panel: #14181a;
+  --raised: #1c2124;
+  --line: #2b3133;
+  --brass: #c9a24a;
+  --brass-hi: #ecd396;
+  --ink: #ece4d2;
+  --muted: #9ba39e;
+  --paper: #f6efdc;
+  --paper-ink: #2a1a10;
+  --ok: #5fd3a0;
+  --warn: #f2c14e;
+  --bad: #ef7a6b;
+  --display: "TS Cinzel", "Cinzel", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 14px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.top {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-block: 12px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line);
+}
+header.top h1 { margin: 0; font: 600 20px/1.1 var(--display); letter-spacing: .08em; color: var(--brass-hi); }
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+header.top .tag { margin-left: auto; font: 600 11px var(--cond); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+main.layout {
+  min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.stage { position: relative; container-type: inline-size; min-height: 0; border-radius: 10px; overflow: hidden; background: #1f3a3e; border: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+
+/* ---------------------------------------------------------------- corners */
+.status { position: absolute; top: 14px; left: 14px; display: flex; gap: 10px; align-items: center; padding: 8px 16px 8px 12px;
+  background: rgba(10, 12, 13, .74); border: 1px solid rgba(201, 162, 74, .28); border-radius: 999px; font: 600 15.5px var(--cond); letter-spacing: .04em; }
+.status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 7px var(--ok); }
+.status .sub { color: var(--muted); font-weight: 500; }
+.jackpot { position: absolute; top: 66px; left: 14px; display: grid; gap: 2px; padding: 9px 16px 10px; border-radius: 12px;
+  background: linear-gradient(rgba(30, 22, 8, .92), rgba(14, 11, 6, .92)); border: 1px solid rgba(201, 162, 74, .6); box-shadow: 0 8px 22px rgba(0, 0, 0, .4); transition: box-shadow .3s, border-color .3s; }
+.jackpot .lbl { display: flex; gap: 8px; align-items: center; font: 600 12.5px var(--cond); letter-spacing: .18em; text-transform: uppercase; color: var(--brass); }
+.jackpot b { font: 700 31px/1.05 var(--cond); letter-spacing: .01em; color: var(--brass-hi); font-variant-numeric: tabular-nums; text-shadow: 0 0 14px rgba(236, 211, 150, .35); }
+.jackpot .in { font: 600 11.5px var(--cond); letter-spacing: .08em; color: #1b1307; background: var(--brass-hi); border-radius: 999px; padding: 0 7px; text-transform: none; }
+.jackpot.lit { border-color: var(--brass-hi); box-shadow: 0 0 0 1px rgba(236, 211, 150, .35), 0 8px 26px rgba(201, 162, 74, .28); }
+.corner { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+.ghost { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 15px; border-radius: 999px; cursor: pointer;
+  background: rgba(10, 12, 13, .74); border: 1px solid rgba(255, 255, 255, .1); font: 600 15.5px var(--cond); letter-spacing: .05em; color: var(--ink); }
+.ghost:hover:not(:disabled) { border-color: rgba(201, 162, 74, .6); }
+.ghost[aria-pressed="true"] { border-color: var(--brass); color: var(--brass-hi); }
+.ghost svg { width: 18px; height: 18px; flex: none; }
+kbd { font: 500 12.5px var(--cond); letter-spacing: .04em; color: inherit; opacity: .6; padding: 0 5px; border: 1px solid currentColor; border-radius: 4px; line-height: 17px; }
+.paytable { position: absolute; top: 64px; right: 14px; width: 330px; max-height: calc(100% - 240px); overflow: auto; padding: 16px 18px;
+  background: rgba(12, 11, 9, .95); border: 1px solid rgba(201, 162, 74, .45); border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .5); }
+.paytable h2 { margin: 0 0 10px; font: 600 17px var(--display); letter-spacing: .06em; color: var(--brass-hi); }
+.paytable h3 { margin: 12px 0 4px; font: 600 12.5px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+.paytable .row { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding: 2px 0; }
+.paytable .row b { font: 600 16px var(--cond); color: var(--ink); font-variant-numeric: tabular-nums; }
+.paytable .row span { color: var(--muted); }
+.paytable p { margin: 12px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+
+.bubble { position: absolute; transform: translateY(-100%); width: max-content; max-width: 300px; padding: 10px 15px; border-radius: 14px 14px 14px 0;
+  background: var(--paper); color: var(--paper-ink); font: 600 17px/1.3 var(--body); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); transition: opacity .18s; }
+.bubble::after { content: ""; position: absolute; bottom: 0; left: calc(1px - var(--tail, 30px)); width: var(--tail, 30px); height: 15px;
+  background: var(--paper); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.bubble.fade { opacity: 0; }
+.float { position: absolute; transform: translate(-50%, -100%); font: 700 21px var(--cond); letter-spacing: .03em; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.6); white-space: nowrap; }
+.float.win { color: var(--ok); }
+.float.loss { color: var(--bad); }
+.toast { position: absolute; top: 66px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 8px; background: rgba(10, 12, 13, .92);
+  border: 1px solid var(--line); font: 600 15.5px var(--cond); letter-spacing: .04em; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; font: 600 14px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: #1f3a3e; }
+
+/* ---------------------------------------------------------------- the bar */
+.hud { position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 12px; pointer-events: none; }
+.base { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);   /* the chips sit dead centre; Ready hugs them on the left, Undo and Rebet on the right */
+  align-items: center; column-gap: 16px; row-gap: 22px; padding: 30px 22px 16px;
+  background: linear-gradient(rgba(8, 10, 11, 0), rgba(8, 10, 11, .9) 26px, rgba(8, 10, 11, .94)); }
+.commit { grid-column: 1; grid-row: 2; justify-self: end; display: flex; gap: 8px; align-items: center; }
+.hud > * { pointer-events: auto; }
+.pending { justify-self: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.pill { display: flex; gap: 10px; align-items: center; padding: 6px 8px 6px 15px; border-radius: 999px; background: rgba(20, 16, 10, .92);
+  border: 1px solid rgba(201, 162, 74, .5); font: 600 15.5px var(--cond); letter-spacing: .04em; }
+.pill .x { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 7px; font-size: 16px; }
+.pill .x:hover { color: var(--ink); }
+.vote { justify-self: center; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; padding: 7px 8px 7px 16px; border-radius: 10px;
+  background: rgba(20, 16, 10, .94); border: 1px solid rgba(242, 193, 78, .5); font: 600 16px var(--cond); letter-spacing: .03em; }
+.vote b { color: var(--warn); font-variant-numeric: tabular-nums; }
+.info { grid-column: 2; grid-row: 1; justify-self: center; display: grid; justify-items: center; gap: 7px; pointer-events: none; }
+.info .line { font: 600 18px var(--cond); letter-spacing: .05em; text-align: center; color: var(--ink); text-shadow: 0 1px 2px #000; min-height: 22px; }
+.info .line b { color: var(--brass-hi); font-variant-numeric: tabular-nums; font-weight: 700; }
+.info .line .hand { color: var(--paper); }
+.timer { width: 260px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.timer i { display: block; height: 100%; background: var(--brass-hi); transform-origin: left center; }
+.timer.low i { background: var(--warn); }
+
+.wallet { grid-column: 1; grid-row: 1 / span 2; justify-self: start; align-self: center; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.wallet .bal { display: flex; align-items: baseline; gap: 10px; }
+.wallet .bal b { font: 700 36px/1 var(--cond); letter-spacing: .01em; color: var(--ink); }
+.wallet .delta { font: 700 21px var(--cond); transition: opacity .6s; }
+.wallet .delta.win { color: var(--ok); } .wallet .delta.loss { color: var(--bad); }
+.wallet .felt { font: 500 17px var(--cond); letter-spacing: .05em; color: var(--muted); }
+.wallet .felt b { color: var(--brass-hi); font-weight: 600; }
+.centre { grid-column: 2; grid-row: 2; display: flex; justify-content: center; align-items: center; }
+.tools { grid-column: 3; grid-row: 2; justify-self: start; display: flex; gap: 7px; align-items: center; }
+.chips { display: flex; gap: 11px; align-items: center; padding: 0 2px; }
+.chip { position: relative; width: 62px; height: 62px; padding: 0; border-radius: 50%; border: 0; background: none; cursor: pointer;
+  transition: transform .14s ease, opacity .2s, filter .2s; }
+.chip canvas { width: 100%; height: 100%; display: block; border-radius: 50%; }
+.chip::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2.5px solid transparent; transition: border-color .14s, box-shadow .14s; }
+.chip:hover:not(:disabled) { transform: translateY(-3px); }
+.chip[aria-pressed="true"] { transform: translateY(-7px); }
+.chip[aria-pressed="true"]::before { border-color: var(--brass-hi); box-shadow: 0 0 15px rgba(236, 211, 150, .55); }
+.chip:disabled { cursor: default; opacity: .35; filter: saturate(.4); transform: none; }
+.chip:disabled::before { border-color: transparent; box-shadow: none; }
+.chip.short { opacity: .35; filter: saturate(.4); }
+.tool { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 13px; border-radius: 999px; cursor: pointer;
+  background: rgba(35, 42, 45, .85); border: 1px solid #39413f; font: 600 14.5px var(--cond); letter-spacing: .06em; color: var(--ink); white-space: nowrap; }
+.tool svg { width: 16px; height: 16px; flex: none; }
+.tool:hover:not(:disabled) { border-color: rgba(201, 162, 74, .6); }
+.tool:disabled { opacity: .32; cursor: default; }
+.tool.icon { width: 38px; padding: 0; justify-content: center; }
+.auto { height: 38px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px 0 7px; border-radius: 999px; cursor: pointer; border: 1px solid transparent;
+  background: none; font: 600 12.5px var(--cond); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.auto i { width: 26px; height: 14px; border-radius: 999px; background: #2b3133; position: relative; transition: background .15s; }
+.auto i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.auto[aria-pressed="true"] { color: var(--brass-hi); }
+.auto[aria-pressed="true"] i { background: #5a4920; }
+.auto[aria-pressed="true"] i::after { transform: translateX(12px); background: var(--brass-hi); }
+.auto:hover { border-color: rgba(255, 255, 255, .08); }
+.decide { display: flex; gap: 10px; align-items: center; justify-content: center; animation: rise .18s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.right { grid-column: 3; grid-row: 1 / span 2; justify-self: end; align-self: center; display: flex; gap: 10px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 24px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+  font: 700 19px var(--cond); letter-spacing: .08em; text-transform: uppercase; background: #232a2d; border: 1px solid #39413f; color: var(--ink); }
+.btn:hover:not(:disabled) { border-color: rgba(201, 162, 74, .7); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--brass); border-color: var(--brass); color: #1b1307; }
+.btn.primary:hover:not(:disabled) { background: #d6b05a; }
+.btn.fold { border-color: rgba(239, 122, 107, .55); }
+.btn.quiet { background: rgba(35, 42, 45, .7); color: var(--muted); }
+.btn.done { background: transparent; border-color: rgba(201, 162, 74, .4); color: var(--brass-hi); }
+.btn .amt { font-variant-numeric: tabular-nums; }
+.btn.small { height: 42px; padding: 0 15px; font-size: 15px; }
+
+/* the review labels (A, B, C ...), switched on from the panel */
+.stage.labels [data-tag]:not(.status):not(.corner) { position: relative; }
+.stage.labels [data-tag]::after { content: attr(data-tag); position: absolute; top: -10px; left: -10px; z-index: 5; width: 19px; height: 19px; border-radius: 50%;
+  display: grid; place-items: center; background: #f2c14e; color: #1b1307; font: 700 11.5px var(--cond); box-shadow: 0 0 0 2px #0d1012; pointer-events: none; }
+.stage.labels .info[data-tag]::after { left: -28px; top: 0; }
+
+/* ---------------------------------------------------------------- the review panel */
+aside.panel { min-height: 0; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 18px; align-content: start; }
+.panel h3 { margin: 0 0 8px; font: 600 11px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+.panel section { display: grid; gap: 8px; }
+.panel .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel .lbl { color: var(--ink); font-size: 13px; }
+.panel .hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { background: var(--raised); border: 0; border-right: 1px solid var(--line); padding: 7px 4px; font: 600 12.5px var(--cond); letter-spacing: .03em; cursor: pointer; color: var(--muted); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: #2c2618; color: var(--brass-hi); }
+.seg.quad { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+.seg.quad button { border-bottom: 1px solid var(--line); }
+.seg.quad button:nth-child(2n) { border-right: 0; }
+.seg.quad button:nth-last-child(-n + 2) { border-bottom: 0; }
+.switch { position: relative; width: 38px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: #2b3133; transition: background .15s; pointer-events: none; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.switch input:checked + span { background: #5a4920; }
+.switch input:checked + span::after { transform: translateX(16px); background: var(--brass-hi); }
+.switch input:focus-visible + span { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+.pbtn { width: 100%; padding: 8px 10px; border-radius: 7px; cursor: pointer; background: var(--raised); border: 1px solid var(--line); font: 600 12.5px var(--cond); letter-spacing: .05em; color: var(--ink); }
+.pbtn:hover { border-color: rgba(201, 162, 74, .5); }
+.notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+.notes li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.notes li > span:first-child { width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; background: #f2c14e; color: #1b1307; font: 700 11.5px var(--cond); }
+.notes li b { color: var(--ink); font-weight: 600; }
+.panel ol.qs { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.panel ol.qs b { color: var(--ink); font-weight: 600; }
+.today { display: block; width: 100%; border-radius: 6px; border: 1px solid var(--line); }
+
+@container (max-width: 1180px) {   /* a narrower table: Undo and Rebet/Clear go icon-only (their words are in the tooltips), and Ready drops its key */
+  .tool .t { display: none; }
+  .tool { width: 38px; padding: 0; justify-content: center; }
+  .commit .btn kbd { display: none; }
+  .commit .btn { padding: 0 20px; }
+  .commit .btn.small { height: 38px; padding: 0 11px; font-size: 13.5px; }
+}
+@media (max-width: 900px) {
+  .app { height: auto; }
+  main.layout { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 80vh; min-height: 480px; }
+}
+@media (max-width: 640px) {
+  .base { grid-template-columns: minmax(0, 1fr) auto; row-gap: 14px; padding-inline: 10px; }
+  .info, .centre, .tools { grid-column: 1 / span 2; justify-self: center; }
+  .info { grid-row: 1; } .centre { grid-row: 2; } .tools { grid-row: 3; }
+  .wallet { grid-column: 1; grid-row: 4; }
+  .commit { grid-column: 2; grid-row: 4; }
+  .right { grid-column: 1 / span 2; grid-row: 5; justify-self: center; }
+  .chips { gap: 6px; }
+  .chip { width: 46px; height: 46px; }
+  .chip::before { inset: -3px; border-width: 2px; }
+  .tool { width: 36px; height: 36px; }
+  .auto { height: 36px; padding: 0 4px; gap: 4px; font-size: 10.5px; letter-spacing: .08em; }
+  .auto i { width: 22px; height: 13px; }
+  .auto i::after { width: 9px; height: 9px; }
+  .auto[aria-pressed="true"] i::after { transform: translateX(9px); }
+  .wallet .bal b { font-size: 27px; }
+  .info .line { font-size: 16px; }
+  .btn { height: 48px; padding: 0 16px; font-size: 17px; }
+  .btn kbd { display: none; }
+  .status .sub { display: none; }
+  .jackpot { padding: 6px 12px 7px; } .jackpot b { font-size: 23px; } .jackpot .lbl { font-size: 11px; }
+  .corner .ghost .t { display: none; }
+  .corner kbd { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .bubble, .toast, .chip, .decide { transition: none; animation: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Betting Bar</h1>
+    <p>The seated controls, rebuilt: chips in the middle, one line saying what's happening, one button to commit.</p>
+    <span class="tag">Mockup for review · Casino World</span>
+  </header>
+  <main class="layout">
+    <section class="stage" id="stage" aria-label="The table">
+      <canvas id="cv"></canvas>
+      <div class="overlay" id="overlay"></div>
+
+      <div class="status" id="status" data-tag="H"><span class="dot"></span><span id="tName">Three Card Poker</span><span class="sub" id="tSeats">4 of 6 seated</span></div>
+      <div class="jackpot" id="jackpot" data-tag="I"><span class="lbl">Jackpot <span class="in" id="jpIn" hidden>Your £1 is in</span></span><b id="jpVal">£5,603.43</b></div>
+      <div class="corner" id="corner" data-tag="G">
+        <button class="ghost" id="bPay" aria-pressed="false" aria-controls="paytable" title="Paytable">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="2" width="11" height="12" rx="1.5"/><path d="M5 5.5h6M5 8h6M5 10.5h4"/></svg><span class="t">Paytable</span></button>
+        <button class="ghost" id="bStandCorner" title="Stand up (Esc)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 3H3.5v10H6M10 5l3 3-3 3M13 8H6.5"/></svg><span class="t">Stand up</span> <kbd>Esc</kbd></button>
+      </div>
+      <div class="paytable" id="paytable" hidden role="dialog" aria-label="Paytable"></div>
+
+      <div class="hud" id="hud">
+        <div class="vote" id="vote" hidden data-tag="E"><span id="voteText"></span><button class="btn primary" style="height:40px;font-size:16px;padding:0 15px" id="voteYes">Switch</button><button class="btn quiet" style="height:40px;font-size:16px;padding:0 15px" id="voteNo">Keep playing</button></div>
+        <div class="pending" id="pending"></div>
+        <div class="base">
+          <div class="info" data-tag="E"><div class="line" id="info"></div><div class="timer" id="timer" hidden><i id="timerFill"></i></div></div>
+          <div class="wallet" data-tag="D">
+            <div class="bal"><b id="bal">£612.16</b><span class="delta" id="delta"></span></div>
+            <div class="felt" id="felt"><b id="onFelt">£0</b> on the felt</div>
+          </div>
+          <div class="commit" id="commit" data-tag="C">
+            <button class="btn quiet small" id="bPassDice" hidden title="Hand the dice to the next player">Pass dice</button>
+            <button class="btn primary" id="bRoll" hidden>Roll <kbd>R</kbd></button>
+            <button class="btn quiet" id="bTake" hidden>Take dice <kbd>T</kbd></button>
+            <button class="btn primary" id="bReady">Ready <kbd>Space</kbd></button>
+          </div>
+          <div class="centre" id="centre">
+            <div class="chips" id="chips" data-tag="A"></div>
+            <div class="decide" id="decide" hidden data-tag="F"></div>
+          </div>
+          <div class="tools" id="tools" data-tag="B">
+            <button class="tool" id="bUndo" title="Undo the last chip (Backspace)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7"/></svg><span class="t">Undo</span></button>
+            <button class="tool" id="bRebet" title="Put last round's bets down again (R)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M13 2.5v3h-3"/></svg><span class="t" id="rebetT">Rebet</span></button>
+            <button class="auto" id="bAuto" aria-pressed="false" title="Put the same bets down every round"><i></i>Auto</button>
+            <button class="auto" id="bWork" hidden aria-pressed="false" title="Your place bets and hardways work on the come-out too (W)"><i></i>Working</button>
+          </div>
+          <div class="right" id="right">
+            <button class="btn quiet" id="bStandBar" hidden>Stand up <kbd>Esc</kbd></button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="loading" id="loading">Setting up the table…</div>
+    </section>
+
+    <aside class="panel" aria-label="Review">
+      <section>
+        <h3>Try it</h3>
+        <p class="hint">You're in the middle seat. Pick a chip, click the glowing spot to bet, then <b style="color:var(--ink)">Ready</b>. Right-click a spot to take a chip back. Keys: <b style="color:var(--ink)">1–5</b> chips, <b style="color:var(--ink)">Space</b> ready, <b style="color:var(--ink)">Backspace</b> undo, <b style="color:var(--ink)">R</b> rebet. At Craps: <b style="color:var(--ink)">R</b> or <b style="color:var(--ink)">Space</b> rolls, <b style="color:var(--ink)">T</b> takes the dice, <b style="color:var(--ink)">W</b> working.</p>
+      </section>
+      <section>
+        <h3>Table</h3>
+        <div class="seg quad" id="segGame" role="group" aria-label="Game">
+          <button data-v="tcp">Three Card Poker</button><button data-v="bj">Blackjack</button><button data-v="rou">Roulette</button><button data-v="crp">Craps</button>
+        </div>
+        <p class="hint">Blackjack checks the bar copes with four decisions. Roulette and Craps play short stand-in rounds with real payouts.</p>
+      </section>
+      <section>
+        <h3>Options to compare</h3>
+        <span class="lbl">Stand up</span>
+        <div class="seg" id="segStand" role="group" aria-label="Stand up">
+          <button data-v="corner">Top corner</button><button data-v="bar">In the bar</button>
+        </div>
+      </section>
+      <section>
+        <h3>Things that come and go</h3>
+        <div id="comeGo" style="display:grid;gap:8px">
+          <button class="pbtn" id="bQueue">Ask for a game change after this hand</button>
+          <button class="pbtn" id="bVote">Ivy asks to change game</button>
+        </div>
+        <div class="row"><span class="lbl" id="lLow">Low balance (£18)</span><label class="switch"><input type="checkbox" id="tLow" aria-labelledby="lLow"><span></span></label></div>
+      </section>
+      <section>
+        <h3>What's different</h3>
+        <div class="row"><span class="lbl" id="lTags">Show the letters on the table</span><label class="switch"><input type="checkbox" id="tTags" aria-labelledby="lTags"><span></span></label></div>
+        <ul class="notes">
+          <li><span>A</span><span><b>Chips in the middle</b>, bigger, in the table's own style. The picked one lifts with a gold ring. A chip you can't afford dims.</span></li>
+          <li><span>B</span><span><b>Undo and Rebet on one line</b>, just right of the chips, so everything that changes your bet is in one place. Rebet turns into <b>Clear</b> once chips are down, since the two never apply at once. Auto rebet is a small switch beside it.</span></li>
+          <li><span>C</span><span><b>One button to commit</b>, just left of the chips. It reads <b>Sit out</b> until you bet, then <b>Ready</b>.</span></li>
+          <li><span>D</span><span><b>Money on the left</b>, large and centred in the bar: your balance, and what's on the felt. Wins and losses flash beside the balance.</span></li>
+          <li><span>E</span><span><b>One line says what's happening</b>, with a gold line draining for the countdown. Your hand's name goes here too. Pending changes and votes sit above it.</span></li>
+          <li><span>F</span><span><b>Decisions replace the chips</b> while they're open, since you can't bet then anyway, and name the amount: <b>Play £25</b>, <b>Double £25</b>.</span></li>
+          <li><span>G</span><span><b>Stand up and Paytable move to the top corner</b>, away from Ready, so leaving is never a slip of the finger.</span></li>
+          <li><span>H</span><span><b>The table's name</b> and who's seated sit top left.</span></li>
+          <li><span>I</span><span><b>The jackpot has its own panel</b> under it, counting up live. It lights up and says so when your £1 is in.</span></li>
+        </ul>
+      </section>
+      <section>
+        <h3>At Roulette and Craps</h3>
+        <ul class="notes">
+          <li><span>Ro</span><span><b>Roulette keeps the same bar.</b> Ready spins sooner, and the chips stay live through <b>Final bets!</b> until <b>No more bets</b>. Hovering the layout lights up the numbers a bet covers and names it and its payout on the line above the chips.</span></li>
+          <li><span>Cr</span><span><b>Craps has no Ready or Rebet</b>, since bets stay up from roll to roll. Left of the chips are the dice: <b>Take dice</b>, or <b>Pass dice</b> and <b>Roll</b> when it's your roll. <b>Working</b> takes Auto rebet's place, and <b>Clear</b> takes down everything that can come down.</span></li>
+          <li><span>+</span><span>The line above the chips carries the point and who's shooting ("Point is 6 · Ivy shooting · Dice out in 4"), and the bet under the pointer, with "off on the come-out" where that applies.</span></li>
+        </ul>
+      </section>
+      <section>
+        <h3>Today's bar, for comparison</h3>
+        <img class="today" src="today.png" alt="Today's seated bar: chips on the left, then Rebet, Auto rebet, Undo, Clear, Sit out, a hint, Paytable and Stand up in one row.">
+      </section>
+      <section>
+        <h3>Questions for you</h3>
+        <ol class="qs">
+          <li>Does the <b>slot screen</b> get this bar too, or keep its own controls?</li>
+          <li>At Craps, are the dice buttons in the right place, <b>left of the chips</b> where Ready is elsewhere?</li>
+          <li><b>Stand up</b>: top corner, or in the bar?</li>
+          <li>Anything here you'd cut to make it simpler still?</li>
+        </ol>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import * as R from "./render.js";
+
+const $ = s => document.querySelector(s);
+const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), overlay = $("#overlay");
+await R.loadAssets("./");
+const G = R.geometry();
+const D = await fetch("house.json").then(r => r.json());
+// Roulette's and Craps' House styles (server table_styles.py), over the card tables' for anything they don't set
+const DK = {
+  cards: D,
+  rou: { ...D, felt: { colour: "#93141f", texture: "grain", vignette: 0.3 }, border: "none", rail: { wood: "mahogany", armrest: "none", leather: "#2a140a", bead: "brass" },
+    print: { font: "cinzel", ink: "#f1e4c4", accent: "#c9a24a" }, numbers: { red: "#e0453d", black: "#1a0d0b", zero: "#1f8a52" }, float: "wood",
+    wheel: { wood: "match", metal: "brass" }, chairs: { frame: "brass", upholstery: "#2a2320" } },
+  crp: { ...D, felt: { colour: "#93141f", texture: "grain", vignette: 0.3 }, border: "none", rail: { wood: "mahogany", armrest: "dealer", leather: "#2a140a", bead: "brass" },
+    print: { font: "cinzel", ink: "#f1e4c4", accent: "#f2cf6a", red: "#e0453d" }, rubber: "#1b1413", rack: "wood", dice: "red" },
+};
+const IMG = {};
+await Promise.all(["player", "npc1", "npc3", "npc5", "dealer"].map(k => new Promise(res => {
+  const i = new Image(); i.onload = i.onerror = res; i.src = `people/${k}.png`; IMG[k] = i; })));
+
+// ============================================================ the games (the server's real chips, paytables and spots)
+const CHIPS = [100, 500, 2500, 10000, 50000];
+const CFG = {
+  tcp: { name: "Three Card Poker", main: "ante", bets: ["ante", "pair_plus", "prime", "jackpot"], glow: ["ante", "pair_plus", "prime"], max: 50000,
+    pay: [["Ante Bonus", [["Straight Flush", "5:1"], ["Three of a Kind", "4:1"], ["Straight", "1:1"]]],
+      ["Pair Plus", [["Straight Flush", "35:1"], ["Three of a Kind", "33:1"], ["Straight", "6:1"], ["Flush", "4:1"], ["Pair", "1:1"]]],
+      ["Prime", [["6 Cards Same Colour", "4:1"], ["3 Cards Same Colour", "3:1"]]],
+      ["Jackpot (£1)", [["Royal Flush (spades)", "Jackpot"], ["Royal Flush", "£500"], ["Straight Flush", "£100"], ["Three of a Kind", "£60"], ["Straight", "£6"]]]],
+    notes: ["Dealer qualifies with Queen-high or better.", "Play bet equals your Ante.", "Folding loses your Ante, Pair Plus and Jackpot bets."] },
+  bj: { name: "Blackjack", main: "bet", bets: ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot"], glow: ["bet", "super_pairs", "twenty_one_plus_three"], max: 50000,
+    pay: [["Blackjack", [["Blackjack", "3 to 2"], ["Win", "1 to 1"], ["Insurance", "2 to 1"]]],
+      ["Super Pairs", [["Suited Trips", "50 to 1"], ["Suited Pair", "25 to 1"], ["Prime Pair", "10 to 1"], ["Any Pair", "5 to 1"]]],
+      ["21+3", [["Flush or better", "9 to 1"]]],
+      ["Top 3", [["Suited Three of a Kind", "270 to 1"], ["Straight Flush", "180 to 1"], ["Three of a Kind", "90 to 1"]]]],
+    notes: ["Dealer stands on all 17s.", "Double on any two cards. Split pairs up to 4 times.", "Top 3 needs a 21+3 bet."] },
+  rou: { name: "Roulette",
+    pay: [["Inside", [["Straight up", "35:1"], ["Split", "17:1"], ["Street or trio", "11:1"], ["Corner", "8:1"], ["Six line", "5:1"]]],
+      ["Outside", [["Column or dozen", "2:1"], ["Red, black, odd, even, 1–18, 19–36", "1:1"]]]],
+    notes: ["Single zero, La Partage: half of an even-chance bet comes back on a zero.", "£1 a bet; at most £100 straight up, £2,000 an even chance."] },
+  crp: { name: "Craps",
+    pay: [["The line", [["Pass Line, Don't Pass", "1:1"], ["Odds behind them", "True odds"]]],
+      ["Place", [["4 or 10", "9:5"], ["5 or 9", "7:5"], ["6 or 8", "7:6"]]],
+      ["Field", [["3, 4, 9, 10, 11", "1:1"], ["2", "2:1"], ["12", "3:1"]]],
+      ["Hardways", [["Hard 4 or 10", "7:1"], ["Hard 6 or 8", "9:1"]]],
+      ["One roll", [["Any 7", "4:1"], ["Any Craps", "7:1"], ["2 or 12", "30:1"], ["3 or 11", "15:1"]]]],
+    notes: ["£5 minimum on the main bets, £1 on hardways and props.", "Bets stay up from roll to roll: only the winnings come back.",
+      "Place bets and hardways are off on the come-out unless you mark them Working."] },
+};
+// Each kind of table: your seat, the NPCs', the camera and who talks
+const KIND = g => g === "rou" || g === "crp" ? g : "cards";
+const CRP_PLACES = [164, 128, 92, 56, -56, -92, -128, -164];
+const SETUP = {
+  cards: { me: 3, npcs: { 0: ["Ivy", "npc1"], 1: ["Tom", "npc3"], 4: ["Marek", "npc5"] }, view: [-170, -190, 340, 250], speaker: [0, -123], tray: [0, -128] },
+  rou: { me: 2, npcs: { 0: ["Ivy", "npc1"], 3: ["Tom", "npc3"], 5: ["Marek", "npc5"] }, view: [-192, -160, 384, 230], speaker: G.rou.dealer, tray: G.rou.hole },
+  crp: { me: 3, npcs: { 1: ["Ivy", "npc1"], 4: ["Tom", "npc3"], 6: ["Marek", "npc5"] }, view: [-212, -192, 424, 252], speaker: G.crp.dealer, tray: [0, -115] },
+};
+const SEAT_COLOURS = ["#5ab0e8", "#f2c14e", "#ef7aa0", "#5fd3a0", "#a98ef2", "#e8935a"];
+
+// ============================================================ time
+let now = performance.now();
+const easeIO = k => k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2, easeOut = k => 1 - (1 - k) ** 3, lin = k => k;
+const lerp = (a, b, k) => a + (b - a) * k, clamp01 = k => Math.max(0, Math.min(1, k)), rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), pick = a => a[Math.floor(Math.random() * a.length)];
+let tweens = [];
+const tween = (ms, fn, ease = easeIO) => new Promise(res => tweens.push({ t0: now, dur: Math.max(ms, 1), fn, ease, res }));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function runTweens() {
+  const done = [];
+  tweens = tweens.filter(t => { const k = clamp01((now - t.t0) / t.dur); t.fn(t.ease(k), k); if (k >= 1) { done.push(t.res); return false; } return true; });
+  done.forEach(r => r());
+}
+const money = p => (p < 0 ? "-" : "") + "£" + (Math.abs(p) / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
+
+// ============================================================ state
+let game = "tcp";
+const K = () => KIND(game), T = () => G.tables[game], C = () => CFG[game], SET = () => SETUP[K()];
+let ME = SETUP.cards.me, NPCS = {};
+const V = { stand: "corner" };
+let jackpot = 560343;   // grows live, as the floor's does
+setInterval(() => { jackpot += 1 + Math.floor(Math.random() * 9); }, 1600);
+let balance = 61216, chipSel = 2500, auto = false, undo = [], lastBets = null, epoch = 0;
+const S = { phase: "betting", closeAt: 0, closeLen: 15000, decideAt: 0, decideLen: 20000, ready: false, stakes: new Map(), wins: new Map(), cards: [], flyers: [],
+  hands: {}, folded: {}, roundStake: 0, dealer: [], decided: new Set(), turn: -1, result: null, queued: null, vote: null, nextAt: 0,
+  ball: null, dolly: null, finalAt: 0, resultText: "",                                   // Roulette
+  point: 0, shooter: 1, want: false, working: false, dice: [], spinning: false };       // Craps
+const people = [];
+const dealer = { x: 0, y: -123, t: 0 };
+const chairs = () => K() === "rou" ? G.rou.chairs : T().chairs;
+const seatX = i => K() === "crp" ? CRP_PLACES[i] : chairs()[i][0];
+const seatY = i => K() === "crp" ? 44 : chairs()[i][1];
+const seatPos = i => [seatX(i), K() === "crp" ? 6 : 24];
+const keyOf = (i, k) => i + "|" + k;
+const stakeOf = (i, k) => S.stakes.get(keyOf(i, k)) || 0;
+const myKeys = () => [...S.stakes.keys()].filter(key => +key.split("|")[0] === ME).map(key => key.split("|")[1]);
+const myStakes = () => myKeys().reduce((a, k) => a + stakeOf(ME, k), 0);
+const myBetsNow = () => Object.fromEntries(myKeys().filter(k => K() !== "cards" || C().bets.includes(k)).map(k => [k, stakeOf(ME, k)]));
+
+function seatPeople() {
+  people.length = 0;
+  for (const [i, [name, sheet]] of Object.entries(NPCS)) people.push({ seat: +i, name, sheet, t: Math.random() * 5 });
+  people.push({ seat: ME, name: "You", sheet: "player", you: true, t: 0 });
+}
+
+// ============================================================ the table picture (cached per game)
+const BASE_R = [-178, -166, 356, 188], PPU = 8;
+const PIC_R = { rou: [-200, -168, 400, 240], crp: [-220, -200, 440, 262] }, PIC_PPU = 6;
+const pictures = new Map();
+function picture(g) {
+  if (pictures.has(g)) return pictures.get(g);
+  const c = document.createElement("canvas");
+  if (KIND(g) !== "cards") {   // the game's own Roulette / Craps drawing (without its dice: ours are live)
+    const r = PIC_R[g], d = Math.min(2.5, window.devicePixelRatio || 1);
+    c.width = Math.round(r[2] * PIC_PPU / d);
+    const dice = G.crp.dice; if (g === "crp") G.crp.dice = [];
+    R.render(c, DK[g], g, r); G.crp.dice = dice;
+    pictures.set(g, c); return c;
+  }
+  c.width = BASE_R[2] * PPU; c.height = BASE_R[3] * PPU;
+  const x = c.getContext("2d"); x.setTransform(PPU, 0, 0, PPU, -BASE_R[0] * PPU, -BASE_R[1] * PPU);
+  const ledge = D.tray.mode === "ledge", felt = R.feltPoly(D.tray.mode), Sh = R.CARD_SHAPE, TT = G.tables[g];
+  R.fillPoly(x, R.shift(R.grown("11.0"), 0, 3), "rgba(0,0,0,.16)");
+  R.fillPoly(x, R.shift(R.grown("7.5"), 0, 2), "rgba(0,0,0,.3)");
+  R.drawRail(x, Sh, D, felt, ledge); R.drawFelt(x, Sh, D, felt); R.drawBorder(x, Sh, D, felt, ledge); R.drawBead(x, D, felt); R.drawTray(x, D, ledge);
+  const L = R.layout(g, TT, D);
+  for (const [s, tx, ty, size, role, a] of L.tx) R.text(x, s, tx, ty, size, R.rgba(R.colourOf(D, role), a), D, { foil: D.spots === "foil" && size >= 8 ? R.colourOf(D, role) : false });
+  L.sp.forEach(sp => R.drawSpot(x, D, sp));
+  L.jp.forEach(at => R.jackpotDisc(x, D, at, false));
+  if (TT.discard) R.rack(x, D, TT.discard, 3);
+  if (TT.shoe) R.shoe(x, D, TT.shoe);
+  if (TT.shuffler) R.shuffler(x, D, TT.shuffler);
+  pictures.set(g, c); return c;
+}
+
+// ============================================================ camera
+let dpr = 1, X = { k: 1, ox: 0, oy: 0 };
+function resize() { dpr = Math.min(2.5, window.devicePixelRatio || 1); cv.width = Math.max(1, Math.round(stage.clientWidth * dpr)); cv.height = Math.max(1, Math.round(stage.clientHeight * dpr)); }
+new ResizeObserver(resize).observe(stage); resize();
+function camera() {
+  const [x, y, w, h] = SET().view, room = (stage.clientWidth < 640 ? 250 : 136) * dpr;   // the chairs end up under the fade, as in the game
+  const k = Math.min(cv.width / w, (cv.height - room) / h);
+  X = { k, ox: (cv.width - w * k) / 2 - x * k, oy: (cv.height - room - h * k) / 2 - y * k };
+}
+const toScreen = ([x, y]) => [(x * X.k + X.ox) / dpr, (y * X.k + X.oy) / dpr];
+const toWorld = (sx, sy) => [(sx * dpr - X.ox) / X.k, (sy * dpr - X.oy) / X.k];
+
+// ============================================================ chips, cards and words on the felt
+function fly(amount, from, to, ms = 260, seat = -1) {
+  const f = { amount, x: from[0], y: from[1], seat }; S.flyers.push(f);
+  return tween(ms, k => { f.x = lerp(from[0], to[0], k); f.y = lerp(from[1], to[1], k) - Math.sin(Math.PI * k) * 6; }).then(() => S.flyers.splice(S.flyers.indexOf(f), 1));
+}
+function spotAt(i, k) {
+  if (K() === "rou") { const b = RB.get(k); return [b.at[0] + ((i % 3) - 1) * 1.3, b.at[1] - Math.floor(i / 3) * 1.3]; }
+  if (K() === "crp") return crpAt(i, k);
+  if (k === "double") { const b = spotAt(i, "bet"); return [b[0] + 6, b[1] + 4]; }
+  return (T().spots[i][k] || T().spots[i][C().main]).at;
+}
+const addStake = (i, k, a) => S.stakes.set(keyOf(i, k), stakeOf(i, k) + a);
+function takeStake(i, k, a = Infinity) { const cur = stakeOf(i, k), t = Math.min(cur, a); if (cur - t <= 0) S.stakes.delete(keyOf(i, k)); else S.stakes.set(keyOf(i, k), cur - t); return t; }
+function scaledStack(c, a, x, y, s) { c.save(); c.translate(x, y); c.scale(s, s); R.stack(c, D, a, 0, 0); c.restore(); }
+function rouChip(c, x, y, colour, n) {   // a seat's roulette chips, in the seat's colour (render.js's rouChip)
+  for (let i = 0; i < n; i++) {
+    const yy = y - i * 1.2;
+    c.beginPath(); c.arc(x + .4, yy + .8, 4.8, 0, 7); c.fillStyle = "rgba(0,0,0,.3)"; c.fill();
+    c.beginPath(); c.arc(x, yy, 4.6, 0, 7); c.fillStyle = colour; c.fill();
+    for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; c.beginPath(); c.arc(x, yy, 3.9, a, a + .4); c.strokeStyle = "rgba(255,255,255,.85)"; c.lineWidth = .9; c.lineCap = "butt"; c.stroke(); }
+    c.beginPath(); c.arc(x, yy, 2.8, 0, 7); c.strokeStyle = "rgba(255,255,255,.5)"; c.lineWidth = .3; c.stroke();
+  }
+}
+const rouCount = a => a >= 5000 ? 4 : a >= 2500 ? 3 : a >= 1000 ? 2 : 1;
+
+const SUITS = "shdc", RANKS = "23456789TJQKA";
+let shoe = [];
+function draw() { if (shoe.length < 20) { shoe = []; for (let d = 0; d < 6; d++) for (const s of SUITS) for (const r of RANKS) shoe.push(r + s); for (let i = shoe.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shoe[i], shoe[j]] = [shoe[j], shoe[i]]; } } return shoe.pop(); }
+function dealFrom() { const TT = T(); return TT.shoe ? [TT.shoe[0] - 14, TT.shoe[1] + 1] : [TT.shuffler[0], TT.shuffler[1] + 9]; }
+function newCard(code, up = false) { const c = { code, x: 0, y: 0, rot: 0, up, flip: null, a: 1 }; S.cards.push(c); return c; }
+function send(c, to, rot = 0, ms = 240) { const [x0, y0] = dealFrom(); c.x = x0; c.y = y0; return tween(ms, k => { c.x = lerp(x0, to[0], k); c.y = lerp(y0, to[1], k); c.rot = rot * k; }, easeOut); }
+const flip = (c, up = true) => { c.flip = { k: 0, to: up }; return tween(220, k => { c.flip.k = k; }, lin).then(() => { c.up = up; c.flip = null; }); };
+function drawCard(c, card) {
+  c.save(); c.globalAlpha = card.a; c.translate(card.x, card.y);
+  let up = card.up, sx = 1;
+  if (card.flip) { const k = card.flip.k; sx = Math.max(.02, Math.abs(Math.cos(Math.PI * k))); up = k < .5 ? card.up : card.flip.to; }
+  c.rotate(card.rot); c.scale(sx, 1); R.card(c, D, up ? card.code : "??", 0, 0); c.restore();
+}
+function cardAt(i, n) {   // where a seat's nth card goes (Blackjack's hits carry on down the geometry's slant)
+  const cs = T().cards[i];
+  if (n < cs.length) return cs[n];
+  const [p0, p1] = cs; return [p0[0] + (p1[0] - p0[0]) * n, p0[1] + (p1[1] - p0[1]) * n];
+}
+function dealerAt(n) { const dc = T().dealer_cards; if (game === "tcp") return dc[n]; return [dc[0][0] + (dc[1][0] - dc[0][0]) * n, dc[0][1]]; }
+function pillText(c, s, x, y, gold) {
+  c.save(); c.translate(x, y); c.scale(.1, .1); c.font = "700 44px Barlow Condensed, sans-serif"; const w = c.measureText(s).width + 24;
+  c.beginPath(); R.rrect(c, -w / 2, -24, w, 46, 23); c.fillStyle = gold ? "rgba(201,162,74,.95)" : "rgba(10,12,13,.82)"; c.fill();
+  c.fillStyle = gold ? "#1b1307" : "#f1ece0"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s, 0, 1); c.restore();
+}
+function drawCountdown(c, at, n) {
+  const colour = D.led || "#ffd28a";
+  c.save(); c.translate(at[0], at[1]); c.beginPath(); R.rrect(c, -6, -3.6, 12, 7.2, 3.6); c.fillStyle = "rgba(8,6,5,.75)"; c.fill(); c.strokeStyle = R.rgba(colour, .5); c.lineWidth = .3; c.stroke();
+  c.scale(.1, .1); c.font = "700 50px Barlow Condensed, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = colour; c.fillText(String(n), 0, 2); c.restore();
+}
+
+// ============================================================ hands
+const rv = c => RANKS.indexOf(c[0]) + 2, red = c => "hd".includes(c[1]);
+function tcpRank(cs) {   // [category, ...tiebreak]: 6 straight flush, 5 trips, 4 straight, 3 flush, 2 pair, 1 high card
+  const v = cs.map(rv).sort((a, b) => b - a), fl = cs.every(c => c[1] === cs[0][1]);
+  let st = v[0] - v[1] === 1 && v[1] - v[2] === 1; let top = v[0];
+  if (v[0] === 14 && v[1] === 3 && v[2] === 2) { st = true; top = 3; }
+  if (st && fl) return [6, top]; if (v[0] === v[2]) return [5, v[0]]; if (st) return [4, top]; if (fl) return [3, ...v];
+  if (v[0] === v[1] || v[1] === v[2]) { const p = v[1], k = v[0] === v[1] ? v[2] : v[0]; return [2, p, k]; }
+  return [1, ...v];
+}
+const NAMES = { 14: "Aces", 13: "Kings", 12: "Queens", 11: "Jacks", 10: "Tens", 9: "Nines", 8: "Eights", 7: "Sevens", 6: "Sixes", 5: "Fives", 4: "Fours", 3: "Threes", 2: "Twos" };
+const HIGH = { 14: "Ace", 13: "King", 12: "Queen", 11: "Jack", 10: "Ten" };
+function tcpName(cs) { const r = tcpRank(cs); return ["", `${HIGH[r[1]] || r[1]} high`, `Pair of ${NAMES[r[1]]}`, "Flush", "Straight", `Three ${NAMES[r[1]]}`, "Straight flush"][r[0]]; }
+const cmp = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) { if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) - (b[i] || 0); } return 0; };
+function bjTotal(cs) { let t = 0, aces = 0; for (const c of cs) { const r = rv(c); if (r === 14) { aces++; t += 11; } else t += Math.min(10, r); } while (t > 21 && aces) { t -= 10; aces--; } return { t, soft: aces > 0 }; }
+const bjLabel = cs => { const { t, soft } = bjTotal(cs); return cs.length === 2 && t === 21 ? "BJ" : soft && t < 21 ? `${t - 10}/${t}` : String(t); };
+
+// ============================================================ the round
+function setPhase(p) { S.phase = p; hud(); }
+async function startBetting() {
+  const ep = epoch;
+  S.cards = []; S.hands = {}; S.folded = {}; S.dealer = []; S.decided.clear(); S.roundStake = 0; S.turn = -1; S.result = null; S.wins.clear(); S.ready = false;
+  S.closeAt = 0; S.decideAt = 0; S.nextAt = 0; undo = [];
+  if (S.queued && S.queued.after) { const g = S.queued.game; S.queued = null; return switchGame(g, true); }
+  if (K() === "rou") return rouStart();
+  if (K() === "crp") return crpStart();
+  S.closeLen = 15000;
+  setPhase("betting");
+  if (auto && lastBets) { await wait(450); if (ep === epoch) rebet(true); }
+  for (const i of Object.keys(NPCS).map(Number)) {
+    wait(rand(1200, 4200)).then(async () => {
+      if (ep !== epoch || S.phase !== "betting") return;
+      const m = C().main, amt = [500, 1000, 2500, 2500, 5000][Math.floor(Math.random() * 5)];
+      await fly(amt, seatPos(i), spotAt(i, m)); if (ep !== epoch || S.phase !== "betting") return; addStake(i, m, amt);
+      if (Math.random() < .55) { const side = C().glow[1 + Math.floor(Math.random() * 2)]; await fly(500, seatPos(i), spotAt(i, side)); if (ep === epoch && S.phase === "betting") addStake(i, side, 500); }
+      if (!S.closeAt) S.closeAt = performance.now() + S.closeLen;
+      hud();
+    });
+  }
+}
+function closeBets() {
+  const ep = epoch;
+  if (S.phase !== "betting") return;
+  if (K() === "rou") return rouSpin();
+  if (K() === "crp") { if (S.shooter === ME) { toast("Out of time: the dice pass on."); return passDice(); } return crpRoll(); }
+  if (myStakes()) lastBets = myBetsNow();
+  S.roundStake = myStakes(); undo = [];
+  setPhase("dealing");
+  deal().then(() => { if (ep === epoch) (game === "tcp" ? tcpDecide : bjPlay)(); });
+}
+async function deal() {
+  const ep = epoch, n = game === "tcp" ? 3 : 2;
+  const seats = [5, 4, 3, 2, 1, 0].filter(i => stakeOf(i, C().main) > 0 || (i === ME && myStakes()));
+  seats.forEach(i => { S.hands[i] = []; });
+  for (let r = 0; r < n; r++) {
+    for (const i of seats) { if (ep !== epoch) return; const c = newCard(draw(), false); S.hands[i].push(c); send(c, cardAt(i, r)); await wait(110); }
+    if (ep !== epoch) return;
+    const d = newCard(draw(), false); S.dealer.push(d); send(d, dealerAt(r)); await wait(110);
+  }
+  await wait(300);
+  if (ep !== epoch) return;
+  if (S.hands[ME]) await Promise.all(S.hands[ME].map(c => flip(c)));
+  if (game === "bj") await flip(S.dealer[0]);
+  // NPC hands at Blackjack are face up, as the game deals them
+  if (game === "bj") await Promise.all(Object.keys(S.hands).filter(i => +i !== ME).flatMap(i => S.hands[i].map(c => flip(c))));
+}
+
+// ---- Three Card Poker: everyone decides at once, then each seat is settled in turn from third base
+function tcpDecide() {
+  const ep = epoch;
+  if (!Object.keys(S.hands).length) return roundEnd();
+  S.decideAt = performance.now() + S.decideLen; setPhase("deciding");
+  for (const i of Object.keys(S.hands).map(Number)) {
+    if (i === ME) { if (!stakeOf(ME, "ante")) S.decided.add(ME); continue; }
+    wait(rand(2000, 8000)).then(() => { if (ep !== epoch || S.phase !== "deciding") return; decideFor(i, cmp(tcpRank(S.hands[i].map(c => c.code)), [1, 12, 0, 0]) >= 0 || Math.random() < .35); });
+  }
+}
+async function decideFor(i, play) {
+  if (S.decided.has(i)) return; S.decided.add(i);
+  if (play) { const a = stakeOf(i, "ante"); if (i === ME) { balance -= a; } await fly(a, seatPos(i), spotAt(i, "play")); addStake(i, "play", a); }
+  else {
+    const cs = S.hands[i]; cs.forEach((c, j) => { const x0 = c.x, y0 = c.y; tween(260, k => { c.x = lerp(x0, seatX(i) + 8 + j * 1.5, k); c.y = lerp(y0, -22 + j, k); c.rot = lerp(0, .3 - j * .25, k); }); if (c.up) flip(c, false); });
+    S.hands[i].folded = true; S.folded[i] = cs.map(c => c.code);
+  }
+  hud();
+  if ([...Object.keys(S.hands)].every(k => S.decided.has(+k))) tcpSettle();
+}
+async function tcpSettle() {
+  const ep = epoch;
+  if (S.phase !== "deciding") return;
+  setPhase("settling");
+  // folded hands and their bets go first (a folded Prime on one colour stays)
+  for (const i of Object.keys(S.hands).map(Number)) if (S.hands[i].folded) {
+    for (const k of ["ante", "pair_plus", "jackpot"]) { const a = takeStake(i, k); if (a) fly(a, spotAt(i, k), SET().tray, 340); }
+    clearCards(S.hands[i]); delete S.hands[i];
+  }
+  await wait(500); if (ep !== epoch) return;
+  await Promise.all(S.dealer.map(c => flip(c)));
+  const dr = tcpRank(S.dealer.map(c => c.code)), qual = cmp(dr, [1, 12, 0, 0]) >= 0 || dr[0] > 1;
+  dealerSay(`${tcpName(S.dealer.map(c => c.code))}. ${qual ? "Dealer qualifies." : "Dealer doesn't qualify."}`);
+  await wait(900);
+  for (let i = 0; i < 6; i++) {
+    if (ep !== epoch) return;
+    if (!S.hands[i]) {
+      const f = S.folded[i];   // a folded Prime on three cards of one colour still pays
+      if (f && stakeOf(i, "prime")) await settleSeat(i, { prime: f.every(c => red(c) === red(f[0])) ? stakeOf(i, "prime") * 3 : -1 });
+      else if (i === ME) settleMine(i, {});
+      continue;
+    }
+    const cs = S.hands[i].map(c => c.code), r = tcpRank(cs), all = [...cs, ...S.dealer.map(c => c.code)], out = {};
+    if (i !== ME) await Promise.all(S.hands[i].map(c => flip(c)));
+    const beat = cmp(r, dr);
+    if (stakeOf(i, "ante")) {
+      const a = stakeOf(i, "ante"), bonus = { 6: 5, 5: 4, 4: 1 }[r[0]] || 0;
+      if (!qual) { out.ante = a; out.play = 0; } else if (beat > 0) { out.ante = a; out.play = stakeOf(i, "play"); } else if (beat < 0) { out.ante = -1; out.play = -1; } else { out.ante = 0; out.play = 0; }
+      if (bonus) out.ante = (out.ante > 0 ? out.ante : 0) + a * bonus;
+    }
+    if (stakeOf(i, "pair_plus")) { const m = { 6: 35, 5: 33, 4: 6, 3: 4, 2: 1 }[r[0]]; out.pair_plus = m ? stakeOf(i, "pair_plus") * m : -1; }
+    if (stakeOf(i, "prime")) { const six = all.every(c => red(c) === red(all[0])), three = cs.every(c => red(c) === red(cs[0])); out.prime = six ? stakeOf(i, "prime") * 4 : three ? stakeOf(i, "prime") * 3 : -1; }
+    if (stakeOf(i, "jackpot")) { const j = { 6: 10000, 5: 6000, 4: 600 }[r[0]]; out.jackpot = j || -1; }
+    await settleSeat(i, out);
+  }
+  roundEnd();
+}
+// out: per bet, -1 loses, 0 pushes, >0 wins that much
+async function settleSeat(i, out) {
+  const ep = epoch, entries = Object.entries(out);
+  for (const [k, v] of entries) if (v < 0) { const a = takeStake(i, k); if (a) fly(a, spotAt(i, k), SET().tray, 320); }
+  await wait(entries.some(([, v]) => v < 0) ? 380 : 60); if (ep !== epoch) return;
+  for (const [k, v] of entries) if (v > 0) { S.wins.set(keyOf(i, k), v); await wait(90); }
+  await wait(520); if (ep !== epoch) return;
+  if (i === ME) settleMine(i, out);
+  else { for (const [k] of entries) { const a = takeStake(i, k) + (S.wins.get(keyOf(i, k)) || 0); S.wins.delete(keyOf(i, k)); if (a) fly(a, spotAt(i, k), seatPos(i), 320); } if (S.hands[i]) clearCards(S.hands[i]); }
+  await wait(260);
+}
+function settleMine(i, out) {
+  let back = 0;
+  for (const k of [...C().bets, "play", "double"]) {
+    const st = stakeOf(i, k); if (!st && !out[k]) continue;
+    const v = out[k];
+    if (v === undefined || v < 0) continue;
+    const won = S.wins.get(keyOf(i, k)) || 0; S.wins.delete(keyOf(i, k));
+    const a = takeStake(i, k) + won; back += a; if (a) fly(a, spotAt(i, k), seatPos(i), 320);
+  }
+  const staked = S.roundStake || 0, net = back - staked;
+  balance += back;
+  if (S.hands[i]) clearCards(S.hands[i]);
+  if (staked) { S.result = { net }; floatAt(seatPos(ME), net); flashDelta(net); }
+  hud();
+}
+function clearCards(cs) { cs.forEach(c => { if (c.gone) return; c.gone = true; const x0 = c.x, y0 = c.y; tween(300, k => { c.x = lerp(x0, T().discard[0], k); c.y = lerp(y0, T().discard[1], k); c.a = 1 - k; }).then(() => { const j = S.cards.indexOf(c); if (j >= 0) S.cards.splice(j, 1); }); }); }
+async function roundEnd() {
+  const ep = epoch;
+  S.dealer.forEach(c => clearCards([c])); S.dealer = [];
+  Object.values(S.hands).forEach(h => h && clearCards(h));
+  S.nextAt = performance.now() + 4000; setPhase("done");
+  await wait(4000); if (ep !== epoch) return;
+  if (S.queued) S.queued.after = true;
+  startBetting();
+}
+
+// ---- Blackjack: boxes play in turn from first base
+async function bjPlay() {
+  const ep = epoch;
+  setPhase("deciding");
+  for (const i of [5, 4, 3, 2, 1, 0]) {
+    if (!S.hands[i] || ep !== epoch) continue;
+    S.turn = i; S.decideAt = performance.now() + S.decideLen; hud();
+    if (i === ME) { await new Promise(res => { S.myTurnDone = res; }); if (ep !== epoch) return; continue; }
+    await wait(700);
+    while (bjTotal(S.hands[i].map(c => c.code)).t < 17 && ep === epoch) { await hit(i); await wait(450); }
+  }
+  if (ep !== epoch) return;
+  S.turn = -1; await bjSettle();
+}
+async function hit(i) { const c = newCard(draw(), false); S.hands[i].push(c); await send(c, cardAt(i, S.hands[i].length - 1)); await flip(c); hud(); }
+async function bjAct(a) {
+  if (S.turn !== ME || S.busy) return;
+  S.busy = true;
+  const cs = () => S.hands[ME].map(c => c.code);
+  if (a === "hit") { await hit(ME); if (bjTotal(cs()).t >= 21) endTurn(); }
+  else if (a === "stand") endTurn();
+  else if (a === "double") { const b = stakeOf(ME, "bet"); if (balance < b) { toast("Not enough left to double."); S.busy = false; return; } balance -= b; S.roundStake += b; await fly(b, seatPos(ME), spotAt(ME, "double")); addStake(ME, "double", b); await hit(ME); endTurn(); }
+  else if (a === "split") toast("Split works in the game; this mockup doesn't split.");
+  S.busy = false; hud();
+}
+function endTurn() { const r = S.myTurnDone; S.myTurnDone = null; if (r) r(); }
+async function bjSettle() {
+  const ep = epoch;
+  setPhase("settling");
+  await flip(S.dealer[1]);
+  while (bjTotal(S.dealer.map(c => c.code)).t < 17 && ep === epoch) { const c = newCard(draw(), false); S.dealer.push(c); await send(c, dealerAt(S.dealer.length - 1)); await flip(c); await wait(250); }
+  const dt = bjTotal(S.dealer.map(c => c.code)).t;
+  dealerSay(dt > 21 ? `${dt}. Dealer busts.` : `Dealer has ${dt}.`);
+  await wait(800);
+  const up = S.dealer[0].code;
+  for (let i = 0; i < 6; i++) {
+    if (ep !== epoch) return;
+    if (!S.hands[i]) { if (i === ME) settleMine(i, {}); continue; }
+    const cs = S.hands[i].map(c => c.code), t = bjTotal(cs).t, bj = cs.length === 2 && t === 21, out = {};
+    const main = stakeOf(i, "bet");
+    if (main) { const win = t <= 21 && (dt > 21 || t > dt); const push = t <= 21 && t === dt; const m = bj && !push ? 1.5 : 1;
+      out.bet = win ? Math.round(main * m) : push ? 0 : -1; if (stakeOf(i, "double")) out.double = win ? stakeOf(i, "double") : push ? 0 : -1; }
+    const two = cs.slice(0, 2);
+    if (stakeOf(i, "super_pairs")) out.super_pairs = two[0][0] === two[1][0] ? stakeOf(i, "super_pairs") * 5 : -1;
+    if (stakeOf(i, "twenty_one_plus_three")) { const f = [...two, up].every(c => c[1] === up[1]); out.twenty_one_plus_three = f ? stakeOf(i, "twenty_one_plus_three") * 9 : -1; }
+    if (stakeOf(i, "top_three")) out.top_three = -1;
+    if (stakeOf(i, "jackpot")) out.jackpot = -1;
+    await settleSeat(i, out);
+  }
+  roundEnd();
+}
+
+// ============================================================ Roulette
+const RED = new Set(G.rou.red), STEP = Math.PI * 2 / 37;
+const RPAYS = { st: 35, sp: 17, tr: 11, sr: 11, co: 8, ln: 5, doz: 2, col: 2, even: 1 };
+const RMAX = { st: 10000, sp: 20000, tr: 30000, sr: 30000, co: 40000, ln: 60000, doz: 100000, col: 100000, even: 200000 };
+const RB = new Map();   // every bet id seen, with what it covers and where its chips go
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const EVENS = { low: ["1–18", n => n >= 1 && n <= 18], even: ["Even", n => n > 0 && n % 2 === 0], red: ["Red", n => RED.has(n)], black: ["Black", n => n > 0 && !RED.has(n)],
+  odd: ["Odd", n => n % 2 === 1], high: ["19–36", n => n >= 19] };
+// The bet under a point on the layout: the middle of a box is a straight up, a side a split, a corner a corner; the
+// bottom edge of the 1-4-7 row is a street (a six line on a line between two); the zero's edge the 0 splits and trios.
+function rouBetAt(x, y) {
+  const g = G.rou.grid, right = g.gx + 12 * g.bw, bot = g.gy + 3 * g.bh, n = (c, r) => c * 3 + (3 - r), col = c => [c * 3 + 1, c * 3 + 2, c * 3 + 3];
+  const mk = (type, nums, at, name, id) => { nums = [...nums].sort((a, b) => a - b); const b = { id: id || type + "_" + nums.join("_"), type, nums, at, name, pays: RPAYS[type], max: RMAX[type] }; RB.set(b.id, b); return b; };
+  if (x >= right && x <= right + g.bw && y >= g.gy && y <= bot) {
+    const r = Math.floor((y - g.gy) / g.bh), nums = range(0, 11).map(c => n(c, r));
+    return mk("col", nums, [right + g.bw / 2, g.gy + (r + .5) * g.bh], `Column ${nums[0]}–${nums[11]}`, "col" + (3 - r));
+  }
+  if (x >= g.zx && x < g.gx - 2.5 && y >= g.gy && y <= bot) return mk("st", [0], [(g.zx + g.gx) / 2 + 1, g.gy + 1.5 * g.bh], "Straight up 0");
+  if (y > bot + 2.5 && y <= g.dy + g.dh && x >= g.gx && x <= right) {
+    const k = Math.min(2, Math.floor((x - g.gx) / (4 * g.bw)));
+    return mk("doz", range(k * 12 + 1, k * 12 + 12), [g.gx + (k * 4 + 2) * g.bw, g.dy + g.dh / 2], ["1st 12", "2nd 12", "3rd 12"][k], "doz" + (k + 1));
+  }
+  if (y >= g.ey && y <= g.ey + g.eh && x >= g.gx && x <= right) {
+    const k = Math.min(5, Math.floor((x - g.gx) / (2 * g.bw))), key = G.rou.evens[k], [name, f] = EVENS[key];
+    return mk("even", range(1, 36).filter(f), [g.gx + (k * 2 + 1) * g.bw, g.ey + g.eh / 2], name, key);
+  }
+  if (x >= g.gx - 2.5 && x <= right && y >= g.gy && y <= bot + 2.5) {
+    const fx = (x - g.gx) / g.bw, fy = (y - g.gy) / g.bh, c = clamp(Math.floor(fx), 0, 11), r = clamp(Math.floor(fy), 0, 2), ux = fx - c, uy = fy - r, e = .24;
+    const street = r === 2 && uy > 1 - e, zero = ux < e && c === 0;
+    let cs = null; if (ux > 1 - e && c < 11) cs = [c, c + 1]; else if (ux < e && c > 0) cs = [c - 1, c];
+    let rs = null; if (!street) { if (uy > 1 - e && r < 2) rs = [r, r + 1]; else if (uy < e && r > 0) rs = [r - 1, r]; }
+    if (street) {
+      if (cs) { const nums = [...col(cs[0]), ...col(cs[1])]; return mk("ln", nums, [g.gx + cs[1] * g.bw, bot], `Six line ${nums[0]}–${nums[5]}`); }
+      return mk("sr", col(c), [g.gx + (c + .5) * g.bw, bot], `Street ${c * 3 + 1}–${c * 3 + 3}`);
+    }
+    if (zero) {
+      if (rs) { const nums = [0, n(0, rs[0]), n(0, rs[1])]; return mk("tr", nums, [g.gx, g.gy + rs[1] * g.bh], `Trio ${[...nums].sort((a, b) => a - b).join("/")}`); }
+      return mk("sp", [0, n(0, r)], [g.gx, g.gy + (r + .5) * g.bh], `Split 0/${n(0, r)}`);
+    }
+    if (cs && rs) { const nums = [n(cs[0], rs[0]), n(cs[1], rs[0]), n(cs[0], rs[1]), n(cs[1], rs[1])]; return mk("co", nums, [g.gx + cs[1] * g.bw, g.gy + rs[1] * g.bh], `Corner ${[...nums].sort((a, b) => a - b).join("/")}`); }
+    if (cs) { const nums = [n(cs[0], r), n(cs[1], r)]; return mk("sp", nums, [g.gx + cs[1] * g.bw, g.gy + (r + .5) * g.bh], `Split ${[...nums].sort((a, b) => a - b).join("/")}`); }
+    if (rs) { const nums = [n(c, rs[0]), n(c, rs[1])]; return mk("sp", nums, [g.gx + (c + .5) * g.bw, g.gy + rs[1] * g.bh], `Split ${[...nums].sort((a, b) => a - b).join("/")}`); }
+    return mk("st", [n(c, r)], [g.gx + (c + .5) * g.bw, g.gy + (r + .5) * g.bh], `Straight up ${n(c, r)}`);
+  }
+  return null;
+}
+const rouBox = n => { const g = G.rou.grid; return n === 0 ? [(g.zx + g.gx) / 2 + 1, g.gy + 1.5 * g.bh] : [g.gx + Math.floor((n - 1) / 3) * g.bw + g.bw / 2, g.gy + (2 - (n - 1) % 3) * g.bh + g.bh / 2]; };
+function rouStart() {
+  const ep = epoch;
+  S.ball = null; S.dolly = null; S.closeLen = 25000; S.resultText = "";
+  setPhase("betting");
+  if (auto && lastBets) wait(450).then(() => { if (ep === epoch) rebet(true); });
+  // each NPC has a habit: lucky numbers, the even chances, or dozens and corners
+  const g = G.rou.grid, habits = { 0: () => rouBox(pick([7, 17, 23, 32, 11])), 3: () => [g.gx + (pick([0, 1, 2, 3, 4, 5]) * 2 + 1) * g.bw, g.ey + g.eh / 2],
+    5: () => Math.random() < .5 ? [g.gx + (pick([0, 1, 2]) * 4 + 2) * g.bw, g.dy + g.dh / 2] : [g.gx + pick([2, 4, 7]) * g.bw, g.gy + pick([1, 2]) * g.bh] };
+  for (const i of Object.keys(NPCS).map(Number)) for (let j = 0; j < 2 + Math.floor(Math.random() * 2); j++) {
+    wait(rand(1500, 10000)).then(async () => {
+      if (ep !== epoch || S.phase !== "betting") return;
+      const b = rouBetAt(...habits[i]()), a = b.type === "even" || b.type === "doz" ? pick([500, 1000, 2500]) : pick([100, 200, 500]);
+      await fly(a, seatPos(i), spotAt(i, b.id), 260, i); if (ep !== epoch || S.phase !== "betting") return;
+      addStake(i, b.id, a); if (!S.closeAt) S.closeAt = performance.now() + S.closeLen; hud();
+    });
+  }
+}
+function rouSpin() {
+  if (myStakes()) lastBets = myBetsNow();
+  S.finalAt = performance.now() + 6000; S.ball = { a: rand(0, 6.28), r: 41, w: 7.5, mode: "track" };
+  dealerSay("Final bets!", 1800);
+  setPhase("spinning");
+}
+async function rouDrop() {
+  if (S.phase !== "spinning") return;
+  const ep = epoch; undo = [];
+  setPhase("rolling"); dealerSay("No more bets.", 1600);
+  const n = Math.floor(Math.random() * 37), b = S.ball, a0 = b.a, r0 = b.r;
+  let to = G.rou.wheel_order.indexOf(n) * STEP - Math.PI / 2; while (to > a0 - Math.PI * 1.5) to -= Math.PI * 2;
+  b.mode = "drop";
+  await tween(3000, q => { b.a = lerp(a0, to, q); b.r = lerp(r0, 24.5, Math.min(1, q * 1.3)); }, easeOut);
+  if (ep !== epoch) return;
+  b.mode = "rest"; rouResult(n);
+}
+async function rouResult(n) {
+  const ep = epoch, colour = n === 0 ? "zero" : RED.has(n) ? "red" : "black";
+  S.resultText = `<b>${n}</b> ${colour[0].toUpperCase() + colour.slice(1)}`; S.dolly = n;
+  dealerSay(`${n}, ${colour}.`); setPhase("settling");
+  const staked = myStakes();
+  await wait(900); if (ep !== epoch) return;
+  // losers down the hole (half of an even chance on a zero), then the winners paid from the float, then all of it back
+  for (const [key, a] of [...S.stakes]) {
+    const [i, id] = key.split("|"), b = RB.get(id);
+    if (b.nums.includes(n)) continue;
+    const lost = n === 0 && b.type === "even" ? Math.floor(a / 2) : a;
+    fly(takeStake(+i, id, lost), spotAt(+i, id), SET().tray, 340, +i);
+  }
+  await wait(650); if (ep !== epoch) return;
+  for (const [key, a] of S.stakes) { const b = RB.get(key.split("|")[1]); if (b.nums.includes(n)) S.wins.set(key, a * b.pays); }
+  await wait(900); if (ep !== epoch) return;
+  let back = 0;
+  for (const [key] of [...S.stakes]) {
+    const [i, id] = key.split("|"), a = takeStake(+i, id) + (S.wins.get(key) || 0); S.wins.delete(key);
+    fly(a, spotAt(+i, id), seatPos(+i), 340); if (+i === ME) back += a;
+  }
+  balance += back;
+  if (staked) { const net = back - staked; S.result = { net }; floatAt(seatPos(ME), net); flashDelta(net); }
+  await wait(600); if (ep !== epoch) return;
+  S.dolly = null; S.nextAt = performance.now() + 3500; setPhase("done");
+  await wait(3500); if (ep !== epoch) return;
+  startBetting();
+}
+
+// ============================================================ Craps
+const CB = {   // the bets: name, payout, and whether this mockup takes them (the rest work in the game)
+  pass: ["Pass Line", "1 to 1"], dont_pass: ["Don't Pass Bar 12", "1 to 1"], come: ["Come", "1 to 1"], dont_come: ["Don't Come", "1 to 1"],
+  field: ["Field", "1 to 1, 2 pays double, 12 triple"], big6: ["Big 6", "1 to 1"], big8: ["Big 8", "1 to 1"],
+  any7: ["Any Seven", "4 to 1"], any_craps: ["Any Craps", "7 to 1"], two: ["Aces (2)", "30 to 1"], twelve: ["Twelve", "30 to 1"],
+  three: ["Ace-deuce (3)", "15 to 1"], eleven: ["Yo (11)", "15 to 1"], horn: ["Horn", "2, 3, 11, 12"], ce: ["C & E", "3 to 1 or 7 to 1"],
+  hard4: ["Hard 4", "7 to 1"], hard10: ["Hard 10", "7 to 1"], hard6: ["Hard 6", "9 to 1"], hard8: ["Hard 8", "9 to 1"],
+};
+for (const n of [4, 5, 6, 8, 9, 10]) {
+  CB["place_" + n] = [`Place ${n}`, { 4: "9 to 5", 10: "9 to 5", 5: "7 to 5", 9: "7 to 5", 6: "7 to 6", 8: "7 to 6" }[n]];
+  CB["buy_" + n] = [`Buy ${n}`, { 4: "2 to 1", 10: "2 to 1", 5: "3 to 2", 9: "3 to 2", 6: "6 to 5", 8: "6 to 5" }[n] + ", less 5%"];
+  CB["lay_" + n] = [`Lay ${n}`, { 4: "1 to 2", 10: "1 to 2", 5: "2 to 3", 9: "2 to 3", 6: "5 to 6", 8: "5 to 6" }[n] + ", less 5%"];
+}
+const CRP_OK = new Set(["pass", "dont_pass", "field", "big6", "big8", "any7", "any_craps", "two", "twelve", "three", "eleven", "hard4", "hard6", "hard8", "hard10",
+  "place_4", "place_5", "place_6", "place_8", "place_9", "place_10"]);
+const MAIN = k => ["pass", "dont_pass", "field", "big6", "big8"].includes(k) || k.startsWith("place_");
+const OFFABLE = k => k.startsWith("place_") || k.startsWith("hard");   // off on the come-out unless working
+const removable = k => K() !== "crp" || !(S.point && (k === "pass" || k === "dont_pass"));
+const crpBet = k => ({ id: k, name: CB[k][0], pays: CB[k][1], ok: CRP_OK.has(k) });
+function inPoly(x, y, p) { let inside = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [xi, yi] = p[i], [xj, yj] = p[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
+function crpBetAt(x, y) {
+  const Cg = G.crp;
+  for (const [id, r] of Object.entries(Cg.props)) if (x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3]) return crpBet(id);
+  for (const h of ["1", "-1"]) for (const [id, p] of Object.entries(Cg.polys[h])) if (inPoly(x, y, p)) return { ...crpBet(id), half: h };
+  if (inPoly(x, y, Cg.pass)) return crpBet("pass");
+  return null;
+}
+function crpAt(i, k) {   // each player's chips go on their own end, spread across a box by where they stand
+  const Cg = G.crp, h = seatX(i) > 0 ? "1" : "-1", slot = h === "1" ? i : i - 4, spread = (slot - 1.5) * Math.sign(+h);
+  if (k === "pass") return [clamp(seatX(i), -150, 150), -20];
+  const pr = Cg.props[k]; if (pr) return [pr[0] + pr[2] / 2 + spread * 4, pr[1] + pr[3] / 2 + 1];
+  const z = Cg.zones[h][k]; if (!z) return [seatX(i), -20];
+  const cx = z[0] + z[2] / 2, cy = z[1] + z[3] / 2;
+  if (k.startsWith("place_")) return [cx + spread * 3.4, cy + z[3] * .27];
+  return [cx + spread * 7, cy + 2];
+}
+const occupied = () => [...Object.keys(NPCS).map(Number), ME].sort((a, b) => a - b);
+const nextShooter = from => { const o = occupied(); return o.find(i => i > from) ?? o[0]; };
+const shooterName = () => S.shooter === ME ? "You" : NPCS[S.shooter]?.[0] || "Nobody";
+function crpRestDice() { S.dice = G.crp.dice.map(([x, y], j) => ({ x, y, f: S.dice[j]?.f || [6, 1][j], rot: 0 })); }
+function crpStart() {
+  const ep = epoch;
+  S.resultText = ""; S.wins.clear();
+  if (S.want && !S.point) { S.shooter = ME; S.want = false; }
+  S.closeLen = S.shooter === ME ? 20000 : 5000; S.closeAt = performance.now() + S.closeLen;
+  setPhase("betting");
+  // each NPC has a style: a grinder plays the line and places the 6 and 8, the dark side bets against, a gambler the field and props
+  const style = { [Object.keys(NPCS)[0]]: "grinder", [Object.keys(NPCS)[1]]: "dark", [Object.keys(NPCS)[2]]: "gambler" };
+  const npcBet = (i, k, a) => { if (stakeOf(i, k)) return; fly(a, seatPos(i), spotAt(i, k)).then(() => { if (ep === epoch && S.phase === "betting") { addStake(i, k, a); hud(); } }); };
+  for (const i of Object.keys(NPCS).map(Number)) wait(rand(300, 2600)).then(() => {
+    if (ep !== epoch || S.phase !== "betting") return;
+    const s = style[i];
+    if (!S.point) { if (s === "dark") npcBet(i, "dont_pass", 1000); else npcBet(i, "pass", 1000); }
+    else if (s === "grinder") { npcBet(i, "place_6", 1200); npcBet(i, "place_8", 1200); }
+    if (s === "gambler") { if (S.point) npcBet(i, "field", 500); if (Math.random() < .35) npcBet(i, pick(["any_craps", "eleven", "hard8"]), 100); }
+  });
+}
+function crpOutcome(k, a, t, hard, P, work) {   // -1 loses, >0 wins that much, undefined no action (bets stay up)
+  const n = +k.replace(/\D/g, "");
+  if (k === "pass") return !P ? (t === 7 || t === 11 ? a : [2, 3, 12].includes(t) ? -1 : undefined) : t === P ? a : t === 7 ? -1 : undefined;
+  if (k === "dont_pass") return !P ? (t === 2 || t === 3 ? a : t === 7 || t === 11 ? -1 : undefined) : t === 7 ? a : t === P ? -1 : undefined;
+  if (k === "field") return [3, 4, 9, 10, 11].includes(t) ? a : t === 2 ? a * 2 : t === 12 ? a * 3 : -1;
+  if (k === "big6" || k === "big8") return t === n ? a : t === 7 ? -1 : undefined;
+  if (k.startsWith("place_")) { if (!P && !work) return undefined; const [p, q] = { 4: [9, 5], 10: [9, 5], 5: [7, 5], 9: [7, 5], 6: [7, 6], 8: [7, 6] }[n];
+    return t === n ? Math.floor(a * p / q / 100) * 100 : t === 7 ? -1 : undefined; }   // paid in whole pounds
+  if (k.startsWith("hard")) { if (!P && !work) return undefined; return t === n ? (hard ? a * (n === 4 || n === 10 ? 7 : 9) : -1) : t === 7 ? -1 : undefined; }
+  const one = { any7: [[7], 4], any_craps: [[2, 3, 12], 7], two: [[2], 30], twelve: [[12], 30], three: [[3], 15], eleven: [[11], 15] }[k];
+  if (one) return one[0].includes(t) ? a * one[1] : -1;
+  return undefined;
+}
+const WORD = { 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven", 12: "Twelve" };
+function crpCall(t, hard, P) {
+  if (!P) {
+    if (t === 7) return "Seven, front line winner!"; if (t === 11) return "Yo-eleven, front line winner!";
+    if ([2, 3, 12].includes(t)) return `${{ 2: "Aces", 3: "Ace-deuce", 12: "Twelve" }[t]}, craps. Line away.`;
+    return `${WORD[t]}${hard ? " the hard way" : ""}. The point is ${t}.`;
+  }
+  if (t === 7) return "Seven out. Line away.";
+  if (t === P) return `${WORD[t]}${hard ? " the hard way" : ""}, winner! Pay the line.`;
+  return `${WORD[t]}${hard ? ", hard" : ""}. The point is still ${P}.`;
+}
+async function crpRoll() {
+  if (S.phase !== "betting") return;
+  const ep = epoch, d1 = 1 + Math.floor(Math.random() * 6), d2 = 1 + Math.floor(Math.random() * 6);
+  undo = []; setPhase("throwing");
+  // out from the shooter, off the far end's rubber wall, to rest on the layout
+  const sx = seatX(S.shooter), side = sx > 0 ? -1 : 1, wall = [side * 181, rand(-95, -40)], rest = [side * rand(118, 160), rand(-96, -46)];
+  S.spinning = true;
+  await Promise.all(S.dice.map((d, j) => {
+    const a = [sx + j * 4, -4], b = [wall[0] - side * j * 2, wall[1] + j * 5], c = [rest[0] + j * 7 * side, rest[1] + j * 4];
+    return tween(620, k => { d.x = lerp(a[0], b[0], k); d.y = lerp(a[1], b[1], k); d.rot += .35; }, lin)
+      .then(() => tween(520, k => { d.x = lerp(b[0], c[0], k); d.y = lerp(b[1], c[1], k); d.rot += .2 * (1 - k); }, easeOut));
+  }));
+  if (ep !== epoch) return;
+  S.spinning = false; S.dice[0].f = d1; S.dice[1].f = d2; S.dice.forEach(d => { d.rot = rand(-.4, .4); });
+  await wait(450); if (ep !== epoch) return;
+  crpSettle(d1, d2);
+}
+async function crpSettle(d1, d2) {
+  const ep = epoch, t = d1 + d2, hard = d1 === d2, P = S.point;
+  S.resultText = crpCall(t, hard, P); dealerSay(S.resultText, 2400); setPhase("settling");
+  let net = 0, mine = false;
+  const outs = [];
+  for (const [key, a] of S.stakes) { const [i, k] = key.split("|"), v = crpOutcome(k, a, t, hard, P, +i === ME && S.working); if (v !== undefined) outs.push([+i, k, a, v]); }
+  for (const [i, k, a, v] of outs) if (v < 0) { fly(takeStake(i, k), spotAt(i, k), SET().tray, 340); if (i === ME) { net -= a; mine = true; } }
+  await wait(500); if (ep !== epoch) return;
+  for (const [i, k, , v] of outs) if (v > 0) S.wins.set(keyOf(i, k), v);
+  await wait(800); if (ep !== epoch) return;
+  for (const [i, k, , v] of outs) if (v > 0) {   // the winnings come back; the bet stays up
+    S.wins.delete(keyOf(i, k)); const at = spotAt(i, k); fly(v, [at[0] + 5, at[1] - 4], seatPos(i), 340);
+    if (i === ME) { balance += v; net += v; mine = true; }
+  }
+  if (mine) { floatAt(seatPos(ME), net); flashDelta(net); }
+  // the puck, and the dice moving on after a seven-out
+  if (!P && [4, 5, 6, 8, 9, 10].includes(t)) S.point = t;
+  else if (P && (t === P || t === 7)) { S.point = 0; if (t === 7) S.shooter = S.want ? ME : nextShooter(S.shooter); if (S.shooter === ME) S.want = false; }
+  hud();
+  await wait(900); if (ep !== epoch) return;
+  const from = S.dice.map(d => [d.x, d.y]);
+  await tween(450, k => S.dice.forEach((d, j) => { d.x = lerp(from[j][0], G.crp.dice[j][0], k); d.y = lerp(from[j][1], G.crp.dice[j][1], k); }));
+  if (ep !== epoch) return;
+  crpStart();
+}
+function passDice() { if (S.shooter !== ME) return; S.shooter = nextShooter(ME); toast(`The dice go to ${shooterName()}.`); crpStart(); }
+function takeDice() {
+  if (S.shooter === ME) return;
+  if (!S.point && S.phase === "betting") { S.shooter = ME; S.want = false; S.closeLen = 20000; S.closeAt = performance.now() + 20000; hud(); return; }
+  S.want = !S.want; if (S.want) toast("The dice come to you once the point is decided."); hud();
+}
+function rollDice() { if (S.phase === "betting" && S.shooter === ME && !crpNeedsLine()) crpRoll(); }
+const crpNeedsLine = () => !S.point && !stakeOf(ME, "pass") && !stakeOf(ME, "dont_pass");
+function drawDie(c, d) {
+  const tone = { red: ["#f04a4f", "#a5101a"] }.red, s = 6.2, f = S.spinning ? 1 + Math.floor((now / 70 + d.x) % 6) : d.f;
+  c.save(); c.translate(d.x + .6, d.y + .9); c.scale(1, .78); c.beginPath(); c.arc(0, 0, 3.6, 0, 7); c.fillStyle = "rgba(0,0,0,.42)"; c.fill(); c.restore();
+  c.save(); c.translate(d.x, d.y); c.rotate(d.rot);
+  const g = c.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2); g.addColorStop(0, tone[0]); g.addColorStop(1, tone[1]);
+  c.beginPath(); R.rrect(c, -s / 2, -s / 2, s, s, s * .18); c.fillStyle = g; c.fill(); c.strokeStyle = "rgba(255,255,255,.35)"; c.lineWidth = .3; c.stroke();
+  for (const p of G.crp.pips[clamp(f, 1, 6)]) { c.beginPath(); c.arc(p[0] * s * .27, p[1] * s * .27, s * .085, 0, 7); c.fillStyle = "#fff"; c.fill(); }
+  c.restore();
+}
+function drawPuck(c, at, on) {
+  c.save(); c.translate(at[0], at[1]);
+  c.beginPath(); c.arc(.4, .7, 4.4, 0, 7); c.fillStyle = "rgba(0,0,0,.35)"; c.fill();
+  c.beginPath(); c.arc(0, 0, 4.2, 0, 7); c.fillStyle = on ? "#f4f1ea" : "#141414"; c.fill(); c.strokeStyle = on ? "#b8b2a4" : "#555"; c.lineWidth = .4; c.stroke();
+  c.scale(.1, .1); c.font = "700 30px Barlow Condensed, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = on ? "#141414" : "#f4f1ea"; c.fillText(on ? "ON" : "OFF", 0, 2);
+  c.restore();
+}
+function drawOffButton(c, at) {
+  c.save(); c.translate(at[0] + 2.4, at[1] - 3); c.beginPath(); c.arc(0, 0, 2.3, 0, 7); c.fillStyle = "#141414"; c.fill(); c.strokeStyle = "#777"; c.lineWidth = .25; c.stroke();
+  c.scale(.1, .1); c.font = "700 15px Barlow Condensed, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#f4f1ea"; c.fillText("OFF", 0, 1); c.restore();
+}
+
+// ============================================================ your bets
+function canBet() {
+  if (K() === "rou") return (S.phase === "betting" && !S.ready) || S.phase === "spinning";
+  if (K() === "crp") return S.phase === "betting";
+  return S.phase === "betting" && !S.ready;
+}
+// What a click on spot k with this chip puts down: the amount, a reason it can't, or null to do nothing
+function checkBet(k, amount) {
+  if (K() === "rou") {
+    const b = RB.get(k); if (stakeOf(ME, k) + amount > b.max) return `${money(b.max)} is the most on a ${b.name.split(" ")[0].toLowerCase()} bet.`;
+    return amount;
+  }
+  if (K() === "crp") {
+    if (!CRP_OK.has(k)) return `${CB[k][0]} works in the game; this mockup keeps to the line, place bets, the field, hardways and one-roll bets.`;
+    if ((k === "pass" || k === "dont_pass") && S.point) return `${CB[k][0]} bets go down on the come-out.`;
+    if (k === "place_6" || k === "place_8") amount = Math.ceil(amount / 600) * 600;   // placed in £6 units, so it pays whole pounds
+    if (MAIN(k) && stakeOf(ME, k) + amount < 500) return `£5 minimum on the ${CB[k][0]}.`;
+    return amount;
+  }
+  if (k === "jackpot") { if (stakeOf(ME, k)) return null; amount = 100; }
+  if (k === "top_three" && !stakeOf(ME, "twenty_one_plus_three")) return "Top 3 needs a 21+3 bet first.";
+  if (stakeOf(ME, k) + amount > C().max) return "£500 is the most on one spot.";
+  return amount;
+}
+async function placeBet(k, amount) {
+  if (!canBet()) return;
+  const v = checkBet(k, amount);
+  if (v === null) return; if (typeof v === "string") return toast(v);
+  amount = v;
+  if (balance < amount) return toast("Not enough left for that chip.");
+  balance -= amount; undo.push({ k, amount }); hud();
+  const ep = epoch;
+  await fly(amount, seatPos(ME), spotAt(ME, k), 220, ME);
+  if (ep !== epoch) return;
+  addStake(ME, k, amount);
+  if (!S.closeAt && K() !== "crp") S.closeAt = performance.now() + S.closeLen;
+  hud();
+}
+function takeBack(k, amount) {
+  if (!removable(k)) return toast(`${CB[k][0]} bets stay until they're decided.`);
+  const a = takeStake(ME, k, amount); if (!a) return;
+  balance += a; fly(a, spotAt(ME, k), seatPos(ME), 220, ME);
+  for (let left = a, j = undo.length - 1; j >= 0 && left > 0; j--) if (undo[j].k === k) { const t = Math.min(left, undo[j].amount); undo[j].amount -= t; left -= t; if (!undo[j].amount) undo.splice(j, 1); }
+  hud();
+}
+const clearable = () => myKeys().filter(k => removable(k) && (K() !== "cards" || C().bets.includes(k)));
+function undoLast() { if (!canBet() || !undo.length) return; const u = undo[undo.length - 1]; takeBack(u.k, u.amount); }
+function clearAll() { if (!canBet()) return; for (const k of clearable()) takeBack(k); undo = []; hud(); }
+function rebet(silent) {
+  if (!canBet() || !lastBets || myStakes() || K() === "crp") return;
+  const cost = Object.values(lastBets).reduce((a, b) => a + b, 0);
+  if (balance < cost) { if (!silent) toast("Not enough left to rebet."); return; }
+  for (const [k, v] of Object.entries(lastBets)) placeBet(k, v);
+}
+function ready() {
+  if (S.phase !== "betting" || S.ready || K() === "crp") return;
+  if (K() === "rou" && !myStakes()) return;
+  S.ready = true;
+  S.closeAt = performance.now() + 1200;   // the NPCs are ready too, so the bets close straight away
+  hud();
+}
+
+// ============================================================ the HUD
+const chipEls = [];
+CHIPS.forEach((v, n) => {
+  const b = document.createElement("button"); b.className = "chip"; b.dataset.v = v; b.setAttribute("aria-label", `${money(v)} chip (key ${n + 1})`); b.title = `${money(v)}  ·  key ${n + 1}`;
+  const c = document.createElement("canvas"); c.width = c.height = 168; const x = c.getContext("2d");
+  x.setTransform(13, 0, 0, 13, 84, 84); R.stack(x, D, v, 0, 0);
+  b.appendChild(c); b.addEventListener("click", () => { chipSel = v; hud(); }); $("#chips").appendChild(b); chipEls.push(b);
+});
+let toastT = 0;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; setTimeout(() => { t.hidden = true; }, 260); }, 2600); }
+let deltaT = 0;
+function flashDelta(net) { const d = $("#delta"); d.textContent = (net >= 0 ? "+" : "−") + money(Math.abs(net)); d.className = "delta " + (net >= 0 ? "win" : "loss"); d.style.opacity = 1; clearTimeout(deltaT); deltaT = setTimeout(() => { d.style.opacity = 0; }, 3200); }
+function floatAt(at, net) {
+  const el = document.createElement("div"); el.className = "float " + (net >= 0 ? "win" : "loss"); el.textContent = net === 0 ? "Push" : (net > 0 ? "+" : "−") + money(Math.abs(net));
+  overlay.appendChild(el); const t0 = performance.now();
+  const step = () => { const k = (performance.now() - t0) / 1800; const [sx, sy] = toScreen([at[0], at[1] - 34 - 12 * k]); el.style.left = sx + "px"; el.style.top = sy + "px"; el.style.opacity = k < .7 ? 1 : 1 - (k - .7) / .3; if (k < 1) requestAnimationFrame(step); else el.remove(); };
+  step();
+}
+const bubbles = new Map();
+function dealerSay(text, ms = 2600) { let b = bubbles.get("d"); if (!b) { const el = document.createElement("div"); el.className = "bubble"; overlay.appendChild(el); b = { el }; bubbles.set("d", b); } b.el.textContent = text; b.until = performance.now() + ms; }
+function placeBubbles() {   // the tail starts at the edge of the dealer's face (the back of the stickman's head); the bubble sits clear, to the right
+  const b = bubbles.get("d"); if (!b) return;
+  const [tx, ty, bx] = K() === "crp" ? [10, -41, 16] : [12, -29, 18];
+  const [mx] = toScreen([dealer.x + tx, dealer.y + ty]), [sx, sy] = toScreen([dealer.x + bx, dealer.y + ty]);
+  b.el.style.left = sx + "px"; b.el.style.top = sy + "px"; b.el.style.setProperty("--tail", (sx - mx) + "px");
+  b.el.classList.toggle("fade", performance.now() > b.until);
+}
+
+const KEY = { tcp: { play: "P", fold: "F" }, bj: { hit: "H", stand: "S", double: "D", split: "P" } };
+function decisions() {
+  if (S.phase !== "deciding" || K() !== "cards") return null;
+  if (game === "tcp") {
+    if (!S.hands[ME] || S.decided.has(ME)) return null;
+    const a = stakeOf(ME, "ante");
+    return [{ id: "fold", label: "Fold", cls: "fold" }, { id: "play", label: "Play", amt: a, cls: "primary", off: balance < a }];
+  }
+  if (S.turn !== ME) return null;
+  const cs = S.hands[ME].map(c => c.code), b = stakeOf(ME, "bet"), two = cs.length === 2;
+  return [{ id: "hit", label: "Hit", cls: "" }, { id: "stand", label: "Stand", cls: "primary" },
+    { id: "double", label: "Double", amt: b, cls: "", off: !two || balance < b }, { id: "split", label: "Split", amt: b, cls: "", off: !two || cs[0][0] !== cs[1][0] }];
+}
+let decideShown = "";
+function renderDecide(list) {
+  const sig = JSON.stringify(list); if (sig === decideShown) return; decideShown = sig;
+  const box = $("#decide");
+  if (!list) { box.hidden = true; box.innerHTML = ""; return; }
+  box.innerHTML = ""; box.hidden = false;
+  for (const d of list) {
+    const b = document.createElement("button"); b.className = "btn " + d.cls; b.disabled = !!d.off;
+    b.innerHTML = `${d.label}${d.amt ? ` <span class="amt">${money(d.amt)}</span>` : ""} <kbd>${KEY[game][d.id]}</kbd>`;
+    b.addEventListener("click", () => act(d.id)); box.appendChild(b);
+  }
+}
+function act(id) {
+  if (game === "tcp") { if (S.phase === "deciding" && S.hands[ME] && !S.decided.has(ME)) { if (id === "play" && balance < stakeOf(ME, "ante")) return; if (id === "play") S.roundStake += stakeOf(ME, "ante"); decideFor(ME, id === "play"); } }
+  else bjAct(id);
+}
+const names = list => list.length === 1 ? list[0] : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
+function infoLine() {
+  const t = performance.now(), secs = at => Math.max(0, Math.ceil((at - t) / 1000)), mine = myStakes();
+  if (K() === "rou") return rouInfo(secs, mine);
+  if (K() === "crp") return crpInfo(secs);
+  if (S.phase === "betting") {
+    if (S.ready) return mine ? `You're in · dealing in <b>${secs(S.closeAt)}</b>` : `Sitting this one out · dealing in <b>${secs(S.closeAt)}</b>`;
+    if (!S.closeAt) return lastBets && !mine ? "Place your bets, or Rebet last round's" : "Place your bets";
+    return mine ? `Bets close in <b>${secs(S.closeAt)}</b> · Ready when you are` : `Bets close in <b>${secs(S.closeAt)}</b> · Pick a chip, then click a spot`;
+  }
+  if (S.phase === "dealing") return "Dealing…";
+  if (S.phase === "deciding") {
+    if (game === "tcp") {
+      const hand = S.hands[ME] && !S.hands[ME].folded ? `<span class="hand">${tcpName(S.hands[ME].map(c => c.code))}</span> · ` : "";
+      if (S.hands[ME] && !S.decided.has(ME)) return `${hand}Play or fold? <b>${secs(S.decideAt)}</b>`;
+      const waiting = Object.keys(S.hands).map(Number).filter(i => !S.decided.has(i)).map(i => NPCS[i]?.[0]).filter(Boolean);
+      return `${hand}${S.hands[ME] ? (S.hands[ME].folded ? "Folded · " : "Played · ") : ""}Waiting for ${names(waiting)} <b>${secs(S.decideAt)}</b>`;
+    }
+    if (S.turn === ME) return `<span class="hand">${bjLabel(S.hands[ME].map(c => c.code))}</span> · Hit or stand? <b>${secs(S.decideAt)}</b>`;
+    return `${NPCS[S.turn]?.[0] || "Next"}'s turn`;
+  }
+  if (S.phase === "settling") return "Settling, third base first…";
+  if (S.phase === "done") return `${resultHead()}Next round in <b>${secs(S.nextAt)}</b>`;
+  return "";
+}
+function resultHead() { const r = S.result; return !r ? "" : r.net > 0 ? `You won <b>${money(r.net)}</b> · ` : r.net < 0 ? `You lost ${money(-r.net)} · ` : "Your bets came back · "; }
+function hoverLine() {   // Roulette and Craps name the bet under the pointer and its payout, as the game does
+  const b = hover && hover.bet; if (!b) return "";
+  let s = `${b.name} · pays ${typeof b.pays === "number" ? b.pays + " to 1" : b.pays}`;
+  const m = stakeOf(ME, b.id);
+  if (m) s += ` · you have <b>${money(m)}</b> on it${removable(b.id) ? "" : " (it stays until decided)"}`;
+  else if (K() === "crp" && !S.point && OFFABLE(b.id) && !S.working) s += " · off on the come-out";
+  return s;
+}
+function rouInfo(secs, mine) {
+  const hv = hoverLine(); if (hv) return hv;
+  const n = myKeys().length, yours = mine ? `${money(mine)} on ${n} spot${n === 1 ? "" : "s"}` : "";
+  if (S.phase === "betting") {
+    if (S.ready) return `You're in · spinning in <b>${secs(S.closeAt)}</b>`;
+    if (!S.closeAt) return lastBets && !mine ? "Place your bets, or Rebet last spin's" : "Place your bets";
+    return `Spinning in <b>${secs(S.closeAt)}</b> · ${mine ? yours + " · Ready spins sooner" : "Pick a chip, then click the layout"}`;
+  }
+  if (S.phase === "spinning") return `Final bets! <b>${secs(S.finalAt)}</b>${mine ? " · " + yours : ""}`;
+  if (S.phase === "rolling") return "No more bets";
+  if (S.phase === "settling") return S.resultText;
+  if (S.phase === "done") return `${S.resultText} · ${resultHead()}Next spin in <b>${secs(S.nextAt)}</b>`;
+  return "";
+}
+function crpInfo(secs) {
+  const hv = hoverLine(); if (hv) return hv;
+  const where = S.point ? `Point is <b>${S.point}</b>` : "Coming out";
+  if (S.phase === "betting") {
+    if (S.shooter === ME) return `${where} · Your roll${crpNeedsLine() ? " · Put a Pass Line or Don't Pass bet down first" : ""} · <b>${secs(S.closeAt)}</b>`;
+    return `${where} · ${shooterName()} shooting · Dice out in <b>${secs(S.closeAt)}</b>`;
+  }
+  if (S.phase === "throwing") return "Dice are out · No more bets";
+  return S.resultText;
+}
+function timer() {
+  const t = performance.now();
+  if (S.phase === "betting" && S.closeAt && !S.ready) return [(S.closeAt - t) / S.closeLen, (S.closeAt - t) < 5000 && S.closeLen > 5000];
+  if (S.phase === "spinning") return [(S.finalAt - t) / 6000, true];
+  if (S.phase === "deciding" && S.decideAt && decisions()) return [(S.decideAt - t) / S.decideLen, (S.decideAt - t) < 5000];
+  return null;
+}
+function hud() {
+  const kind = K(), bet = canBet(), mine = myStakes(), list = decisions(), deciding = !!list;
+  $("#bal").textContent = money(balance);
+  $("#onFelt").textContent = money(mine);
+  $("#felt").style.visibility = mine ? "visible" : "hidden";
+  chipEls.forEach(b => { const v = +b.dataset.v; b.setAttribute("aria-pressed", String(v === chipSel)); b.disabled = !bet; b.classList.toggle("short", bet && v > balance); });
+  // centre: chips, or the decisions in their place
+  $("#chips").hidden = deciding; $("#tools").style.visibility = deciding ? "hidden" : "";
+  renderDecide(list);
+  // Undo, and Rebet/Clear sharing a place (Craps has no Rebet: its bets stay up)
+  $("#bUndo").disabled = !(bet && undo.length);
+  const rb = $("#bRebet");
+  if (kind === "crp" || (mine && (S.phase === "betting" || S.phase === "spinning"))) {
+    $("#rebetT").textContent = "Clear"; rb.title = kind === "crp" ? "Take down every bet that can come down" : "Take all your chips back"; rb.disabled = !(bet && clearable().length); rb.dataset.mode = "clear";
+    rb.querySelector("svg").innerHTML = '<path d="M4 4l8 8M12 4l-8 8"/>'; }
+  else { const cost = lastBets ? Object.values(lastBets).reduce((a, b) => a + b, 0) : 0;
+    $("#rebetT").textContent = lastBets ? `Rebet ${money(cost)}` : "Rebet"; rb.title = "Put last round's bets down again (R)"; rb.disabled = !(bet && lastBets); rb.dataset.mode = "rebet";
+    rb.querySelector("svg").innerHTML = '<path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M13 2.5v3h-3"/>'; }
+  $("#bAuto").hidden = kind === "crp"; $("#bAuto").setAttribute("aria-pressed", String(auto));
+  $("#bWork").hidden = kind !== "crp"; $("#bWork").setAttribute("aria-pressed", String(S.working));
+  // the commit button (Craps: the dice)
+  const r = $("#bReady");
+  r.hidden = kind === "crp" || S.phase !== "betting";
+  if (S.ready) { r.className = "btn done"; r.disabled = true; r.innerHTML = mine ? "Ready" : "Sitting out"; }
+  else if (mine) { r.className = "btn primary"; r.disabled = false; r.innerHTML = "Ready <kbd>Space</kbd>"; }
+  else if (kind === "rou") { r.className = "btn quiet"; r.disabled = true; r.innerHTML = "Ready <kbd>Space</kbd>"; }
+  else { r.className = "btn quiet"; r.disabled = false; r.innerHTML = "Sit out <kbd>Space</kbd>"; }
+  const myRoll = kind === "crp" && S.phase === "betting" && S.shooter === ME;
+  $("#bRoll").hidden = !myRoll; $("#bPassDice").hidden = !myRoll; $("#bRoll").disabled = crpNeedsLine();
+  const tk = $("#bTake"); tk.hidden = kind !== "crp" || S.shooter === ME;
+  tk.className = S.want ? "btn done" : "btn quiet"; tk.innerHTML = S.want ? "Dice coming" : "Take dice <kbd>T</kbd>";
+  $("#bStandBar").hidden = V.stand !== "bar";
+  $("#bStandCorner").hidden = V.stand !== "corner";
+  // the line above
+  $("#info").innerHTML = infoLine();
+  const tm = timer(); $("#timer").hidden = !tm;
+  if (tm) { $("#timerFill").style.transform = `scaleX(${clamp01(tm[0])})`; $("#timer").classList.toggle("low", tm[1]); }
+  // pending things
+  const pend = $("#pending"); pend.innerHTML = "";
+  if (S.queued) { const p = document.createElement("div"); p.className = "pill"; p.innerHTML = `After this hand: ${CFG[S.queued.game].name} <button class="x" aria-label="Cancel the change">✕</button>`;
+    p.querySelector("button").addEventListener("click", () => { S.queued = null; hud(); }); pend.appendChild(p); }
+  if (S.vote) { const s = Math.max(0, Math.ceil((S.vote.until - performance.now()) / 1000)); $("#voteText").innerHTML = `Ivy wants to switch to <b style="color:var(--ink)">${CFG[S.vote.game].name}</b> · <b>${s}</b>`; }
+  $("#vote").hidden = !S.vote;
+  // status
+  $("#jackpot").hidden = kind !== "cards";
+  $("#jpVal").textContent = money(jackpot);
+  const jpMine = !!stakeOf(ME, "jackpot"); $("#jpIn").hidden = !jpMine; $("#jackpot").classList.toggle("lit", jpMine);
+  const seated = Object.keys(NPCS).length + 1;
+  $("#tName").textContent = C().name; $("#tSeats").textContent = kind === "crp" ? `${seated} of 8 at the rail` : `${seated} of 6 seated`;
+}
+function paytable() {
+  const c = C(); $("#paytable").innerHTML = `<h2>${c.name}</h2>` + c.pay.map(([t, rows]) => `<h3>${t}</h3>` + rows.map(([a, b]) => `<div class="row"><span>${a}</span><b>${b}</b></div>`).join("")).join("") + c.notes.map(n => `<p>${n}</p>`).join("");
+}
+
+// ============================================================ drawing
+let hover = null, lastTs = 0;
+function frame(ts) {
+  const dt = Math.min(.1, (ts - (lastTs || ts)) / 1000); lastTs = ts;
+  now = ts; runTweens(); camera();
+  people.forEach(p => { p.t += dt; }); dealer.t += dt;
+  const c = ctx, pulse = .5 + .5 * Math.sin(ts / 280), kind = K();
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = "#1f3a3e"; c.fillRect(0, 0, cv.width, cv.height);
+  c.setTransform(X.k, 0, 0, X.k, X.ox, X.oy);
+  const [wx0, wy0] = toWorld(0, 0), [wx1, wy1] = toWorld(cv.width / dpr, cv.height / dpr);
+  R.drawCarpet(c, [wx0, wy0, wx1 - wx0, wy1 - wy0]);
+  const t = performance.now();
+  if (kind === "cards") drawCards(c, ts, pulse, t);
+  else { const r = PIC_R[game]; c.drawImage(picture(game), r[0], r[1], r[2], r[3]); kind === "rou" ? drawRou(c, pulse) : drawCrp(c, pulse); }
+  S.flyers.forEach(f => kind === "rou" && f.seat >= 0 ? rouChip(c, f.x, f.y, SEAT_COLOURS[f.seat], 1) : kind === "crp" ? scaledStack(c, f.amount, f.x, f.y, .6) : R.stack(c, D, f.amount, f.x, f.y));
+  drawPeople(c, pulse);
+  placeBubbles();
+  // the clock: close bets, drop the ball, time out a decision, run out a vote
+  if (S.phase === "betting" && S.closeAt && t > S.closeAt) closeBets();
+  if (S.phase === "spinning" && t > S.finalAt) rouDrop();
+  if (S.ball && S.ball.mode === "track") { S.ball.a -= S.ball.w * dt; S.ball.w = Math.max(3, S.ball.w - .6 * dt); }
+  if (S.phase === "deciding" && S.decideAt && t > S.decideAt) {
+    if (game === "tcp") { if (S.hands[ME] && !S.decided.has(ME)) { toast("Time's up: your hand is folded."); decideFor(ME, false); } Object.keys(S.hands).forEach(i => decideFor(+i, Math.random() < .6)); }
+    else if (S.turn === ME) { toast("Time's up: you stand."); endTurn(); }
+  }
+  if (S.vote && t > S.vote.until) { S.queued = { game: S.vote.game }; S.vote = null; toast("Nobody said no: the table changes after this hand."); }
+  if (Math.floor(ts / 200) !== frame.q) { frame.q = Math.floor(ts / 200); hud(); }
+  requestAnimationFrame(frame);
+}
+function drawCards(c, ts, pulse, t) {
+  const dimg = IMG.dealer;
+  if (dimg.naturalWidth) { c.save(); c.imageSmoothingEnabled = false; c.drawImage(dimg, (Math.floor(dealer.t * 1.4) % 2) * 64, 6 * 64, 64, 64, dealer.x - 32, dealer.y - 60, 64, 64); c.restore(); }
+  c.drawImage(picture(game), BASE_R[0], BASE_R[1], BASE_R[2], BASE_R[3]);
+  // spot glow: your primary spots glow until you bet (not with Auto rebet on); the hovered spot gets a ring
+  const spots = T().spots[ME];
+  if (canBet() && !myStakes() && !auto) for (const k of C().glow) { const s = spots[k]; if (!s) continue; const a = k === C().main ? .35 + .4 * pulse : .12 + .2 * pulse;
+    c.beginPath(); c.arc(s.at[0], s.at[1], s.r + .6, 0, 7); c.strokeStyle = `rgba(255,224,150,${a})`; c.lineWidth = .8; c.stroke(); }
+  if (hover && hover.spot && spots[hover.spot]) { const s = spots[hover.spot]; c.beginPath(); c.arc(s.at[0], s.at[1], s.r + 1.1, 0, 7); c.strokeStyle = `rgba(255,232,170,.9)`; c.lineWidth = .7; c.stroke(); }
+  for (let i = 0; i < 6; i++) if (stakeOf(i, "jackpot") && T().spots[i].jackpot && S.phase === "betting" && Math.floor(ts / 380) % 2 === 0) R.jackpotDisc(c, D, T().spots[i].jackpot.at, true);
+  S.cards.forEach(card => drawCard(c, card));
+  for (const [key, a] of S.stakes) { const [i, k] = key.split("|"), at = spotAt(+i, k); R.stack(c, D, a, at[0], at[1]); }
+  for (const [key, a] of S.wins) { const [i, k] = key.split("|"), at = spotAt(+i, k); R.stack(c, D, a, at[0] + 6, at[1] - 5); }
+  if (game === "bj") {   // each hand's total above its first card
+    for (const [i, h] of Object.entries(S.hands)) if (h && h.length && h.every(cd => cd.up || cd.flip)) { const p = cardAt(+i, 0); pillText(c, bjLabel(h.map(cd => cd.code)), p[0], p[1] - 14, +i === ME); }
+    if (S.dealer.length && S.dealer.every(cd => cd.up)) { const p = dealerAt(0); pillText(c, bjLabel(S.dealer.map(cd => cd.code)), p[0] - 12, p[1], false); }
+  }
+  const cd = T().countdown;
+  if (S.phase === "betting" && S.closeAt) drawCountdown(c, cd, Math.max(0, Math.ceil((S.closeAt - t) / 1000)));
+  else if (S.phase === "deciding" && S.decideAt && (game === "tcp" || S.turn >= 0)) drawCountdown(c, cd, Math.max(0, Math.ceil((S.decideAt - t) / 1000)));
+}
+function drawRou(c, pulse) {
+  const g = G.rou.grid;
+  // hovering lights up the numbers a bet covers
+  if (hover && hover.bet) for (const n of hover.bet.nums) {
+    c.fillStyle = `rgba(255,244,214,${.22 + .1 * pulse})`;
+    if (n === 0) { c.beginPath(); R.path(c, [[g.gx, g.gy], [g.zx + 5, g.gy], [g.zx, g.gy + 1.5 * g.bh], [g.zx + 5, g.gy + 3 * g.bh], [g.gx, g.gy + 3 * g.bh]]); c.fill(); }
+    else c.fillRect(g.gx + Math.floor((n - 1) / 3) * g.bw, g.gy + (2 - (n - 1) % 3) * g.bh, g.bw, g.bh);
+  }
+  if (hover && hover.bet) { const [x, y] = hover.bet.at; c.beginPath(); c.arc(x, y, 5.6, 0, 7); c.strokeStyle = "rgba(255,232,170,.9)"; c.lineWidth = .6; c.stroke(); }
+  for (const [key, a] of S.stakes) { const [i, k] = key.split("|"), at = spotAt(+i, k); rouChip(c, at[0], at[1], SEAT_COLOURS[+i], rouCount(a)); }
+  for (const [key, a] of S.wins) { const [i, k] = key.split("|"), at = spotAt(+i, k); scaledStack(c, a, at[0] + 6, at[1] - 4, .8); }
+  if (S.dolly !== null && S.dolly !== undefined) {   // the dolly on the winning number
+    const [x, y] = rouBox(S.dolly);
+    c.beginPath(); c.ellipse(x + .5, y + 1.6, 3.6, 2, 0, 0, 7); c.fillStyle = "rgba(0,0,0,.35)"; c.fill();
+    c.fillStyle = "#e9e3d3"; c.fillRect(x - 3, y - 4.5, 6, 5); c.beginPath(); c.ellipse(x, y - 4.5, 3, 1.4, 0, 0, 7); c.fillStyle = "#fffaf0"; c.fill();
+    c.beginPath(); c.ellipse(x, y + .5, 3, 1.4, 0, 0, Math.PI); c.fillStyle = "#cfc6b1"; c.fill();
+  }
+  if (S.ball) {
+    const [wx, wy] = G.rou.wheel, x = wx + Math.cos(S.ball.a) * S.ball.r, y = wy + Math.sin(S.ball.a) * S.ball.r;
+    c.beginPath(); c.arc(x + .3, y + .5, 1.7, 0, 7); c.fillStyle = "rgba(0,0,0,.35)"; c.fill();
+    const gr = c.createRadialGradient(x - .5, y - .5, .2, x, y, 1.7); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#c9ccd0");
+    c.beginPath(); c.arc(x, y, 1.6, 0, 7); c.fillStyle = gr; c.fill();
+  }
+}
+function drawCrp(c, pulse) {
+  const Cg = G.crp;
+  // the pucks: OFF in the corners on the come-out, ON in the point's box
+  for (const h of ["1", "-1"]) {
+    if (S.point) { const z = Cg.zones[h]["place_" + S.point]; drawPuck(c, [h === "1" ? z[0] + 4.5 : z[0] + z[2] - 4.5, z[1] + 4.5], true); }
+    else drawPuck(c, [h === "1" ? 49 : -49, -106], false);
+  }
+  if (hover && hover.bet) {
+    c.save(); c.strokeStyle = `rgba(255,232,170,${.65 + .3 * pulse})`; c.lineWidth = .8;
+    const id = hover.bet.id, pr = Cg.props[id];
+    if (pr) c.strokeRect(pr[0] + .4, pr[1] + .4, pr[2] - .8, pr[3] - .8);
+    else if (id === "pass") { c.beginPath(); R.path(c, Cg.pass); c.stroke(); }
+    else { const p = Cg.polys[hover.bet.half || "1"][id]; if (p) { c.beginPath(); R.path(c, p); c.stroke(); } }
+    c.restore();
+  }
+  for (const [key, a] of S.stakes) {
+    const [i, k] = key.split("|"), at = spotAt(+i, k);
+    scaledStack(c, a, at[0], at[1], k.startsWith("place_") ? .5 : .6);
+    if (!S.point && OFFABLE(k) && !(+i === ME && S.working)) drawOffButton(c, at);
+  }
+  for (const [key, a] of S.wins) { const [i, k] = key.split("|"), at = spotAt(+i, k); scaledStack(c, a, at[0] + 5, at[1] - 4, .6); }
+  S.dice.forEach(d => drawDie(c, d));
+}
+function drawPeople(c, pulse) {
+  const kind = K();
+  if (kind === "cards") chairs().forEach(ch => R.chair(c, [ch[0], ch[1]]));   // (Roulette's are in its picture)
+  if (kind === "crp" && IMG.dealer.naturalWidth) {   // the stickman, facing the table between the two ends' players
+    c.save(); c.beginPath(); c.ellipse(dealer.x, dealer.y - 1, 11, 5, 0, 0, 7); c.fillStyle = "rgba(0,0,0,.28)"; c.fill(); c.imageSmoothingEnabled = false;
+    c.drawImage(IMG.dealer, (Math.floor(dealer.t * 1.4) % 2) * 64, 4 * 64, 64, 64, dealer.x - 32, dealer.y - 60, 64, 64); c.restore();
+  }
+  for (const p of people) {
+    const img = IMG[p.sheet]; if (!img || !img.naturalWidth) continue; const x = seatX(p.seat), y = seatY(p.seat);
+    const lit = S.turn === p.seat || (kind === "crp" && S.shooter === p.seat);
+    if (lit) { c.save(); c.translate(x, y + 3); c.scale(1, .5); const g = c.createRadialGradient(0, 0, 4, 0, 0, 17); g.addColorStop(0, `rgba(255,214,110,${.3 + .25 * pulse})`); g.addColorStop(1, "rgba(255,214,110,0)"); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 17, 0, 7); c.fill(); c.restore(); }
+    c.save(); c.imageSmoothingEnabled = false;
+    if (kind === "crp") { c.beginPath(); c.ellipse(x, y - 1, 11, 5, 0, 0, 7); c.fillStyle = "rgba(0,0,0,.28)"; c.fill(); c.drawImage(img, (Math.floor(p.t * 1.4) % 2) * 64, 4 * 64, 64, 64, x - 32, y - 60, 64, 64); }
+    else c.drawImage(img, 0, 8 * 64, 64, 64, x - 32, y - 54, 64, 64);
+    c.restore();
+    if (kind !== "crp") { c.save(); c.translate(x, y); c.beginPath(); c.ellipse(0, .5, 9.5, 5.5, 0, .15, Math.PI - .15); c.strokeStyle = "#1a1412"; c.lineWidth = 2.6; c.stroke(); c.restore(); }
+    pillText(c, p.name, x, y + (kind === "crp" ? 7 : 15), !!p.you);
+  }
+}
+
+// ============================================================ input
+function hitTest(sx, sy) {
+  const [x, y] = toWorld(sx, sy);
+  if (K() === "rou") { const b = rouBetAt(x, y); return b ? { spot: b.id, bet: b } : null; }
+  if (K() === "crp") { const b = crpBetAt(x, y); return b ? { spot: b.id, bet: b } : null; }
+  if (!canBet()) return null;
+  const spots = T().spots[ME];
+  for (const k of C().bets) { const s = spots[k]; if (s && Math.hypot(x - s.at[0], y - s.at[1]) <= s.r + .8) return { spot: k }; }
+  return null;
+}
+cv.addEventListener("pointermove", e => { const r = cv.getBoundingClientRect(); hover = hitTest(e.clientX - r.left, e.clientY - r.top); cv.style.cursor = hover && canBet() ? "pointer" : "default"; hud(); });
+cv.addEventListener("pointerleave", () => { hover = null; hud(); });
+cv.addEventListener("click", e => { const r = cv.getBoundingClientRect(), h = hitTest(e.clientX - r.left, e.clientY - r.top); if (h) placeBet(h.spot, chipSel); });
+cv.addEventListener("contextmenu", e => { e.preventDefault(); const r = cv.getBoundingClientRect(), h = hitTest(e.clientX - r.left, e.clientY - r.top); if (h && canBet() && stakeOf(ME, h.spot)) takeBack(h.spot, h.spot === "jackpot" ? Infinity : chipSel); });
+$("#bUndo").addEventListener("click", undoLast);
+$("#bRebet").addEventListener("click", () => $("#bRebet").dataset.mode === "clear" ? clearAll() : rebet());
+$("#bAuto").addEventListener("click", () => { auto = !auto; toast(auto ? "Auto rebet on: last round's bets go down each round." : "Auto rebet off."); if (auto && canBet() && !myStakes()) rebet(true); hud(); });
+const toggleWorking = () => { S.working = !S.working; toast(S.working ? "Working: your place bets and hardways are on for the come-out too." : "Not working: your place bets and hardways are off on the come-out."); hud(); };
+$("#bWork").addEventListener("click", toggleWorking);
+$("#bReady").addEventListener("click", ready);
+$("#bRoll").addEventListener("click", rollDice);
+$("#bPassDice").addEventListener("click", passDice);
+$("#bTake").addEventListener("click", takeDice);
+const standUp = () => toast("In the game, this stands you up and you walk away from the table.");
+$("#bStandCorner").addEventListener("click", standUp); $("#bStandBar").addEventListener("click", standUp);
+$("#bPay").addEventListener("click", () => { const p = $("#paytable"); p.hidden = !p.hidden; $("#bPay").setAttribute("aria-pressed", String(!p.hidden)); if (!p.hidden) paytable(); });
+$("#voteYes").addEventListener("click", () => { S.queued = { game: S.vote.game }; S.vote = null; hud(); });
+$("#voteNo").addEventListener("click", () => { S.vote = null; toast("You said no: the table stays as it is."); hud(); });
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase(), crp = K() === "crp";
+  if (k >= "1" && k <= "5") { chipSel = CHIPS[+k - 1]; hud(); return; }
+  if (e.key === " ") { e.preventDefault(); if (crp) rollDice(); else if (S.phase === "betting") ready(); return; }
+  if (e.key === "Backspace") { e.preventDefault(); undoLast(); return; }
+  if (e.key === "Escape") { if (!$("#paytable").hidden) { $("#paytable").hidden = true; $("#bPay").setAttribute("aria-pressed", "false"); } else standUp(); return; }
+  if (crp) { if (k === "r") rollDice(); else if (k === "t") takeDice(); else if (k === "w") toggleWorking(); return; }
+  if (k === "r" && canBet()) { myStakes() ? clearAll() : rebet(); return; }
+  const list = decisions(); if (list) { const d = list.find(d => KEY[game][d.id].toLowerCase() === k); if (d && !d.off) act(d.id); }
+});
+
+// ============================================================ the review panel
+function seg(id, get, set) {
+  const el = $(id), mark = () => el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === get())));
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); mark(); });
+  mark();
+}
+function switchGame(g, quiet) {
+  epoch++; tweens.forEach(t => t.res()); tweens = [];
+  for (const [key, a] of S.stakes) if (+key.split("|")[0] === ME) balance += a;
+  if (S.myTurnDone) endTurn();
+  S.stakes.clear(); S.wins.clear(); S.flyers = []; S.cards = []; S.hands = {}; S.dealer = []; S.queued = null; S.vote = null; S.busy = false;
+  S.ball = null; S.dolly = null; S.point = 0; S.want = false; S.working = false; S.spinning = false;
+  game = g; lastBets = null; decideShown = ""; hover = null;
+  const st = SET(); ME = st.me; NPCS = st.npcs; dealer.x = st.speaker[0]; dealer.y = st.speaker[1];
+  S.shooter = +Object.keys(NPCS)[0]; S.dice = []; crpRestDice();
+  seatPeople();
+  bubbles.forEach(b => { b.until = 0; });
+  if (!$("#paytable").hidden) paytable();
+  $("#segGame").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === g)));
+  $("#comeGo").hidden = K() !== "cards";
+  if (quiet) dealerSay(`${CFG[g].name} it is.`);
+  startBetting();
+}
+seg("#segGame", () => game, v => { if (v !== game) switchGame(v); });
+seg("#segStand", () => V.stand, v => { V.stand = v; hud(); });
+const other = () => game === "tcp" ? "bj" : "tcp";
+$("#bQueue").addEventListener("click", () => { S.queued = { game: other() }; dealerSay(`Right you are: ${CFG[other()].name} after this hand.`); hud(); });
+$("#bVote").addEventListener("click", () => { S.vote = { game: other(), until: performance.now() + 10000 }; hud(); });
+$("#tLow").addEventListener("change", e => { balance = e.target.checked ? 1800 : 61216; hud(); });
+$("#tTags").addEventListener("change", e => stage.classList.toggle("labels", e.target.checked));
+
+window.__spot = k => toScreen(T().spots[ME][k].at);   // for the headless checks
+window.__w2s = (x, y) => toScreen([x, y]);
+window.__state = () => ({ phase: S.phase, point: S.point, shooter: S.shooter, me: ME, mine: myStakes(), balance });
+const start = location.hash.slice(1);
+$("#loading").remove();
+switchGame(["tcp", "bj", "rou", "crp"].includes(start) ? start : "tcp");
+requestAnimationFrame(frame);
+</script>

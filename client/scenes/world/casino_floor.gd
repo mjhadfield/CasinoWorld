@@ -66,6 +66,8 @@ var _bake_pending := false # a navigation bake waiting for the floor to be uprig
 var _was_my_turn := false
 var _last_tick := -1      # the countdown second last ticked
 var _placed: Array = []   # this round's chips, newest last ([spot, amount added]): what Undo takes back
+var _round_start := -1    # your balance as this round's betting opened (its result flashes in the bar at the next)
+var _staked := false      # whether you had bets in this round
 
 
 func _ready() -> void:
@@ -359,6 +361,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_action(str(a.id))
 				get_viewport().set_input_as_handled()
 				return
+		var key: Key = event.physical_keycode
+		if key >= KEY_1 and key <= KEY_5 and _can_bet():   # the bar's chips, left to right
+			if hud.pick_chip(key - KEY_1):
+				get_viewport().set_input_as_handled()
+		elif key == KEY_BACKSPACE:
+			_undo()
+			get_viewport().set_input_as_handled()
+		elif key == KEY_R and _can_bet() and played_a_hand and _total(my_bets) == 0 and not active_table is CrapsTable:
+			hud.rebet_pressed.emit()
+			get_viewport().set_input_as_handled()
 
 
 ## A click on a glowing chair, caught before the click-to-walk sees it.
@@ -472,8 +484,10 @@ func _sat_down(msg: Dictionary) -> void:
 	my_ready = false
 	played_a_hand = false
 	my_hand = ""
-	hud.setup_table(msg.get("rules", {}))
+	hud.setup_table(msg.get("rules", {}), t.chip_design())
 	hud.set_auto_rebet(false)
+	_round_start = Session.balance
+	_staked = false
 	if "chip_value" in t:
 		t.chip_value = hud.selected_chip
 	_placed.clear()
@@ -619,14 +633,33 @@ func _seated_view() -> Dictionary:
 	var view: Dictionary = t.seated_view(ctx)
 	_actions = view.get("actions", [])
 	var info: String = view.get("info", "")
+	var hand := ""
 	if t.in_hand and my_hand != "" and t.phase != "betting":
-		info = "%s  ·  %s" % [my_hand, info] if info != "" else my_hand
+		hand = my_hand
 	elif ctx.can_bet and not t.accepting_bets():
 		info = "Bets you put down now play the next hand" + ("  ·  %s" % info if info != "" else "")
+	var my_turn: bool = view.get("my_turn", false)
+	# the bar's draining line: a countdown you're up against (betting before you're Ready, a decision, the sorter)
+	var timed: bool = my_turn or hud.sorter.is_open() or (t.phase == "betting" and ctx.can_bet and not my_ready)
+	var left := t.timer_left()
 	return {"can_bet": ctx.can_bet, "can_ready": ctx.can_bet and t.can_ready(), "can_undo": ctx.can_bet and not _placed.is_empty(),
-		"has_bets": ctx.has_bets, "can_rebet": played_a_hand,
-		"is_ready": my_ready, "my_turn": view.get("my_turn", false), "actions": _actions, "info": info,
-		"hide": view.get("hide", []), "quiet_betting": view.get("quiet_betting", false)}
+		"has_bets": ctx.has_bets, "can_rebet": played_a_hand, "sit_out": t.sit_out_ok(),
+		"is_ready": my_ready, "my_turn": my_turn, "actions": _actions, "info": info, "hand": hand,
+		"hide": view.get("hide", []), "quiet_betting": view.get("quiet_betting", false),
+		"timer": t.timer_fraction() if timed and left > 0.0 else -1.0, "timer_low": left < 5.0,
+		"on_felt": _total(my_bets), "title": t.game_title(),
+		"seats": "%d of %d %s" % [t.occupants.size(), t.seat_count(), "at the rail" if t is CrapsTable else "seated"],
+		"jackpot": Session.jackpot_now() if "jackpot" in t.bet_spots() else -1.0, "jackpot_mine": int(my_bets.get("jackpot", 0)) > 0}
+
+
+## A round's over (the next one's betting opens): what it won or lost you flashes beside the bar's balance.
+func _flash_round() -> void:
+	if _staked and _round_start >= 0:
+		var net := Session.balance - _round_start
+		if net != 0:
+			hud.flash_result(net)
+	_round_start = Session.balance
+	_staked = false
 
 
 func _leave_table() -> void:
@@ -894,8 +927,10 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 				hud.set_pending(0)
 				if my_seat in ev.seats.map(func(x): return int(x)):
 					played_a_hand = true
+					_staked = true
 		"throw":  # Craps: dice are out -- the chips you put down are paid for now
 			if mine:
+				_staked = _staked or _total(my_bets) > 0
 				_placed.clear()
 				hud.set_pending(0)
 		"roll_result":  # Craps: what's left of your bets after the roll
@@ -908,8 +943,12 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 		"spin":  # Roulette: Ready only meant "spin" -- you can add late bets now
 			if mine:
 				my_ready = false
+		"roll_open":  # Craps: the next roll's betting
+			if mine:
+				_flash_round()
 		"betting_open":
 			if mine:
+				_flash_round()
 				my_bets = t.zero_bets()   # (any bets you queued come straight back as bet_changed)
 				my_ready = false
 				my_hand = ""
@@ -1050,7 +1089,7 @@ func _follow_master(old: CasinoTable, t: CasinoTable, seat: int, rules: Dictiona
 	played_a_hand = false
 	my_hand = ""
 	_placed.clear()
-	hud.setup_table(rules)
+	hud.setup_table(rules, t.chip_design())
 	hud.set_pending(0)
 	hud.clear_my_hand()
 	if "chip_value" in t:

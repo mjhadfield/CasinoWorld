@@ -842,34 +842,39 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 		info_text = "%s  ·  pays %s" % [i[0], i[1]]
 		var mine := int(ctx.get("my_bets", {}).get(spot, 0))
 		if mine > 0:
-			info_text += "  ·  you have %s on it" % Money.format(mine)
+			info_text += "  ·  you have «%s» on it" % Money.format(mine)
 			if not removable(spot, point):
-				info_text += " (stays until decided)"
+				info_text += " (it stays until decided)"
 		elif point < 0 and off_on_come_out(spot) and not working.get(my_seat, false):
 			info_text += "  ·  off on the come-out"
 	else:
-		var who: String = "You're" if shooter == my_seat else ("%s is" % occupants[shooter].name if occupants.has(shooter) else "Nobody's")
-		var where := "Point is %d" % point if point > 0 else "Coming out"
+		var who: String = str(occupants[shooter].name) if occupants.has(shooter) else "Nobody"
+		var where := "Point is «%d»" % point if point > 0 else "Coming out"
+		var left := ceili(timer_left())
 		match phase:
 			"betting":
 				if my_roll:
 					var line := int(ctx.get("my_bets", {}).get("pass", 0)) + int(ctx.get("my_bets", {}).get("dont_pass", 0))
-					info_text = "%s  ·  Your roll -- %s" % [where, "Roll [R] when your bets are down" if line > 0 or point > 0
-						else "put a Pass Line or Don't Pass bet down, then Roll [R]"]
+					info_text = "%s  ·  Your roll  ·  %s" % [where, "Roll when your bets are down" if line > 0 or point > 0
+						else "Put a Pass Line or Don't Pass bet down, then roll"]
 				else:
 					info_text = "%s  ·  %s shooting" % [where, who]
+				if left > 0:
+					info_text += "  ·  %s«%d»" % ["" if my_roll else "Dice out in ", left]
 			"throwing":
-				info_text = "Dice are out -- no more bets"
+				info_text = "Dice are out  ·  No more bets"
 			_:
 				info_text = result_text
+	# the dice sit left of the chips (where Ready is at the other tables); Working is the switch beside Undo and Clear
 	var actions := []
 	if my_roll:
-		actions.append({"id": "roll", "label": "Roll  [R]", "key": "R"})
-		actions.append({"id": "pass_dice", "label": "Pass dice"})
+		actions.append({"id": "pass_dice", "label": "Pass dice", "place": "commit", "kind": "quiet"})
+		actions.append({"id": "roll", "label": "Roll  [R]", "key": "R", "place": "commit", "kind": "primary"})
 	elif my_seat >= 0 and shooter != my_seat:
-		actions.append({"id": "take_dice", "label": "Dice coming" if my_seat in want_dice else "Take dice  [T]", "key": "T",
-			"pressed": my_seat in want_dice})
-	actions.append({"id": "working", "label": "Working  [W]", "key": "W", "pressed": working.get(my_seat, false)})
+		var coming: bool = my_seat in want_dice
+		actions.append({"id": "take_dice", "label": "Dice coming" if coming else "Take dice  [T]", "key": "T", "place": "commit",
+			"kind": "done" if coming else "quiet", "pressed": coming})
+	actions.append({"id": "working", "label": "Working  [W]", "key": "W", "pressed": working.get(my_seat, false), "place": "switch"})
 	return {"info": info_text, "actions": actions, "my_turn": my_roll, "hide": ["ready", "rebet", "auto_rebet"],
 		"quiet_betting": true}
 

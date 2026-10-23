@@ -296,8 +296,7 @@ func _tick_vote() -> void:
 	var left := ceili(maxf(0.0, _vote_until - Time.get_ticks_msec() / 1000.0))
 	_vote_text.text = _vote_line % left if "%d" in _vote_line else _vote_line
 	_vote.size = Vector2.ZERO
-	var room := get_viewport_rect().size
-	_vote.position = Vector2((room.x - _vote.size.x) / 2.0, room.y - 190 - _vote.size.y)
+	_stack()
 
 
 # ------------------------------------------------------------------ the next game
@@ -330,8 +329,19 @@ func show_queued(game: String) -> void:
 		return
 	_queued_text.text = "After this hand: %s" % name_of(game)
 	_queued.size = Vector2.ZERO
+	_stack()
+
+
+## The pill and the vote card, centred just above the betting bar (the pill nearer it).
+func _stack() -> void:
 	var room := get_viewport_rect().size
-	_queued.position = Vector2((room.x - _queued.size.x) / 2.0, room.y - 150 - _queued.size.y)
+	var hud := get_parent()
+	var y: float = hud.bar.bar_top if hud and "bar" in hud and hud.bar and hud.bar.visible and hud.bar.bar_top > 0 else room.y - 170.0
+	y -= 8.0
+	for p in [_queued, _vote]:
+		if p.visible:
+			p.position = Vector2(round((room.x - p.size.x) / 2.0), round(y - p.size.y))
+			y -= p.size.y + 8.0
 
 
 func close_all() -> void:
@@ -343,3 +353,5 @@ func close_all() -> void:
 func _process(_delta: float) -> void:
 	if _vote.visible:
 		_tick_vote()
+	elif _queued.visible:
+		_stack()

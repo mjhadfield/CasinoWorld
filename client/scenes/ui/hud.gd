@@ -1,9 +1,8 @@
 extends CanvasLayer
 ## Screen-space overlay. Walking: balance, jackpot, the "take a seat" prompt.
-## Choosing a seat: a hint and Cancel. Seated: chip tray, Rebet/Auto rebet/Clear/Ready,
-## the game's own action buttons when you have a decision (Play/Fold at Three
-## Card Poker; Hit/Stand/Double/Split and Insurance at Blackjack), the
-## countdown, paytable and Stand up.
+## Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: your balance,
+## the table's chips, Ready, Undo/Rebet/Clear/Auto rebet, the game's decisions when you
+## have one, the line saying what's happening), the table's name and jackpot, Paytable and Stand up.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 
 signal interact_pressed
@@ -24,7 +23,7 @@ var _on_yes := Callable()   # what the dialog's first button does when it's aski
 var mode := "walking"
 var selected_chip := 100
 var pending := 0  # your bets on the felt that haven't been taken from your balance yet
-var _actions_shown := []  # the action list the buttons were built from
+var bar: BettingBar        # the seated controls
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
 var settings_menu: SettingsMenu
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
@@ -38,6 +37,10 @@ func _ready() -> void:
 	# Every button in the HUD clicks, including ones built later (actions, the sorter's).
 	get_tree().node_added.connect(_click_if_button)
 	_click_all(self)
+	bar = BettingBar.new()
+	bar.hide()
+	add_child(bar)
+	move_child(bar, %MyHand.get_index())   # under the panels and dialogs, over the floor's prompts
 	sorter = HandSorter.new()
 	add_child(sorter)
 	master = MasterPanel.new()
@@ -57,17 +60,20 @@ func _ready() -> void:
 	add_child(settings_button)
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
-	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %SeatedBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand, %TopUpButton]:
+	for n in [%InteractButton, %Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand, %TopUpButton]:
 		n.hide()
 	%InteractButton.pressed.connect(interact_pressed.emit)
-	%RebetButton.pressed.connect(rebet_pressed.emit)
-	%AutoRebetCheck.toggled.connect(auto_rebet_toggled.emit)
-	%ClearButton.pressed.connect(clear_pressed.emit)
-	%UndoButton.pressed.connect(undo_pressed.emit)
-	%ReadyButton.pressed.connect(ready_pressed.emit)
-	%StandButton.pressed.connect(stand_pressed.emit)
+	bar.chip_picked.connect(chip_selected.emit)
+	bar.chip_picked.connect(func(v: int): selected_chip = v)
+	bar.rebet_pressed.connect(rebet_pressed.emit)
+	bar.auto_toggled.connect(auto_rebet_toggled.emit)
+	bar.clear_pressed.connect(clear_pressed.emit)
+	bar.undo_pressed.connect(undo_pressed.emit)
+	bar.ready_pressed.connect(ready_pressed.emit)
+	bar.action.connect(action.emit)
+	bar.stand_pressed.connect(stand_pressed.emit)
+	bar.paytable_toggled.connect(func(on): %Paytable.visible = on)
 	%CancelChooseButton.pressed.connect(cancel_choose_pressed.emit)
-	%PaytableButton.toggled.connect(func(on): %Paytable.visible = on)
 	%TopUpButton.pressed.connect(func(): Net.send("top_up"))
 	%ConfirmYes.pressed.connect(func():
 		%ConfirmStand.hide()
@@ -76,8 +82,6 @@ func _ready() -> void:
 		else:
 			stand_confirmed.emit())
 	%ConfirmNo.pressed.connect(%ConfirmStand.hide)
-	%Info.max_lines_visible = 2           # with a lot of buttons it wraps; it mustn't grow the bar
-	%Info.custom_minimum_size.x = 180
 	%NameOk.pressed.connect(_submit_name)
 	%NameEdit.text_submitted.connect(func(_t): _submit_name())
 	Session.balance_changed.connect(func(_p): _refresh_balance())
@@ -117,15 +121,15 @@ func add_slot_screen(screen: Control) -> void:
 func set_mode(new_mode: String) -> void:
 	mode = new_mode
 	%ChooseBar.visible = mode == "choosing"
-	%SeatedBar.visible = mode == "seated"
-	$TopBar.visible = mode != "slot"   # the slot screen has its own credit meter...
+	bar.visible = mode == "seated"
+	$TopBar.visible = mode != "slot" and mode != "seated"   # the bar has your balance; the slot screen its credit meter...
 	settings_button.visible = mode != "slot"   # ...and its own Settings button
 	if mode != "seated":
 		sorter.close()
 		master.close_all()
 		%MyHand.hide()
 		%Paytable.hide()
-		%PaytableButton.button_pressed = false
+		bar.close_paytable()
 		%ConfirmStand.hide()
 		set_pending(0)
 	if mode != "walking":
@@ -206,25 +210,19 @@ func _submit_name() -> void:
 
 
 # ------------------------------------------------------------------ seated
-## Called once when you sit: builds the chip tray and paytable from the server's rules.
-func setup_table(rules: Dictionary) -> void:
-	for child in %ChipTray.get_children():
-		child.queue_free()
-	for value in rules.get("chips", [100]):
-		var chip := ChipButton.new()
-		chip.value = int(value)
-		chip.custom_minimum_size = Vector2(54, 54)
-		chip.pressed.connect(_on_chip.bind(int(value)))
-		%ChipTray.add_child(chip)
-	selected_chip = int(rules.get("chips", [100])[0])
-	for value in rules.get("chips", []):   # the smallest chip that covers the table minimum (Craps: £5)
+## Called once when you sit: the bar's chips (in `design`, the table's chip style; {}: the game's own) and the
+## paytable, from the server's rules.
+func setup_table(rules: Dictionary, design := {}) -> void:
+	var chips: Array = rules.get("chips", [100])
+	selected_chip = int(chips[0])
+	for value in chips:   # the smallest chip that covers the table minimum (Craps: £5)
 		if int(value) >= int(rules.get("min_ante", 0)):
 			selected_chip = int(value)
 			break
-	_mark_chips()
+	bar.set_chips(chips, selected_chip, design)
 	var text := ""
 	for section in rules.get("sections", []):
-		text += "[b][color=#ffd54a]%s[/color][/b]\n" % str(section.title).to_upper()
+		text += "[b][color=#ecd396]%s[/color][/b]\n" % str(section.title).to_upper()
 		for row in section.rows:
 			text += "%s  [color=#cfe8d5]%s[/color]\n" % [row[0], row[1]]
 		text += "\n"
@@ -233,65 +231,28 @@ func setup_table(rules: Dictionary) -> void:
 	%Text.text = text
 
 
-func _on_chip(value: int) -> void:
-	selected_chip = value
-	_mark_chips()
-	chip_selected.emit(value)
+## Picks the bar's nth chip (keys 1-5); false if there isn't one.
+func pick_chip(n: int) -> bool:
+	var values: Array = bar.chip_values()
+	if n < 0 or n >= values.size():
+		return false
+	bar.pick(int(values[n]))
+	return true
 
 
-func _mark_chips() -> void:
-	for chip in %ChipTray.get_children():
-		chip.selected = chip.value == selected_chip
-
-
-## What the seated bar should offer right now. Keys: can_bet, has_bets,
-## can_rebet, is_ready, my_turn, actions ([{id, label, key}]), info.
+## What the seated bar should offer right now (BettingBar.update_view).
 func update_seated(s: Dictionary) -> void:
-	var can_bet: bool = s.get("can_bet", false)
-	var my_turn: bool = s.get("my_turn", false)
-	for chip in %ChipTray.get_children():
-		chip.disabled = not can_bet
-	%RebetButton.visible = not my_turn
-	%AutoRebetCheck.visible = not my_turn
-	%ClearButton.visible = not my_turn
-	%UndoButton.visible = not my_turn
-	%ReadyButton.visible = not my_turn
-	_show_actions(s.get("actions", []))
-	%RebetButton.disabled = not (can_bet and s.get("can_rebet", false) and not s.get("has_bets", false))
-	%ClearButton.disabled = not (can_bet and s.get("has_bets", false))
-	%UndoButton.disabled = not s.get("can_undo", false)
-	%ReadyButton.disabled = not s.get("can_ready", can_bet)
-	%ReadyButton.text = "Ready  [Space]" if s.get("has_bets", false) else "Sit out"
-	%Info.text = s.get("info", "")
-	var hide: Array = s.get("hide", [])   # buttons this table doesn't use (Craps: no Ready or Rebet)
-	%ReadyButton.visible = %ReadyButton.visible and not "ready" in hide
-	%RebetButton.visible = %RebetButton.visible and not "rebet" in hide
-	%AutoRebetCheck.visible = %AutoRebetCheck.visible and not "auto_rebet" in hide
+	bar.update_view(s)
 
 
-## The Auto rebet box as the server has it (ticking it asks the server; this echoes back).
+## The Auto rebet switch as the server has it (flicking it asks the server; this echoes back).
 func set_auto_rebet(on: bool) -> void:
-	%AutoRebetCheck.set_pressed_no_signal(on)
+	bar.set_auto(on)
 
 
-## Rebuilds the action buttons only when what's on offer changes.
-func _show_actions(actions: Array) -> void:
-	if actions == _actions_shown:
-		return
-	_actions_shown = actions.duplicate(true)
-	for child in %Actions.get_children():
-		child.queue_free()
-	for a in actions:
-		var button := Button.new()
-		button.text = a.label
-		button.custom_minimum_size = Vector2(110, 50)
-		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override("font_size", 18)
-		if a.has("pressed"):   # an on/off setting (Craps: Working)
-			button.toggle_mode = true
-			button.set_pressed_no_signal(bool(a.pressed))
-		button.pressed.connect(action.emit.bind(str(a.id)))
-		%Actions.add_child(button)
+## A round's result beside the balance in the bar.
+func flash_result(net: int) -> void:
+	bar.flash_result(net)
 
 
 func show_my_hand(cards: Array, hand: String) -> void:
@@ -316,9 +277,11 @@ func set_pending(pence: int) -> void:
 
 func _refresh_balance() -> void:
 	%Balance.text = Money.format(Session.shown_balance - pending)
+	bar.set_balance(Session.shown_balance - pending)
 	%TopUpButton.visible = mode == "walking" and Session.balance < 200 and Session.balance > -1 and Session.player.size() > 0
 
 
 func _set_status(online: bool) -> void:
 	%Status.text = "Online" if online else "Connecting..."
 	%Status.modulate = Color("7fd17f") if online else Color("e0a040")
+	bar.set_online(online)

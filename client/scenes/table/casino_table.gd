@@ -282,13 +282,33 @@ func _after_cards_cleared(_d: float) -> void:
 	pass
 
 
+## The betting line in the seated bar (BettingBar.format_info: «» is gold).
 func _betting_info(ctx: Dictionary) -> String:
 	var left := ceili(timer_left())
 	if ctx.get("my_ready", false):
-		return "You're in -- waiting for the deal" if ctx.get("has_bets", false) else "Sitting out this hand"
+		return "You're in  ·  waiting for the deal" if ctx.get("has_bets", false) else "Sitting this one out"
 	if left > 0:
-		return "Place your bets -- %ds" % left
-	return "Pick a chip, then tap a spot on the felt"
+		return "Bets close in «%d»  ·  %s" % [left, "Ready when you are" if ctx.get("has_bets", false) else "Pick a chip, then click a spot"]
+	return "Place your bets"
+
+
+## The table's name for the seated bar's corner.
+func game_title() -> String:
+	if is_master:
+		return MasterPanel.name_of(master_game)
+	return {"TcpTable": "Three Card Poker", "BlackjackTable": "Blackjack", "MsTable": "Mississippi Stud", "UthTable": "Ultimate Texas Hold'em",
+		"LirTable": "Let It Ride", "HcfTable": "High Card Flush", "BacTable": "Baccarat", "RouTable": "Roulette", "CrapsTable": "Craps",
+		"PaiGowTable": "Face Up Pai Gow" if get("face_up") else "Fortune Pai Gow"}.get(get_script().get_global_name(), "")
+
+
+## The chips' design for the seated bar: the table style's (Roulette and Craps keep the game's own).
+func chip_design() -> Dictionary:
+	return style() if styled() else {}
+
+
+## Whether Ready means "sit this one out" with no bets down (not at Roulette, which spins anyway).
+func sit_out_ok() -> bool:
+	return true
 
 
 # ------------------------------------------------------------------ its style
@@ -1021,6 +1041,11 @@ func _start_timer(seconds: float, quiet := false) -> void:
 ## Seconds left on the betting/turn countdown (0 when none).
 func timer_left() -> float:
 	return maxf(0.0, _timer_end - Time.get_ticks_msec() / 1000.0)
+
+
+## How much of the countdown is left (1 to 0), for the bar's draining line.
+func timer_fraction() -> float:
+	return clampf(timer_left() / _timer_total, 0.0, 1.0)
 
 
 # ------------------------------------------------------------------ input

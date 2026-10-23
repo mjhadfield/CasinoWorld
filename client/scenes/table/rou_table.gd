@@ -397,6 +397,10 @@ func _build_collision() -> void:
 
 
 # ------------------------------------------------------------------ the HUD
+func sit_out_ok() -> bool:
+	return false
+
+
 func seated_view(ctx: Dictionary) -> Dictionary:
 	var info := ""
 	if hover_spot != "" and bets().has(hover_spot):
@@ -408,7 +412,13 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	else:
 		match phase:
 			"betting":
-				info = _betting_info(ctx)
+				var left := ceili(timer_left())
+				if ctx.get("my_ready", false):
+					info = "You're in  ·  spinning soon"
+				elif left > 0:
+					info = "Spinning in «%d»  ·  %s" % [left, "Ready spins sooner" if ctx.get("has_bets", false) else "Pick a chip, then click the layout"]
+				else:
+					info = "Place your bets"
 			"spinning":
 				info = "Final bets!"
 			"rolling":

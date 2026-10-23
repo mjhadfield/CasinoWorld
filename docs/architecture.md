@@ -166,9 +166,13 @@ A Godot 4.7 project exported to the web.
   `CasinoTable`. `apply_snapshot()` draws a `table_state` at once; `handle_event()` turns each `table_event`
   into animation steps on a queue that plays in order, speeding up if it falls behind. A new snapshot starts
   a new epoch, which cancels every step still pending. Nothing on the client decides an outcome.
-- **The HUD (`scenes/ui/hud.tscn`)** has the balance and jackpot while walking, and the chip tray, bet
-  buttons, decisions and countdown while seated. Game-specific panels (the Pai Gow sorter, the slot screen)
-  sit alongside it.
+- **The HUD (`scenes/ui/hud.tscn`)** has the balance and jackpot while walking. Seated, its betting bar
+  (`scenes/ui/betting_bar.gd`, signed off on `docs/betting_ui/mockup/`) takes over: your balance on the left, the
+  table's chips dead centre with the line saying what's happening (and its draining countdown) above them, Ready
+  (Craps: the dice) on their left, Undo, Rebet/Clear and Auto rebet (Craps: Working) on their right, and a decision
+  in the chips' place while it's open; the table's name and jackpot top left, Paytable and Stand up top right. Each
+  table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips, `switch` a switch, else a
+  decision). Game-specific panels (the Pai Gow sorter, the slot screen) sit alongside it.
 
 ## Working on it
 
