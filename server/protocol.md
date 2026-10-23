@@ -329,8 +329,9 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 preview (where to put the viewer). `walls` gives the wall sizes ({`top` 70, `side` 8, `bottom` 10}) and `styles` the
 wall looks by style id ({`name`, `paper`, `stripe`, `wainscot`, `trim`, `edge`} colours). Each room is
 {`id`, `name`, `x`, `y`, `w`, `h` (on the plan, walls included), `floor` {`texture`, `tint`}, `patches`,
-`walls` {`style`, `sign`, `sign_at`}, `openings`, `items`, `points`, `zones`}. Everything in a room is placed from
-its top-left corner.
+`walls` {`style`, `sign`, `sign_at`}, `npc_only` (a lift or back room: NPCs come and go through it, players are
+kept out and never shown it), `openings`, `items`, `points`, `zones`}. Everything in a room is placed from its
+top-left corner.
 - `openings`: its doorways, its own and its neighbours' through its walls: {`side`, `at` (the middle, along the
   wall), `width`, `kind` (`door` | `archway`), `to` (the room beyond, or null for a shut outside door), `door`,
   `owner`}.

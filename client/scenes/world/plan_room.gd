@@ -9,6 +9,9 @@ extends Node2D
 ##
 ## A doorway joins it to the room beyond (`to`). An archway is just open; a door is drawn shut until someone comes
 ## near, then swings open (PlanDoor). A door with no room beyond stays shut, and its wall stays solid.
+##
+## An NPCs-only room (a lift: NPCs appear in it and leave by it) has a bar across each of its doorways that only
+## you bump into -- it's no navigation obstacle, so NPCs path straight through -- and its doors don't open for you.
 
 const FONT := preload("res://assets/fonts/DejaVuSans-Bold.ttf")
 const CARPET := preload("res://assets/tiles/carpet.png")
@@ -41,6 +44,7 @@ var style := {}
 var points := {}            # "room/name" -> {"at": Vector2 on the plan, "kind"}
 var games: Array[FloorGame] = []   # its tables and cabinets (the floor registers them)
 var openings: Array = []
+var npc_only := false
 
 
 ## Make the room from its data (`world`: the rest of the welcome's world, for the wall sizes and styles).
@@ -55,6 +59,11 @@ func build(room: Dictionary, world: Dictionary) -> void:
 	wall = {"top": float(w.get("top", 70)), "side": float(w.get("side", 8)), "bottom": float(w.get("bottom", 10))}
 	style = world.get("styles", {}).get(str(room.get("walls", {}).get("style", "crimson")), {})
 	openings = room.get("openings", [])
+	npc_only = bool(room.get("npc_only", false))
+	var npc_rooms := {}   # (this one and those beyond its doorways that are NPCs only)
+	for r in world.get("rooms", []):
+		if r.get("npc_only", false):
+			npc_rooms[str(r.id)] = true
 	var floor_layer := Node2D.new()
 	floor_layer.name = "Floor"
 	floor_layer.z_index = -10
@@ -74,7 +83,10 @@ func build(room: Dictionary, world: Dictionary) -> void:
 		if o.kind == "door" or o.get("to") == null:
 			var d := PlanDoor.new()
 			d.setup(o, _gap(o), _door_colour(), o.get("to") == null)
+			d.npcs_only = npc_rooms.has(id) or npc_rooms.has(str(o.get("to")))
 			add_child(d)
+		if npc_only and o.get("to") != null:
+			_bar_players(_gap(o))
 	for item in room.get("items", []):
 		_place(item)
 	_build_zones(room.get("zones", []))
@@ -163,6 +175,19 @@ func _build_zones(zones: Array) -> void:
 		shape.position = Vector2(float(z.x), float(z.y)) + r.size / 2.0
 		body.add_child(shape)
 		add_child(body)
+
+
+## A body across a doorway on layer 1, which you collide with; left out of the navigation bake, so NPCs walk through.
+func _bar_players(g: Rect2) -> void:
+	var body := StaticBody2D.new()
+	body.name = "PlayerBar"
+	var shape := CollisionShape2D.new()
+	var r := RectangleShape2D.new()
+	r.size = g.size
+	shape.shape = r
+	shape.position = g.get_center()
+	body.add_child(shape)
+	add_child(body)
 
 
 # ------------------------------------------------------------------ the walls

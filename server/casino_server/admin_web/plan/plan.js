@@ -290,7 +290,7 @@ function refreshSide() {
   const side = $("#pl-side");
   if (!side) return;
   if (S.mode === "plan") {
-    const spawns = placed().flatMap(r => r.paths.points.filter(p => p.kind === "spawn").map(p => `${r.id}/${p.name}`));
+    const spawns = placed().filter(r => !r.npc_only).flatMap(r => r.paths.points.filter(p => p.kind === "spawn").map(p => `${r.id}/${p.name}`));
     side.replaceChildren(
       el("h3", { textContent: "Rooms" }),
       el("ul", { className: "pl-rooms" }, ...S.draft.rooms.map((r, i) => el("li", { className: (i === S.pick ? "on " : "") + (r.placed ? "placed" : "") },
@@ -397,7 +397,7 @@ function refreshInspector() {
     const r = S.draft.rooms[S.pick];
     if (!r) { ins.replaceChildren(el("h3", { textContent: "The floor" }), el("p", { className: "hint", textContent: `${placed().length} rooms on the floor, ${S.draft.rooms.length - placed().length} in the library. Pick one to see it.` })); return; }
     ins.replaceChildren(el("h3", { textContent: r.name }),
-      el("p", { className: "hint", textContent: `${r.w} × ${r.h}, ${r.items.length} things in it. ${r.placed ? `At ${r.x}, ${r.y} on the floor.` : "In the library (not on the floor)."}` }),
+      el("p", { className: "hint", textContent: `${r.w} × ${r.h}, ${r.items.length} things in it.${r.npc_only ? " NPCs only." : ""} ${r.placed ? `At ${r.x}, ${r.y} on the floor.` : "In the library (not on the floor)."}` }),
       el("div", { className: "pl-buttons" },
         el("button", { className: "primary", textContent: "Edit room", onclick: () => setMode("room", S.pick) }),
         el("button", { textContent: r.placed ? "Take off the floor" : "Place on the floor", onclick: () => togglePlaced(S.pick) }),
@@ -410,14 +410,16 @@ function refreshInspector() {
   if (!S.sel.length) {
     ins.replaceChildren(el("h3", { textContent: "This room" }),
       field("Name", text(r.name, v => { r.name = v || r.name; })),
-      field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: 320 })),
-      field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: 240 })),
+      field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: G.CAT.min_size[0] })),
+      field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: G.CAT.min_size[1] })),
       field("Floor", texture(r.floor)),
       field(r.floor.texture === "plain" ? "Floor colour" : "Floor tint", r.floor.texture === "plain" ? colour(r.floor.tint, v => { r.floor.tint = v; }) : tint(r.floor.tint, v => { r.floor.tint = v; })),
       field("Walls", choose(r.walls.style, Object.entries(G.CAT.walls.styles).map(([k, s]) => [k, s.name]), v => { r.walls.style = v; })),
       field("Sign", text(r.walls.sign, v => { r.walls.sign = v.toUpperCase(); }, 24)),
       field("Sign at", num(r.walls.sign_at, v => { r.walls.sign_at = v; })),
       el("label", { className: "pl-check" }, el("input", { type: "checkbox", checked: r.placed, onchange: () => togglePlaced(S.room) }), "On the floor"),
+      el("label", { className: "pl-check", title: "A lift or back room: NPCs given an arrival point here come out of its door and leave back through it. Players can't go in or see inside." },
+        el("input", { type: "checkbox", checked: !!r.npc_only, onchange: e => edit(() => { if (e.target.checked) r.npc_only = true; else delete r.npc_only; }) }), "NPCs only (players can't go in)"),
       el("p", { className: "hint", textContent: "Drag a wall to resize the room. Click a piece in the palette (or drag it) to put it down; R turns it, Esc stops." }));
     return;
   }
@@ -691,10 +693,11 @@ function removeSelected() {
 /** Resize a room by moving one wall to `to` (plan coordinates): what's inside stays where it is on the plan. */
 function resize(r, side, to) {
   to = Math.round(to);
-  if (side === "right") r.w = Math.max(320, to - r.x);
-  else if (side === "bottom") r.h = Math.max(240, to - r.y);
+  const [minW, minH] = G.CAT.min_size;
+  if (side === "right") r.w = Math.max(minW, to - r.x);
+  else if (side === "bottom") r.h = Math.max(minH, to - r.y);
   else {
-    const d = side === "left" ? Math.min(to - r.x, r.w - 320) : Math.min(to - r.y, r.h - 240);
+    const d = side === "left" ? Math.min(to - r.x, r.w - minW) : Math.min(to - r.y, r.h - minH);
     if (!d) return;
     const shift = o => { if (side === "left") o.x -= d; else o.y -= d; };
     if (side === "left") { r.x += d; r.w -= d; r.walls.sign_at -= d; } else { r.y += d; r.h -= d; }

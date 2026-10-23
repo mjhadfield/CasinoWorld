@@ -94,6 +94,7 @@ func _ready() -> void:
 	slot_screen.stand_requested.connect(func(): Net.send("stand"))
 	slot_screen.settings_requested.connect(hud.settings_menu.toggle)
 	player.add_to_group("door_openers")
+	player.add_to_group("local_player")
 	camera.global_position = player.global_position
 	camera.zoom = WALK_ZOOM
 	camera.limit_smoothed = true
@@ -279,7 +280,8 @@ func _room_at(p: Vector2) -> String:
 	return ""
 
 
-## Which rooms show: your room's zone, and the zone through a door you're in (or right by). The camera keeps to them.
+## Which rooms show: your room's zone, and the zone through a door you're in (or right by) -- never an NPCs-only
+## room, which NPCs just step out of. The camera keeps to them.
 func _update_rooms(force := false) -> void:
 	var here := _room_at(player.position)
 	if here == "":
@@ -291,7 +293,7 @@ func _update_rooms(force := false) -> void:
 				shown[id] = true
 		for id in shown.keys():
 			for o in rooms[id].openings:
-				if o.kind != "door" or o.get("to") == null or not rooms.has(str(o.to)):
+				if o.kind != "door" or o.get("to") == null or not rooms.has(str(o.to)) or rooms[str(o.to)].npc_only:
 					continue
 				var g: Rect2 = rooms[id]._gap(o)
 				if Rect2(g.position + rooms[id].position, g.size).grow(40).has_point(player.position):

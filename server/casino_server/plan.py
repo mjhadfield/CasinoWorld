@@ -11,6 +11,7 @@ No folder: the first run seeds both with the lobby (live) and the classic floor 
 
 A plan: {"rev", "next": {prefix: serial}, "spawn": "room/point", "rooms": [room]}. A room:
   {"id", "name", "placed",           # unplaced: a blueprint in the library, not on the floor
+   "npc_only": true,                 # (only when set) NPCs walk in and out, players can't: a lift, a back room
    "x", "y", "w", "h",               # its place on the plan and its size, walls included (pixels)
    "floor": {"texture", "tint"},     # tint multiplies the texture: #ffffff is none ("plain" is just the tint)
    "patches": [{"x", "y", "w", "h", "texture", "tint", "shape": rect|rounded|oval, "radius",
@@ -25,6 +26,8 @@ Everything in a room is placed from its top-left corner, so moving a room moves 
 WALL_TOP-high band drawn in 3/4 view; the side walls are WALL_SIDE wide and the front wall WALL_BOTTOM. A door sits in
 one room's wall; where another room's wall runs along the same line, the opening goes through both and joins them
 (an archway shows both rooms; a door looks closed until you're through it). A door with nobody beyond stays shut.
+An NPCs-only room is a rabbit hole: the client keeps players out of its doorways and never shows it, so NPCs given
+an arrival point in it step out of its door and leave back through it. Players can't spawn in one.
 
 An item's asset is "table:<game>" (its id is its table id: tcp_3, bj_6...), "slot" (a cabinet: props.variant; its id
 slot_<n>), a built-in piece ("podium", "npc": a figure standing there, props.look and props.name) or a piece of
@@ -56,7 +59,7 @@ CATALOGUE = json.loads((Path(__file__).resolve().parent / "plan_catalogue.json")
 CLASSIC = json.loads((Path(__file__).resolve().parent / "plan_classic.json").read_text())
 
 WALL_TOP, WALL_SIDE, WALL_BOTTOM = 70, 8, 10
-MIN_SIZE, MAX_SIZE = (320, 240), (8000, 8000)
+MIN_SIZE, MAX_SIZE = (48, 128), (8000, 8000)   # (the smallest: one figure standing, with a side door to it)
 SIDES = ("top", "bottom", "left", "right")
 FACINGS = ("down", "up", "left", "right")
 SIGN_SIDES = ("right", "left")   # which end of a table its results sign stands past, as its players see it
@@ -483,6 +486,8 @@ def clean(raw, old: dict) -> dict:
                                          "sign": _str(walls.get("sign"), 24),
                                          "sign_at": _num(walls.get("sign_at", w / 2), f"{name}'s sign", 0, w)},
                 "doors": [], "items": [], "paths": {"points": [], "zones": []}}
+        if rr.get("npc_only"):   # (left out otherwise, so older plans compare the same)
+            room["npc_only"] = True
         for p in rr.get("patches") or []:
             if not isinstance(p, dict):
                 raise PlanError(f"{name}: a floor patch must be an object.")
@@ -584,10 +589,13 @@ def problems(plan: dict, builds_dir: Path | None = None) -> list[dict]:
     ops, door_problems = openings(placed)
     out += [dict(p, placed=True) for p in door_problems]
     spawn = plan.get("spawn", "")
-    spawns = {f"{r['id']}/{p['name']}": p for r in placed for p in r["paths"]["points"] if p["kind"] == "spawn"}
+    spawns = {f"{r['id']}/{p['name']}": p for r in placed if not r.get("npc_only")
+              for p in r["paths"]["points"] if p["kind"] == "spawn"}
     if spawn not in spawns:
         out.append({"room": None, "item": None, "placed": True,
                     "message": "Players have nowhere to appear: give a placed room a spawn point." if not spawns
+                    else "Players can't appear in an NPCs-only room: pick another spawn point."
+                    if spawn.split("/", 1)[0] in {r["id"] for r in placed if r.get("npc_only")}
                     else "Pick which spawn point players appear at."})
     if not placed:
         return out
@@ -706,16 +714,20 @@ def _reach_problems(rooms: list, ops: dict, spawn: str | None) -> list[dict]:
         for z in r["paths"]["zones"]:
             if z["kind"] == "block":
                 mark((r["x"] + z["x"], r["y"] + z["y"], z["w"], z["h"]), 0, -(AGENT - 4))
+    def shut(grid, zr):   # every cell the rect touches
+        cx0, cy0 = max(0, int((zr[0] - x0) // CELL)), max(0, int((zr[1] - y0) // CELL))
+        cx1, cy1 = min(cols - 1, int((zr[0] + zr[2] - x0) // CELL)), min(rows - 1, int((zr[1] + zr[3] - y0) // CELL))
+        for cy in range(cy0, cy1 + 1):
+            for cx in range(cx0, cx1 + 1):
+                grid[cy * cols + cx] = 0
+
     npc_cells = bytearray(open_cells)
     for r in rooms:
         for z in r["paths"]["zones"]:
             if z["kind"] == "npc_block":
-                zr = _grow((r["x"] + z["x"], r["y"] + z["y"], z["w"], z["h"]), AGENT - 4)
-                cx0, cy0 = max(0, int((zr[0] - x0) // CELL)), max(0, int((zr[1] - y0) // CELL))
-                cx1, cy1 = min(cols - 1, int((zr[0] + zr[2] - x0) // CELL)), min(rows - 1, int((zr[1] + zr[3] - y0) // CELL))
-                for cy in range(cy0, cy1 + 1):
-                    for cx in range(cx0, cx1 + 1):
-                        npc_cells[cy * cols + cx] = 0
+                shut(npc_cells, _grow((r["x"] + z["x"], r["y"] + z["y"], z["w"], z["h"]), AGENT - 4))
+        if r.get("npc_only"):   # players stop at its doorways
+            shut(open_cells, outline(r))
 
     def fill(grid, starts):
         seen = bytearray(cols * rows)
@@ -751,7 +763,7 @@ def _reach_problems(rooms: list, ops: dict, spawn: str | None) -> list[dict]:
                 if s["stands"] and not any(reached(players, open_cells, p) for p in s["stands"]):
                     out.append({"room": r["id"], "item": item["id"], "message": f"{r['name']}: players can't reach {_label(item)}."})
             for r, p, at in points:
-                if p["kind"] != "spawn" and not reached(players, open_cells, at):
+                if p["kind"] != "spawn" and not r.get("npc_only") and not reached(players, open_cells, at):
                     out.append({"room": r["id"], "item": "point:" + p["name"], "message": f"{r['name']}: players can't reach the point {p['name']}."})
     arrivals = [at for r, p, at in points if p["kind"] == "arrival"]
     if arrivals:
@@ -819,7 +831,8 @@ def install(plan: dict) -> list[str]:
             if item["id"] in tables:
                 s = shapes(room, item)
                 floor.SEATS[item["id"]] = s["stands"] if s else []
-    spawns = [k for k, p in floor.POINTS.items() if p["kind"] == "spawn"]
+    npc_only = {r["id"] for r in placed if r.get("npc_only")}
+    spawns = [k for k, p in floor.POINTS.items() if p["kind"] == "spawn" and p["room"] not in npc_only]
     floor.SPAWN = plan.get("spawn") if plan.get("spawn") in spawns else (spawns[0] if spawns else "")
     ops, _ = openings(placed)
     floor.ROUTES = Routes(placed, ops)
@@ -875,7 +888,7 @@ def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> 
                 continue
             items.append(it)
         out_rooms.append({k: room[k] for k in ("id", "name", "x", "y", "w", "h", "floor", "patches", "walls")}
-                         | {"openings": ops.get(room["id"], []), "items": items,
+                         | {"npc_only": bool(room.get("npc_only")), "openings": ops.get(room["id"], []), "items": items,
                             "points": room["paths"]["points"], "zones": room["paths"]["zones"]})
     out = {"rev": plan.get("rev", 0), "spawn": plan.get("spawn", ""), "rooms": out_rooms,
            "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM}, "styles": WALL_STYLES}
@@ -1098,7 +1111,7 @@ def catalogue(builds_dir: Path | None = None) -> dict:
             "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM, "styles": WALL_STYLES},
             "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
             "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
-            "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
+            "min_size": MIN_SIZE, "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
             "patch_shapes": PATCH_SHAPES, "patch_patterns": PATCH_PATTERNS, "patch_borders": PATCH_BORDERS,
             "categories": ["Seating", "Tables & desks", "Bar & counters", "Plants", "Lighting", "Statues & fountains",
                            "Decor", "Rugs", "Wall decor", "Uploads"]}

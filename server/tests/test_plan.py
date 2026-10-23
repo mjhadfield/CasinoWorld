@@ -194,6 +194,41 @@ def test_a_plan_needs_somewhere_for_players_to_appear():
     assert "Players have nowhere to appear: give a placed room a spawn point." in messages(p)
 
 
+def lift(y=200) -> dict:
+    """A lift on the lobby's left wall: the smallest room, NPCs only, its door in its right wall."""
+    return {"id": "lift", "name": "Lift", "placed": True, "npc_only": True, "x": -48, "y": y, "w": 48, "h": 128,
+            "floor": {"texture": "plain", "tint": "#3b2a20"}, "patches": [], "walls": {"style": "onyx", "sign": "", "sign_at": 24},
+            "doors": [{"id": "d9", "side": "right", "at": 90, "width": 40, "kind": "door"}], "items": [],
+            "paths": {"points": [{"name": "lift", "x": 24, "y": 100, "kind": "arrival", "weight": 1, "linger": 0}], "zones": []}}
+
+
+def test_an_npcs_only_lift_is_the_smallest_room_and_players_cant_use_it():
+    p = lobby_only()
+    p["rooms"].append(lift())
+    assert messages(p) == []
+    cleaned = plan.clean(p, p)
+    assert room(cleaned, "lift")["npc_only"] is True and "npc_only" not in room(cleaned, "lobby")
+    assert [r["npc_only"] for r in plan.world(cleaned)["rooms"]] == [False, True]
+    # anything smaller won't do
+    with pytest.raises(plan.PlanError):
+        plan.clean({**p, "rooms": [{**lift(), "h": 120}]}, p)
+    # players can't appear in it, or reach a table in it (NPCs come out of it fine)
+    room(p, "lift")["paths"]["points"].append({"name": "start", "x": 24, "y": 100, "kind": "spawn", "weight": 1, "linger": 0})
+    p["spawn"] = "lift/start"
+    assert "Players can't appear in an NPCs-only room: pick another spawn point." in messages(p)
+    plan.install(p)
+    assert floor.SPAWN == "lobby/spawn" and "lift/lift" in floor.arrivals()
+    # a wander point in it is for NPCs only; a slot cabinet in it no player could get to
+    p["spawn"] = "lobby/spawn"
+    room(p, "lift")["paths"]["points"][1]["kind"] = "wander"
+    assert messages(p) == []
+    room(p, "lift").update(x=-160, w=160, h=240)
+    room(p, "lift")["doors"][0]["at"] = 200
+    room(p, "lift")["items"].append({"id": "slot_9", "asset": "slot", "x": 80, "y": 140, "facing": "down", "props": {"variant": "armadillo"}})
+    assert messages(p) == ["Lift: players can't reach the slot cabinet slot_9."]
+    del room(p, "lift")["npc_only"]
+    assert messages(p) == []
+
 # ------------------------------------------------------------------ the page: save, publish, discard, roll back
 def test_save_publish_and_roll_back(client, tmp_path):
     view = client.get("/api/plan").json()

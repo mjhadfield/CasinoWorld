@@ -174,7 +174,9 @@ A Godot 4.7 project exported to the web.
   (every room's outline, less the wall bodies, which leave the doorways open, and everything in group
   `navigation_obstacles`) waits until the floor is upright. A tap walks you along the nav map's path. A zone of
   kind `npc_block` is a static body on collision layer 2: in the navigation bake but not in your way, so NPCs
-  path round it and players walk through. Each table's and cabinet's chairs block walking too (a circle round the
+  path round it and players walk through. An NPCs-only room (a lift) is the other way round: a bar across each of
+  its doorways on layer 1, left out of the bake, stops you but not NPCs; its doors don't open for you and it never
+  shows, so NPCs arriving there step out of a shut door. Each table's and cabinet's chairs block walking too (a circle round the
   chair's base, `Seating.body_radius()`, on the table's `Chairs` body, so in the bake as part of the table), and so
   does everyone else (`Avatar.add_body()`: collision layer 3, which only your body collides with; out of the bake
   since they move, except the plan's standing figures, which stay put). A preview (`?preview=<room>`) builds the draft's floor to walk round

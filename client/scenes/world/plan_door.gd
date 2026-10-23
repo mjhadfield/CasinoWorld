@@ -2,7 +2,8 @@ class_name PlanDoor
 extends Node2D
 ## A door in a room's wall (PlanRoom): drawn shut, it swings open while anyone's near (the local player and
 ## everyone in group "door_openers") and closes behind them. A door with no room beyond (`locked`) never opens; its
-## wall stays solid. Doors never block walking -- the gap in the wall bodies is what lets people through.
+## wall stays solid. Doors never block walking -- the gap in the wall bodies is what lets people through. A door to
+## an NPCs-only room (`npcs_only`) doesn't open for you (group "local_player").
 
 const NEAR := 46.0    # px from the doorway's middle that opens it
 const BRASS := Color("c9a24a")
@@ -12,6 +13,7 @@ var side := "top"
 var gap := Rect2()
 var wood := Color("3a1a12")
 var locked := false
+var npcs_only := false
 var _open := 0.0       # 0 shut .. 1 open
 var _want := 0.0
 var _check := 0.0
@@ -34,6 +36,8 @@ func _process(delta: float) -> void:
 		var mid := to_global(gap.get_center())
 		_want = 0.0
 		for n in get_tree().get_nodes_in_group("door_openers"):
+			if npcs_only and n.is_in_group("local_player"):
+				continue
 			if n.is_visible_in_tree() and (n as Node2D).global_position.distance_to(mid) < NEAR + gap.size.length() / 2.0:
 				_want = 1.0
 				break
