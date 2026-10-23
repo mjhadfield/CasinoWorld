@@ -3,8 +3,8 @@ extends Control
 ## The seated controls, signed off on the Betting Bar mockup (docs/betting_ui/mockup/): one bar at the foot of the
 ## screen over a short, firm fade. Your balance sits on the left, large and centred on the bar. The chips are dead
 ## centre, in the table's own style, with the line above them saying what's happening (its countdown draining in
-## gold under it). The commit button (Ready, or Craps' dice) hugs the chips on the left; Undo, Rebet/Clear and the
-## Auto rebet switch (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
+## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
+## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
 ## place while it's open. The table's name and the jackpot sit top left, Paytable and Stand up top right.
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
@@ -13,6 +13,7 @@ signal undo_pressed
 signal rebet_pressed
 signal clear_pressed
 signal auto_toggled(on: bool)
+signal sit_out_toggled(on: bool)
 signal ready_pressed
 signal action(id: String)
 signal stand_pressed
@@ -53,8 +54,9 @@ var _chips: HBoxContainer
 var _decide: HBoxContainer
 var _tools: HBoxContainer
 var _undo: BarButton
-var _rebet: BarButton
+var _clear: BarButton
 var _auto: BarSwitch
+var _sit_out: BarSwitch
 var _status: PanelContainer
 var _status_dot: Control
 var _status_name: Label
@@ -105,7 +107,7 @@ func _ready() -> void:
 	add_child(_commit)
 	_ready_btn = BarButton.new()
 	_ready_btn.setup("Ready", "Space", "primary")
-	_ready_btn.pressed.connect(ready_pressed.emit)
+	_ready_btn.pressed.connect(func(): (rebet_pressed if _ready_btn.words == "Repeat Bet" else ready_pressed).emit())
 	_commit.add_child(_ready_btn)
 	_chips = HBoxContainer.new()
 	_chips.add_theme_constant_override("separation", 11)
@@ -122,15 +124,21 @@ func _ready() -> void:
 	_undo.tooltip_text = "Take back your last chip"
 	_undo.pressed.connect(undo_pressed.emit)
 	_tools.add_child(_undo)
-	_rebet = BarButton.new()
-	_rebet.setup("Rebet", "", "tool", "rebet")
-	_rebet.pressed.connect(func(): (clear_pressed if _rebet.glyph == "clear" else rebet_pressed).emit())
-	_tools.add_child(_rebet)
+	_clear = BarButton.new()
+	_clear.setup("Clear", "", "tool", "clear")
+	_clear.tooltip_text = "Take back the bets you can"
+	_clear.pressed.connect(clear_pressed.emit)
+	_tools.add_child(_clear)
 	_auto = BarSwitch.new()
 	_auto.words = "Auto"
 	_auto.tooltip_text = "Put the same bets down every round"
 	_auto.toggled.connect(auto_toggled.emit)
 	_tools.add_child(_auto)
+	_sit_out = BarSwitch.new()
+	_sit_out.words = "Sit out"
+	_sit_out.tooltip_text = "Sit out every hand until you bet or switch it off"
+	_sit_out.toggled.connect(sit_out_toggled.emit)
+	_tools.add_child(_sit_out)
 	_build_corners()
 	resized.connect(_layout)
 
@@ -282,6 +290,15 @@ func set_auto(on: bool) -> void:
 	_auto.queue_redraw()
 
 
+func auto_on() -> bool:
+	return _auto.button_pressed
+
+
+func set_sit_out(on: bool) -> void:
+	_sit_out.set_pressed_no_signal(on)
+	_sit_out.queue_redraw()
+
+
 func set_balance(pence: int) -> void:
 	_balance.text = Money.format(pence)
 
@@ -324,31 +341,29 @@ func update_view(s: Dictionary) -> void:
 	for c in _chips.get_children():
 		c.disabled = not can_bet
 		c.short = can_bet and c.value > Session.shown_balance
-	# the right: Undo, Rebet sharing its place with Clear (they never apply at once), Auto rebet
+	# the right: Undo, Clear, the Auto rebet and Sit out switches
 	_tools.visible = not deciding
 	_undo.disabled = not s.get("can_undo", false)
 	var has_bets: bool = s.get("has_bets", false)
-	if has_bets or "rebet" in hide:
-		_rebet.setup("Clear", "", "tool", "clear")
-		_rebet.tooltip_text = "Take back the bets you can"
-		_rebet.disabled = not (can_bet and has_bets)
-	else:
-		_rebet.setup("Rebet", "", "tool", "rebet")
-		_rebet.tooltip_text = "Put last round's bets down again  (R)"
-		_rebet.disabled = not (can_bet and s.get("can_rebet", false))
+	_clear.disabled = not (can_bet and has_bets)
 	_auto.visible = not "auto_rebet" in hide
-	# the left: Ready (Sit out until you've bet), or the table's own commit buttons (Craps' dice)
+	_sit_out.visible = not "ready" in hide and s.get("sit_out", true)
+	# the left: Ready (Repeat Bet until you've bet, once there's a last round to repeat), or the table's own commit
+	# buttons (Craps' dice)
 	var is_ready: bool = s.get("is_ready", false)
-	_ready_btn.visible = not "ready" in hide and not deciding and (s.get("can_ready", false) or is_ready)
+	var repeat: bool = can_bet and not has_bets and not is_ready and s.get("can_rebet", false) and not "rebet" in hide
+	_ready_btn.visible = not "ready" in hide and not deciding and (s.get("can_ready", false) or is_ready or repeat)
 	if is_ready:
 		_ready_btn.setup("Ready" if has_bets else "Sitting out", "", "done")
 		_ready_btn.disabled = true
-	elif has_bets or not s.get("sit_out", true):
-		_ready_btn.setup("Ready", "Space", "primary" if has_bets else "quiet")
-		_ready_btn.disabled = not has_bets
-	else:
-		_ready_btn.setup("Sit out", "Space", "quiet")
+	elif repeat:
+		_ready_btn.setup("Repeat Bet", "R", "normal")
+		_ready_btn.tooltip_text = "Put last round's bets down again"
 		_ready_btn.disabled = false
+	else:
+		_ready_btn.setup("Ready", "Space", "primary" if has_bets else "quiet")
+		_ready_btn.tooltip_text = ""
+		_ready_btn.disabled = not has_bets
 	# the wallet
 	var felt := int(s.get("on_felt", 0))
 	_felt_amount.text = Money.format(felt, true)
@@ -450,7 +465,7 @@ func _layout() -> void:
 	var narrow := vs.x < 1180.0
 	var phone := vs.x < 700.0
 	_undo.compact = narrow
-	_rebet.compact = narrow
+	_clear.compact = narrow
 	for b in _commit.get_children():
 		if b is BarButton:
 			b.hide_key = narrow
@@ -565,7 +580,7 @@ class BarChip extends Button:
 
 
 ## A button in the bar's look: its words, an optional key in a box, an optional drawn glyph. Kinds: primary (brass),
-## normal, quiet, fold (red edge), done (a gold outline), tool (a small pill, Undo/Rebet), ghost (the corners).
+## normal, quiet, fold (red edge), done (a gold outline), tool (a small pill, Undo/Clear), ghost (the corners).
 class BarButton extends Button:
 	const WIDE := 1.4     # letter spacing on the big buttons' capitals
 	var words := ""
@@ -697,7 +712,7 @@ class BarButton extends Button:
 				draw_polyline(PackedVector2Array([c + Vector2(3.5, -3.5), c + Vector2(7, 0), c + Vector2(3.5, 3.5)]), col, 1.6, true)
 
 
-## A small on/off switch with its name beside it (Auto rebet, Craps' Working).
+## A small on/off switch with its name beside it (Auto rebet, Sit out, Craps' Working).
 class BarSwitch extends Button:
 	var words := "Auto"
 

@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## Screen-space overlay. Walking: balance, jackpot, the "take a seat" prompt.
 ## Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: your balance,
-## the table's chips, Ready, Undo/Rebet/Clear/Auto rebet, the game's decisions when you
+## the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions when you
 ## have one, the line saying what's happening), the table's name and jackpot, Paytable and Stand up.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 
@@ -9,6 +9,7 @@ signal interact_pressed
 signal chip_selected(value: int)
 signal rebet_pressed
 signal auto_rebet_toggled(on: bool)
+signal sit_out_toggled(on: bool)
 signal clear_pressed
 signal undo_pressed
 signal ready_pressed
@@ -67,6 +68,7 @@ func _ready() -> void:
 	bar.chip_picked.connect(func(v: int): selected_chip = v)
 	bar.rebet_pressed.connect(rebet_pressed.emit)
 	bar.auto_toggled.connect(auto_rebet_toggled.emit)
+	bar.sit_out_toggled.connect(sit_out_toggled.emit)
 	bar.clear_pressed.connect(clear_pressed.emit)
 	bar.undo_pressed.connect(undo_pressed.emit)
 	bar.ready_pressed.connect(ready_pressed.emit)
@@ -248,6 +250,15 @@ func update_seated(s: Dictionary) -> void:
 ## The Auto rebet switch as the server has it (flicking it asks the server; this echoes back).
 func set_auto_rebet(on: bool) -> void:
 	bar.set_auto(on)
+
+
+func auto_rebet_on() -> bool:
+	return bar.auto_on()
+
+
+## The Sit out switch (the floor keeps it: it Readies you with no bets each time betting opens).
+func set_sit_out(on: bool) -> void:
+	bar.set_sit_out(on)
 
 
 ## A round's result beside the balance in the bar.

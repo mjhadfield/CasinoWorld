@@ -57,6 +57,7 @@ var slot_screen: SlotScreen
 var my_seat := -1
 var my_bets := {}
 var my_ready := false
+var sitting_out := false   # the bar's Sit out switch: Ready with no bets each time betting opens
 var played_a_hand := false
 var my_hand := ""  # your hand's name or total (shown in the HUD bar)
 var _actions: Array = []  # the action buttons on offer right now (for their keys)
@@ -87,8 +88,16 @@ func _ready() -> void:
 
 	hud.rebet_pressed.connect(func():
 		_placed.clear()
+		_set_sitting_out(false)
 		Net.send("rebet"))
-	hud.auto_rebet_toggled.connect(func(on: bool): Net.send("auto_rebet", {"on": on}))
+	hud.auto_rebet_toggled.connect(func(on: bool):
+		if on:
+			_set_sitting_out(false)
+		Net.send("auto_rebet", {"on": on}))
+	hud.sit_out_toggled.connect(func(on: bool):
+		if on and hud.auto_rebet_on():
+			Net.send("auto_rebet", {"on": false})
+		_set_sitting_out(on))
 	hud.clear_pressed.connect(func():
 		_placed.clear()
 		Net.send("clear_bets"))
@@ -482,10 +491,12 @@ func _sat_down(msg: Dictionary) -> void:
 	t.mode = "seated"
 	my_bets = t.zero_bets()
 	my_ready = false
+	sitting_out = false
 	played_a_hand = false
 	my_hand = ""
 	hud.setup_table(msg.get("rules", {}), t.chip_design())
 	hud.set_auto_rebet(false)
+	hud.set_sit_out(false)
 	_round_start = Session.balance
 	_staked = false
 	if "chip_value" in t:
@@ -551,6 +562,7 @@ func _on_spot_clicked(spot: String) -> void:
 		return
 	var flat: Dictionary = active_table.flat_spots()
 	if flat.has(spot):  # on/off, a fixed amount (the £1 Jackpot)
+		_set_sitting_out(false)
 		Net.send("bet", {"spot": spot, "amount": 0 if int(my_bets.get(spot, 0)) else int(flat[spot])})
 		return
 	var old := int(my_bets.get(spot, 0))
@@ -566,6 +578,7 @@ func _on_spot_clicked(spot: String) -> void:
 		return
 	my_bets = trial  # optimistic; the server's bet_changed confirms it
 	_placed.append([spot, add])
+	_set_sitting_out(false)
 	Net.send("bet", {"spot": spot, "add": add})
 
 
@@ -596,11 +609,28 @@ func _undo() -> void:
 func _on_ready() -> void:
 	if not active_table.can_ready():
 		return
+	if _total(my_bets) == 0 and not active_table is CrapsTable:   # (sitting out is the switch's job; Space rolls at Craps)
+		return
 	var main := active_table.main_spot()
 	if _total(my_bets) > 0 and not active_table.has_main_bet(my_bets):
 		hud.show_toast("Side bets need %s alongside them." % MAIN_BET_NAMES.get(main, "a main bet"))
 		return
 	Net.send("ready")
+
+
+## The Sit out switch: on, it Readies you with no bets now and each time betting opens, so you sit the hands out
+## (three at a busy table still stands you up). Betting, Repeat Bet or ticking Auto rebet turns it off.
+func _set_sitting_out(on: bool) -> void:
+	if on != sitting_out:
+		sitting_out = on
+		hud.set_sit_out(on)
+	_sit_out_now()
+
+
+func _sit_out_now() -> void:
+	if sitting_out and state == "seated" and active_table.sit_out_ok() and active_table.can_ready() and not my_ready \
+			and _total(my_bets) == 0:
+		Net.send("ready")
 
 
 ## An action button (or its key): the table says what to send.
@@ -894,6 +924,7 @@ func _on_table_state(msg: Dictionary) -> void:
 				my_bets[spot] = int(mine.bets.get(spot, 0))
 			my_ready = mine.get("ready", false)
 			hud.set_auto_rebet(mine.get("auto_rebet", false))
+			_sit_out_now()
 
 
 func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
@@ -953,6 +984,7 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 				my_ready = false
 				my_hand = ""
 				hud.set_pending(0)
+				_sit_out_now()
 		"auto_rebet":
 			if mine and int(ev.seat) == my_seat:
 				hud.set_auto_rebet(ev.on)

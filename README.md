@@ -364,7 +364,7 @@ admin page's Slot design tab.
     `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the HUD and its seated `betting_bar` (keys: 1-5 pick a chip, Space Ready, Backspace Undo,
-    R Rebet, Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
+    R Repeat Bet, Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
     `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes and the graphics presets.
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.

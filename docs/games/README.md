@@ -52,17 +52,21 @@ up, and turn back when they stand.
 
 - Pick a chip in the tray and click the spots *on the felt* in front of you. Right-click takes a chip off, and
   **Undo** takes back your last chip this round.
-- **Rebet** repeats your last hand, and cuts the countdown to 3 quiet seconds. **Auto rebet** puts last hand's
+- **Repeat Bet** (or **R**) puts your last hand's bets down again, and cuts the countdown to 3 quiet seconds. It
+  sits where Ready does until you've bet, then the button turns back into Ready. **Auto rebet** puts last hand's
   bets back down as each hand ends; timing out of any decision unticks it.
 - **Ready** (or **Space**) locks you in. Betting closes 15 seconds after the first bet, or as soon as every
   player is Ready.
+- **Sit out** is a switch beside Auto rebet: while it's on you're Ready with no bets each time betting opens, so
+  you sit the hands out. Putting a chip down, Repeat Bet or ticking Auto rebet turns it off. (Not at Roulette,
+  which spins anyway, or Craps.)
 - **The £1 Jackpot** spot (at most tables) is a clear plastic disc with a light under it. The light flashes
   while your bet is on it. At "No more bets" the dealer locks the Jackpot bets in: the lights go solid red
   and the chips are lifted off, leaving the light glowing until you're settled. One progressive jackpot is
   shared by every table and everyone.
 - **Sitting down mid-hand:** at every table except Roulette and Craps, if a hand is already being played
   without you, you can put your bets down straight away. They show faded on your spots, the bar says they
-  play the next hand, nothing leaves your balance yet, and Undo, Clear and Rebet work on them. When betting
+  play the next hand, nothing leaves your balance yet, and Undo, Clear and Repeat Bet work on them. When betting
   opens they go on as ordinary bets and start the countdown. If you can no longer cover them, they come back
   with a message.
 
