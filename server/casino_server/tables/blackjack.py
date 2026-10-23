@@ -69,9 +69,9 @@ class Timings:
     bust: float = 1.3             # a bust is swept
     dealer_reveal: float = 1.2
     dealer_card: float = 0.9
-    settle_pause: float = 0.64
-    settle_base: float = 0.8
-    settle_step: float = 0.36
+    settle_pause: float = 0.51
+    settle_base: float = 0.64
+    settle_step: float = 0.29
     clear: float = 2.4
     shuffle: float = 6.0
 

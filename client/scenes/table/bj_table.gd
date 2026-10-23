@@ -566,10 +566,10 @@ func _bust(ev: Dictionary, d: float) -> float:
 func _settle(ev: Dictionary, d: float) -> float:
 	phase = "settling"
 	var seat := int(ev.seat)
-	var pause := float(ev.get("pause", 0.64)) * d
+	var pause := float(ev.get("pause", 0.51)) * d
 	var hands := _hands_for(seat)
 	var n := hands.size()
-	var t := 0.24 * d
+	var t := 0.19 * d
 	if str(ev.get("say", "")) != "":
 		_after(t).timeout.connect(dealer.say.bind(ev.say, 2.0 + pause * 2))
 	t += pause
@@ -578,7 +578,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 		if idx >= n:
 			continue
 		_after(t).timeout.connect(_settle_hand.bind(seat, idx, n, entry, d))
-		t += 0.36 * d
+		t += 0.29 * d
 	_after(t).timeout.connect(func():  # the cards go last
 		var k := 0
 		for hand in hands:
@@ -587,7 +587,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 				k += 1
 			hand.cards = []
 			hand.gone = true)
-	t += 0.32 * d
+	t += 0.26 * d
 	return t + pause
 
 
@@ -603,7 +603,7 @@ func _settle_hand(seat: int, idx: int, n: int, entry: Dictionary, d: float) -> v
 		"pay":
 			var stack := _payout_from_tray(seat, int(entry.payout))
 			var tw := _tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tw.tween_property(stack, "position", _hand_payout_pos(seat, idx, n), 0.35 * d)
+			tw.tween_property(stack, "position", _hand_payout_pos(seat, idx, n), 0.28 * d)
 
 
 ## A freshly shuffled shoe: the decks come out of the shuffler and go in the shoe.
