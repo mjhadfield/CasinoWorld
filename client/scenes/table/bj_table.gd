@@ -212,16 +212,6 @@ func _deal_card(code: String, to: Vector2, delay: float, d: float, face_up := tr
 	return card
 
 
-func _my_label() -> String:
-	var hands: Array = _hands.get(my_seat, [])
-	var live := hands.filter(func(h): return not h.gone)
-	if live.is_empty():
-		return ""
-	if turn_seat == my_seat and turn_hand >= 0 and turn_hand < hands.size():
-		return hands[turn_hand].label
-	return " / ".join(live.map(func(h): return h.label))
-
-
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
 	return in_hand and phase in ["dealing", "side_bets", "insurance", "peek", "naturals", "playing"]
@@ -323,8 +313,6 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 	dealer_label = str(state.get("dealer", {}).get("label", "")) if state.get("dealer", {}).get("label") != null else ""
 	for k in dealer_codes.size():
 		_dealer_cards.append(_new_card(dealer_codes[k], dealer_card_pos(k)))
-	if in_hand:
-		my_hand_changed.emit(_my_label())
 
 
 # ------------------------------------------------------------------ events -> animation
@@ -381,8 +369,6 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			turn_hand = int(ev.hand)
 			turn_options = ev.options
 			_start_timer(float(ev.seconds))
-			if turn_seat == my_seat:
-				my_hand_changed.emit(_my_label())
 			return 0.0
 		"action":
 			return _action(ev, d)
@@ -435,9 +421,7 @@ func _deal(ev: Dictionary, d: float) -> float:
 		t += interval
 	_after(t + 0.3 * d).timeout.connect(func():  # totals once the cards have landed
 		for seat in ev.labels:
-			_hands_for(int(seat))[0].label = ev.labels[seat]
-		if in_hand:
-			my_hand_changed.emit(_my_label()))
+			_hands_for(int(seat))[0].label = ev.labels[seat])
 	return t + 0.35 * d
 
 
@@ -508,9 +492,7 @@ func _blackjacks_paid(ev: Dictionary, d: float) -> float:
 				_discard(card, d, k * 0.04 * d)
 				k += 1
 			hand.cards = []
-			hand.gone = true
-			if seat == my_seat:
-				my_hand_changed.emit(_my_label()))
+			hand.gone = true)
 		t += 0.6 * d
 	return t + 0.3 * d
 
@@ -545,15 +527,17 @@ func _action(ev: Dictionary, d: float) -> float:
 			hand.cards.append(_deal_card(ev.hands[0][1], card_pos(seat, idx, n, 1, 2), 0.35 * d, d))
 			b.cards.append(_deal_card(ev.hands[1][1], card_pos(seat, idx + 1, n, 1, 2), 0.65 * d, d))
 	hand.done = ev.done
+	if ev.done and turn_seat == seat:  # that hand's finished: the buttons and timer go now, not when the next turn comes
+		turn_seat = -1
+		turn_options = []
+		_timer_end = 0.0
 	var landed := (0.95 if ev.action == "split" else 0.6 if ev.action == "double" else 0.3) * d
 	_after(landed).timeout.connect(func():  # the new total once the card has landed
 		if ev.action == "split":
 			hand.label = ev.labels[0]
 			hands[idx + 1].label = ev.labels[1]
 		else:
-			hand.label = ev.total
-		if seat == my_seat:
-			my_hand_changed.emit(_my_label()))
+			hand.label = ev.total)
 	return (0.95 if ev.action == "split" else 0.45) * d
 
 
@@ -573,9 +557,7 @@ func _bust(ev: Dictionary, d: float) -> float:
 			_discard(card, d, k * 0.04 * d)
 			k += 1
 		hand.cards = []
-		hand.gone = true
-		if seat == my_seat:
-			my_hand_changed.emit(_my_label()))
+		hand.gone = true)
 	return 0.9 * d
 
 
