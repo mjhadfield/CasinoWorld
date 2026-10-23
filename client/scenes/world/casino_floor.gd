@@ -332,6 +332,7 @@ func _process(_delta: float) -> void:
 		e.visible = _seen(e.position)
 	_check_heading()
 	_offer_atm()
+	_update_cursor()
 	if state == "seated" and active_table:
 		var view := _seated_view()
 		hud.update_seated(view)
@@ -417,6 +418,29 @@ func _input(event: InputEvent) -> void:
 			_take_seat(t, seat)
 			get_viewport().set_input_as_handled()
 			return
+
+
+
+## The pointing hand over anything a click on the floor would use: an ATM or a free chair while you're walking,
+## your bet spots (and the master table's dealer) while you're sat. The HUD's own buttons set theirs.
+var _hand := false
+func _update_cursor() -> void:
+	var hand := false
+	if state in ["walking", "seated"] and not hud.is_typing() and get_viewport().gui_get_hovered_control() == null:
+		var at := get_global_mouse_position()
+		if state == "walking":
+			for f in get_tree().get_nodes_in_group("interactables"):
+				if f.is_visible_in_tree() and f.hit(at):
+					hand = true
+					break
+		var near: Array = tables.values() if state == "walking" else [active_table]
+		for t in near:
+			if hand:
+				break
+			hand = t != null and t.clickable_at(t.to_local(at))
+	if hand != _hand:
+		_hand = hand
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if hand else Input.CURSOR_ARROW)
 
 
 # ------------------------------------------------------------------ taking a seat

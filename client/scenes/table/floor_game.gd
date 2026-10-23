@@ -127,6 +127,12 @@ func stool_at(local: Vector2) -> int:
 	return -1
 
 
+## Whether a click at `local` (local coordinates) would do something here, for the floor's pointing hand:
+## a free chair while you're walking.
+func clickable_at(local: Vector2) -> bool:
+	return stool_at(local) >= 0
+
+
 ## Where someone stands after getting up from a seat.
 func stand_pos(seat: int) -> Vector2:
 	return seat_pos(seat) + Vector2(0, 22)

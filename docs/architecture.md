@@ -97,7 +97,8 @@ A player has two balances. **Cash in hand** (`players.balance`) is what every ta
 top left shows. The **bank** (`players.bank`) can go overdrawn. Money moves between them only at the lobby's ATM
 (`bank.py`, `Store.transfer`), which writes a ledger row per account (`ledger.account` is `hand` or `bank`), and
 the ATM's rules are the admin page's Bank settings: new players' starting bank and cash, withdrawals in £50 notes
-only while holding under a limit, the per-withdrawal limit either side of a bank threshold, and the wait between
+only while holding under a limit, the usual per-withdrawal limit, the bigger withdrawal a bank over a threshold
+allows (half the bank rounded down to a step, once per wait; `players.last_big_at`), and the wait between
 withdrawals while overdrawn. An ATM is any library piece with `"interact": "atm"`: the server checks a player is
 standing at one (by their last `move`) before it'll serve them. NPCs keep their own in-memory bankrolls and never
 touch the store.
@@ -182,6 +183,8 @@ A Godot 4.7 project exported to the web.
   `CasinoTable`. `apply_snapshot()` draws a `table_state` at once; `handle_event()` turns each `table_event`
   into animation steps on a queue that plays in order, speeding up if it falls behind. A new snapshot starts
   a new epoch, which cancels every step still pending. Nothing on the client decides an outcome.
+  Each says what a click on it would use (`clickable_at()`: a free chair while you walk, your bet spots
+  when you're sat), and the floor shows the pointing hand over those and the ATM (`_update_cursor()`).
 - **The HUD (`scenes/ui/hud.tscn`)** keeps your name, connection and cash in hand top left (`wallet_pill.gd`, with
   a round's result flashing beside it) and Settings top right, walking or seated. Walking, standing at a piece
   you can use (furniture in group `interactables`: the ATM) shows a prompt (E, or click the piece), and the ATM's

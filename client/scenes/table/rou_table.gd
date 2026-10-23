@@ -599,6 +599,12 @@ func _needs_redraw() -> bool:
 	return dolly >= 0 or hover_spot != ""
 
 
+func clickable_at(local: Vector2) -> bool:
+	if mode != "seated":
+		return super(local)
+	return my_seat >= 0 and spot_at(local) != ""
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or mode != "seated" or my_seat < 0:
 		return

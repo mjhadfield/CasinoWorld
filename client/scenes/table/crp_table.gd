@@ -1137,6 +1137,12 @@ func _needs_redraw() -> bool:
 	return not hover.is_empty() or dice.is_moving() or _puck_moving()
 
 
+func clickable_at(local: Vector2) -> bool:
+	if mode != "seated":
+		return super(local)
+	return my_seat >= 0 and not region_here(local).is_empty()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or mode != "seated" or my_seat < 0:
 		return

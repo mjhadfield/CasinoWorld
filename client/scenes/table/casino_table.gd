@@ -1110,6 +1110,19 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 
 
+## Sat here: one of your spots, or the master table's dealer (what _unhandled_input takes a click on).
+func clickable_at(local: Vector2) -> bool:
+	if mode != "seated":
+		return super(local)
+	if is_master and over_dealer(local):
+		return true
+	if my_seat >= 0:
+		for spot in bet_spots():
+			if _on_spot(local, spot):
+				return true
+	return false
+
+
 ## Whether `p` is on one of the local player's spots: near its middle, or anywhere on its printed shape.
 func _on_spot(p: Vector2, spot: String) -> bool:
 	if p.distance_to(spot_pos(my_seat, spot)) < spot_radius(spot):

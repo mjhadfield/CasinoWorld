@@ -3665,6 +3665,7 @@ func _gui_input(event: InputEvent) -> void:
 	_input_until = _now + 0.4
 	if event is InputEventMouseMotion:
 		_hover = _hit(event.position)
+		mouse_default_cursor_shape = CURSOR_POINTING_HAND if _hover not in ["", "overlay"] else CURSOR_ARROW
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_act(_hit(event.position))
 		accept_event()
