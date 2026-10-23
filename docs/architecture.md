@@ -174,11 +174,15 @@ A Godot 4.7 project exported to the web.
   (every room's outline, less the wall bodies, which leave the doorways open, and everything in group
   `navigation_obstacles`) waits until the floor is upright. A tap walks you along the nav map's path. A zone of
   kind `npc_block` is a static body on collision layer 2: in the navigation bake but not in your way, so NPCs
-  path round it and players walk through. A preview (`?preview=<room>`) builds the draft's floor to walk round
+  path round it and players walk through. Each table's and cabinet's chairs block walking too (a circle round the
+  chair's base, `Seating.body_radius()`, on the table's `Chairs` body, so in the bake as part of the table), and so
+  does everyone else (`Avatar.add_body()`: collision layer 3, which only your body collides with; out of the bake
+  since they move, except the plan's standing figures, which stay put). A preview (`?preview=<room>`) builds the draft's floor to walk round
   alone.
 - **Avatars:** `avatar.gd` shows a look, a name tag (an MSDF font) and a speech bubble. `local_player.gd`
-  drives you (keys, click-to-walk, click and hold), and `entity_avatar.gd` drives everyone else: other
-  players' reported moves are smoothed, and NPC walks are pathed.
+  drives you (keys, click-to-walk, click and hold; you slide along whatever you bump into), and
+  `entity_avatar.gd` drives everyone else: other players' reported moves are smoothed, and NPC walks are pathed.
+  Their bodies block you while they're up and in sight (not while sitting, when the chair blocks instead).
 - **Tables (`scenes/table/`)** extend `FloorGame`, and the card tables, Roulette and Craps extend
   `CasinoTable`. `apply_snapshot()` draws a `table_state` at once; `handle_event()` turns each `table_event`
   into animation steps on a queue that plays in order, speeding up if it falls behind. A new snapshot starts
@@ -196,7 +200,8 @@ A Godot 4.7 project exported to the web.
   nav map's path (one with a free seat first), or, clicking a table, bank or ATM the map names, that one; drawn on the
   floor (`scenes/world/route_line.gd`) and the map, with Walk there, until you arrive, sit anywhere, or stop it. On
   the small map Find's list keeps to its width. Walking, standing at a piece
-  you can use (furniture in group `interactables`: the ATM) shows a prompt (E, or click the piece), and the ATM's
+  you can use (furniture in group `interactables`: the ATM) shows a prompt under your feet (E, or click the piece),
+  as does standing by a table or slot with a free chair (Play: you sit in the nearest free chair), and the ATM's
   screen (`scenes/ui/atm_panel.gd`, drawn like the slot screen and signed off on `docs/atm/mockup/`) holds you
   still until you leave it. Seated, its betting bar
   (`scenes/ui/betting_bar.gd`, signed off on `docs/betting_ui/mockup/`) takes the foot of the screen: the table's

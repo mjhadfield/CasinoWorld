@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## Screen-space overlay. Top left, walking or seated: Settings, then your name and cash in hand (WalletPill); top
 ## right: the minimap (Minimap, with Find and its guide under it).
-## Walking: the interact prompt (Use ATM) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
+## Walking: the interact prompt under your feet (Use ATM, Play) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
@@ -29,7 +29,8 @@ var bar: BettingBar        # the seated controls
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
 var settings_menu: SettingsMenu
 var atm: AtmPanel         # the lobby's cash machine, while you're using it
-var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM), bottom centre
+var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM, Play), under your feet
+var _prompt_feet := Vector2.ZERO   # where your feet are on screen (place_prompt)
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
@@ -193,11 +194,19 @@ func hide_prompt() -> void:
 	prompt.hide()
 
 
+## The prompt centred just under your feet (`feet`, on screen), kept on screen.
+func place_prompt(feet: Vector2) -> void:
+	if feet != _prompt_feet:
+		_prompt_feet = feet
+		_place_prompt()
+
+
 func _place_prompt() -> void:
 	var w := prompt.get_combined_minimum_size()
 	prompt.size = w
 	var vp := get_viewport().get_visible_rect().size
-	prompt.position = Vector2(round((vp.x - w.x) / 2.0), vp.y - 28.0 - w.y)
+	var at := Vector2(_prompt_feet.x - w.x / 2.0, _prompt_feet.y + 14.0)
+	prompt.position = Vector2(round(clampf(at.x, 8.0, vp.x - 8.0 - w.x)), round(clampf(at.y, 8.0, vp.y - 8.0 - w.y)))
 
 
 func show_toast(text: String, seconds := 2.8) -> void:

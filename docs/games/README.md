@@ -38,7 +38,9 @@ up, and turn back when they stand.
   floor that way, sliding along anything in the way. You see the room you're in, any joined to it by archways, and
   the room through a door once you're in its doorway. Your name tag comes from the welcome prompt on your first visit.
 - **Taking a seat:** while you're walking, every free chair glows. Click one and you walk to its side; the
-  chair swivels round to you, you sit side-on, and it turns you to the table. Or stand on a free chair and press **E**. Once you're sat, the camera glides onto the
+  chair swivels round to you, you sit side-on, and it turns you to the table. Or stand by a table or slot with a
+  free chair and a **Play** prompt shows under your feet: press **E** (or the prompt) to sit in the nearest free chair.
+  You can't walk through the chairs, or through anyone else. Once you're sat, the camera glides onto the
   table, turning the view round first at a table that faces the other way. Other players and NPCs sit down the
   same way.
 - **Chairs:** every table and slot cabinet has the same chair, from the **default seating style** on the admin

@@ -1,12 +1,15 @@
 extends Node2D
 ## The casino floor: everyone walking around (you, other players, NPCs), the
-## tables, and the camera. Free stools glow with SIT while you're walking:
-## click one to sit there (you walk over first if it's far), or stand on one and
-## press E. The camera glides onto the table and stays in this same world, so
-## the floor carries on around you. Stand up and the camera glides back.
+## tables, and the camera. Free chairs glow while you're walking: click one to
+## sit there (you walk over first if it's far), or stand by a table or slot with a
+## free chair and the HUD offers it (Play): press E or the prompt. The camera glides
+## onto the table and stays in this same world, so the floor carries on around you.
+## Stand up and the camera glides back. You can't walk through the chairs, the tables
+## or anyone else (see LocalPlayer).
 ##
 ## Walk up to the lobby's ATM (a piece in group "interactables") and the HUD offers it (Use ATM): press E, the prompt,
 ## or click the machine (from afar you walk over first). Its screen (AtmPanel) holds you still until you leave it.
+## The prompt sits under your feet.
 ##
 ## The server owns the table and the world; this scene routes its messages to
 ## the right avatar or table and turns your clicks into requests.
@@ -58,6 +61,7 @@ var state := "walking"  # walking | seated (at a table) | slot (at a slot cabine
 var _heading_for := {}  # {table, seat} while walking over to a stool you clicked
 var _heading_atm: Furniture = null   # the ATM you clicked from afar, while you walk over
 var _atm_near: Furniture = null      # the ATM you're standing at (offered by the prompt)
+var _play_near := {}                 # else the free chair you're standing by: {table, seat} (Play, on the prompt)
 var active_table: CasinoTable = null
 var active_slot: SlotCabinet = null   # the cabinet you're sitting at (state "slot")
 var _slot_waiting := false   # sat at a cabinet, its game not open yet (the sit-down, then the camera, come first)
@@ -134,9 +138,7 @@ func _ready() -> void:
 	hud.stand_pressed.connect(_request_stand)
 	hud.stand_confirmed.connect(func(): Net.send("stand"))
 	hud.name_entered.connect(Session.choose_name)
-	hud.interact_pressed.connect(func():
-		if _atm_near:
-			_open_atm())
+	hud.interact_pressed.connect(_interact)
 	hud.atm.closed.connect(func():
 		if state == "walking":
 			player.set_controls(true))
@@ -352,7 +354,7 @@ func _process(delta: float) -> void:
 	for e in entities.values():
 		e.visible = _seen(e.position)
 	_check_heading()
-	_offer_atm()
+	_offer_interaction()
 	_update_cursor()
 	if state == "seated" and active_table:
 		var view := _seated_view()
@@ -389,10 +391,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact"):
 		if state == "walking":
-			if _atm_near:
-				_open_atm()
-			else:
-				_sit_on_stool_underfoot()
+			_interact()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("cancel"):
 		if state == "seated":
@@ -586,25 +585,7 @@ func _update_guide(delta: float) -> void:
 
 # ------------------------------------------------------------------ taking a seat
 const SIT_REACH := 70.0     # stopped this close to a chair you clicked (something in the way), you sit down from there
-const UNDERFOOT := 16.0     # standing this close to a chair, E sits you on it
-
-
-## E: the free stool you're standing on, if any.
-func _sit_on_stool_underfoot() -> void:
-	var best_table: FloorGame = null
-	var best_seat := -1
-	var best_d := UNDERFOOT
-	for t in tables.values():
-		if not t.offer_seats:
-			continue
-		for seat in t.free_seats():
-			var d := player.global_position.distance_to(t.to_global(t.stool_pos(seat)))
-			if d < best_d:
-				best_table = t
-				best_seat = seat
-				best_d = d
-	if best_table:
-		_take_seat(best_table, best_seat)
+const PLAY_REACH := 40.0    # standing this close to a free chair, it's offered (Play), and a click on it sits you at once
 
 
 ## Sit at a free chair: walk over to its side (Seating.approach), then take it -- the sit-down
@@ -614,8 +595,8 @@ func _take_seat(t: FloorGame, seat: int) -> void:
 		hud.show_toast("Not connected to the casino")
 		return
 	var goal := _on_floor(t, Seating.approach(t, seat, t.to_local(player.global_position)))
-	var underfoot := player.global_position.distance_to(t.to_global(t.stool_pos(seat))) <= UNDERFOOT
-	if underfoot or player.position.distance_to(goal) <= 4.0:
+	var beside := player.global_position.distance_to(t.to_global(t.chair_pos(seat))) <= PLAY_REACH
+	if beside or player.position.distance_to(goal) <= 4.0:
 		_heading_for = {}
 		Net.send("sit", {"table": t.table_id, "seat": seat})
 	else:
@@ -630,7 +611,7 @@ func _check_heading() -> void:
 	if _heading_atm != null and state == "walking" and not player.is_walking_to_target():
 		var f := _heading_atm
 		_heading_atm = null
-		_offer_atm()
+		_offer_interaction()
 		if f == _atm_near:
 			_open_atm()
 	if _heading_for.is_empty() or state != "walking":
@@ -649,27 +630,50 @@ func _check_heading() -> void:
 		Net.send("sit", {"table": t.table_id, "seat": seat})
 
 
-# ------------------------------------------------------------------ the ATM
+# ------------------------------------------------------------------ the prompt: the ATM, Play
 const ATM_REACH := 24.0   # this close to the spot in front of an ATM, it's offered
 
 
-## The ATM you're standing at, if any, offered on the HUD's prompt.
-func _offer_atm() -> void:
-	var best: Furniture = null
-	if state == "walking" and not hud.atm.visible:
+## What E does where you're standing, offered on the HUD's prompt under your feet: the ATM you're at, else the
+## nearest free chair you're by (Play).
+func _offer_interaction() -> void:
+	var atm: Furniture = null
+	var play := {}
+	if state == "walking" and not hud.atm.visible and player.controls_enabled:
 		var best_d := ATM_REACH
 		for f in get_tree().get_nodes_in_group("interactables"):
 			var d: float = player.global_position.distance_to(f.stand_spot())
 			if f.is_visible_in_tree() and d < best_d:
-				best = f
+				atm = f
 				best_d = d
-	if best == _atm_near:
-		return
-	_atm_near = best
-	if best:
-		hud.show_prompt("Use ATM")
-	else:
-		hud.hide_prompt()
+		best_d = PLAY_REACH
+		for t in tables.values() if atm == null else []:
+			if not t.offer_seats or not t.is_visible_in_tree():
+				continue
+			for seat in t.free_seats():
+				var d := player.global_position.distance_to(t.to_global(t.chair_pos(seat)))
+				if d < best_d:
+					play = {"table": t, "seat": seat}
+					best_d = d
+	if atm != _atm_near or play != _play_near:
+		_atm_near = atm
+		_play_near = play
+		if atm:
+			hud.show_prompt("Use ATM")
+		elif not play.is_empty():
+			hud.show_prompt("Play")
+		else:
+			hud.hide_prompt()
+	if hud.prompt.visible:
+		hud.place_prompt(player.get_global_transform_with_canvas().origin)
+
+
+## E, or the prompt: whatever it's offering.
+func _interact() -> void:
+	if _atm_near:
+		_open_atm()
+	elif not _play_near.is_empty():
+		_take_seat(_play_near.table, _play_near.seat)
 
 
 func _open_atm() -> void:
@@ -1082,7 +1086,10 @@ func _on_message(msg: Dictionary) -> void:
 			_sat_down(msg)
 		"seating":   # the admin page changed the seating styles
 			Seating.configure(msg.get("seating", {}))
+			for t in tables.values():
+				t.place_chair_backs()   # (and their bodies: the chairs may be bigger or smaller)
 			_redraw_chairs()
+			_bake_navigation()
 		"table_styles":   # the admin page changed the table styles
 			TableStyle.configure(msg.get("table_styles", {}))
 			_restyle_tables()

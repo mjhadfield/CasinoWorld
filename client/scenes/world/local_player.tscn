@@ -8,6 +8,7 @@ radius = 7.0
 
 [node name="LocalPlayer" type="CharacterBody2D" groups=["player"]]
 motion_mode = 1
+collision_mask = 5
 script = ExtResource("1_local")
 
 [node name="Collision" type="CollisionShape2D" parent="."]

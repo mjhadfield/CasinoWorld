@@ -2,6 +2,8 @@ extends Avatar
 ## Someone else on the floor: another player (their reported moves are
 ## smoothed) or an NPC (the server says where to walk and how long to take;
 ## we path there on the floor's navigation map at the speed that arrives on time).
+## They block your walking (Avatar.add_body) while they're up and in sight; they don't
+## bump into anything themselves, as the server says where they go.
 ## Positions are in the floor's frame (World), which is what the server and the
 ## navigation map use however the view is turned.
 
@@ -19,10 +21,12 @@ var _next := 0   # the path point being walked to
 var _pending_walk := []   # [pos, duration]: a walk that came while they were still getting up
 var _goal: Variant = null   # Vector2: where this NPC walk ends (re-pathed whenever the navigation map changes)
 var _due := 0.0             # when the server expects them there (seconds, Time.get_ticks_msec)
+var _body: CollisionShape2D
 
 
 func _ready() -> void:
 	super()
+	_body = add_body()
 	NavigationServer2D.map_changed.connect(func(map: RID):
 		if _goal != null and is_inside_tree() and map == get_world_2d().navigation_map:
 			_plan_walk())
@@ -83,6 +87,9 @@ func _now() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	var blocks := visible and not seated and not Seating.busy(self)
+	if _body.disabled == blocks:
+		_body.disabled = not blocks
 	if seated or Seating.busy(self):
 		return
 	if _walking:

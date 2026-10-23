@@ -104,6 +104,9 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   The chair's shape and the sit come from the seating style (Settings); a card table's or Roulette's chairs take
   their frame and upholstery from its table style (`FloorGame.chair_colours()`, `Seating.style(table_id, colours)`),
   and the designer draws the same chair (`seatChair()` in render.js, ported from `docs/seating/mockup.html`).
+  Each chair blocks walking: a circle round its base on the table's `Chairs` body (`Seating.body_radius()`, a little
+  inside the drawn base so you can still step in beside a chair between two at a slot bank), kept at `chair_pos()`
+  by `place_chair_backs()`.
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of

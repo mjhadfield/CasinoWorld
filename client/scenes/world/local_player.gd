@@ -6,6 +6,9 @@ extends CharacterBody2D
 ## and reported to the server (move) ~10 times a second, so everyone else
 ## sees you walk around; the server still owns every game result.
 ##
+## You bump into walls, tables, chairs and furniture (collision layer 1) and other people
+## (layer 3, Avatar.PEOPLE_LAYER), and slide along them.
+##
 ## Positions are in the floor's frame (World, our parent), which the floor turns to
 ## show a turned table the right way up -- so the keys still move you across the
 ## screen, and a tap still walks you to where you tapped.

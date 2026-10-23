@@ -139,6 +139,7 @@ func _place(item: Dictionary) -> void:
 		a.facing = str(item.get("facing", "down"))
 		a.position = at
 		add_child(a)
+		a.add_body().get_parent().add_to_group("navigation_obstacles")   # (they stay put: taps walk round them)
 	elif asset.begins_with("a:"):
 		var f := Furniture.new()
 		if f.setup(item):

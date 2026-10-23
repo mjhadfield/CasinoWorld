@@ -50,6 +50,7 @@ var dip := 0.0:
 		if is_node_ready():
 			_sprite.position.y = -28.0 + v
 const DIRS := ["up", "right", "down", "left"]   # clockwise, as Godot turns on screen
+const PEOPLE_LAYER := 4   # collision layer 3: people (add_body), which only the local player bumps into
 var _turn := 0        # quarter turns their parent's frame is at on screen
 @onready var _sprite: AnimatedSprite2D = $Sprite
 @onready var _name_tag: Label = $NameTag
@@ -95,6 +96,22 @@ func _keep_upright() -> void:
 	if turn != _turn:
 		_turn = turn
 		_refresh_anim()
+
+
+## Make them block walking: a circle round their feet on the people layer, which the local player
+## collides with (and nothing else does). Returns its shape, for whoever moves them to switch off
+## while it shouldn't block (sitting down, where the chair blocks instead).
+func add_body(radius := 7.0) -> CollisionShape2D:
+	var body := StaticBody2D.new()
+	body.name = "Body"
+	body.collision_layer = PEOPLE_LAYER
+	body.collision_mask = 0
+	var shape := CollisionShape2D.new()
+	shape.shape = CircleShape2D.new()
+	(shape.shape as CircleShape2D).radius = radius
+	body.add_child(shape)
+	add_child(body)
+	return shape
 
 
 ## A direction's unit vector ("up" is (0, -1)).

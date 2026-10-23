@@ -90,6 +90,12 @@ static func hit_box(st: Dictionary) -> Rect2:
 	return Rect2(-g.rx - 3.0, top, 2.0 * g.rx + 6.0, 5.0 - top)
 
 
+## How far round its origin a chair blocks walking: its base, a little inside the drawn disc, so there's still room
+## to step in beside it between two chairs (Seating.approach) at a slot bank.
+static func body_radius(st: Dictionary) -> float:
+	return float(st._g.base_rx) * 0.85
+
+
 # ------------------------------------------------------------------ drawing a chair
 ## A chair in `ci` at `at`, turned `turn` to show upright, its back towards `theta` as the
 ## screen sees it; `press` (0-1) squashes the cushion as someone lands on it.

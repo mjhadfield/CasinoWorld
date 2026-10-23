@@ -20,7 +20,7 @@ var mode := "":
 		queue_redraw()
 var my_seat := -1
 ## While the local player is walking the floor (not sitting anywhere), the free
-## stools glow with SIT on them: click one to sit there, or stand on it and press E.
+## chairs glow: click one to sit there, or stand by one and press E (the floor offers Play).
 var offer_seats := false:
 	set(v):
 		offer_seats = v
@@ -30,6 +30,7 @@ var occupants := {}   # seat -> {entity, name, human}
 var chair_state := {}
 var chair_side := {}  # seat -> which side of it its sitter got on from (1 or -1), to get off the same way
 var _backs := {}      # seat -> its ChairBack (the back drawn over its sitter)
+var _chair_shapes := {}   # seat -> its chair's CollisionShape2D (what blocks walking)
 var sitters := {}     # seat -> who's sitting there (the node that moves), so they move with the chairs
 ## Whether any of it is in the camera's view (a VisibleOnScreenNotifier2D round it says): off
 ## screen, nothing that's only for show is redrawn every frame (see breathes_now()).
@@ -220,17 +221,26 @@ func breathes_now() -> bool:
 
 
 ## Each chair's back gets a node of its own, just behind its sitter in the floor's Y-sort (and
-## at their z while they're there), so a back between them and us draws over them.
+## at their z while they're there), so a back between them and us draws over them. Each chair also
+## blocks walking (a circle round its base, under one Chairs body): being part of the table, it's in
+## the navigation bake too, so taps and NPCs walk round the chairs as well as the table.
 func _notification(what: int) -> void:
 	if what != NOTIFICATION_READY or Engine.is_editor_hint():
 		return
 	if seat_pose() == "sit":
+		var body := StaticBody2D.new()
+		body.name = "Chairs"
+		add_child(body)
 		for seat in seat_count():
 			var b := ChairBack.new()
 			b.game = self
 			b.seat = seat
 			add_child(b)
 			_backs[seat] = b
+			var shape := CollisionShape2D.new()
+			shape.shape = CircleShape2D.new()
+			body.add_child(shape)
+			_chair_shapes[seat] = shape
 		place_chair_backs()
 	var seen := VisibleOnScreenNotifier2D.new()
 	seen.name = "OnScreen"
@@ -266,6 +276,10 @@ func place_chair_backs() -> void:
 	for seat in _backs:
 		_backs[seat].position = chair_pos(seat) + Vector2(0, 0.5).rotated(-rotation)
 		_backs[seat].queue_redraw()
+	var r := Seating.body_radius(Seating.style(table_id))
+	for seat in _chair_shapes:
+		_chair_shapes[seat].position = chair_pos(seat)
+		(_chair_shapes[seat].shape as CircleShape2D).radius = r
 
 
 ## The chairs moved (the table shows a different way up): everyone sitting in them moves too,
