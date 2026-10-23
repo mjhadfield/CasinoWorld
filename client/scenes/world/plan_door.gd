@@ -48,6 +48,11 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var g := gap
+	if side == "top" and g.size.y < 20.0:   # a thin back wall: seen from above, a leaf across the gap folding back
+		var along := g.size.x * (1.0 - _open * 0.85)
+		draw_rect(Rect2(g.position.x, g.position.y, along, g.size.y), wood)
+		draw_rect(Rect2(g.position.x, g.position.y, along, g.size.y), wood.lightened(0.1), false, 1.0)
+		return
 	match side:
 		"top":   # two panelled leaves in the back wall, swinging in
 			var leaf := g.size.x / 2.0 * (1.0 - _open * 0.85)

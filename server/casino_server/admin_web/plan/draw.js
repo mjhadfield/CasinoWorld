@@ -149,16 +149,19 @@ export function drawRoom(ctx, room, ops, opts = {}) {
   paint(ctx, [x, y, w, h], room.floor.texture, room.floor.tint);
   for (const p of room.patches) drawPatch(ctx, x + p.x, y + p.y, p);
   const bare = room.walls.style === "none";   // no walls drawn: just the floor, and its doors
+  const thin = room.walls.back === "thin";   // the back wall just a border, like the sides
   if (!bare) {
     // the back wall
-    ctx.fillStyle = st.paper; ctx.fillRect(x, y, w, W.top);
-    ctx.fillStyle = st.stripe;
-    for (let sx = 0; sx < w; sx += 24) ctx.fillRect(x + sx, y, Math.min(10, w - sx), W.top * 0.6);
-    ctx.fillStyle = st.wainscot; ctx.fillRect(x, y + W.top * 0.6, w, W.top * 0.31);
-    ctx.fillStyle = st.trim; ctx.fillRect(x, y + W.top - 8, w, 4);
-    ctx.fillStyle = st.edge; ctx.fillRect(x, y + W.top - 4, w, 4);
+    if (!thin) {
+      ctx.fillStyle = st.paper; ctx.fillRect(x, y, w, W.top);
+      ctx.fillStyle = st.stripe;
+      for (let sx = 0; sx < w; sx += 24) ctx.fillRect(x + sx, y, Math.min(10, w - sx), W.top * 0.6);
+      ctx.fillStyle = st.wainscot; ctx.fillRect(x, y + W.top * 0.6, w, W.top * 0.31);
+      ctx.fillStyle = st.trim; ctx.fillRect(x, y + W.top - 8, w, 4);
+    }
+    ctx.fillStyle = st.edge; ctx.fillRect(x, y + (thin ? 0 : W.top - 4), w, thin ? W.side : 4);
     ctx.fillRect(x, y, W.side, h); ctx.fillRect(x + w - W.side, y, W.side, h); ctx.fillRect(x, y + h - W.bottom, w, W.bottom);
-    const sign = room.walls.sign;
+    const sign = thin ? "" : room.walls.sign;
     if (sign) {
       const sw = Math.min(420, Math.max(120, sign.length * 12 + 40)), sx = x + room.walls.sign_at - sw / 2;
       ctx.fillStyle = SIGN.back; ctx.fillRect(sx, y + 6, sw, 30);
@@ -178,7 +181,7 @@ export function drawRoom(ctx, room, ops, opts = {}) {
     }
     if (o.kind === "door" || o.to == null) {   // shut: leaves across the gap (a door to nowhere stays shut)
       ctx.fillStyle = o.side === "bottom" ? "rgba(153,204,230,.6)" : "#4a2a1c";
-      if (o.side === "top") ctx.fillRect(g[0], g[1] + 8, g[2], g[3] - 12);
+      if (o.side === "top" && !thin) ctx.fillRect(g[0], g[1] + 8, g[2], g[3] - 12);
       else ctx.fillRect(g[0], g[1], g[2], g[3]);
       if (o.to == null) { ctx.strokeStyle = "#ff9a8a"; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(...g); ctx.setLineDash([]); }
     }

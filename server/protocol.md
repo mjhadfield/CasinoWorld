@@ -330,7 +330,8 @@ preview (where to put the viewer). `walls` gives the wall sizes ({`top` 70, `sid
 wall looks by style id ({`name`, `paper`, `stripe`, `wainscot`, `trim`, `edge`} colours; `none` has only a name and
 draws no walls). Each room is
 {`id`, `name`, `x`, `y`, `w`, `h` (on the plan, walls included), `floor` {`texture`, `tint`}, `patches`,
-`walls` {`style`, `sign`, `sign_at`}, `npc_only` (a lift or back room: NPCs come and go through it, players are
+`walls` {`style`, `sign`, `sign_at`, `back`: `thin` when the back wall is a border as deep as the side walls
+rather than `walls.top`}, `npc_only` (a lift or back room: NPCs come and go through it, players are
 kept out and never shown it), `openings`, `items`, `points`, `zones`}. Everything in a room is placed from its
 top-left corner.
 - `openings`: its doorways, its own and its neighbours' through its walls: {`side`, `at` (the middle, along the

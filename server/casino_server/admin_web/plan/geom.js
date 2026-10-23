@@ -12,9 +12,13 @@ export const overlap = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1
 export const inside = (p, r) => r[0] <= p[0] && p[0] <= r[0] + r[2] && r[1] <= p[1] && p[1] <= r[1] + r[3];
 export const grow = (r, by) => [r[0] - by, r[1] - by, r[2] + 2 * by, r[3] + 2 * by];
 export const outline = room => [room.x, room.y, room.w, room.h];
+/** How deep a room's back wall is: the full 3/4-view wall, or a thin border like the sides. */
+export const wallTop = room => room.walls.back === "thin" ? CAT.walls.side : CAT.walls.top;
+/** The least height a room can have: its walls and a floor deep enough for one figure. */
+export const minHeight = room => wallTop(room) + CAT.walls.bottom + CAT.min_floor;
 export function interior(room) {
-  const W = CAT.walls;
-  return [room.x + W.side, room.y + W.top, room.w - 2 * W.side, room.h - W.top - W.bottom];
+  const W = CAT.walls, top = wallTop(room);
+  return [room.x + W.side, room.y + top, room.w - 2 * W.side, room.h - top - W.bottom];
 }
 
 export function kindOf(asset) {
@@ -115,7 +119,7 @@ export function openings(rooms) {
 /** A doorway's gap through a room's wall, on the plan. */
 export function gap(room, o) {
   const W = CAT.walls, [, fixed, start] = edge(room, o.side), lo = start + o.at - o.width / 2;
-  if (o.side === "top") return [lo, fixed, o.width, W.top];
+  if (o.side === "top") return [lo, fixed, o.width, wallTop(room)];
   if (o.side === "bottom") return [lo, fixed - W.bottom, o.width, W.bottom];
   if (o.side === "left") return [fixed, lo, W.side, o.width];
   return [fixed - W.side, lo, W.side, o.width];

@@ -17,13 +17,15 @@ A plan: {"rev", "next": {prefix: serial}, "spawn": "room/point", "rooms": [room]
    "patches": [{"x", "y", "w", "h", "texture", "tint", "shape": rect|rounded|oval, "radius",
                 "pattern": {"kind": none|stripes|diagonal|checks|diamonds|dots|grid, "colour", "size", "opacity"},
                 "border": {"style": none|line|double|inlay, "colour", "width"}}],
-   "walls": {"style", "sign", "sign_at"},
+   "walls": {"style", "sign", "sign_at", "back": "thin"},   # (back only when thin)
    "doors": [{"id", "side": top|bottom|left|right, "at", "width", "kind": door|archway}],
    "items": [{"id", "asset", "x", "y", "rot", "facing", "props"}],
    "paths": {"points": [{"name", "x", "y", "kind": spawn|arrival|wander, "weight", "linger"}],
              "zones": [{"x", "y", "w", "h", "kind": npc_block|block}]}}
 Everything in a room is placed from its top-left corner, so moving a room moves what's in it. The back (top) wall is a
-WALL_TOP-high band drawn in 3/4 view; the side walls are WALL_SIDE wide and the front wall WALL_BOTTOM. A door sits in
+WALL_TOP-high band drawn in 3/4 view, or with walls.back "thin" just a border as wide as the side walls (WALL_SIDE);
+the front wall is WALL_BOTTOM. A room's floor inside its walls is at least MIN_WIDTH - 2 * WALL_SIDE across and
+MIN_FLOOR deep. A door sits in
 one room's wall; where another room's wall runs along the same line, the opening goes through both and joins them
 (an archway shows both rooms; a door looks closed until you're through it). A door with nobody beyond stays shut.
 An NPCs-only room is a rabbit hole: the client keeps players out of its doorways and never shows it, so NPCs given
@@ -59,7 +61,7 @@ CATALOGUE = json.loads((Path(__file__).resolve().parent / "plan_catalogue.json")
 CLASSIC = json.loads((Path(__file__).resolve().parent / "plan_classic.json").read_text())
 
 WALL_TOP, WALL_SIDE, WALL_BOTTOM = 70, 8, 10
-MIN_SIZE, MAX_SIZE = (48, 128), (8000, 8000)   # (the smallest: one figure standing, with a side door to it)
+MIN_WIDTH, MIN_FLOOR, MAX_SIZE = 48, 48, (8000, 8000)   # (the smallest: one figure standing, with a side door to it)
 SIDES = ("top", "bottom", "left", "right")
 FACINGS = ("down", "up", "left", "right")
 SIGN_SIDES = ("right", "left")   # which end of a table its results sign stands past, as its players see it
@@ -203,9 +205,15 @@ def _at(r, x, y):
     return (r[0] + x, r[1] + y, r[2], r[3])
 
 
+def wall_top(room: dict) -> int:
+    """How deep a room's back wall is: the full 3/4-view wall, or a thin border like the sides."""
+    return WALL_SIDE if room["walls"].get("back") == "thin" else WALL_TOP
+
+
 def interior(room: dict) -> tuple:
     """The floor inside a room's walls, on the plan."""
-    return (room["x"] + WALL_SIDE, room["y"] + WALL_TOP, room["w"] - 2 * WALL_SIDE, room["h"] - WALL_TOP - WALL_BOTTOM)
+    top = wall_top(room)
+    return (room["x"] + WALL_SIDE, room["y"] + top, room["w"] - 2 * WALL_SIDE, room["h"] - top - WALL_BOTTOM)
 
 
 def outline(room: dict) -> tuple:
@@ -372,7 +380,7 @@ def gap(room: dict, o: dict) -> tuple:
     """A doorway's opening on the plan, through this room's wall (the client cuts its wall bodies here)."""
     axis, fixed, start, _ = _edge(room, o["side"])
     lo = start + o["at"] - o["width"] / 2
-    depth = {"top": WALL_TOP, "bottom": WALL_BOTTOM, "left": WALL_SIDE, "right": WALL_SIDE}[o["side"]]
+    depth = {"top": wall_top(room), "bottom": WALL_BOTTOM, "left": WALL_SIDE, "right": WALL_SIDE}[o["side"]]
     if o["side"] == "top":
         return (lo, fixed, o["width"], depth)
     if o["side"] == "bottom":
@@ -477,10 +485,11 @@ def clean(raw, old: dict) -> dict:
         elif not isinstance(rid, str) or not ID_RE.match(rid) or rid in room_ids:
             raise PlanError(f"A room's id {rid!r} isn't usable.")
         room_ids.add(rid)
-        w = _num(rr.get("w"), f"{name}'s width", MIN_SIZE[0], MAX_SIZE[0])
-        h = _num(rr.get("h"), f"{name}'s height", MIN_SIZE[1], MAX_SIZE[1])
         fl = rr.get("floor") if isinstance(rr.get("floor"), dict) else {}
         walls = rr.get("walls") if isinstance(rr.get("walls"), dict) else {}
+        top = WALL_SIDE if walls.get("back") == "thin" else WALL_TOP
+        w = _num(rr.get("w"), f"{name}'s width", MIN_WIDTH, MAX_SIZE[0])
+        h = _num(rr.get("h"), f"{name}'s height", top + WALL_BOTTOM + MIN_FLOOR, MAX_SIZE[1])
         room = {"id": rid, "name": name, "placed": bool(rr.get("placed")),
                 "x": _num(rr.get("x", 0), f"{name}'s place"), "y": _num(rr.get("y", 0), f"{name}'s place"), "w": w, "h": h,
                 "floor": {"texture": str(fl.get("texture") or "carpet"), "tint": _colour(fl.get("tint"))},
@@ -488,8 +497,10 @@ def clean(raw, old: dict) -> dict:
                                          "sign": _str(walls.get("sign"), 24),
                                          "sign_at": min(max(_num(walls.get("sign_at", w / 2), f"{name}'s sign"), 0), w)},
                 "doors": [], "items": [], "paths": {"points": [], "zones": []}}
-        if rr.get("npc_only"):   # (left out otherwise, so older plans compare the same)
+        if rr.get("npc_only"):   # (these two left out otherwise, so older plans compare the same)
             room["npc_only"] = True
+        if top != WALL_TOP:
+            room["walls"]["back"] = "thin"
         for p in rr.get("patches") or []:
             if not isinstance(p, dict):
                 raise PlanError(f"{name}: a floor patch must be an object.")
@@ -619,7 +630,7 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
         if item["asset"] == "slot" and item["props"].get("variant") not in variants:
             out.append({"room": room["id"], "item": item["id"], "message": f"{name}: there's no slot {item['props'].get('variant')!r} for {item['id']}."})
         if s["mount"] == "wall":
-            if not _contains(outline(room), s["rect"]) or s["rect"][1] + s["rect"][3] > room["y"] + WALL_TOP + 4:
+            if not _contains(outline(room), s["rect"]) or s["rect"][1] + s["rect"][3] > room["y"] + wall_top(room) + 4:
                 out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} belongs on the back wall."})
             continue
         if not all(_contains(inner, b) for b in _bodies(s)) or not all(_contains(outline(room), r) for r in _covers(s)):
@@ -652,7 +663,7 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
         if d["side"] in ("top", "bottom"):
             into_corner = lo < WALL_SIDE or hi > room["w"] - WALL_SIDE
         else:
-            into_corner = lo < WALL_TOP or hi > room["h"] - WALL_BOTTOM
+            into_corner = lo < wall_top(room) or hi > room["h"] - WALL_BOTTOM
         if into_corner:
             out.append({"room": room["id"], "item": d["id"], "message": f"{name}: a door runs into the corner."})
     return out
@@ -908,7 +919,7 @@ def preview_world(draft: dict, room_id: str) -> dict:
     rooms = [r for r in draft["rooms"] if r["placed"]] if room["placed"] else [room]
     pts = sorted(room["paths"]["points"], key=lambda p: POINT_KINDS.index(p["kind"]))
     start = ((room["x"] + pts[0]["x"], room["y"] + pts[0]["y"]) if pts
-             else (room["x"] + room["w"] / 2, room["y"] + (room["h"] + WALL_TOP) / 2))
+             else (room["x"] + room["w"] / 2, room["y"] + (room["h"] + wall_top(room)) / 2))
     return world(draft, rooms, start)
 
 
@@ -1113,7 +1124,7 @@ def catalogue(builds_dir: Path | None = None) -> dict:
             "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM, "styles": WALL_STYLES},
             "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
             "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
-            "min_size": MIN_SIZE, "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
+            "min_width": MIN_WIDTH, "min_floor": MIN_FLOOR, "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
             "patch_shapes": PATCH_SHAPES, "patch_patterns": PATCH_PATTERNS, "patch_borders": PATCH_BORDERS,
             "categories": ["Seating", "Tables & desks", "Bar & counters", "Plants", "Lighting", "Statues & fountains",
                            "Decor", "Rugs", "Wall decor", "Uploads"]}

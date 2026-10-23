@@ -410,10 +410,12 @@ function refreshInspector() {
   if (!S.sel.length) {
     ins.replaceChildren(el("h3", { textContent: "This room" }),
       field("Name", text(r.name, v => { r.name = v || r.name; })),
-      field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: G.CAT.min_size[0] })),
-      field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: G.CAT.min_size[1] })),
+      field("Width", num(r.w, v => resize(r, "right", r.x + v), { step: 32, min: G.CAT.min_width })),
+      field("Height", num(r.h, v => resize(r, "bottom", r.y + v), { step: 32, min: G.minHeight(r) })),
       field("Floor", texture(r.floor)),
       field(r.floor.texture === "plain" ? "Floor colour" : "Floor tint", r.floor.texture === "plain" ? colour(r.floor.tint, v => { r.floor.tint = v; }) : tint(r.floor.tint, v => { r.floor.tint = v; })),
+      field("Back wall", choose(r.walls.back === "thin" ? "thin" : "full", [["full", "Full height"], ["thin", "Thin (a border, like the sides)"]], v => {
+        if (v === "thin") r.walls.back = "thin"; else { delete r.walls.back; r.h = Math.max(r.h, G.minHeight(r)); } })),
       field("Walls", choose(r.walls.style, Object.entries(G.CAT.walls.styles).map(([k, s]) => [k, s.name]), v => { r.walls.style = v; })),
       field("Sign", text(r.walls.sign, v => { r.walls.sign = v.toUpperCase(); }, 24)),
       field("Sign at", num(r.walls.sign_at, v => { r.walls.sign_at = v; })),
@@ -693,7 +695,7 @@ function removeSelected() {
 /** Resize a room by moving one wall to `to` (plan coordinates): what's inside stays where it is on the plan. */
 function resize(r, side, to) {
   to = Math.round(to);
-  const [minW, minH] = G.CAT.min_size;
+  const minW = G.CAT.min_width, minH = G.minHeight(r);
   if (side === "right") { r.w = Math.max(minW, to - r.x); r.walls.sign_at = Math.min(r.walls.sign_at, r.w); }
   else if (side === "bottom") r.h = Math.max(minH, to - r.y);
   else {
@@ -829,7 +831,7 @@ function down(e) {
 }
 
 function nearestWall(r, p) {
-  const d = { top: Math.abs(p[1] - r.y - G.CAT.walls.top / 2), bottom: Math.abs(p[1] - r.y - r.h), left: Math.abs(p[0] - r.x), right: Math.abs(p[0] - r.x - r.w) };
+  const d = { top: Math.abs(p[1] - r.y - G.wallTop(r) / 2), bottom: Math.abs(p[1] - r.y - r.h), left: Math.abs(p[0] - r.x), right: Math.abs(p[0] - r.x - r.w) };
   const best = Object.entries(d).sort((a, b) => a[1] - b[1])[0];
   return best[1] < 60 ? best[0] : null;
 }

@@ -215,6 +215,14 @@ def test_an_npcs_only_lift_is_the_smallest_room_and_players_cant_use_it():
     # anything smaller won't do
     with pytest.raises(plan.PlanError):
         plan.clean({**p, "rooms": [{**lift(), "h": 120}]}, p)
+    # with a thin back wall (a border like the sides) the floor runs up to it, and the lift can be shorter
+    thin = {**lift(), "h": 66, "walls": {"style": "onyx", "sign": "", "sign_at": 24, "back": "thin"}}
+    thin["doors"][0]["at"] = 32
+    thin["paths"]["points"][0]["y"] = 40
+    assert messages({**p, "rooms": [room(p, "lobby"), thin]}) == []
+    assert plan.interior(thin) == (-40, 208, 32, 48) and plan.clean({**p, "rooms": [thin]}, p)["rooms"][0]["walls"]["back"] == "thin"
+    with pytest.raises(plan.PlanError):
+        plan.clean({**p, "rooms": [{**thin, "walls": {"style": "onyx"}}]}, p)   # a full back wall needs 128
     # players can't appear in it, or reach a table in it (NPCs come out of it fine)
     room(p, "lift")["paths"]["points"].append({"name": "start", "x": 24, "y": 100, "kind": "spawn", "weight": 1, "linger": 0})
     p["spawn"] = "lift/start"

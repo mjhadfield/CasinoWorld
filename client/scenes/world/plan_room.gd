@@ -57,6 +57,8 @@ func build(room: Dictionary, world: Dictionary) -> void:
 	y_sort_enabled = true
 	var w: Dictionary = world.get("walls", {})
 	wall = {"top": float(w.get("top", 70)), "side": float(w.get("side", 8)), "bottom": float(w.get("bottom", 10))}
+	if str(room.get("walls", {}).get("back", "")) == "thin":   # the back wall just a border, like the sides
+		wall.top = wall.side
 	style = world.get("styles", {}).get(str(room.get("walls", {}).get("style", "crimson")), {})
 	openings = room.get("openings", [])
 	npc_only = bool(room.get("npc_only", false))
@@ -413,13 +415,16 @@ func _draw_walls(ci: CanvasItem) -> void:
 	var top: float = wall.top
 	var edge := _c("edge", "1a0508")
 	var trim := _c("trim", "c9a24a")
-	# The back wall: wallpaper with its stripe, the wainscot, brass trim, a dark rail.
-	ci.draw_rect(Rect2(0, 0, size.x, top), _c("paper", "4a0f1d"))
-	for x in range(0, int(size.x), 24):
-		ci.draw_rect(Rect2(x, 0, 10, top * 0.6), _c("stripe", "561526"))
-	ci.draw_rect(Rect2(0, top * 0.6, size.x, top * 0.31), _c("wainscot", "2b0a10"))
-	ci.draw_rect(Rect2(0, top - 8, size.x, 4), trim)
-	ci.draw_rect(Rect2(0, top - 4, size.x, 4), edge)
+	var thin: bool = top <= wall.side
+	if thin:   # a thin back wall: a dark edge like the sides, with no lamps or sign
+		ci.draw_rect(Rect2(0, 0, size.x, top), edge)
+	else:   # the back wall: wallpaper with its stripe, the wainscot, brass trim, a dark rail
+		ci.draw_rect(Rect2(0, 0, size.x, top), _c("paper", "4a0f1d"))
+		for x in range(0, int(size.x), 24):
+			ci.draw_rect(Rect2(x, 0, 10, top * 0.6), _c("stripe", "561526"))
+		ci.draw_rect(Rect2(0, top * 0.6, size.x, top * 0.31), _c("wainscot", "2b0a10"))
+		ci.draw_rect(Rect2(0, top - 8, size.x, 4), trim)
+		ci.draw_rect(Rect2(0, top - 4, size.x, 4), edge)
 	# Side and front walls.
 	ci.draw_rect(Rect2(0, 0, wall.side, size.y), edge)
 	ci.draw_rect(Rect2(size.x - wall.side, 0, wall.side, size.y), edge)
@@ -431,14 +436,14 @@ func _draw_walls(ci: CanvasItem) -> void:
 	var sign_text := str(data.get("walls", {}).get("sign", ""))
 	var sign_w := clampf(sign_text.length() * 12.0 + 40.0, 120.0, 420.0)
 	var sign_rect := Rect2(float(data.get("walls", {}).get("sign_at", size.x / 2)) - sign_w / 2, 6, sign_w, 30)
-	var lamps := maxi(2, int(size.x / 240.0))
+	var lamps := 0 if thin else maxi(2, int(size.x / 240.0))
 	for i in lamps:
 		var at := Vector2(size.x * (i + 0.5) / lamps, 24)
 		if (sign_text != "" and sign_rect.grow(14).has_point(at)) or gaps.any(func(g: Rect2): return g.grow(10).has_point(at)):
 			continue
 		ci.draw_circle(at, 7, Color(1, 0.85, 0.5, 0.25))
 		ci.draw_circle(at, 3.5, Color("ffe6a8"))
-	if sign_text != "":
+	if sign_text != "" and not thin:
 		ci.draw_rect(sign_rect, SIGN.back)
 		ci.draw_rect(sign_rect, SIGN.rim, false, 2.0)
 		ci.draw_string(FONT, Vector2(sign_rect.position.x, 28), sign_text, HORIZONTAL_ALIGNMENT_CENTER, sign_w, 18, SIGN.text)
