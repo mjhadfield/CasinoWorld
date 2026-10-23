@@ -17,6 +17,15 @@ var _walking := false
 var _path := PackedVector2Array()
 var _next := 0   # the path point being walked to
 var _pending_walk := []   # [pos, duration]: a walk that came while they were still getting up
+var _goal: Variant = null   # Vector2: where this NPC walk ends (re-pathed whenever the navigation map changes)
+var _due := 0.0             # when the server expects them there (seconds, Time.get_ticks_msec)
+
+
+func _ready() -> void:
+	super()
+	NavigationServer2D.map_changed.connect(func(map: RID):
+		if _goal != null and is_inside_tree() and map == get_world_2d().navigation_map:
+			_plan_walk())
 
 
 ## A reported position from another player.
@@ -24,6 +33,7 @@ func apply_move(pos: Vector2, dir: String, anim: String) -> void:
 	if seated or Seating.busy(self):
 		return
 	_walking = false
+	_goal = null
 	_target_pos = pos
 	set_action("walk" if anim == "walk" else "idle", dir)
 
@@ -31,6 +41,8 @@ func apply_move(pos: Vector2, dir: String, anim: String) -> void:
 func place(pos: Vector2) -> void:
 	position = pos
 	_target_pos = null
+	_walking = false
+	_goal = null
 
 
 ## An NPC walk: get to `pos` in about `duration` seconds.
@@ -41,15 +53,33 @@ func walk_to(pos: Vector2, duration: float) -> void:
 		_pending_walk = [pos, duration]
 		return
 	_target_pos = null
-	_path = NavigationServer2D.map_get_path(get_world_2d().navigation_map, position, pos, true)
-	if _path.size() < 2:  # (no map yet): straight there
-		_path = PackedVector2Array([position, pos])
+	_goal = pos
+	_due = _now() + duration
+	_plan_walk()
+
+
+## The way to `_goal` on the navigation map, at the speed that arrives when due. Just after the floor's built
+## (the page loading, with everyone's walks in the snapshot) its bake isn't in the map yet and there's no way
+## to be had: they wait where they are for map_changed rather than walk straight through the tables, and
+## only go straight if it still hasn't come by the time they should have arrived.
+func _plan_walk() -> void:
+	_path = NavigationServer2D.map_get_path(get_world_2d().navigation_map, position, _goal, true)
+	if _path.size() < 2:
+		if _now() < _due:
+			_walking = false
+			set_action("idle")
+			return
+		_path = PackedVector2Array([position, _goal])
 	var length := 0.0
 	for i in range(1, _path.size()):
 		length += _path[i - 1].distance_to(_path[i])
 	_next = 1
-	_walk_speed = clampf(length / maxf(duration, 0.1), MIN_SPEED, MAX_SPEED)
+	_walk_speed = clampf(length / maxf(_due - _now(), 0.1), MIN_SPEED, MAX_SPEED)
 	_walking = true
+
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
 
 
 func _physics_process(delta: float) -> void:
@@ -58,6 +88,7 @@ func _physics_process(delta: float) -> void:
 	if _walking:
 		if _next >= _path.size():
 			_walking = false
+			_goal = null
 			set_action("idle")
 			return
 		var step := _path[_next] - position
@@ -67,6 +98,9 @@ func _physics_process(delta: float) -> void:
 			set_action("walk", Looks.dir_from(step, facing))
 		if move >= step.length() - 0.01:
 			_next += 1
+	elif _goal != null:   # waiting for the navigation map
+		if _now() >= _due:
+			_plan_walk()
 	elif _target_pos != null:
 		var to: Vector2 = _target_pos - position
 		if to.length() > 80.0:  # far behind (lag, tab was hidden): just jump
@@ -81,6 +115,7 @@ func _physics_process(delta: float) -> void:
 ## `animate` (a snapshot: they were already sitting when we looked), straight there.
 func sit_at(game: FloorGame, seat: int, animate := true) -> void:
 	_walking = false
+	_goal = null
 	_target_pos = null
 	_pending_walk = []
 	z_index = game.sit_z(seat)

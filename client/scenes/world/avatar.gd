@@ -135,7 +135,8 @@ func _refresh_anim() -> void:
 	# Seated at a table, the name goes under the chair so it doesn't cover their cards.
 	_name_tag.position.y = 2.0 if action == "sit" or name_below else -64.0
 	var anim := "%s_%s" % [action, screen_facing()]
-	if _sprite.sprite_frames and _sprite.sprite_frames.has_animation(anim) and _sprite.animation != anim:
+	# (a new look's frames stop the sprite, so a walk that's still "walk_left" has to be started again)
+	if _sprite.sprite_frames and _sprite.sprite_frames.has_animation(anim) and (_sprite.animation != anim or not _sprite.is_playing()):
 		_sprite.play(anim)
 	queue_redraw()
 

@@ -40,7 +40,9 @@ game result and every penny is decided on the server; the client only renders an
   NPCs are sent walks instead (`entity_walk {id, target, duration}` to a floor-plan point,
   `point:<room>/<name>`, or a seat). The server times a walk by its distance through the doorways (`floor.py`,
   filled from the floor plan); each client paths it on its navigation map at whatever speed arrives on time, so
-  everyone sees them arrive together.
+  everyone sees them arrive together. A walk that comes before the map is ready (the snapshot as the page loads,
+  just before the floor's bake reaches the navigation server) waits for it rather than cutting across the tables,
+  and every walk is re-pathed whenever the map changes.
 
 ### Tables: pure machines, driven in real time
 
