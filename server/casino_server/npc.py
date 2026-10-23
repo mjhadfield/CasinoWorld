@@ -24,6 +24,10 @@ profile (roster.profile: archetype and modifiers):
               Anyone can shoot. They only get up once nothing of theirs is stuck
               on the table (no point on, no come bets out).
 
+With NPCs switched off (the admin page's Settings), nobody new comes in, anyone
+walking about heads for the door, and those sitting down finish the round they're
+in, stand up and leave. Switched back on, they arrive one at a time again.
+
 NPCs never take one of the last RESERVED_FOR_HUMANS free seats at a table, so
 a real player can always sit down. The craps table tries to keep MIN_CRAPS_NPCS
 NPCs at it (within the floor population): it's everyone's first choice while it's
@@ -116,6 +120,7 @@ class NpcDirector:
         self._next_spawn = 0.0
         self._serial = 0
         self._craps_short_since: float | None = None
+        self.on = True   # the admin page's switch, read each tick
 
     async def run(self):
         while True:
@@ -141,8 +146,13 @@ class NpcDirector:
         dealers = getattr(self.casino, "dealers", None)
         if dealers is not None:
             dealers.tick(now)
+        self.on = bool(roster.settings(self.casino.store)["npcs_on"])
+        if not self.on:
+            for npc in list(self.npcs.values()):
+                if not npc.ended and npc.state != "seated":
+                    self._send_off(npc, now)
         here = sum(1 for n in self.npcs.values() if not n.ended)
-        if here < self.population and now >= self._next_spawn and self._room_to_play():
+        if self.on and here < self.population and now >= self._next_spawn and self._room_to_play():
             record = self._pick_visitor()
             if record:
                 self.spawn(record, now)
@@ -339,7 +349,7 @@ class NpcDirector:
         lo, hi = s["bust_cooldown_min"] if reason == "bust" else s["cooldown_min"]
         minutes = self.rng.uniform(lo, hi) * (s["regular_cooldown"] if npc.prof.regular else 1.0)
         now = self.wall()
-        cooldown = None if reason in ("shutdown", "admin_reset") else now + minutes * 60
+        cooldown = None if reason in ("shutdown", "admin_reset", "npcs_off") else now + minutes * 60
         if reason == "bust" and npc.prof.superstitious and npc.table:
             rec = self.casino.store.npc(npc.npc_id)
             if rec:
@@ -362,7 +372,17 @@ class NpcDirector:
         record = self.casino.store.npc(npc_id)
         if record is None or record["role"] != "punter":
             raise ValueError("Only punters can be brought in.")
+        if not self.on:
+            raise ValueError("NPCs are switched off (Settings).")
         return self.spawn(record, now)
+
+    def _send_off(self, npc: Npc, now: float):
+        """NPCs were switched off: someone not sitting down heads for the door (one on the way to a seat too)."""
+        npc.ended = "npcs_off"
+        npc.table = npc.seat = None
+        npc.plan = ["leave"]
+        if npc.state != "leaving":
+            self._next_step(npc, now)
 
     def send_home(self, npc_id: int, now: float) -> bool:
         npc = self.on_floor(npc_id)
@@ -482,6 +502,8 @@ class NpcDirector:
                 npc.chase = min(8.0, npc.chase * self.rng.uniform(1.5, 2.0))
 
     def _time_to_go(self, npc: Npc) -> str | None:
+        if not self.on:
+            return "npcs_off"
         p, b = npc.prof, npc.prof.budget
         if p.riches and npc.bankroll >= b * p.riches:
             return "riches"
@@ -547,6 +569,8 @@ class NpcDirector:
             npc.bet_at = self._before_close(npc.bet_at, m)
             if now >= npc.bet_at:
                 npc.bet_at = None
+                if not self.on:   # switched off since betting opened: they haven't bet, so off they go
+                    return self._leave_table(npc, now, "npcs_off")
                 bets = self._choose_bets(npc, m.game, m)
                 if bets is None:
                     return self._leave_table(npc, now, "bust")
@@ -901,6 +925,8 @@ class NpcDirector:
         if now < npc.bet_at:
             return
         npc.bet_at = None
+        if not self.on:
+            return self._leave_table(npc, now, "npcs_off")
         ladder = slot_base.LADDER
         target = self._unit(npc) / 4   # a slot stake is a fraction of their table bet
         bet = max([b for b in ladder if b <= target] or [ladder[0]])

@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS npc_visits (
     returned     INTEGER NOT NULL,
     rounds       INTEGER NOT NULL,
     games        TEXT    NOT NULL DEFAULT '{}',  -- JSON: game -> rounds
-    reason       TEXT    NOT NULL                -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown'
+    reason       TEXT    NOT NULL                -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown' | 'npcs_off'
 );
 CREATE TABLE IF NOT EXISTS slot_stats (
     variant  TEXT    NOT NULL,

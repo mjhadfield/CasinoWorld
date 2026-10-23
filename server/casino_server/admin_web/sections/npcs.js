@@ -423,7 +423,7 @@ function renderStatus() {
   box.append(visitsBox);
   H.api("GET", "/api/npcs/" + n.id).then(full => {
     if (!full.visits.length) { visitsBox.replaceChildren(el("p", {className: "hint", textContent: "No visits yet."})); return; }
-    const REASONS = {bust: "went bust", done: "done for the day", hit_and_run: "left while ahead", riches: "doubled up", admin: "sent home", shutdown: "closing time"};
+    const REASONS = {bust: "went bust", done: "done for the day", hit_and_run: "left while ahead", riches: "doubled up", admin: "sent home", shutdown: "closing time", npcs_off: "NPCs switched off"};
     visitsBox.replaceChildren(el("table", {}, el("thead", {}, el("tr", {}, ...["When", "Stayed", "Budget", "Left with", "Net", "Rounds", "Why"].map((h, i) => el("th", {className: i >= 2 && i <= 5 ? "num" : "", textContent: h})))),
       el("tbody", {}, ...full.visits.map(v => el("tr", {},
         el("td", {textContent: new Date(v.arrived * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"})}),

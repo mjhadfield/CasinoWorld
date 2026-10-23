@@ -200,3 +200,51 @@ def test_table_state_keeps_the_games_dealer(tmp_path):
             assert state["on_duty"] is None    # a slot cabinet has no dealer
             continue
         assert state["on_duty"]["id"] == casino.dealers.on_duty[table_id]["id"]
+
+
+def test_switching_npcs_off_sends_them_home_after_their_round_and_back_on_they_return_one_at_a_time(tmp_path):
+    store = Store(tmp_path / "t.sqlite")
+    now = [1_000_000.0]
+    casino = Casino(store, npc_population=6, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
+    stands = []   # (table, phase, bets riding) whenever an NPC gets up after the switch
+    for table_id, runner in casino.tables.items():
+        m = runner.machine
+        original = m.stand
+
+        def stand(seat, now, reason="", m=m, original=original):
+            if not casino.npcs.on:
+                stands.append((m.game, m.phase, any(m.seats[seat].bets.values()) and m.game != "craps"))
+            return original(seat, now, reason)
+        m.stand = stand
+
+    def run(seconds):
+        end = now[0] + seconds
+        while now[0] < end:
+            now[0] += 0.25
+            casino.npcs.tick(now[0])
+            for runner in casino.tables.values():
+                runner.publish(runner.machine.tick(now[0]))
+
+    run(240)
+    seated = [n for n in casino.npcs.npcs.values() if n.state == "seated"]
+    assert seated, "nobody sat down in four minutes"
+    store.set_json("npc_settings", {"npcs_on": False})
+    run(600)
+    assert not casino.npcs.npcs, "someone's still in the casino ten minutes after NPCs were switched off"
+    assert stands
+    for game, phase, riding in stands:   # they only got up between rounds, nothing left riding
+        assert phase in ("betting", "idle") and not riding, (game, phase)
+    left = [v for r in store.npcs("punter") for v in store.npc_visits(r["id"], 100) if v["reason"] == "npcs_off"]
+    assert len(left) >= len(seated)
+    assert all(r["cooldown_until"] is None for r in store.npcs("punter")
+               if (store.npc_visits(r["id"], 1) or [{}])[0].get("reason") == "npcs_off")   # free to come straight back
+    with pytest.raises(ValueError):
+        casino.npcs.bring_in(store.npcs("punter")[0]["id"], now[0])
+
+    arrivals = []
+    original_spawn = casino.npcs.spawn
+    casino.npcs.spawn = lambda record, t: arrivals.append(t) or original_spawn(record, t)
+    store.set_json("npc_settings", {"npcs_on": True})
+    run(60)
+    assert len(arrivals) == 6
+    assert all(b - a >= 1.5 for a, b in zip(arrivals, arrivals[1:]))   # one at a time

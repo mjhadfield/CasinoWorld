@@ -57,6 +57,7 @@ WHALE_BUDGET = (10, 30)       # x the archetype's budget
 NICE_UNITS = (100, 200, 500, 1_000, 1_500, 2_000, 2_500, 5_000, 7_500, 10_000, 15_000, 20_000, 25_000, 50_000)
 
 DEFAULT_SETTINGS = {
+    "npcs_on": True,            # off: they finish their round and leave, and nobody new comes in
     "population": 6,            # punters on the floor
     "cooldown_min": (30, 60),   # minutes away after an ordinary visit
     "bust_cooldown_min": (120, 240),
@@ -337,6 +338,8 @@ def clean(data: dict, existing: dict | None = None) -> dict:
 
 def clean_settings(data: dict) -> dict:
     out = {}
+    if "npcs_on" in data:
+        out["npcs_on"] = bool(data["npcs_on"])
     if "population" in data:
         n = int(data["population"])
         if not 0 <= n <= 30:

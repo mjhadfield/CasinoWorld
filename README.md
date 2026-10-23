@@ -250,7 +250,9 @@ sections:
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to
   change one); Roulette's and Craps' House is how they looked before styles. The designer is in
   `admin_web/tables/` and draws with the game's own tiles and fonts.
-- **Settings:** punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
+- **Settings:** the **NPCs in the casino** switch (it applies at once: off, nobody new comes in, anyone walking
+  about heads for the door, and anyone at a table finishes the round they're in, then stands and leaves; on, they
+  arrive one at a time again), punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
   game opens, and the craps standing spot). The card tables and Roulette take their chairs' frame and upholstery
   from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API

@@ -1,4 +1,4 @@
-// Settings: how the floor runs (NPC population, cooldowns, dealer shifts) and the Default seating style, side by side.
+// Settings: how the floor runs (NPCs on or off, the population, cooldowns, dealer shifts) and the Default seating style, side by side.
 let H;
 
 export function init(h) {
@@ -8,6 +8,7 @@ export function init(h) {
     <form class="panel" id="settings-form">
       <div class="ph">Floor <span class="grow"></span><button type="submit" class="primary">Save</button></div>
       <div class="pb padded">
+        <label class="controls" style="margin-bottom:12px"><input type="checkbox" id="s-npcs-on"> NPCs in the casino</label>
         <div class="grid2">
           <label class="field"><span>Punters on the floor</span><input type="number" id="s-population" min="0" max="30" step="1"></label>
           <label class="field"><span>Regulars' cooldown (× normal)</span><input type="number" id="s-regular" min="0.05" max="1" step="0.05"></label>
@@ -16,7 +17,7 @@ export function init(h) {
           <label class="field"><span>Dealer shift (min)</span><input type="number" id="s-shift" min="0.5" max="240" step="0.5"></label>
           <label class="field"><span>Between tables' reliefs (min)</span><input type="number" id="s-stagger" min="0.5" max="240" step="0.5"></label>
         </div>
-        <p class="hint">Changes apply straight away; cooldowns from the next visit that ends.</p>
+        <p class="hint">Changes apply straight away; cooldowns from the next visit that ends. Switching NPCs off (no Save needed) sends them home: anyone at a table finishes the round they're in first. Back on, they arrive one at a time.</p>
       </div>
     </form>
     <form class="panel" id="seating-form">
@@ -39,6 +40,13 @@ export function init(h) {
     <div class="panel flat"></div>
   </div>`;
   const $ = s => h.view.querySelector(s);
+  $("#s-npcs-on").addEventListener("change", async e => {
+    const on = e.target.checked;
+    try {
+      await H.api("PUT", "/api/npc-settings", {npcs_on: on});
+      H.status(on ? "NPCs switched on: they'll come in one at a time." : "NPCs switched off: they'll finish their round and leave.", "ok");
+    } catch (err) { e.target.checked = !on; H.status(err.message, "warn"); }
+  });
   $("#settings-form").addEventListener("submit", async e => {
     e.preventDefault();
     try {
@@ -66,6 +74,7 @@ export async function load() {
   const $ = s => H.view.querySelector(s);
   try {
     const s = await H.api("GET", "/api/npc-settings");
+    $("#s-npcs-on").checked = s.npcs_on;
     $("#s-population").value = s.population; $("#s-regular").value = s.regular_cooldown;
     $("#s-cool-lo").value = s.cooldown_min[0]; $("#s-cool-hi").value = s.cooldown_min[1];
     $("#s-bust-lo").value = s.bust_cooldown_min[0]; $("#s-bust-hi").value = s.bust_cooldown_min[1];
