@@ -49,14 +49,21 @@ static func draw_chip(canvas: CanvasItem, centre: Vector2, radius: float, pence:
 		var a := i * TAU / 6.0
 		canvas.draw_arc(centre, radius * 0.86, a, a + 0.4, 6, Color(1, 1, 1, 0.85), radius * 0.2)
 	canvas.draw_circle(centre, radius * 0.66, c[0])
-	# Measured and drawn at a large size, then scaled down: at the tiny sizes a felt chip uses,
-	# Godot's own centring rounds to whole pixels and leaves the label off-centre.
-	var font_size := int(radius * (0.62 if label.length() <= 3 else 0.46))
-	var shrink := font_size / float(LABEL_SIZE)
+	draw_label(canvas, centre, radius, radius * 0.66, label, Color.WHITE)
+
+
+## A chip's value, centred in its inlay (`inner`: the inlay's radius): as big as the chip allows, but never wider
+## than the inlay, so "100" or "500" stays off the edge pattern. Measured and drawn at a large size, then scaled
+## down: at the tiny sizes a felt chip uses, Godot's own centring rounds to whole pixels and leaves it off-centre.
+static func draw_label(canvas: CanvasItem, centre: Vector2, radius: float, inner: float, label: String, colour: Color) -> void:
 	var width := FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
+	# The text's corners just inside the inlay: (w/2)^2 + (h/2)^2 <= (0.9 inner)^2, w and h in proportion to the size.
+	var fit := 1.8 * inner / Vector2(width / LABEL_SIZE, DIGIT_HEIGHT).length()
+	var font_size := minf(int(radius * (0.62 if label.length() <= 3 else 0.46)), fit)
+	var shrink := font_size / float(LABEL_SIZE)
 	canvas.draw_set_transform(centre, 0.0, Vector2(shrink, shrink))
 	canvas.draw_string(FONT, Vector2(-width / 2, LABEL_SIZE * DIGIT_HEIGHT / 2), label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, Color.WHITE)
+		HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, colour)
 	canvas.draw_set_transform(Vector2.ZERO)
 
 
