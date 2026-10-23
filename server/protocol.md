@@ -295,6 +295,14 @@ While it changes, `phase` is `changing` and every bet is refused.
 |---|---|---|
 | `dealer_change` | `dealer` {`id`, `name`, `look`} | A fresh dealer relieves the last one. Shifts are set on the admin page, and a relief only happens while the table is taking bets. |
 
+### Every table but Craps: each seat's result for the hand
+The runner (`tables/runner.py`) adds what the hand won or lost each seat's player, counted from their balance when bets were taken, so it covers side bets, raises, doubles and jackpots. The client floats it, green or red, off the back of that seat's chair.
+
+| event | added field | meaning |
+|---|---|---|
+| `settle_seat` | `round_net` | The seat's net for the hand, in pence (+ won, − lost). |
+| `round_end` | `round_nets[]` {`seat`, `net`} | The seats that played but had no `settle_seat` of their own: a bust or folded hand, a Blackjack paid early, a losing Roulette seat. |
+
 ## Admin HTTP API (`/admin`, also `/maintenance`)
 The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-only, like the game.
 

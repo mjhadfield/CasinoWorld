@@ -350,3 +350,27 @@ def test_dealer_lines():
     assert describe(ev([Card.from_code(c) for c in ("Qh", "8c", "3d")])) == "Queen high"
     assert describe(ev([Card.from_code(c) for c in ("7h", "7c", "3d")])) == "a Pair of 7s"
     assert describe(ev([Card.from_code(c) for c in ("Qs", "Ks", "As")])) == "a Royal Flush"
+
+
+def test_each_seat_hears_what_the_hand_won_or_lost_it_once():
+    """The runner adds each seat's result for the hand: on its settle_seat, or (a folded hand,
+    which has none) on the round_end."""
+    from types import SimpleNamespace
+    from casino_server.tables.runner import TableRunner
+    casino = SimpleNamespace(joined_sessions=lambda: [], sessions=set(),
+                             world=SimpleNamespace(set_seat=lambda *a: None), on_stood=lambda *a: None)
+    m = machine(CODES)
+    runner = TableRunner("tcp_1", casino, m)
+    ann, _, _ = seat_three(m)
+    ann.session = None   # (not connected: no wallet update to send)
+    m.set_bets(0, {"ante": 500, "pair_plus": 100}, 0)
+    m.set_bets(2, {"ante": 1_000}, 0)
+    m.set_bets(4, {"ante": 500, "jackpot": 100}, 0)
+    for s in (0, 2, 4):
+        m.ready(s, 0)
+    runner.publish(m.tick(1))
+    m.decide(2, False, 2), m.decide(4, True, 3), m.decide(0, True, 4)
+    events = m.tick(4)
+    runner.publish(events)
+    assert [(e["seat"], e["round_net"]) for e in find(events, "settle_seat")] == [(4, 900), (0, 1_100)]
+    assert find(events, "round_end")[0]["round_nets"] == [{"seat": 2, "net": -1_000}]

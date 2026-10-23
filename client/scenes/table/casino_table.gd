@@ -696,7 +696,14 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			tw.tween_callback(_set_dealer.bind(ev.dealer))
 			tw.tween_property(dealer, "modulate:a", 1.0, 0.35 * d)
 			return 0.0
+		"settle_seat":
+			var t := _animate_game(ev, d)
+			if ev.has("round_net"):   # (as the chips move: the pays and sweeps sit in the middle of a seat's settle)
+				_after(t * 0.5).timeout.connect(_float_net.bind(int(ev.seat), int(ev.round_net)))
+			return t
 		"round_end":
+			for n in ev.get("round_nets", []):   # seats that had no settle of their own: bust, folded, paid early
+				_float_net(int(n.seat), int(n.net))
 			round_cleared.emit()
 			in_hand = false
 			return _return_chips(d)
@@ -719,6 +726,39 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			my_hand_changed.emit("")
 			return 0.0
 	return _animate_game(ev, d)
+
+
+## What the hand won (green) or lost (red) a seat's player, rising off the back of their chair and fading.
+func _float_net(seat: int, net: int) -> void:
+	if net == 0 or not on_screen_now or not occupants.has(seat):
+		return
+	var tag := Label.new()
+	tag.text = ("+" if net > 0 else "−") + Money.format(absi(net), true)
+	tag.add_theme_font_override("font", BettingBar.FONT)
+	tag.add_theme_font_size_override("font_size", 9)
+	tag.add_theme_color_override("font_color", BettingBar.WIN if net > 0 else BettingBar.LOSS)
+	tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	tag.add_theme_constant_override("outline_size", 3)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tag.size = Vector2(80, 14)
+	tag.position = -tag.size / 2
+	var holder := Node2D.new()
+	holder.z_index = 4   # over the sitter and their chair's back
+	add_child(holder)
+	holder.add_child(tag)
+	holder.position = chair_pos(seat)
+	holder.global_rotation = 0.0   # upright on screen, whichever way the table's turned
+	holder.global_position += Vector2(0, 6)
+	holder.modulate.a = 0.0
+	var tw := holder.create_tween()
+	tw.tween_property(holder, "modulate:a", 1.0, 0.2)
+	tw.parallel().tween_property(holder, "global_position:y", holder.global_position.y - 14.0, 1.4) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.2)
+	tw.tween_property(holder, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(holder.queue_free)
 
 
 ## The sound an event makes as it starts, if any. (Deals sound from the deal

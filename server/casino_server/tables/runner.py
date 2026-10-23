@@ -10,7 +10,9 @@ Every joined session gets every table's events, so tables are live to watch
 from the floor. Keys starting "_" never leave the server: card faces a seat
 may keep private ("_private") only go to the session in that seat, and "_paid"
 lists participants whose balance the event changed (they get a wallet update
-straight after it).
+straight after it). Each seat's result for the hand goes out once: on its
+settle_seat ("round_net"), or for a seat that had none (bust, folded, paid early)
+on the round_end ("round_nets").
 """
 import asyncio
 import copy
@@ -24,6 +26,7 @@ class TableRunner:
         self.machine = machine
         self.clock = clock
         self._wake = asyncio.Event()
+        self._netted = set()   # seats whose result for this hand has gone out
 
     def act(self, method: str, *args, **kwargs):
         """Run a machine action now; raises TableError for a rejected one."""
@@ -60,6 +63,7 @@ class TableRunner:
     def publish(self, events: list):
         for event in events:
             self._side_effects(event)
+            self._add_nets(event)
             private = event.get("_private")
             public = {k: v for k, v in event.items() if not k.startswith("_")}
             for session in self.casino.joined_sessions():
@@ -77,6 +81,20 @@ class TableRunner:
             for participant in event.get("_paid", []):
                 if participant.is_human and participant.session in self.casino.sessions:
                     self.casino.send_wallet(participant.session)
+
+    def _add_nets(self, event: dict):
+        round_net = getattr(self.machine, "round_net", None)   # (not at Craps, or a blank Master Table)
+        if round_net is None:
+            return
+        if event["kind"] == "settle_seat":
+            net = round_net(event["seat"])
+            if net is not None:
+                event["round_net"] = net
+                self._netted.add(event["seat"])
+        elif event["kind"] == "round_end":
+            nets = [{"seat": i, "net": round_net(i)} for i in range(len(self.machine.seats)) if i not in self._netted]
+            event["round_nets"] = [n for n in nets if n["net"] is not None]
+            self._netted.clear()
 
     def _side_effects(self, event: dict):
         kind = event["kind"]

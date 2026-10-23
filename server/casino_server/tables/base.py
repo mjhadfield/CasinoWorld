@@ -64,6 +64,7 @@ class TableMachine:
         self.phase = "betting"
         self.deadline: float | None = None  # when the current phase/step is due
         self.betting_opened_at = 0.0
+        self.round_start: dict = {}   # seat -> (participant, their balance before this hand's bets)
 
     def _empty_seat(self, participant=None) -> Seat:
         return Seat(participant=participant, bets=dict.fromkeys(self.SPOTS, 0))
@@ -73,6 +74,13 @@ class TableMachine:
         s.ready = False
 
     # ------------------------------------------------------------------ queries
+    def round_net(self, seat: int) -> int | None:
+        """What this hand has won (+) or lost (-) the seat's player so far; None if they're not in it."""
+        entry = self.round_start.get(seat)
+        if entry is None or self.seats[seat].participant is not entry[0]:
+            return None
+        return entry[0].balance - entry[1]
+
     @property
     def next_deadline(self) -> float | None:
         return self.deadline
@@ -294,15 +302,18 @@ class TableMachine:
         Returns (events, {seat: bets dict}) -- an empty dict if nobody's playing."""
         events = []
         playing = {}
+        self.round_start = {}
         for i, s in enumerate(self.seats):
             if s.participant is None:
                 continue
+            before = s.participant.balance
             if not self._has_main(s.bets) or not s.participant.debit(self.upfront(s.bets), "upfront"):
                 if any(s.bets.values()):  # side bets without a main bet go back
                     events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(dict.fromkeys(self.SPOTS, 0))})
                 self._clear_seat_bets(s)
                 continue
             playing[i] = dict(s.bets)
+            self.round_start[i] = (s.participant, before)
         if not playing:
             self.deadline = None  # nobody bet -- stay open until someone does
             return events + [{"kind": "betting_reset"}], {}
