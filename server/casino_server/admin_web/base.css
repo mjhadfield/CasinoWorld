@@ -19,7 +19,10 @@ a { color: var(--accent-strong); }
 .app { height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); min-width: 1280px; }
 .rail { width: 188px; background: var(--bg-1); border-right: 1px solid var(--line); display: flex; flex-direction: column; transition: width .15s; overflow: hidden; }
 :root[data-rail="icons"] .rail { width: 52px; }
-:root[data-rail="icons"] .rail .lbl, :root[data-rail="icons"] .rail .grp { display: none; }
+:root[data-rail="icons"] .rail:not(.peek) .lbl, :root[data-rail="icons"] .rail:not(.peek) .grp { display: none; }
+/* collapsed, hovering an icon opens the rail over the page (its column stays 52px, so nothing behind it reflows) */
+:root[data-rail="icons"] .app { grid-template-columns: 52px minmax(0, 1fr); }
+:root[data-rail="icons"] .rail.peek { width: 188px; position: relative; z-index: 30; box-shadow: var(--shadow); }
 .brand { height: var(--bar-h); flex: none; display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .brand i { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); font: 700 11px var(--font); font-style: normal; flex: none; }
 .brand b { font-weight: 600; } .brand b span { color: var(--fg-faint); font-weight: 500; }

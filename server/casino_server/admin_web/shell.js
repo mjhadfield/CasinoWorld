@@ -106,7 +106,19 @@ function syncDisplay() {
 }
 for (const b of document.querySelectorAll("#skins .skin")) b.addEventListener("click", () => setDisplay("skin", b.dataset.skin));
 for (const b of document.querySelectorAll("#densities button")) b.addEventListener("click", () => setDisplay("density", b.dataset.density));
-$("#rail-toggle").addEventListener("click", () => setDisplay("rail", document.documentElement.dataset.rail === "icons" ? "labels" : "icons"));
+$("#rail-toggle").addEventListener("click", () => {
+  peek(false); peekHeld = true;  // just collapsed with the mouse on it: don't reopen until the mouse leaves
+  setDisplay("rail", document.documentElement.dataset.rail === "icons" ? "labels" : "icons");
+});
+// Collapsed, hovering an icon opens the menu for as long as the mouse stays on it.
+const rail = $(".rail");
+let peekTimer = null, peekHeld = false;
+function peek(on) { clearTimeout(peekTimer); rail.classList.toggle("peek", on); }
+rail.addEventListener("mouseover", e => {
+  if (document.documentElement.dataset.rail !== "icons" || peekHeld || rail.classList.contains("peek") || !e.target.closest("a, button")) return;
+  clearTimeout(peekTimer); peekTimer = setTimeout(() => peek(true), 120);
+});
+rail.addEventListener("mouseleave", () => { peekHeld = false; peek(false); });
 const menu = $("#display-menu"), menuBtn = $("#display-btn");
 menuBtn.addEventListener("click", e => { e.stopPropagation(); menu.hidden = !menu.hidden; menuBtn.setAttribute("aria-expanded", String(!menu.hidden)); });
 document.addEventListener("click", e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false"); } });

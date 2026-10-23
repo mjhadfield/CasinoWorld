@@ -60,7 +60,8 @@ Environment knobs:
 Open **`/admin`** on the server (e.g. https://192.168.0.66:8661/admin; `/maintenance` still works). There's
 no password: it's open to anyone who can reach the server, the same as the game, which is fine on the LAN
 and Tailscale. It's a desktop page laid out for 1440p (1080p fits too), in `casino_server/admin_web/`: a menu of
-sections down the left (collapsible), a top bar with the section's own controls, and a **Display** menu for the
+sections down the left (collapsible; collapsed, hovering an icon opens it over the page until the mouse
+leaves), a top bar with the section's own controls, and a **Display** menu for the
 colours (Amethyst or Graphite, `theme.css` holds the tokens) and density (Compact or Comfortable). Each section is
 a module loaded the first time it opens, and the route is the hash (`#plan`, `#design/<design>/<step>`). The
 sections:
