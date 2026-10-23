@@ -83,7 +83,8 @@ nothing on the table for 40 rolls is stood up.
 
 Each has a style: a grinder plays the line with full odds and a couple of come bets, a casual player the line
 and Place 6 and 8, a gambler the field, hardways and props, and some superstitious players the dark side.
-They only get up once nothing of theirs is stuck on the table. The table tries to keep at least two NPCs at
+They only get up once nothing of theirs is stuck on the table. They leave the second place from the left on each
+side of the stickman (seats 6 and 2) for real players. The table tries to keep at least two NPCs at
 it, so there's always a game.
 
 ## Tests

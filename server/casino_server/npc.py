@@ -28,8 +28,9 @@ With NPCs switched off (the admin page's Settings), nobody new comes in, anyone
 walking about heads for the door, and those sitting down finish the round they're
 in, stand up and leave. Switched back on, they arrive one at a time again.
 
-NPCs never take one of the last RESERVED_FOR_HUMANS free seats at a table, so
-a real player can always sit down. The craps table tries to keep MIN_CRAPS_NPCS
+NPCs leave a table's reserved_seats free, so a real player can always sit down:
+the middle seat of a five-seater, the middle two of a six-seater, and at Craps the
+second place from the left on each side of the stickman. The craps table tries to keep MIN_CRAPS_NPCS
 NPCs at it (within the floor population): it's everyone's first choice while it's
 short, and if it stays short an idle NPC is sent over. Dealers are rostered too
 (dealers.py).
@@ -58,13 +59,27 @@ from casino_server.tables import slot_machine as slots
 from casino_server.tables.base import TableError, say
 from casino_server.world import Entity
 
-RESERVED_FOR_HUMANS = 2
 MIN_CRAPS_NPCS = 2
 CRAPS_TOP_UP_AFTER = 20.0   # seconds the craps table can be short before an idle NPC is sent over
 FALLBACK_LOOK = "player_default"
 ROULETTE_HABITS = ("numbers", "even", "dozens", "sprinkle")
 BET_LEAD = 0.6  # seconds: NPC bets go down at least this long before betting closes (the director ticks every 0.2)
 HILO = {"2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 0, "8": 0, "9": 0, "10": -1, "J": -1, "Q": -1, "K": -1, "A": -1}
+
+
+def reserved_seats(game: str, n: int) -> set[int]:
+    """The seats NPCs leave free for real players at a table of `n` seats. Craps' places run right to left along
+    the near rail (seat 0 at the right-hand end), half each side of the stickman: the second from the left of
+    each half. Elsewhere the middle seat, or the middle two."""
+    if game == cr.GAME_KEY:
+        return {n // 2 - 2, n - 2}
+    return {n // 2} if n % 2 else {n // 2 - 1, n // 2}
+
+
+def _open_seats(machine) -> list[int]:
+    """Free seats an NPC may take."""
+    reserved = reserved_seats(machine.game, len(machine.seats))
+    return [s for s in machine.free_seats() if s not in reserved]
 
 
 @dataclass
@@ -166,8 +181,10 @@ class NpcDirector:
         if not floor.arrivals():
             return False
         for runner in self.casino.tables.values():
-            free = len(runner.machine.free_seats())
-            if free > (floor.SLOTS_FOR_HUMANS if runner.machine.game == slots.GAME_KEY else RESERVED_FOR_HUMANS):
+            if runner.machine.game == slots.GAME_KEY:
+                if len(runner.machine.free_seats()) > floor.SLOTS_FOR_HUMANS:
+                    return True
+            elif _open_seats(runner.machine):
                 return True
         return False
 
@@ -331,8 +348,8 @@ class NpcDirector:
                         return True
                 continue
             for table_id, runner in options:
-                free = [s for s in runner.machine.free_seats() if (table_id, s) not in claimed]
-                if len(free) - 1 >= RESERVED_FOR_HUMANS:
+                free = [s for s in _open_seats(runner.machine) if (table_id, s) not in claimed]
+                if free:
                     npc.table, npc.seat = table_id, self.rng.choice(free)
                     self._walk(npc, f"seat:{table_id}:{npc.seat}", now)
                     return True
@@ -421,8 +438,10 @@ class NpcDirector:
 
     def reseated(self, table_id: str, mapping: list):
         """A Master Table's seats were renumbered (`mapping`: for each new seat, the old seat it took over, or -1):
-        NPCs sitting there, or on their way to a seat there, follow. One walking to a seat that's gone looks again.
-        Those who stay start the new game afresh: the change handed their bets back, so no round was played."""
+        NPCs sitting there, or on their way to a seat there, follow. One walking to a seat that's gone, or that the
+        new game keeps for real players, looks again.
+        Those who stay start the new game afresh: the change handed their bets back, so no round was played. One
+        who stays in a seat the new game keeps for real players moves to another before betting (_play)."""
         machine = self.casino.tables[table_id].machine
         now = self.clock()
         for npc in list(self.npcs.values()):
@@ -438,9 +457,9 @@ class NpcDirector:
                     npc.table = npc.seat = None
                     npc.bet_at = npc.decide_at = None
                     self._next_step(npc, now)
-            elif npc.seat in mapping:
+            elif npc.seat in mapping and mapping.index(npc.seat) not in reserved_seats(machine.game, len(mapping)):
                 npc.seat = mapping.index(npc.seat)
-            else:   # on the way to a seat that's gone: look for another
+            else:   # on the way to a seat that's gone or reserved: look for another
                 npc.table = npc.seat = None
                 npc.plan.insert(0, "play")
                 npc.state, npc.until = "loitering", now
@@ -567,6 +586,9 @@ class NpcDirector:
                 reason = self._time_to_go(npc)
                 if reason:
                     return self._leave_table(npc, now, reason)
+                if npc.seat in reserved_seats(m.game, len(m.seats)):   # a Master Table's new game keeps it for players
+                    npc.plan.insert(0, "play")
+                    return self._leave_table(npc, now)
                 npc.bet_at = now + self.rng.uniform(1.0, 4.0) * self.pace
             npc.bet_at = self._before_close(npc.bet_at, m)
             if now >= npc.bet_at:

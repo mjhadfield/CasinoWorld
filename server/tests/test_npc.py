@@ -5,7 +5,7 @@ import pytest
 
 from casino_server import roster
 from casino_server.casino import Casino
-from casino_server.npc import RESERVED_FOR_HUMANS
+from casino_server.npc import reserved_seats
 from casino_server.store import Store
 
 
@@ -39,10 +39,11 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
             events = runner.machine.tick(now[0])
             runner.publish(events)
             stats["rounds"] += sum(e["kind"] == "round_end" for e in events)
-            seated = [s.participant for s in runner.machine.seats if s.participant]
-            if len(runner.machine.seats) > 1:   # (slot cabinets keep their free seats across the bank)
-                stats["reserve_taken"] = max(stats["reserve_taken"],
-                                             len(seated) - (len(runner.machine.seats) - RESERVED_FOR_HUMANS))
+            seats = runner.machine.seats
+            seated = [s.participant for s in seats if s.participant]
+            if len(seats) > 1:   # (slot cabinets keep their free seats across the bank)
+                reserved = reserved_seats(runner.machine.game, len(seats))
+                stats["reserve_taken"] += sum(1 for i in reserved if seats[i].participant)
             stats["seated_ever"].update(p.entity_id for p in seated)
         if until and until(casino):
             break
@@ -52,12 +53,18 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
 def test_npcs_populate_play_respect_reserved_seats_and_leave(tmp_path):
     casino, stats = simulate(tmp_path, seconds=1800, settings={"cooldown_min": [1, 2], "bust_cooldown_min": [2, 3]})
     assert len([n for n in casino.npcs.npcs.values() if not n.ended]) <= 6
-    assert stats["reserve_taken"] <= 0     # no table's last free seats taken (Craps has 8)
+    assert stats["reserve_taken"] == 0     # nobody sat in a seat kept for real players
     assert len(stats["seated_ever"]) >= 3  # plenty of NPCs sat down
     assert stats["rounds"] >= 20           # and actually played hands
     assert stats["despawned"] >= 1         # some finished up and left
     for npc in casino.npcs.npcs.values():
         assert npc.bankroll >= 0
+
+
+def test_reserved_seats_are_the_middle_ones_and_the_second_from_the_left_at_craps():
+    assert reserved_seats("let_it_ride", 5) == {2}
+    assert reserved_seats("blackjack", 6) == {2, 3}
+    assert reserved_seats("craps", 8) == {2, 6}   # seat 0 is the right-hand end of the rail
 
 
 def test_visits_are_logged_and_reconcile_with_lifetime_figures(tmp_path):

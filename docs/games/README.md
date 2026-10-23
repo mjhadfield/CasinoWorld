@@ -84,8 +84,9 @@ NPCs, Settings).
 
 NPCs come in at the floor plan's arrival points, wander between its wander points (by their weights, lingering
 as long as each says), sit for a while, and leave the way they came. Nobody comes in while there's no free seat. Each game's file says how they play it. They never take a
-table's last two free seats (or the last two free slot cabinets in a bank), so a real player can always sit
-down. Their budgets, styles and traits are on the admin page (README › Admin page).
+seat kept for real players (the middle seat at a five-seat table, the middle two at a six-seater, the second
+place from the left on each side of the craps table, and the last two free slot cabinets in a bank), so a real
+player can always sit down. Their budgets, styles and traits are on the admin page (README › Admin page).
 
 ## Money
 

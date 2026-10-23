@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from casino_server import floor, plan
 from casino_server.app import app
 from casino_server.casino import MACHINES
+from casino_server.npc import reserved_seats
 from casino_server.tables import master
 from casino_server.tables.base import TableError
 from casino_server.tables.master import MasterMachine, remap
@@ -346,7 +347,7 @@ def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
     and five: every NPC that thinks it's sitting there is in the seat it thinks, and none is lost."""
     casino, runner, m, me, run = npc_master(tmp_path)
     games = ["let_it_ride", "blackjack", "high_card_flush", "baccarat"]
-    changes, npcs_seen, step = 0, set(), [0]
+    changes, npcs_seen, step, due = 0, set(), [0], [False]
 
     def check():
         nonlocal changes
@@ -354,7 +355,9 @@ def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
         for n in seated_npcs(casino):
             assert m.seats[n.seat].participant is n.participant, (step[0], n.name, n.seat)
             npcs_seen.add(n.entity_id)
-        if step[0] % 400 == 0 and m.phase == "betting" and m.vote is None:
+        due[0] |= step[0] % 400 == 0   # (a change every 100s, at the next betting phase)
+        if due[0] and m.phase == "betting" and m.vote is None:
+            due[0] = False
             game = games[changes % len(games)]
             try:
                 runner.act("choose_game", m.seat_of(me), game)
@@ -376,9 +379,10 @@ def test_npcs_who_stay_for_the_new_game_play_it(tmp_path):
             run(0.25)
         stayers = {n.entity_id for n in seated_npcs(casino)}
         runner.act("choose_game", m.seat_of(me), game)
-        stayers &= {n.entity_id for n in seated_npcs(casino)}
+        reserved = reserved_seats(game, len(m.seats))   # (one left in a seat kept for players moves first)
+        stayers &= {n.entity_id for n in seated_npcs(casino) if n.seat not in reserved}
         rounds = {n.entity_id: n.games.get(game, 0) for n in seated_npcs(casino)}
-        run(60)
+        run(90)   # (a round with four NPCs at the table)
         for n in seated_npcs(casino):
             if n.entity_id in stayers:
                 played[game] = played.get(game, 0) + 1
