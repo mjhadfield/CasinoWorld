@@ -576,6 +576,7 @@ class BarButton extends Button:
 			if v != hide_key:
 				hide_key = v
 				_size()
+	var zoom := 1.0   # drawn at this size (the walking prompt is half): laid out small, not scaled, so it stays sharp
 	var _font: FontVariation
 
 	func _init() -> void:
@@ -595,8 +596,8 @@ class BarButton extends Button:
 		var big := kind in ["primary", "normal", "quiet", "fold", "done"]
 		_font = FontVariation.new()
 		_font.base_font = FONT
-		_font.spacing_glyph = int(WIDE) if big else 0
-		var radius := 10 if big else 999
+		_font.spacing_glyph = maxi(1, roundi(WIDE * zoom)) if big else 0
+		var radius := roundi(10 * zoom) if big else 999
 		var bg: Color = {"primary": BRASS, "normal": Color("232a2d"), "quiet": Color(0.137, 0.165, 0.176, 0.85), "fold": Color("232a2d"),
 			"done": Color(0.055, 0.047, 0.031, 0.6), "tool": Color(0.137, 0.165, 0.176, 0.85), "ghost": CORNER_BG}[kind]
 		var edge: Color = {"primary": BRASS, "normal": Color("39413f"), "quiet": Color("39413f"), "fold": Color(LOSS, 0.55),
@@ -616,24 +617,27 @@ class BarButton extends Button:
 		queue_redraw()
 
 	func _font_size() -> int:
-		return {"tool": 15, "ghost": 16}.get(kind, 19)
+		return roundi({"tool": 15, "ghost": 16}.get(kind, 19) * zoom)
+
+	func _key_size() -> int:
+		return roundi(12 * zoom)
 
 	func _shown_words() -> String:
 		return words.to_upper() if kind in ["primary", "normal", "quiet", "fold", "done"] else words
 
 	func _key_w() -> float:
-		return 0.0 if key == "" or hide_key else FONT.get_string_size(key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 10.0
+		return 0.0 if key == "" or hide_key else FONT.get_string_size(key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, _key_size()).x + 10.0 * zoom
 
 	func _size() -> void:
-		var h: float = {"tool": 40.0, "ghost": 40.0}.get(kind, BUTTON_H)
-		var pad: float = {"tool": 14.0, "ghost": 15.0}.get(kind, 24.0)
+		var h: float = {"tool": 40.0, "ghost": 40.0}.get(kind, BUTTON_H) * zoom
+		var pad: float = {"tool": 14.0, "ghost": 15.0}.get(kind, 24.0) * zoom
 		var w := 0.0
 		if glyph != "":
 			w += 17.0
 		if not (compact and glyph != ""):
 			w += _font.get_string_size(_shown_words(), HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size()).x + (8.0 if glyph != "" else 0.0)
 			if _key_w() > 0:
-				w += 9.0 + _key_w()
+				w += 9.0 * zoom + _key_w()
 		else:
 			pad = (h - 17.0) / 2.0
 		custom_minimum_size = Vector2(w + pad * 2.0, h)
@@ -652,7 +656,7 @@ class BarButton extends Button:
 		var fs := _font_size()
 		var show_words := not (compact and glyph != "")
 		var tw := _font.get_string_size(_shown_words(), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if show_words else 0.0
-		var total := (17.0 if glyph != "" else 0.0) + (8.0 if glyph != "" and show_words else 0.0) + tw + (9.0 + _key_w() if show_words and _key_w() > 0 else 0.0)
+		var total := (17.0 if glyph != "" else 0.0) + (8.0 if glyph != "" and show_words else 0.0) + tw + (9.0 * zoom + _key_w() if show_words and _key_w() > 0 else 0.0)
 		var x := (size.x - total) / 2.0
 		var mid := size.y / 2.0
 		if glyph != "":
@@ -661,15 +665,16 @@ class BarButton extends Button:
 		if show_words:
 			var asc := _font.get_ascent(fs)
 			var desc := _font.get_descent(fs)
-			draw_string(_font, Vector2(x, mid + (asc - desc) / 2.0 - 1.0), _shown_words(), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+			draw_string(_font, Vector2(x, mid + (asc - desc) / 2.0 - zoom), _shown_words(), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 			x += tw
 			if _key_w() > 0:
-				x += 9.0
+				x += 9.0 * zoom
 				var kc := Color(col, 0.6)
-				var r := Rect2(x, mid - 9.0, _key_w(), 18.0)
-				draw_style_box(BettingBar._box(Color(0, 0, 0, 0), kc, 4, Vector4.ZERO), r)
-				var ka := FONT.get_ascent(12)
-				draw_string(FONT, Vector2(x + 5.0, mid + (ka - FONT.get_descent(12)) / 2.0 - 0.5), key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, kc)
+				var ks := _key_size()
+				var r := Rect2(x, mid - 9.0 * zoom, _key_w(), 18.0 * zoom)
+				draw_style_box(BettingBar._box(Color(0, 0, 0, 0), kc, maxi(2, roundi(4 * zoom)), Vector4.ZERO), r)
+				var ka := FONT.get_ascent(ks)
+				draw_string(FONT, Vector2(x + 5.0 * zoom, mid + (ka - FONT.get_descent(ks)) / 2.0 - 0.5 * zoom), key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ks, kc)
 
 	func _draw_glyph(c: Vector2, col: Color) -> void:
 		match glyph:
