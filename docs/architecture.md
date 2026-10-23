@@ -204,7 +204,7 @@ A Godot 4.7 project exported to the web.
   saying what's happening (and its draining countdown) above them, Ready (Repeat Bet until you've bet; Craps: the
   dice) on their left, Undo, Clear, Auto rebet and Sit out (Craps: Working) on their right, and a decision in the
   chips' place while it's open, and Stand up at the bar's right edge; the table's jackpot (only at tables with one)
-  top left under your balance, Paytable top right left of the minimap (the paytable opens under it). Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
+  top left under your balance, Paytable top right left of the minimap (the paytable opens under it, folding the minimap if it was open). Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
   `switch` a switch, else a decision). Game-specific panels (the Pai Gow sorter, the slot screen) sit alongside it.
 
 ## Working on it

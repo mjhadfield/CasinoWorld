@@ -99,7 +99,10 @@ func _ready() -> void:
 	bar.ready_pressed.connect(ready_pressed.emit)
 	bar.action.connect(action.emit)
 	bar.stand_pressed.connect(stand_pressed.emit)
-	bar.paytable_toggled.connect(func(on): %Paytable.visible = on)
+	bar.paytable_toggled.connect(func(on):
+		if on:   # the rules open under the minimap: fold it out of their way
+			Settings.set_value("minimap_collapsed", true)
+		%Paytable.visible = on)
 	%CancelChooseButton.pressed.connect(cancel_choose_pressed.emit)
 	%ConfirmYes.pressed.connect(func():
 		%ConfirmStand.hide()
