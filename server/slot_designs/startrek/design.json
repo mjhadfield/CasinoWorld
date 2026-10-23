@@ -1,5 +1,5 @@
 {
- "name": "Star Trek",
+ "name": "TNG",
  "note": "Counts follow the slot engine as it is (Armadillo's maths): 2 high pays, 4 mid pays, 3 specials (wild, bonus scatter, free-spins scatter). Five royals means adding a fifth low tier when the maths is done.",
  "categories": [
   {
@@ -955,7 +955,7 @@
   "volatility": "medium"
  },
  "steps": {
-  "concept": "todo",
+  "concept": "doing",
   "art": "done",
   "ladder": "done",
   "scene": "done",
@@ -999,17 +999,17 @@
  },
  "scene": {
   "logo": {
-   "top": "#fff1b0",
-   "bottom": "#d39a26",
-   "outline": "#c5afa6",
-   "font": "DejaVuSans-Bold.ttf",
+   "top": "#d57215",
+   "bottom": "#f1a50e",
+   "outline": "#4f1c03",
+   "font": "star-trek-film-bt.ttf",
    "emblem": null,
    "lines": [
-    "STAR TREK"
+    "TNG"
    ],
-   "file": "scene/logo_1.png"
+   "file": "scene/logo_6.png"
   },
-  "background": "scene/bg_2.png",
+  "background": null,
   "skins": {
    "classic": {
     "name": "Classic",
@@ -1063,9 +1063,254 @@
      "ui": "BarlowCondensed-Bold.ttf"
     },
     "texts": {}
+   },
+   "lcars": {
+    "name": "LCARS",
+    "by": "mike",
+    "base": "lcars",
+    "note": "",
+    "colours": {
+     "gold": "#9fdcff",
+     "goldHi": "#e6f6ff",
+     "goldLo": "#2c5a85",
+     "edge": "#5f9ec4",
+     "cream": "#e4f2ff",
+     "muted": "#7fa3bf",
+     "ink": "#04101c",
+     "shade": "#030a14",
+     "win": "#ffd27a",
+     "spin": "#5f9ec4",
+     "alert": "#c8453a"
+    },
+    "palette": {
+     "hl": "#9fe3ff",
+     "a": "#4a7cab",
+     "b": "#6aa5cf",
+     "c": "#a6d3dc",
+     "d": "#22446a",
+     "warn": "#f5a623",
+     "glass": "#08131f",
+     "grand": "#f2a33a",
+     "major": "#b98fd6",
+     "minor": "#7fc4c9",
+     "mini": "#6f9fd8"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#9fdcff"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "pill",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [],
+    "fonts": {
+     "display": "star-trek-film-bt.ttf",
+     "ui": "star-trek-film-bt.ttf"
+    },
+    "texts": {}
+   },
+   "classic-2": {
+    "name": "Classic 2",
+    "by": "mike",
+    "base": "classic",
+    "note": "",
+    "colours": {
+     "gold": "#9fdcff",
+     "goldHi": "#e6f6ff",
+     "goldLo": "#2c5a85",
+     "edge": "#5f9ec4",
+     "cream": "#e4f2ff",
+     "muted": "#7fa3bf",
+     "ink": "#04101c",
+     "shade": "#030a14",
+     "win": "#ffd27a",
+     "spin": "#5f9ec4",
+     "alert": "#c8453a"
+    },
+    "palette": {},
+    "frame": {
+     "style": "metal",
+     "colour": "#c9a24a"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {},
+    "parts": {},
+    "decor": [],
+    "fonts": {
+     "display": "@lettering",
+     "ui": "@lettering"
+    },
+    "texts": {}
+   },
+   "lcars-2": {
+    "name": "LCARS 2",
+    "by": "mike",
+    "base": "lcars",
+    "note": "",
+    "colours": {
+     "gold": "#9fdcff",
+     "goldHi": "#e6f6ff",
+     "goldLo": "#2c5a85",
+     "edge": "#5f9ec4",
+     "cream": "#e4f2ff",
+     "muted": "#7fa3bf",
+     "ink": "#04101c",
+     "shade": "#030a14",
+     "win": "#ffd27a",
+     "spin": "#5f9ec4",
+     "alert": "#c8453a"
+    },
+    "palette": {
+     "hl": "#df6b3a",
+     "a": "#ab8749",
+     "b": "#ce9169",
+     "c": "#ddbfa7",
+     "d": "#684122",
+     "warn": "#f5a623",
+     "glass": "#201909",
+     "grand": "#f2a33a",
+     "major": "#b98fd6",
+     "minor": "#7fc4c9",
+     "mini": "#6f9fd8"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#9fdcff"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "pill",
+      "fill": "b",
+      "on": "warn",
+      "text": "d"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "minor"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [],
+    "fonts": {
+     "display": "star-trek-film-bt.ttf",
+     "ui": "star-trek-film-bt.ttf"
+    },
+    "texts": {}
    }
   },
-  "skin": "classic"
+  "skin": "lcars",
+  "binned_skins": [
+   "lcars-2"
+  ]
  },
  "sprites": {
   "cabinet": {
