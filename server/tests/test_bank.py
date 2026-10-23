@@ -27,26 +27,39 @@ def reconciles(store, pid):
 
 # ------------------------------------------------------------------ the rules
 def test_withdrawals_only_while_holding_under_the_limit():
-    assert bank.withdraw_check(100_000, 49_999, None, S, NOW)["can"]
-    c = bank.withdraw_check(100_000, 50_000, None, S, NOW)
+    assert bank.withdraw_check(100_000, 49_999, None, None, S, NOW)["can"]
+    c = bank.withdraw_check(100_000, 50_000, None, None, S, NOW)
     assert not c["can"] and c["why"] == "carrying"
 
 
-def test_the_limit_rises_at_the_threshold():
-    assert bank.withdraw_check(249_999, 0, None, S, NOW)["cap"] == 25_000
-    assert bank.withdraw_check(250_000, 0, None, S, NOW)["cap"] == 200_000
+def test_over_the_threshold_you_can_take_half_the_bank_in_thousands():
+    cap = lambda b: bank.withdraw_check(b, 0, None, None, S, NOW)["cap"]
+    assert cap(199_999) == 25_000                                        # under £2,000: the usual £250
+    assert (cap(200_000), cap(350_000), cap(400_000), cap(670_000)) == (100_000, 100_000, 200_000, 300_000)
+    assert bank.withdraw_check(200_000, 0, None, None, S, NOW)["big"]
+    assert not bank.withdraw_check(199_999, 0, None, None, S, NOW)["big"]
+
+
+def test_the_bigger_withdrawal_is_once_an_hour_with_the_usual_limit_between():
+    c = bank.withdraw_check(500_000, 0, NOW, NOW - 10 * 60, S, NOW)       # a bigger one ten minutes ago
+    assert c["can"] and c["cap"] == 25_000 and not c["big"] and c["big_wait"] == 50 * 60
+    assert bank.withdraw_problem(25_000, c) is None
+    assert bank.withdraw_problem(100_000, c) == "£250 at most for 50 more min."
+    c = bank.withdraw_check(500_000, 0, NOW, NOW - 60 * 60, S, NOW)       # an hour on
+    assert c["big"] and c["cap"] == 200_000 and c["big_wait"] == 0
+    assert bank.withdraw_check(100_000, 0, None, NOW - 60, S, NOW)["big_wait"] == 0   # under the threshold: no wait shown
 
 
 def test_overdrawn_waits_between_withdrawals_but_the_first_dip_is_allowed():
-    assert bank.withdraw_check(10_000, 0, NOW - 5, S, NOW)["can"]        # in credit: no wait, even just after one
-    c = bank.withdraw_check(-15_000, 0, NOW - 60, S, NOW)                  # overdrawn a minute after the last one
+    assert bank.withdraw_check(10_000, 0, NOW - 5, None, S, NOW)["can"]        # in credit: no wait, even just after one
+    c = bank.withdraw_check(-15_000, 0, NOW - 60, None, S, NOW)                  # overdrawn a minute after the last one
     assert not c["can"] and c["why"] == "overdrawn" and c["wait"] == 29 * 60
-    assert bank.withdraw_check(-15_000, 0, NOW - 30 * 60, S, NOW)["can"]   # the wait's over
-    assert bank.withdraw_check(-15_000, 0, None, S, NOW)["can"]            # overdrawn by the admin, never withdrawn
+    assert bank.withdraw_check(-15_000, 0, NOW - 30 * 60, None, S, NOW)["can"]   # the wait's over
+    assert bank.withdraw_check(-15_000, 0, None, None, S, NOW)["can"]            # overdrawn by the admin, never withdrawn
 
 
 def test_withdrawals_come_in_fifty_pound_notes_up_to_the_limit():
-    ok = bank.withdraw_check(100_000, 0, None, S, NOW)
+    ok = bank.withdraw_check(100_000, 0, None, None, S, NOW)
     assert bank.withdraw_problem(25_000, ok) is None
     assert bank.withdraw_problem(12_000, ok) == "Can't pay £120. Try £100."
     assert bank.withdraw_problem(30_000, ok) == "The most you can take is £250."
@@ -54,8 +67,8 @@ def test_withdrawals_come_in_fifty_pound_notes_up_to_the_limit():
 
 
 def test_settings_are_checked():
-    assert bank.clean_settings({"high_cap": 1500, "cooldown_min": 0}) == {"high_cap": 1500, "cooldown_min": 0}
-    for bad in ({"low_cap": 120}, {"low_cap": 0}, {"start_hand": -1}, {"threshold": 2.5}, {"cooldown_min": "30"}):
+    assert bank.clean_settings({"big_step": 1500, "cooldown_min": 0}) == {"big_step": 1500, "cooldown_min": 0}
+    for bad in ({"low_cap": 120}, {"low_cap": 0}, {"big_step": 120}, {"big_wait_min": -1}, {"start_hand": -1}, {"threshold": 2.5}, {"cooldown_min": "30"}):
         with pytest.raises(ValueError):
             bank.clean_settings(bad)
 
@@ -63,7 +76,7 @@ def test_settings_are_checked():
 # ------------------------------------------------------------------ the store
 def test_a_new_player_starts_with_the_bank_and_nothing_in_hand(store):
     p = store.create_player()
-    assert (p.balance, p.bank, p.last_withdraw_at) == (0, STARTING_BANK, None)
+    assert (p.balance, p.bank, p.last_withdraw_at, p.last_big_at) == (0, STARTING_BANK, None, None)
     assert reconciles(store, p.id)
 
 
@@ -75,8 +88,11 @@ def test_transfers_move_money_and_the_bank_can_go_overdrawn(store):
     assert store.bank(p.id) == (-10_000, NOW)   # (a deposit doesn't restart the wait)
     with pytest.raises(InsufficientFunds):
         store.transfer(p.id, -20_001, NOW)
+    assert store.last_big_at(p.id) is None
+    store.transfer(p.id, 100_000, NOW + 20, big=True)
+    assert store.last_big_at(p.id) == NOW + 20
     assert reconciles(store, p.id)
-    assert [h["kind"] for h in store.atm_history(p.id)] == ["deposit", "withdraw"]
+    assert [h["kind"] for h in store.atm_history(p.id)] == ["withdraw", "deposit", "withdraw"]
 
 
 def test_existing_players_keep_their_balance_as_cash_and_get_the_starting_bank(tmp_path):
@@ -123,7 +139,7 @@ def test_the_atm(client, monkeypatch):
         ws.send_json({"type": "move", "x": 400, "y": 120, "dir": "up", "anim": "idle"})
         ws.send_json({"type": "atm_open"})
         atm = recv_until(ws, "atm")
-        assert (atm["bank"], atm["can"], atm["cap"], atm["threshold"], atm["history"]) == (100_000, True, 25_000, 250_000, [])
+        assert (atm["bank"], atm["can"], atm["cap"], atm["threshold"], atm["history"]) == (100_000, True, 25_000, 200_000, [])
         ws.send_json({"type": "atm_withdraw", "amount": 12_000})
         assert recv_until(ws, "atm")["error"] == "Can't pay £120. Try £100."
         ws.send_json({"type": "atm_withdraw", "amount": 25_000})
@@ -140,8 +156,27 @@ def test_the_atm(client, monkeypatch):
         assert recv_until(ws, "error")["message"] == "Unknown message type: top_up"
 
 
+def test_the_bigger_withdrawal_over_the_socket(client, monkeypatch):
+    monkeypatch.setattr(bank, "atms", lambda: [(400.0, 100.0)])
+    client.put("/api/bank-settings", json={"start_hand": 0, "start_bank": 5000})
+    with client.websocket_connect("/ws") as ws:
+        join(ws)
+        ws.send_json({"type": "move", "x": 400, "y": 120, "dir": "up", "anim": "idle"})
+        ws.send_json({"type": "atm_open"})
+        atm = recv_until(ws, "atm")
+        assert (atm["cap"], atm["big"], atm["big_wait_min"]) == (200_000, True, 60)
+        ws.send_json({"type": "atm_withdraw", "amount": 200_000})
+        atm = recv_until(ws, "atm")
+        assert atm["done"]["amount"] == 200_000 and atm["bank"] == 300_000
+        ws.send_json({"type": "atm_deposit", "amount": 200_000})   # back under the cash-in-hand limit
+        atm = recv_until(ws, "atm")
+        assert (atm["cap"], atm["big"], atm["big_wait"]) == (25_000, False, 3600)
+        ws.send_json({"type": "atm_withdraw", "amount": 100_000})
+        assert recv_until(ws, "atm")["error"] == "£250 at most for 60 more min."
+
+
 def test_bank_settings_api(client):
-    assert client.get("/api/bank-settings").json()["threshold"] == 2500
-    r = client.put("/api/bank-settings", json={"high_cap": 1500})
-    assert r.status_code == 200 and r.json()["high_cap"] == 1500
+    assert client.get("/api/bank-settings").json()["threshold"] == 2000
+    r = client.put("/api/bank-settings", json={"big_wait_min": 90})
+    assert r.status_code == 200 and r.json()["big_wait_min"] == 90
     assert client.put("/api/bank-settings", json={"low_cap": 75}).status_code == 400

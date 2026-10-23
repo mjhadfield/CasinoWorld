@@ -259,8 +259,9 @@ sections:
   from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API
   (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`). **Bank**: what new
   players start with (bank and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
-  the most a withdrawal can be either side of a bank threshold (multiples of £50: it pays in £50 notes), and the wait
-  between withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank.
+  the most a withdrawal can be (a multiple of £50: it pays in £50 notes), the bank at which one withdrawal per wait
+  may be up to half the bank rounded down to a step (£2,000, every 60 min, to £1,000), and the wait between
+  withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank.
 
 ## Money
 Each player has cash in hand (their `balance`: what they bet with, shown top left) and a bank balance, which can go

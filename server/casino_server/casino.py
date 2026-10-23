@@ -433,17 +433,16 @@ class Casino:
         amount = msg.get("amount")
         error = done = None
         if msg["type"] != "atm_open":
-            balance, (bank_now, last) = self.store.balance(pid), self.store.bank(pid)
             if msg["type"] == "atm_withdraw":
-                error = bank.withdraw_problem(amount, bank.withdraw_check(bank_now, balance, last, s, self.wall()))
+                error = bank.withdraw_problem(amount, self._withdraw_check(pid, s))
             elif not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
                 error = "Enter an amount."
-            elif amount > balance:
+            elif amount > self.store.balance(pid):
                 error = "You're not holding that much."
             if error is None:
                 to_hand = amount if msg["type"] == "atm_withdraw" else -amount
                 try:
-                    self.store.transfer(pid, to_hand, self.wall())
+                    self.store.transfer(pid, to_hand, self.wall(), big=to_hand > s["low_cap"] * 100)
                 except InsufficientFunds:
                     error = "You're not holding that much."
                 else:
@@ -451,9 +450,14 @@ class Casino:
                     self.send_wallet(session)
         session.push(self._atm_state(pid, s) | ({"done": done} if done else {}) | ({"error": error} if error else {}))
 
+    def _withdraw_check(self, pid: int, s: dict) -> dict:
+        bank_now, last = self.store.bank(pid)
+        return bank.withdraw_check(bank_now, self.store.balance(pid), last,
+                                   self.store.last_big_at(pid), s, self.wall())
+
     def _atm_state(self, pid: int, s: dict) -> dict:
-        balance, (bank_now, last) = self.store.balance(pid), self.store.bank(pid)
-        return {"type": "atm", "bank": bank_now, **bank.withdraw_check(bank_now, balance, last, s, self.wall()),
+        return {"type": "atm", "bank": self.store.bank(pid)[0], **self._withdraw_check(pid, s),
                 "threshold": s["threshold"] * 100, "hand_under": s["hand_under"] * 100, "cooldown_min": s["cooldown_min"],
+                "big_wait_min": s["big_wait_min"],
                 "history": [{"kind": h["kind"], "amount": h["amount"], "t": datetime.fromisoformat(h["at"]).timestamp()}
                             for h in self.store.atm_history(pid)]}

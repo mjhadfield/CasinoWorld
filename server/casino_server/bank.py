@@ -3,9 +3,11 @@ The bank and the lobby's ATM: what a player may withdraw and when, the admin pag
 ATMs are on the floor.
 
 A player plays with their cash in hand; the ATM moves money between that and their bank balance (Store.transfer).
-Withdrawals come in £50 notes, only while you hold less than `hand_under`, at most `low_cap` a time (`high_cap` once
-the bank is at `threshold` or more). The bank may go overdrawn without limit, but while it is you can withdraw only
-once every `cooldown_min` minutes (the withdrawal that first takes it overdrawn is allowed, and starts the clock).
+Withdrawals come in £50 notes, only while you hold less than `hand_under`, at most `low_cap` a time. Once the bank is
+at `threshold` or more, one withdrawal every `big_wait_min` minutes may be bigger: up to half the bank, rounded down to
+a whole `big_step` (£2,000 → £1,000, £3,500 → £1,000, £6,700 → £3,000); in between, the usual `low_cap` applies. A
+bigger one is any withdrawal over `low_cap`. The bank may go overdrawn without limit, but while it is you can withdraw
+only once every `cooldown_min` minutes (the withdrawal that first takes it overdrawn is allowed, and starts the clock).
 Deposits are any amount you hold. Settings are whole pounds (minutes for the wait), kept in meta `bank_settings`.
 
 An ATM is any library asset with `"interact": "atm"` (the Modern lobby's cash machine); you use one on foot,
@@ -22,8 +24,9 @@ DEFAULT_SETTINGS = {
     "start_hand": 0,        # and cash in hand, £
     "hand_under": 500,      # withdrawals only while holding less than this, £
     "low_cap": 250,         # the most a withdrawal, £...
-    "threshold": 2500,      # ...while the bank's under this, £
-    "high_cap": 2000,       # the most a withdrawal at or over it, £
+    "threshold": 2000,      # ...unless the bank's at least this, £, when one withdrawal...
+    "big_wait_min": 60,     # ...every this many minutes may be up to half the bank...
+    "big_step": 1000,       # ...rounded down to a multiple of this, £
     "cooldown_min": 30,     # overdrawn: minutes between withdrawals
 }
 _LIMITS = {   # key -> (lowest, highest, what it is)
@@ -32,7 +35,8 @@ _LIMITS = {   # key -> (lowest, highest, what it is)
     "hand_under": (0, 1_000_000, "The cash-in-hand limit"),
     "low_cap": (50, 1_000_000, "A withdrawal limit"),
     "threshold": (0, 10_000_000, "The threshold"),
-    "high_cap": (50, 1_000_000, "A withdrawal limit"),
+    "big_wait_min": (0, 7 * 24 * 60, "The wait between bigger withdrawals"),
+    "big_step": (50, 1_000_000, "The bigger withdrawal's rounding"),
     "cooldown_min": (0, 7 * 24 * 60, "The overdrawn wait"),
 }
 
@@ -50,23 +54,34 @@ def clean_settings(data: dict) -> dict:
         v = data[key]
         if isinstance(v, bool) or not isinstance(v, (int, float)) or v != int(v) or not lo <= v <= hi:
             raise ValueError(f"{what} is a whole number from {lo:,} to {hi:,}.")
-        if key in ("low_cap", "high_cap") and v % 50:
-            raise ValueError("Withdrawal limits are in £50 notes: a multiple of £50.")
+        if key in ("low_cap", "big_step") and v % 50:
+            raise ValueError("Withdrawals are in £50 notes: the limit and rounding are multiples of £50.")
         out[key] = int(v)
     return out
 
 
-def withdraw_check(bank: int, hand: int, last_withdraw_at: float | None, s: dict, now: float) -> dict:
+def withdraw_check(bank: int, hand: int, last_withdraw_at: float | None, last_big_at: float | None, s: dict,
+                   now: float) -> dict:
     """Whether a withdrawal's allowed now: {"can", "why" ("" | "carrying" | "overdrawn"), "cap" (pence), "wait"
-    (seconds until the next one, when overdrawn)}."""
-    cap = (s["high_cap"] if bank >= s["threshold"] * 100 else s["low_cap"]) * 100
+    (seconds until the next one, when overdrawn), "big" (cap is the bigger limit), "big_wait" (seconds until it is
+    again, when the bank's over the threshold but the last bigger one was too recent)}."""
+    cap, big, big_wait = s["low_cap"] * 100, False, 0
+    if bank >= s["threshold"] * 100:
+        step = s["big_step"] * 100
+        half = bank // 2 // step * step
+        left = 0 if last_big_at is None else last_big_at + s["big_wait_min"] * 60 - now
+        if half > cap and left > 0:
+            big_wait = math.ceil(left)
+        elif half > cap:
+            cap, big = half, True
+    out = {"can": True, "why": "", "cap": cap, "wait": 0, "big": big, "big_wait": big_wait}
     if hand >= s["hand_under"] * 100:
-        return {"can": False, "why": "carrying", "cap": cap, "wait": 0}
+        return out | {"can": False, "why": "carrying"}
     if bank < 0 and last_withdraw_at is not None:
         wait = last_withdraw_at + s["cooldown_min"] * 60 - now
         if wait > 0:
-            return {"can": False, "why": "overdrawn", "cap": cap, "wait": math.ceil(wait)}
-    return {"can": True, "why": "", "cap": cap, "wait": 0}
+            return out | {"can": False, "why": "overdrawn", "wait": math.ceil(wait)}
+    return out
 
 
 def withdraw_problem(amount, check: dict) -> str | None:
@@ -79,6 +94,8 @@ def withdraw_problem(amount, check: dict) -> str | None:
         nearest = max(NOTE, min(check["cap"], round(amount / NOTE) * NOTE))
         return f"Can't pay £{amount / 100:,.0f}. Try £{nearest // 100:,}."
     if amount > check["cap"]:
+        if check["big_wait"]:
+            return f"£{check['cap'] // 100:,} at most for {math.ceil(check['big_wait'] / 60)} more min."
         return f"The most you can take is £{check['cap'] // 100:,}."
     return None
 

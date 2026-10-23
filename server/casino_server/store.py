@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS players (
     balance    INTEGER NOT NULL,           -- cash in hand
     created_at TEXT    NOT NULL,
     bank       INTEGER NOT NULL DEFAULT 0, -- may be negative (overdrawn)
-    last_withdraw_at REAL                  -- unix time of the last ATM withdrawal
+    last_withdraw_at REAL,                 -- unix time of the last ATM withdrawal
+    last_big_at      REAL                  -- and of the last one over the usual limit (bank.py)
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY,
@@ -103,6 +104,7 @@ class Player:
     balance: int                  # cash in hand
     bank: int = 0
     last_withdraw_at: float | None = None
+    last_big_at: float | None = None
 
 
 def _now() -> str:
@@ -123,6 +125,8 @@ class Store:
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
         self._add_bank()
+        if "last_big_at" not in {r["name"] for r in self.db.execute("PRAGMA table_info(players)")}:
+            self.db.execute("ALTER TABLE players ADD COLUMN last_big_at REAL")
         self.db.commit()
 
     def _add_bank(self):
@@ -144,7 +148,8 @@ class Store:
 
     # ------------------------------------------------------------------ players
     def player_by_token(self, token: str) -> Player | None:
-        row = self.db.execute("SELECT id, token, name, balance, bank, last_withdraw_at FROM players WHERE token = ?",
+        row = self.db.execute("SELECT id, token, name, balance, bank, last_withdraw_at, last_big_at FROM players"
+                              " WHERE token = ?",
                               (token,)).fetchone()
         return Player(**dict(row)) if row else None
 
@@ -176,6 +181,10 @@ class Store:
         row = self.db.execute("SELECT bank, last_withdraw_at FROM players WHERE id = ?", (player_id,)).fetchone()
         return row[0], row[1]
 
+    def last_big_at(self, player_id: int) -> float | None:
+        """Unix time of the last withdrawal over the usual limit (bank.py), or None."""
+        return self.db.execute("SELECT last_big_at FROM players WHERE id = ?", (player_id,)).fetchone()[0]
+
     def adjust(self, player_id: int, amount: int, kind: str, game: str | None = None, note: str | None = None) -> int:
         """Changes cash in hand by `amount` (signed pence) and records it. Raises
         InsufficientFunds rather than ever going below zero. Returns the new balance."""
@@ -189,9 +198,9 @@ class Store:
                 (player_id, _now(), kind, amount, balance, game, note))
         return balance
 
-    def transfer(self, player_id: int, to_hand: int, now: float) -> tuple[int, int]:
-        """The ATM: moves `to_hand` pence from the bank to cash in hand (a withdrawal, which notes the time), or the
-        other way when it's negative (a deposit). The bank may go overdrawn; cash in hand can't go below zero
+    def transfer(self, player_id: int, to_hand: int, now: float, big: bool = False) -> tuple[int, int]:
+        """The ATM: moves `to_hand` pence from the bank to cash in hand (a withdrawal, which notes the time, and as
+        the last bigger one when `big`), or the other way when it's negative (a deposit). The bank may go overdrawn; cash in hand can't go below zero
         (InsufficientFunds). The rules on what's allowed are bank.py's. Returns (bank, cash in hand)."""
         kind = "withdraw" if to_hand > 0 else "deposit"
         with self.db:
@@ -202,6 +211,8 @@ class Store:
             self.db.execute("UPDATE players SET bank = ?, balance = ? WHERE id = ?", (bank, hand, player_id))
             if kind == "withdraw":
                 self.db.execute("UPDATE players SET last_withdraw_at = ? WHERE id = ?", (now, player_id))
+            if big:
+                self.db.execute("UPDATE players SET last_big_at = ? WHERE id = ?", (now, player_id))
             at = _now()
             for account, amount, after in (("bank", -to_hand, bank), ("hand", to_hand, hand)):
                 self.db.execute(

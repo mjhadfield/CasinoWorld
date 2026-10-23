@@ -42,7 +42,7 @@ var _msg := ""              # an error on the screen
 var _done := {}             # {kind, amount} for the done screen
 var _notes := 0             # notes in the cash slot
 var _notes_at := -1.0       # when they started coming out
-var _refreshed := false     # asked again once the overdrawn wait ran out
+var _refreshed := false     # asked again once the overdrawn (or bigger-withdrawal) wait ran out
 var _hover := ""
 var _scale := 1.0
 var _origin := Vector2.ZERO
@@ -108,7 +108,9 @@ func _now() -> float:
 
 
 func _process(_delta: float) -> void:
-	if _screen == "nowd" and str(_st.get("why", "")) == "overdrawn" and _wait_left() <= 0.0 and not _refreshed:
+	var overdrawn_up := _screen == "nowd" and str(_st.get("why", "")) == "overdrawn" and _wait_left() <= 0.0
+	var big_up := _screen in ["withdraw", "w_other"] and int(_st.get("big_wait", 0)) > 0 and _big_left() <= 0.0
+	if (overdrawn_up or big_up) and not _refreshed:
 		_refreshed = true
 		Net.send("atm_open")
 	queue_redraw()
@@ -116,6 +118,11 @@ func _process(_delta: float) -> void:
 
 func _wait_left() -> float:
 	return maxf(0.0, float(_st.get("wait", 0)) - (_now() - _st_at))
+
+
+## Seconds until the bigger withdrawal's back (the bank's over the threshold but the last one was too recent).
+func _big_left() -> float:
+	return maxf(0.0, float(_st.get("big_wait", 0)) - (_now() - _st_at))
 
 
 # ------------------------------------------------------------------ the screens
@@ -140,8 +147,12 @@ func _screen_def() -> Dictionary:
 		"withdraw":
 			d.title = "Withdraw cash"
 			d.sub = "Up to %s, %s" % [_money(cap), _cap_reason()]
-			d.L = [_pick("w", 5000, cap), _pick("w", 10000, cap), null, back]
-			d.R = [_pick("w", 25000, cap), _pick("w", 50000, cap), null, _opt("Other amount", "w_other")]
+			if _st.get("big", false):   # over the threshold: one bigger withdrawal an hour
+				d.L = [_pick("w", 100000, cap), null, null, back]
+				d.R = [null, null, null, _opt("Other amount", "w_other")]
+			else:
+				d.L = [_pick("w", 5000, cap), _pick("w", 10000, cap), null, back]
+				d.R = [_pick("w", 25000, cap), _pick("w", 50000, cap), null, _opt("Other amount", "w_other")]
 			if _msg != "":
 				d.mid_note = _msg
 		"nowd":
@@ -204,8 +215,13 @@ func _pick(kind: String, pence: int, most: int) -> Dictionary:
 
 
 func _cap_reason() -> String:
-	var t := int(_st.get("threshold", 0))
-	return ("bank %s or more" if int(_st.get("bank", 0)) >= t else "bank under %s") % _money(t)
+	if _st.get("big", false):
+		var mins := int(_st.get("big_wait_min", 0))
+		return "once every %s" % ("hour" if mins == 60 else "%d min" % mins)
+	var left := ceili(_big_left())
+	if left > 0:
+		return "more in %d:%02d" % [left / 60, left % 60]
+	return "bank under %s" % _money(int(_st.get("threshold", 0)))
 
 
 func _money(pence: int) -> String:

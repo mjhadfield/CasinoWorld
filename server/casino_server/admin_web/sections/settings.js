@@ -47,10 +47,11 @@ export function init(h) {
           <label class="field"><span>Withdraw only while holding under (£)</span><input type="number" id="b-hand_under" min="0" step="1"></label>
           <label class="field"><span>Overdrawn: wait between withdrawals (min)</span><input type="number" id="b-cooldown_min" min="0" step="1"></label>
           <label class="field"><span>Withdrawal limit (£)</span><input type="number" id="b-low_cap" min="50" step="50"></label>
-          <label class="field"><span>Bank threshold (£)</span><input type="number" id="b-threshold" min="0" step="50"></label>
-          <label class="field"><span>Limit at or over the threshold (£)</span><input type="number" id="b-high_cap" min="50" step="50"></label>
+          <label class="field"><span>Bigger withdrawals from a bank of (£)</span><input type="number" id="b-threshold" min="0" step="50"></label>
+          <label class="field"><span>Bigger: wait between them (min)</span><input type="number" id="b-big_wait_min" min="0" step="1"></label>
+          <label class="field"><span>Bigger: half the bank, rounded down to (£)</span><input type="number" id="b-big_step" min="50" step="50"></label>
         </div>
-        <p class="hint">The lobby's ATM moves money between a player's bank and the cash they play with. Withdrawals come in £50 notes, so the limits are multiples of £50. The bank can go overdrawn without limit; the wait applies only while it is. Changes apply to the next use of the ATM, and the starting amounts to players who arrive from now on.</p>
+        <p class="hint">The lobby's ATM moves money between a player's bank and the cash they play with. Withdrawals come in £50 notes, so the limit and rounding are multiples of £50. With a bank at the threshold or more, one withdrawal per wait may be up to half the bank, rounded down (£2,000 → £1,000, £6,700 → £3,000); between them the usual limit applies. The bank can go overdrawn without limit; the wait applies only while it is. Changes apply to the next use of the ATM, and the starting amounts to players who arrive from now on.</p>
       </div>
     </form>
   </div>`;
@@ -91,7 +92,7 @@ export function init(h) {
   });
 }
 
-const BANK = ["start_bank", "start_hand", "hand_under", "cooldown_min", "low_cap", "threshold", "high_cap"];
+const BANK = ["start_bank", "start_hand", "hand_under", "cooldown_min", "low_cap", "threshold", "big_wait_min", "big_step"];
 const SEATING = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
 const NUMBERS = ["back", "size", "sit_speed"];
 
