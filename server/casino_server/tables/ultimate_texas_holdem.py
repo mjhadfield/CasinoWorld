@@ -222,7 +222,6 @@ class UltimateTexasHoldemMachine(TableMachine):
         self.deadline = now + duration
         events.append({"kind": "bets_closed", "seats": sorted(taken), "jackpots": jackpots,
                        "_paid": [self.seats[i].participant for i in sorted(taken)]})
-        events += say(self.lines.say("table", "no_more_bets"))
         events.append({"kind": "dealt", "order": order, "interval": t.deal_card, "hand_pause": t.deal_hand_pause,
                        "_private": {i: {"cards": [c.code for c in h.cards], "hand": self._seen_label(h)}
                                     for i, h in self.round.items()}})

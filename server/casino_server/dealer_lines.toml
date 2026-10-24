@@ -11,20 +11,21 @@
 # ---------------------------------------------------------------- table calls
 [table]
 place_bets = ["Place your bets.", "Place your bets, please.", "New hand -- place your bets."]
+# Roulette only: the card games deal straight away without calling it.
 no_more_bets = ["No more bets.", "No more bets, please.", "Bets are closed."]
 
 # ---------------------------------------------------------------- dealer's own hand
 [dealer]
 qualifies = ["Dealer has {dealer}.", "Dealer shows {dealer}."]
-no_qualify = ["Dealer has {dealer} -- doesn't qualify.", "{dealer} -- dealer doesn't qualify."]
+no_qualify = ["No qualify, play pushes.", "No hand, play pushes.", "Nada, play pushes.", "Nothin', play pushes."]
 
 # ---------------------------------------------------------------- each player's hand
 # The announcement, said as their cards are turned over.
 [announce]
 win = ["{hand}, wins.", "{hand} -- winner."]
 lose = ["{hand}, loses.", "{hand} -- loses."]
-push = ["{hand}, push.", "{hand} -- it's a push."]
-no_qualify = ["{hand} -- the Ante pays.", "{hand} -- Ante pays, Play pushes."]
+# A net-0 hand: a push, or winnings that only cover the side bets that lost.
+money_back = ["{hand} -- money back.", "{hand}, money back."]
 prime = ["{colour} -- the Prime pays.", "{colour} -- Prime wins."]
 
 # Sometimes followed by a reaction, by how strong the hand was.
@@ -39,6 +40,13 @@ monster = ["Wow -- what a hand!", "Look at that!", "Get in!", "Incredible, {name
 ordinary = ["Not this time.", "Next time.", "Unlucky.", "Better luck next hand."]
 strong = ["Oof, unlucky.", "That's a shame -- good hand, too.", "Brutal.", "Ouch. Sorry, {name}."]
 
+# When the dealer doesn't qualify every Ante pays whatever the hand, so the hands
+# aren't called: just "Money back." for a net-0 hand, or now and then a word for
+# a bonus hand (Flush or better).
+[no_qualify]
+money_back = ["Money back."]
+bonus = ["Nice hand!", "Very nice!", "Now that's a hand.", "Lovely stuff, {name}.", "Look at that!"]
+
 # How often a reaction follows the announcement (0 = never, 1 = always).
 [chance]
 win_ordinary = 0.35
@@ -46,6 +54,7 @@ win_strong = 0.8
 win_monster = 1.0
 lose_ordinary = 0.3
 lose_strong = 0.9
+no_qualify_bonus = 0.75
 
 # ---------------------------------------------------------------- blackjack
 # Placeholders: {name} the player, {total} the dealer's total, {hand} the

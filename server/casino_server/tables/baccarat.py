@@ -109,7 +109,7 @@ class BaccaratMachine(TableMachine):
         self.deadline = now + self.timings.first_card
         events.append({"kind": "bets_closed", "seats": sorted(taken), "jackpots": [],
                        "_paid": [self.seats[i].participant for i in sorted(taken)]})
-        return events + say(self.lines.say("table", "no_more_bets"))
+        return events
 
     def _next_card(self, now: float) -> list:
         """Turn the next card of the coup; once they're all out, call it."""

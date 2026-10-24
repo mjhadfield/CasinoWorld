@@ -12,8 +12,8 @@ def cards(*codes):
     return [Card.from_code(c) for c in codes]
 
 
-def result(player, dealer, folded=False, prime=0):
-    return tcp.settle_hand(cards(*player), cards(*dealer), tcp.Bets(ante=100, prime=prime), folded)
+def result(player, dealer, folded=False, prime=0, pair_plus=0):
+    return tcp.settle_hand(cards(*player), cards(*dealer), tcp.Bets(ante=100, pair_plus=pair_plus, prime=prime), folded)
 
 
 def custom(tmp_path, text):
@@ -26,9 +26,10 @@ def test_shipped_file_has_every_section():
     lines = DealerLines(LINES_FILE, random.Random(0))
     for section, key in [("table", "place_bets"), ("table", "no_more_bets"), ("dealer", "qualifies"),
                          ("dealer", "no_qualify"), ("announce", "win"), ("announce", "lose"),
-                         ("announce", "push"), ("announce", "no_qualify"), ("announce", "prime"),
+                         ("announce", "money_back"), ("announce", "prime"),
                          ("win", "ordinary"), ("win", "strong"), ("win", "monster"),
-                         ("lose", "ordinary"), ("lose", "strong")]:
+                         ("lose", "ordinary"), ("lose", "strong"), ("no_qualify", "money_back"),
+                         ("no_qualify", "bonus")]:
         assert lines.say(section, key, hand="Straight", name="Mike", dealer="Queen high", colour="All red"), (section, key)
 
 
@@ -43,7 +44,7 @@ def test_announcements_and_reactions_by_strength(tmp_path):
 [announce]
 win = ["{hand}, wins."]
 lose = ["{hand}, loses."]
-no_qualify = ["{hand} -- Ante pays."]
+money_back = ["{hand} -- money back."]
 prime = ["{colour} -- Prime pays."]
 [win]
 ordinary = ["Nice."]
@@ -60,9 +61,27 @@ lose_ordinary = 0.0
     assert lines.announce(result(["7h", "7c", "7d"], ["Qh", "8c", "4d"]), "Mike", False) == "Three of a Kind, wins. Wow, Mike!"
     assert lines.announce(result(["Kh", "Kc", "3d"], ["Ah", "Ac", "4d"]), "Mike", False) == "Pair of Kings, loses. Oof, unlucky."
     assert lines.announce(result(["9h", "5c", "2d"], ["Qh", "8c", "4d"]), "Mike", False) == "9 high, loses."
-    assert lines.announce(result(["9h", "5c", "2d"], ["Jh", "8c", "4d"]), "Mike", False) == "9 high -- Ante pays."
+    assert lines.announce(result(["Kh", "Kc", "3d"], ["Ks", "Kd", "3s"]), "Mike", False) == "Pair of Kings -- money back."
     held = result(["2h", "7d", "9h"], ["Qh", "8c", "3d"], folded=True, prime=100)
     assert lines.announce(held, "Mike", True) == "All red -- Prime pays."
+
+
+def test_a_dealer_that_doesnt_qualify_calls_no_hands(tmp_path):
+    lines = custom(tmp_path, """
+[announce]
+money_back = ["{hand} -- money back."]
+[no_qualify]
+money_back = ["Money back."]
+bonus = ["Nice hand, {name}!"]
+[chance]
+no_qualify_bonus = 1.0
+""")
+    no_qualify = ["Jh", "8c", "4d"]
+    assert lines.announce(result(["9h", "5c", "2d"], no_qualify), "Mike", False) == ""
+    assert lines.announce(result(["Kh", "Kc", "3d"], no_qualify), "Mike", False) == ""
+    assert lines.announce(result(["2s", "7s", "9s"], no_qualify), "Mike", False) == "Nice hand, Mike!"
+    # The Ante's win only covers a losing Pair Plus.
+    assert lines.announce(result(["9h", "5c", "2d"], no_qualify, pair_plus=100), "Mike", False) == "Money back."
 
 
 def test_lines_needing_a_missing_value_are_skipped(tmp_path):

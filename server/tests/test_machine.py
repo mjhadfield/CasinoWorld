@@ -93,7 +93,7 @@ def test_full_round_flow_order_and_money():
     for s in (0, 2, 4):
         m.ready(s, 0)
     events = m.tick(1)
-    assert kinds(events) == ["bets_closed", "say", "dealt", "decisions_open"]
+    assert kinds(events) == ["bets_closed", "dealt", "decisions_open"]
     dealt = find(events, "dealt")[0]
     # three cards at a time: all of seat 0's hand, then seat 2's, then seat 4's, the dealer's last
     assert dealt["order"][:6] == [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]]

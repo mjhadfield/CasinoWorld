@@ -4,7 +4,7 @@ from a real 8-deck shoe that's shuffled when the cut card comes out.
 
   betting     Seated players place chips on the Blackjack circle and the side
               bets. Countdown from the first bet; closes early once every human
-              is Ready. "No more bets": the Jackpot lights go solid and those
+              is Ready. Bets close: the Jackpot lights go solid and those
               chips are lifted, as at Three Card Poker.
   dealing     One card face up to each box from first base, the dealer's up-
               card, a second card to each box, then the dealer's hole card face
@@ -267,7 +267,6 @@ class BlackjackMachine(TableMachine):
         self.deadline = now + duration
         events.append({"kind": "bets_closed", "seats": seats, "jackpots": jackpots,
                        "_paid": [self.seats[i].participant for i in seats]})
-        events += say(self.lines.say("table", "no_more_bets"))
         events.append({"kind": "dealt", "order": order, "interval": self.timings.deal_card,
                        "cards": {str(i): _codes(cards[i]) for i in seats},
                        "labels": {str(i): self.round[i].hands[0].label() for i in seats},

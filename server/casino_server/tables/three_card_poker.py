@@ -3,7 +3,7 @@ Three Card Poker table: a timed state machine that runs a real table's flow.
 
   betting   Seated players place chips on their spots (everyone sees them go
             down). A countdown starts at the first bet and closes early once
-            every human at the table is Ready. "No more bets."
+            every human at the table is Ready.
   dealing   Upfront bets are taken; three cards to each seat in turn from
             first base, then three face down to the dealer.
   deciding  Everyone in the hand decides at once: Play (matching the Ante) or
@@ -235,7 +235,6 @@ class ThreeCardPokerMachine(TableMachine):
         self.deadline = now + duration
         events.append({"kind": "bets_closed", "seats": sorted(playing), "jackpots": jackpots,
                        "_paid": [self.seats[i].participant for i in sorted(playing)]})
-        events += _say(self.lines.say("table", "no_more_bets"))
         events.append({
             "kind": "dealt", "order": order, "interval": self.timings.deal_card,
             "hand_pause": self.timings.deal_hand_pause,

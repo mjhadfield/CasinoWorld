@@ -210,7 +210,6 @@ class PaiGowMachine(TableMachine):
         self.deadline = now + duration
         events.append({"kind": "bets_closed", "seats": seats, "jackpots": jackpots,
                        "_paid": [self.seats[i].participant for i in seats]})
-        events += say(self.lines.say("table", "no_more_bets"))
         dealt = {"kind": "dealt", "start": self.start, "order": order, "interval": self.timings.deal_hand,
                  "_private": {i: {"cards": _codes(h.cards)} for i, h in self.round.items()}}
         if self.FACE_UP:

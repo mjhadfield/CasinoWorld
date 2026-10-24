@@ -77,7 +77,7 @@ up, and turn back when they stand.
   you sit the hands out. Putting a chip down, Repeat Bet or ticking Auto rebet turns it off. (Not at Roulette,
   which spins anyway, or Craps.)
 - **The £1 Jackpot** spot (at most tables) is a clear plastic disc with a light under it. The light flashes
-  while your bet is on it. At "No more bets" the dealer locks the Jackpot bets in: the lights go solid red
+  while your bet is on it. When betting closes the dealer locks the Jackpot bets in: the lights go solid red
   and the chips are lifted off, leaving the light glowing until you're settled. One progressive jackpot is
   shared by every table and everyone.
 - **Sitting down mid-hand:** at every table except Roulette and Craps, if a hand is already being played

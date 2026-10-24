@@ -27,10 +27,13 @@ for you and you decide it. Out of time folds whichever is still undecided. Stand
 ## Settling, one step at a time
 
 1. The dealer takes the folded hands and their bets.
-2. The dealer turns their own cards over and announces them.
+2. The dealer turns their own cards over and announces them ("Dealer has Pair of 6s."). If they don't
+   qualify, they say so ("No qualify, play pushes.") and call no player hands after it, since every Ante pays
+   anyway: only "Money back." for a hand that nets nothing, and sometimes "Nice hand!" for a Flush or better.
 3. The dealer settles each remaining player in turn, left to right on screen (third base to first). The
    player's cards slide out from under the bet and are turned over, and the dealer announces the hand
-   ("Pair of Kings, wins."). After a pause, the losing bets are swept, the winnings are placed beside the
+   ("Pair of Kings, wins."), or "Pair of Kings -- money back." when it nets nothing (a push, or winnings that
+   only cover the side bets that lost). After a pause, the losing bets are swept, the winnings are placed beside the
    stakes, and the cards are cleared away. There's another pause before the next player.
 4. Once everyone is settled, the winnings go back to the players and the next round begins.
 

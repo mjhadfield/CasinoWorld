@@ -5,7 +5,9 @@ lines; changes are picked up on the next line said, no restart needed).
 DealerLines.say(section, key, **values) picks a random line from a list and
 fills in its placeholders, skipping lines that need a value it wasn't given.
 announce() builds what the dealer says as a player's hand is turned over:
-"Pair of Kings, wins." plus, sometimes, a reaction by how strong the hand was.
+"Pair of Kings, wins." plus, sometimes, a reaction by how strong the hand was;
+"Pair of Kings -- money back." when it nets nothing; and, when the dealer
+doesn't qualify, only "Money back." or a word for a Flush or better.
 """
 import random
 import tomllib
@@ -69,15 +71,18 @@ class DealerLines:
             colour = "All red" if result.player_cards[0].color == "red" else "All black"
             return self.say("announce", "prime", hand=hand, name=name, colour=colour)
         rank = result.player_eval[0]
+        if result.outcome == "dealer_no_qualify":  # every Ante pays, so the hand isn't called
+            if result.net == 0:
+                return self.say("no_qualify", "money_back", name=name)
+            return self._react("", "no_qualify", "bonus", name) if rank >= FLUSH else ""
+        if result.outcome == "push" or result.net == 0:  # a push, or the side bets ate the winnings
+            return self.say("announce", "money_back", hand=hand, name=name)
         if result.outcome == "win":
             text = self.say("announce", "win", hand=hand, name=name)
             tier = "monster" if rank >= THREE_OF_A_KIND else "strong" if rank in (STRAIGHT, FLUSH) else "ordinary"
             return self._react(text, "win", tier, name)
-        if result.outcome == "lose":
-            text = self.say("announce", "lose", hand=hand, name=name)
-            return self._react(text, "lose", "strong" if rank >= PAIR else "ordinary", name)
-        key = "no_qualify" if result.outcome == "dealer_no_qualify" else "push"
-        return self.say("announce", key, hand=hand, name=name)
+        text = self.say("announce", "lose", hand=hand, name=name)
+        return self._react(text, "lose", "strong" if rank >= PAIR else "ordinary", name)
 
     def _react(self, text: str, section: str, tier: str, name: str) -> str:
         if self.rng.random() < self.chance(f"{section}_{tier}", 0.0):
