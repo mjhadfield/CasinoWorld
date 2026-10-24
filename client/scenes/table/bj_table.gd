@@ -394,7 +394,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			return 0.7 * d
 		"dealer_done":
 			phase = "settling"
-			return 0.3 * d
+			return (0.6 if ev.get("bust", false) else 0.3) * d  # a bust: let "Everyone's a winner!" land first
 		"settle_seat":
 			return _settle(ev, d)
 		"shuffle":
@@ -594,11 +594,14 @@ func _settle(ev: Dictionary, d: float) -> float:
 	var pause := float(ev.get("pause", 0.51)) * d
 	var hands := _hands_for(seat)
 	var n := hands.size()
-	if ev.has("sweep"):  # a Dealer Blackjack beat everyone: swept straight in, box after box
+	if ev.has("sweep"):  # a Dealer Blackjack beat everyone or the dealer bust: hand after hand, no checking
+		var gap := float(ev.sweep) * d
+		var k := 0
 		for entry in ev.hands:
 			if int(entry.hand) < n:
-				_settle_hand(seat, int(entry.hand), n, entry, d)
-		_after(0.15 * d).timeout.connect(func():
+				_after(k * gap).timeout.connect(_settle_hand.bind(seat, int(entry.hand), n, entry, d))
+				k += 1
+		_after(maxf(k - 1, 0) * gap + 0.15 * d).timeout.connect(func():
 			var k := 0
 			for hand in hands:
 				for card in hand.cards:
@@ -606,7 +609,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 					k += 1
 				hand.cards = []
 				hand.gone = true)
-		return float(ev.sweep) * d
+		return k * gap
 	var t := 0.19 * d
 	if str(ev.get("say", "")) != "":
 		_after(t).timeout.connect(dealer.say.bind(ev.say, 2.0 + pause * 2))

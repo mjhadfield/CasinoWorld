@@ -56,7 +56,9 @@ no_blackjack = ["No Blackjack -- play on.", "Dealer doesn't have it.", "Nothing 
 dealer_blackjack = ["Dealer has Blackjack.", "Blackjack for the house, sorry."]
 bust = ["Too many.", "Bust -- unlucky, {name}.", "Over -- sorry, {name}.", "Bust."]
 dealer_total = ["Dealer has {total}.", "Dealer stands on {total}."]
-dealer_bust = ["Dealer busts!", "Too many for the dealer -- everyone still in wins!", "Dealer's over."]
+dealer_bust = ["Dealer busts -- everyone's a winner!", "Everyone's a winner!", "Dealer busts!",
+               "Too many for the dealer -- winners all round!", "Dealer's over -- paying everyone still in.",
+               "Bust! Everyone gets paid."]
 settle_win = ["{hand}, winner.", "{hand} wins.", "Winner -- nicely done, {name}."]
 settle_blackjack = ["Blackjack! Pays three to two.", "Blackjack -- lovely, {name}!"]
 settle_push = ["Push.", "{hand}, push.", "Stand-off."]

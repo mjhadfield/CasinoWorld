@@ -28,7 +28,9 @@ from a real 8-deck shoe that's shuffled when the cut card comes out.
   dealer      The hole card is turned over and the dealer draws to 17, standing
               on all 17s (no draws if every hand has bust).
   settling    Each box in turn, third base back to first: losers swept,
-              pushes left, winners paid beside the stake (Blackjack 3:2).
+              pushes left, winners paid beside the stake (Blackjack 3:2). A
+              dealer bust wins every hand still in, so they're paid one after
+              another in one quick go, with nothing to check.
   clearing    All chips go back to their players; the cards go in the discard
               rack, where they stay until the shoe is shuffled.
   shuffling   Only after a hand in which the cut card came out: the discards
@@ -76,6 +78,7 @@ class Timings:
     settle_base: float = 0.64
     settle_step: float = 0.29
     sweep_gap: float = 0.12       # between the boxes when a Dealer Blackjack sweeps them all
+    pay_gap: float = 0.22         # between the hands when a dealer bust pays everyone still in
     clear: float = 2.4
     shuffle: float = 6.0
 
@@ -563,6 +566,7 @@ class BlackjackMachine(TableMachine):
             events += say(self.lines.say("blackjack", key, total=total))
         self.phase = "settling"
         self._settle_queue = [seat for seat in sorted(self.round, reverse=True) if self.round[seat].live]
+        self._sweep = total > 21  # every hand still in wins: paid one after another, no checking
         return events + self._settle_next(now)
 
     # ------------------------------------------------------------------ settling
@@ -571,11 +575,12 @@ class BlackjackMachine(TableMachine):
             self.phase = "clearing"
             self.deadline = now + self.timings.clear
             return [{"kind": "round_end"}]
-        if self._sweep:  # everyone's lost to a Dealer Blackjack: no need to look at each box
+        if self._sweep:  # a Dealer Blackjack beat everyone, or the dealer bust: no need to look at each box
             seats, self._settle_queue = self._settle_queue, []
             events = [self._settle_seat(seat, now, sweep=True) for seat in seats]
             t = self.timings
-            self.deadline = now + t.sweep_gap * len(seats) + t.settle_base + t.settle_pause
+            hands = sum(len(e["hands"]) for e in events)
+            self.deadline = now + events[0]["sweep"] * hands + t.settle_base + t.settle_pause
             return events
         return [self._settle_seat(self._settle_queue.pop(0), now)]
 
@@ -604,8 +609,9 @@ class BlackjackMachine(TableMachine):
         outcomes = {h["outcome"] for h in hands}
         key = "blackjack" if outcomes == {"Blackjack"} else "win" if outcomes <= {"Win", "Blackjack"} \
             else "push" if outcomes == {"Push"} else "lose" if outcomes == {"Lose"} else "mixed"
-        if sweep:  # the dealer's already announced the Blackjack
-            return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": "", "sweep": t.sweep_gap,
+        if sweep:  # the dealer's already announced the Blackjack or the bust
+            gap = t.pay_gap if total > 21 else t.sweep_gap
+            return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": "", "sweep": gap,
                     "total_returned": returned, "_paid": [box.participant]}
         line = self.lines.say("blackjack", f"settle_{key}", name=box.participant.name,
                               hand=hands[0]["label"] if len(hands) == 1 else f"{len(hands)} hands")
