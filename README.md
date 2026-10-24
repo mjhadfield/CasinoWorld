@@ -411,7 +411,7 @@ admin page's Slot design tab.
     ScrollContainer's rows and its bar.
     `ui_kit` (`UiKit`) is where the HUD's popups get their look: the card, its title, text and caption, its buttons (the betting bar's)
     and the dimmed backdrop. The `ask_panel` (`HUD.ask` and `HUD.confirm_stand`: Play second box?, Stand up anyway?), the Pai Gow
-    `hand_sorter`, the choose-a-seat bar, the paytable and the Master Table's cards are all built from it, so a restyle starts there.
+    `hand_sorter`, the choose-a-seat bar, the paytable and the Master Table's cards are all built from it, so a restyle starts there. Its cards are 87% opaque (the Settings panel stays at 97%).
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
   - `autoload/`: `net` (the socket), `session` (your account's characters, the one you're playing, your balance), `sfx` (`Sfx.play(key)` for your own
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and

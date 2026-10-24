@@ -141,7 +141,7 @@ func _ready() -> void:
 	_clear.pressed.connect(clear_pressed.emit)
 	_tools.add_child(_clear)
 	_auto = BarSwitch.new()
-	_auto.words = "Auto"
+	_auto.words = "Rebet"
 	_auto.tooltip_text = "Put the same bets down every round"
 	_auto.toggled.connect(auto_toggled.emit)
 	_tools.add_child(_auto)
