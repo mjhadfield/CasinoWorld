@@ -581,8 +581,8 @@ func _draw_game(now: float, pulse: float) -> void:
 		var fortune: ChipStack2D = _seat_chips[seat].get("fortune")
 		if fortune != null and is_instance_valid(fortune) and int(fortune.amount) >= ENVY_MIN:
 			_envy_button(spot_pos(seat, "fortune") + ENVY_OFFSET)
-	if dealer_label != "" and not _dealer_high.is_empty() and is_instance_valid(_dealer_high[-1]):
-		_label_pill(_dealer_high[-1].position + Vector2(9, -9), dealer_label)
+	if dealer_label != "" and not _dealer_high.is_empty() and _dealer_high.all(func(c): return is_instance_valid(c)):
+		_label_pill(_dealer_label_pos(), dealer_label, true)
 
 
 ## The little round green ENVY button, half a chip across.
@@ -629,10 +629,22 @@ static func _bump(age: float) -> float:
 	return 1.0 + 2.7 * k * k * k + 1.7 * k * k
 
 
-func _label_pill(at: Vector2, text: String) -> void:
+## The dealer's label sits centred just above their high hand, clear of every card.
+func _dealer_label_pos() -> Vector2:
+	var left := INF
+	var right := -INF
+	var top := INF
+	for card in _dealer_high:
+		left = minf(left, card.position.x)
+		right = maxf(right, card.position.x)
+		top = minf(top, card.position.y)
+	return Vector2((left + right) / 2, top - Card2D.SIZE.y / 2 - 3.5)
+
+
+func _label_pill(at: Vector2, text: String, centred := false) -> void:
 	var font := Card2D.FONT
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 4).x + 3.0
-	var r := Rect2(at - Vector2(0, 3), Vector2(width, 6))
+	var r := Rect2(at - Vector2(width / 2 if centred else 0.0, 3), Vector2(width, 6))
 	draw_rect(r, Color(0.05, 0.03, 0.02, 0.82))
 	draw_rect(r, Color(1, 0.88, 0.5, 0.5), false, 0.3)
 	draw_string(font, Vector2(r.position.x + 1.5, at.y + 1.45), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 4, Color(1, 0.95, 0.8))
