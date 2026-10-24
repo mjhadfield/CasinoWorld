@@ -56,6 +56,7 @@ const SECTIONS = {
   slots: {title: "Slots", src: "./sections/slots.js"},
   npcs: {title: "NPCs", src: "./sections/npcs.js"},
   players: {title: "Players", src: "./sections/players.js"},
+  stats: {title: "Player stats", src: "./sections/stats.js"},
   sounds: {title: "Sounds", src: "./sections/sounds.js"},
   settings: {title: "Settings", src: "./sections/settings.js"},
 };

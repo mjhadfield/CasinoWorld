@@ -29,7 +29,11 @@ CREATE TABLE IF NOT EXISTS players (
     created_at TEXT    NOT NULL,
     bank       INTEGER NOT NULL DEFAULT 0, -- may be negative (overdrawn)
     last_withdraw_at REAL,                 -- unix time of the last ATM withdrawal
-    last_big_at      REAL                  -- and of the last one over the usual limit (bank.py)
+    last_big_at      REAL,                 -- and of the last one over the usual limit (bank.py)
+    protected  INTEGER NOT NULL DEFAULT 0, -- the admin page won't delete, ban or time them out
+    banned     INTEGER NOT NULL DEFAULT 0,
+    timeout_until REAL,                    -- unix time a timeout ends
+    bar_reason TEXT                        -- shown to them with a ban or timeout
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY,
@@ -64,7 +68,8 @@ CREATE TABLE IF NOT EXISTS npcs (
     biggest_win    INTEGER NOT NULL DEFAULT 0,   -- best single visit
     busts          INTEGER NOT NULL DEFAULT 0,
     last_seen      REAL,                         -- unix time
-    cooldown_until REAL                          -- unix time
+    cooldown_until REAL,                         -- unix time
+    archived_at    TEXT                          -- set: in the archive (off the floor, out of the roster)
 );
 CREATE TABLE IF NOT EXISTS npc_visits (
     id           INTEGER PRIMARY KEY,
@@ -125,8 +130,14 @@ class Store:
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
         self._add_bank()
-        if "last_big_at" not in {r["name"] for r in self.db.execute("PRAGMA table_info(players)")}:
-            self.db.execute("ALTER TABLE players ADD COLUMN last_big_at REAL")
+        added = {"players": {"last_big_at": "REAL", "protected": "INTEGER NOT NULL DEFAULT 0",
+                             "banned": "INTEGER NOT NULL DEFAULT 0", "timeout_until": "REAL", "bar_reason": "TEXT"},
+                 "npcs": {"archived_at": "TEXT"}}
+        for table, columns in added.items():   # columns that came after the table did
+            have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
+            for name, decl in columns.items():
+                if name not in have:
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
         self.db.commit()
 
     def _add_bank(self):
@@ -173,13 +184,16 @@ class Store:
         with self.db:
             self.db.execute("UPDATE players SET name = ? WHERE id = ?", (name, player_id))
 
+    # A player deleted on the admin page may still have a hand finishing at a table: their balance reads 0 and
+    # money moves for them are dropped (adjust), rather than failing the table.
     def balance(self, player_id: int) -> int:
-        return self.db.execute("SELECT balance FROM players WHERE id = ?", (player_id,)).fetchone()[0]
+        row = self.db.execute("SELECT balance FROM players WHERE id = ?", (player_id,)).fetchone()
+        return row[0] if row else 0
 
     def bank(self, player_id: int) -> tuple[int, float | None]:
         """(bank balance, unix time of the last withdrawal or None)."""
         row = self.db.execute("SELECT bank, last_withdraw_at FROM players WHERE id = ?", (player_id,)).fetchone()
-        return row[0], row[1]
+        return (row[0], row[1]) if row else (0, None)
 
     def last_big_at(self, player_id: int) -> float | None:
         """Unix time of the last withdrawal over the usual limit (bank.py), or None."""
@@ -189,6 +203,8 @@ class Store:
         """Changes cash in hand by `amount` (signed pence) and records it. Raises
         InsufficientFunds rather than ever going below zero. Returns the new balance."""
         with self.db:
+            if self.db.execute("SELECT 1 FROM players WHERE id = ?", (player_id,)).fetchone() is None:
+                return 0   # (deleted)
             balance = self.balance(player_id) + amount
             if balance < 0:
                 raise InsufficientFunds()
@@ -262,11 +278,45 @@ class Store:
                 (player_id, _now(), "adjust", pence - raw, pence, None, note))
         return pence
 
+    # ------------------------------------------------------------------ player management (the admin page)
+    _PLAYER_ADMIN = "id, name, created_at, protected, banned, timeout_until, bar_reason"
+
+    def player(self, player_id: int) -> dict | None:
+        row = self.db.execute(f"SELECT {self._PLAYER_ADMIN} FROM players WHERE id = ?", (player_id,)).fetchone()
+        return {**dict(row), "protected": bool(row["protected"]), "banned": bool(row["banned"])} if row else None
+
+    def barred(self, player_id: int, now: float) -> dict | None:
+        """{kind: "ban" | "timeout", until (unix time or None), reason} while they're kept out, else None."""
+        p = self.player(player_id)
+        if p is None:
+            return None
+        if p["banned"]:
+            return {"kind": "ban", "until": None, "reason": p["bar_reason"] or ""}
+        if p["timeout_until"] and p["timeout_until"] > now:
+            return {"kind": "timeout", "until": p["timeout_until"], "reason": p["bar_reason"] or ""}
+        return None
+
+    def set_protected(self, player_id: int, on: bool):
+        with self.db:
+            self.db.execute("UPDATE players SET protected = ? WHERE id = ?", (int(on), player_id))
+
+    def set_bar(self, player_id: int, banned: bool = False, until: float | None = None, reason: str | None = None):
+        """Ban them, time them out till `until`, or (neither) let them back in."""
+        with self.db:
+            self.db.execute("UPDATE players SET banned = ?, timeout_until = ?, bar_reason = ? WHERE id = ?",
+                            (int(banned), until, reason or None, player_id))
+
+    def delete_player(self, player_id: int):
+        """Gone for good, with their ledger."""
+        with self.db:
+            self.db.execute("DELETE FROM ledger WHERE player_id = ?", (player_id,))
+            self.db.execute("DELETE FROM players WHERE id = ?", (player_id,))
+
     def player_stats(self) -> list[dict]:
         """Every player's lifetime figures from the ledger: staked, returned, net, last
         activity, and the same per game."""
         rows = self.db.execute("""
-            SELECT p.id, p.name, p.balance, p.bank, l.game,
+            SELECT p.id, p.name, p.balance, p.bank, p.created_at, p.protected, p.banned, p.timeout_until, p.bar_reason, l.game,
                    COALESCE(SUM(CASE WHEN l.kind = 'bet' THEN -l.amount END), 0) AS wagered,
                    COALESCE(SUM(CASE WHEN l.kind = 'payout' THEN l.amount END), 0) AS returned,
                    COUNT(CASE WHEN l.kind = 'bet' AND l.amount < 0 THEN 1 END) AS bets,
@@ -276,7 +326,10 @@ class Store:
         players: dict[int, dict] = {}
         for r in rows:
             p = players.setdefault(r["id"], {"id": r["id"], "name": r["name"], "balance": r["balance"],
-                                             "bank": r["bank"], "wagered": 0, "returned": 0, "bets": 0, "last_at": None, "games": {}})
+                                             "bank": r["bank"], "created_at": r["created_at"], "protected": bool(r["protected"]),
+                                             "banned": bool(r["banned"]), "timeout_until": r["timeout_until"],
+                                             "bar_reason": r["bar_reason"], "wagered": 0, "returned": 0, "bets": 0,
+                                             "last_at": None, "games": {}})
             p["wagered"] += r["wagered"]
             p["returned"] += r["returned"]
             p["bets"] += r["bets"]
@@ -300,9 +353,19 @@ class Store:
         d["enabled"] = bool(d["enabled"])
         return d
 
-    def npcs(self, role: str | None = None) -> list[dict]:
-        q = "SELECT * FROM npcs" + (" WHERE role = ?" if role else "") + " ORDER BY role, name"
-        return [self._npc_row(r) for r in self.db.execute(q, (role,) if role else ())]
+    def npcs(self, role: str | None = None, archived: bool | None = False) -> list[dict]:
+        """The roster (archived False), the archive (True) or everyone (None)."""
+        where, args = [], []
+        if role:
+            where.append("role = ?"); args.append(role)
+        if archived is not None:
+            where.append("archived_at IS " + ("NOT NULL" if archived else "NULL"))
+        q = "SELECT * FROM npcs" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY role, name"
+        return [self._npc_row(r) for r in self.db.execute(q, args)]
+
+    def set_archived(self, npc_id: int, on: bool):
+        with self.db:
+            self.db.execute("UPDATE npcs SET archived_at = ? WHERE id = ?", (_now() if on else None, npc_id))
 
     def npc(self, npc_id: int) -> dict | None:
         row = self.db.execute("SELECT * FROM npcs WHERE id = ?", (npc_id,)).fetchone()

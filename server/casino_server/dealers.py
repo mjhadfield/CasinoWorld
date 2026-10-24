@@ -24,6 +24,7 @@ class DealerRoster:
         self.pace = pace
         self.on_duty: dict[str, dict] = {}    # table id -> {id, name, look}
         self.relief_at: dict[str, float] = {}
+        self.dismissed: set[int] = set()       # archived or deleted while dealing: relieved even with nobody free
         self.started = False
 
     def _shift(self) -> tuple[float, float]:
@@ -73,6 +74,17 @@ class DealerRoster:
             self.relief_at[table_id] = now + shift
             if free:
                 self.relieve(table_id, self.rng.choice(free))
+            elif self.on_duty.get(table_id, DEFAULT)["id"] in self.dismissed:
+                self.on_duty[table_id] = dict(DEFAULT)
+                runner.publish([{"kind": "dealer_change", "dealer": self.on_table(table_id)}])
+
+    def stand_down(self, npc_id: int):
+        """They've been archived or deleted: wherever they're dealing, they're relieved at the next betting window
+        (by the house's generic Dealer if nobody's free)."""
+        for table_id, d in self.on_duty.items():
+            if d["id"] == npc_id:
+                self.relief_at[table_id] = 0
+                self.dismissed.add(npc_id)
 
     def relieve(self, table_id: str, record: dict):
         self.on_duty[table_id] = self._dealer(record)

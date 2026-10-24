@@ -1042,6 +1042,7 @@ func _set_limits(on: bool) -> void:
 func _on_message(msg: Dictionary) -> void:
 	match msg.get("type"):
 		"welcome":
+			hud.barred.close()   # (back after a timeout)
 			Seating.configure(msg.get("seating", {}))
 			TableStyle.configure(msg.get("table_styles", {}))
 			var w: Dictionary = msg.get("world", {})
@@ -1122,6 +1123,9 @@ func _on_message(msg: Dictionary) -> void:
 			hud.sorter.on_suggest(msg)
 		"notice":
 			hud.show_toast(msg.get("message", ""), 4.0)
+		"barred":   # the admin page banned, timed out or removed you (Net holds off reconnecting)
+			hud.atm.close_atm()
+			hud.barred.open(msg)
 		"error":
 			hud.show_toast(msg.get("message", "error"))
 			hud.atm.close_atm()   # (the server wouldn't let you use it: you weren't at it)

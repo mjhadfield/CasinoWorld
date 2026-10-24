@@ -79,7 +79,17 @@ sections:
     `FACTORY` choices in `casino_server/sounds.py`, where the moments and sets are defined.
   - The game's `Sfx` fetches every set when it connects, plays each table's sounds from its game's set, and
     until then falls back to the sounds built into the client (`client/assets/audio/`).
-- **NPCs:** the roster, seeded on first run with 20 punters and 20 dealers (tables `npcs` and `npc_visits`).
+- **NPCs:** three views. **Roster:** everyone working or visiting, seeded on first run with 20 punters and 20
+  dealers (tables `npcs` and `npc_visits`). **Archive:** Archive (on the roster) takes someone off the floor (a punter
+  finishes their round, a dealer is relieved at the next betting window) and out of the roster without losing them
+  (`npcs.archived_at`); there they can be restored, or deleted for good, which only the archive allows.
+  **Staff & uniforms** (`casino_server/staff.py`, meta key `staff`): the roles and the uniforms. New staff roles (a
+  Waitress, say) join the Role menus, the roster's filter (under Other staff) and Bulk create at once; the built-in roles
+  keep their names but can change uniform, and added roles can be deleted once nobody, archived or not, has them. A
+  uniform is the same for both bodies (only pieces that come in both fits are offered) or a male and a female version,
+  covering top, over the top, legs, shoes, neck and hat (hair, beards and glasses stay the person's own). New NPCs in a
+  role come dressed in its uniform; **Dress N people** re-dresses everyone on the roster whose role wears it. The five
+  built-in uniforms can be changed but not deleted.
   - **Looks:** body, hair, clothes and accessories in their colours, plus Randomise and uniforms, with a live
     preview. The server builds each sheet from the LPC generator's layers (`casino_server/art.py`; downloads
     cached in `server/lpc_cache/`, `python -m casino_server.art prefetch` fetches the lot).
@@ -88,9 +98,16 @@ sections:
     and favourite games. Bulk create generates a batch to review before accepting.
   - **Visits:** each visit brings a budget they're willing to lose. They leave bust, done for the day, while
     ahead (Hit-and-run) or doubled up (a Gambler), then sit out a cooldown while others take their place.
-  - **Stats** per NPC, and **Bring in now**, **Send home** and **Reset stats**.
-  - Waiters, pit bosses, cashiers and bar staff can be designed, but don't work the floor yet.
-- **Players:** everyone's lifetime staked, returned and net, per game, from the ledger.
+  - **Stats** per NPC, and **Bring in now**, **Send home**, **Reset stats** and **Archive**.
+  - Staff other than dealers can be designed, but don't work the floor yet.
+- **Players:** everyone's cash, bank and lifetime staked, returned and net from the ledger, and who's playing now.
+  Pick a player to manage them: **Protected** (nothing here can delete, ban or time them out until it's unticked),
+  **Time out** (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**,
+  and **Delete for good** (the player and their ledger). A ban, timeout or delete sends them out at once if they're
+  playing; bans and timeouts follow the device's account (players have no logins), so a new browser comes in as a new
+  player. A hand they were in plays out, and money for a deleted player is dropped.
+- **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added
+  together: staked, returned, net, bets and returned %.
 - **Slots:** the jackpot meters and their settings, each machine's figures (spins, staked, returned, bonuses; humans
   and NPCs apart, `slots/stats.py`), the cabinets on the floor now, and players' return on slots.
 - **Floor plan** (`#plan`): the casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). Changes

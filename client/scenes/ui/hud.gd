@@ -35,6 +35,7 @@ var master: MasterPanel   # a Master Table's game menu, the card asking you to a
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
 var minimap: Minimap
+var barred: BarredScreen   # banned, timed out or removed by the casino: over everything
 var _toast_tween: Tween
 var _banner_tween: Tween
 
@@ -89,6 +90,8 @@ func _ready() -> void:
 	_place_settings_button()
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
+	barred = BarredScreen.new()
+	add_child(barred)   # (last: over the settings panel too)
 	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand]:
 		n.hide()
 	bar.chip_picked.connect(chip_selected.emit)
@@ -245,7 +248,7 @@ func show_name_prompt(current := "") -> void:
 
 ## True while a panel that takes the keyboard is open (the floor ignores game keys then).
 func is_typing() -> bool:
-	return %NamePrompt.visible or settings_menu.visible or master.menu_open() or atm.visible
+	return %NamePrompt.visible or settings_menu.visible or master.menu_open() or atm.visible or barred.visible
 
 
 func confirm_stand(text := "You're in this hand -- standing up folds it. Stand up anyway?") -> void:

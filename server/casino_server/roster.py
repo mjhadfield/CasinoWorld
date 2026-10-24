@@ -20,16 +20,11 @@ lives in one place:
 import random
 from dataclasses import dataclass, field
 
-from casino_server import art
+from casino_server import art, staff
 
-ROLES = {
-    "punter": "Punter",
-    "dealer": "Dealer",
-    "cocktail_waiter": "Cocktail waiter",   # (staff roles below dealer aren't on the floor yet)
-    "pit_boss": "Pit boss",
-    "cashier": "Cashier",
-    "bartender": "Bartender",
-}
+# The built-in roles; the admin page adds staff roles (staff.roles(store) has them all). Staff other than dealers
+# aren't on the floor yet.
+ROLES = {k: r["label"] for k, r in staff.BUILTIN_ROLES.items()}
 ON_THE_FLOOR = ("punter", "dealer")
 
 ARCHETYPES = {
@@ -134,8 +129,8 @@ _HAIR_COLOURS = ("black", "dark_brown", "chestnut", "blonde", "ginger", "gray", 
                  "platinum", "redhead", "sandy", "strawberry", "gold")
 
 
-def random_look(rng: random.Random, body: str | None = None, uniform: str | None = None) -> dict:
-    """A plausible random look (in a uniform for staff)."""
+def random_look(rng: random.Random, body: str | None = None, uniform: dict | None = None) -> dict:
+    """A plausible random look (in a uniform for staff: the uniform's pieces for that body)."""
     body = body or rng.choice(art.BODIES)
     cat = {s["slot"]: s for s in art.catalogue()["slots"]}
 
@@ -153,7 +148,7 @@ def random_look(rng: random.Random, body: str | None = None, uniform: str | None
 
     spec = {"body": body, "skin": rng.choice(art.SKINS), "hair": hair()}
     if uniform:
-        spec.update({k: list(v) for k, v in art.UNIFORMS[uniform][body].items()})
+        spec.update({k: list(v) for k, v in uniform.items()})
     else:
         spec["top"] = pick("top", avoid=("formal",))
         spec["bottom"] = pick("bottom", avoid=("skirt", "skirt_straight", "leggings") if body == "male" else ())
@@ -185,7 +180,7 @@ FEMALE = {"Rita", "June", "Priya", "Bea", "Lena", "Ivy", "Nora", "Mabel", "Tess"
 def seed(store, rng: random.Random | None = None):
     """The first cast, if the roster's empty: 20 punters (a spread of archetypes and
     modifiers) and 20 dealers in uniform (one for each of the 15 tables, and some to relieve them)."""
-    if store.npcs():
+    if store.npcs(archived=None):
         return
     rng = rng or random.Random(2026)
     archetypes = ["grinder"] * 6 + ["casual"] * 9 + ["gambler"] * 5
@@ -201,7 +196,7 @@ def seed(store, rng: random.Random | None = None):
                           "traits": traits, "settings": settings, "enabled": True})
     for name in DEALER_NAMES:
         body = "female" if name in FEMALE else "male"
-        store.create_npc({"name": name, "role": "dealer", "look": random_look(rng, body, uniform="dealer"),
+        store.create_npc({"name": name, "role": "dealer", "look": random_look(rng, body, uniform=art.UNIFORMS["dealer"][body]),
                           "archetype": "", "traits": [], "settings": {}, "enabled": True})
 
 
@@ -241,14 +236,16 @@ def lucky_numbers(rng: random.Random) -> list[int]:
 
 
 def generate(count: int, role: str = "punter", archetype: str = "mix", body: str = "", traits=(),
-             taken=(), enabled: bool = True, rng: random.Random | None = None) -> list[dict]:
+             taken=(), enabled: bool = True, rng: random.Random | None = None, roles: dict | None = None,
+             uniform: dict | None = None) -> list[dict]:
     """Drafts for the admin page to review (nothing is saved): `count` NPCs of a role with
     random names and looks. A punter's style is the one given, or a mix; traits are only
-    the ones asked for (none by default). Staff come in their role's uniform if it has one."""
+    the ones asked for (none by default). Staff come in `uniform` ({male, female} pieces,
+    their role's) if it has one. `roles`: every role there is (staff.roles)."""
     rng = rng or random.Random()
     if not 1 <= count <= MAX_BULK:
         raise ValueError(f"Make 1-{MAX_BULK} at a time.")
-    if role not in ROLES:
+    if role not in (roles or ROLES):
         raise ValueError(f"Unknown role {role!r}.")
     if role == "punter" and archetype != "mix" and archetype not in ARCHETYPES:
         raise ValueError("Pick a style: Grinder, Casual, Gambler or a mix.")
@@ -265,7 +262,7 @@ def generate(count: int, role: str = "punter", archetype: str = "mix", body: str
         name = random_name(rng, b, taken)
         taken.add(name)
         rec = {"name": name, "role": role, "archetype": "", "traits": [], "settings": {}, "enabled": enabled,
-               "look": random_look(rng, b, uniform=role if role != "punter" and role in art.UNIFORMS else None)}
+               "look": random_look(rng, b, uniform=uniform[b] if uniform and role != "punter" else None)}
         if role == "punter":
             rec["archetype"] = archetype if archetype != "mix" else \
                 rng.choices(list(ARCHETYPE_MIX), weights=list(ARCHETYPE_MIX.values()))[0]
@@ -287,8 +284,8 @@ GAMES = {"three_card_poker": "Three Card Poker", "blackjack": "Blackjack", "miss
          "slots": "Slots"}
 
 
-def clean(data: dict, existing: dict | None = None) -> dict:
-    """An NPC from the admin page, checked: ValueError says what's wrong."""
+def clean(data: dict, existing: dict | None = None, roles: dict | None = None) -> dict:
+    """An NPC from the admin page, checked: ValueError says what's wrong. `roles`: every role there is (staff.roles)."""
     base = existing or {}
     out = {}
     name = str(data.get("name", base.get("name", ""))).strip()
@@ -296,7 +293,7 @@ def clean(data: dict, existing: dict | None = None) -> dict:
         raise ValueError("Give them a name (up to 24 characters).")
     out["name"] = name
     role = data.get("role", base.get("role", "punter"))
-    if role not in ROLES:
+    if role not in (roles or ROLES):
         raise ValueError(f"Unknown role {role!r}.")
     out["role"] = role
     try:

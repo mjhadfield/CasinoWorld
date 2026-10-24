@@ -2,16 +2,23 @@
 // preview (walking, standing, seated) pinned at its top, with the look and how they play side by side beneath it.
 // Punters come and go on their own (each brings a budget they're willing to lose and takes a break after a visit);
 // dealers work shifts. Bulk create swaps the roster for a batch to generate, review and create at once.
+// Three views: the Roster; the Archive (archived NPCs are off the floor and out of the roster until restored, and only
+// they can be deleted for good); and Staff & uniforms (staff roles, and the uniforms each wears).
 let H, $, el, money, signed;
-let opts = null, list = [], selected = null, draft = null, pollTimer = null, previewTimer = null, tab = "design";
-let previewUrl = null, animStart = performance.now(), sort = {key: "role", dir: 1};
-const STAFF = ["cocktail_waiter", "pit_boss", "cashier", "bartender"];
+let opts = null, list = [], archived = [], selected = null, draft = null, pollTimer = null, previewTimer = null, tab = "design";
+let previewUrl = null, animStart = performance.now(), sort = {key: "role", dir: 1}, view = "roster";
+const isStaff = role => role !== "punter" && role !== "dealer";
 
 export function init(h) {
   H = h; el = h.el; money = h.money; signed = h.signed; $ = s => h.view.querySelector(s) || h.top.querySelector(s);
-  h.top.append(
-    el("select", {id: "npc-role", ariaLabel: "Show"}, el("option", {value: "", textContent: "Everyone"}), el("option", {value: "punter", textContent: "Punters"}),
-      el("option", {value: "dealer", textContent: "Dealers"}), el("option", {value: "staff", textContent: "Other staff"})),
+  const views = el("div", {className: "seg", id: "npc-views"}, ...[["roster", "Roster"], ["archive", "Archive"], ["staff", "Staff & uniforms"]].map(([k, t]) => {
+    const b = el("button", {type: "button", textContent: t, ariaPressed: String(view === k)});
+    b.dataset.view = k;
+    b.addEventListener("click", () => setView(k));
+    return b;
+  }));
+  h.top.append(views,
+    el("select", {id: "npc-role", ariaLabel: "Show"}),
     el("input", {type: "search", id: "npc-search", placeholder: "Search names or traits", style: "width: 220px"}),
     el("span", {className: "hint", id: "npc-count"}),
     el("span", {className: "grow"}),
@@ -19,7 +26,7 @@ export function init(h) {
     el("button", {type: "button", className: "primary", id: "npc-new", textContent: "New NPC"}));
   h.view.innerHTML = `
   <div class="wb" style="grid-template-columns: minmax(0, 1fr) minmax(760px, 46%)">
-    <div class="panel"><div class="pb" id="roster"></div><div class="pb" id="bulk" hidden></div></div>
+    <div class="panel"><div class="pb" id="roster"></div><div class="pb" id="bulk" hidden></div><div class="pb" id="staff" hidden></div></div>
     <div class="panel" id="editor"></div>
   </div>
   <style>
@@ -50,6 +57,12 @@ export function init(h) {
     .npc-b select { height: 22px; font-size: var(--fs-xs); padding: 0 20px 0 6px; }
     .npc-b .row-acts { display: flex; gap: 4px; }
     .npc-b .row-acts button { height: 24px; padding: 0 8px; }
+    #staff h4 { margin: 0; padding: 10px var(--pad) 6px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--fg-muted); display: flex; align-items: center; gap: 8px; }
+    #staff h4 .grow { flex: 1; }
+    .uni-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .uni-cols > div { padding: var(--pad); display: grid; gap: 5px; align-content: start; min-width: 0; }
+    .uni-cols > div + div { border-left: 1px solid var(--line); }
+    .uni-cols h4 { margin: 0 0 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--fg-muted); }
   </style>`;
   $("#npc-role").addEventListener("change", renderList);
   $("#npc-search").addEventListener("input", renderList);
@@ -59,21 +72,48 @@ export function init(h) {
 
 export async function load() {
   try {
-    opts = await H.api("GET", "/api/npc-options");
+    await loadOptions();
     await refresh();
     if (!selected && list.length) select(list.find(n => n.role === "punter") || list[0]);
     requestAnimationFrame(animate);
     H.status(list.length + " NPCs loaded.");
   } catch (e) { H.status("Couldn't load NPCs: " + e.message, "warn"); }
 }
+async function loadOptions() {   // (again after a staff role or uniform changes)
+  opts = await H.api("GET", "/api/npc-options");
+  const sel = $("#npc-role"), was = sel.value;
+  const staffRoles = Object.entries(opts.roles).filter(([k]) => isStaff(k));
+  sel.replaceChildren(el("option", {value: "", textContent: "Everyone"}), el("option", {value: "punter", textContent: "Punters"}),
+    el("option", {value: "dealer", textContent: "Dealers"}),
+    el("optgroup", {label: "Other staff"}, el("option", {value: "staff", textContent: "All other staff"}),
+      ...staffRoles.map(([k, v]) => el("option", {value: k, textContent: v}))));
+  sel.value = [...sel.options].some(o => o.value === was) ? was : "";
+}
 async function refresh() {
   const data = await H.api("GET", "/api/npcs");
-  list = data.npcs;
+  list = data.npcs; archived = data.archived;
+  $("#npc-views").querySelector('[data-view="archive"]').textContent = archived.length ? `Archive (${archived.length})` : "Archive";
   renderList();
   if (selected) {   // keep the editor's live status in step (not the draft)
-    const fresh = list.find(n => n.id === selected.id);
+    const fresh = list.concat(archived).find(n => n.id === selected.id);
     if (fresh) { selected = fresh; renderStatus(); }
   }
+}
+function setView(v) {
+  if (v === view) return;
+  if (bulkOn) bulkMode(false);
+  view = v; selected = null; draft = null;
+  for (const b of $("#npc-views").children) b.setAttribute("aria-pressed", String(b.dataset.view === v));
+  $("#roster").hidden = v === "staff"; $("#staff").hidden = v !== "staff";
+  for (const id of ["#npc-role", "#npc-search", "#npc-count"]) $(id).hidden = v === "staff";
+  for (const id of ["#npc-new", "#npc-bulk"]) $(id).hidden = v !== "roster";
+  if (v === "staff") { staffSel = null; renderStaff(); }
+  else {
+    renderList();
+    const first = v === "roster" ? list.find(n => n.role === "punter") || list[0] : null;
+    if (first) { select(first); return; }
+  }
+  renderEditor();
 }
 export function shown(on) {
   clearInterval(pollTimer);
@@ -125,21 +165,23 @@ function statusOf(n) {
     return [doing + " · " + money(f.bankroll), "ok"];
   }
   if (n.cooldown_until && n.cooldown_until * 1000 > Date.now()) return ["Away till " + new Date(n.cooldown_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}), ""];
+  if (n.archived_at) return ["Archived " + new Date(n.archived_at).toLocaleDateString([], {dateStyle: "medium"}), ""];
   if (n.role === "punter") return ["Free to visit", ""];
-  if (STAFF.includes(n.role)) return ["Not on the floor yet", ""];
+  if (!opts.on_the_floor.includes(n.role)) return ["Not on the floor yet", ""];
   return ["Off duty", ""];
 }
 const COLS = [["", ""], ["name", "Name"], ["role", "Role"], ["style", "Style"], ["", "Traits"], ["status", "Now"], ["net", "Net", "num"], ["visits", "Visits", "num"]];
 const sortVal = {name: n => n.name, role: n => (opts.roles[n.role] || n.role) + " " + n.name, style: n => n.archetype || "~",
   status: n => (n.on_floor || n.dealing ? "0" : "1") + statusOf(n)[0], net: n => n.role === "punter" ? n.net : -Infinity, visits: n => n.visits};
 function renderList() {
-  if (!opts) return;
+  if (!opts || view === "staff") return;
   const role = $("#npc-role").value, q = $("#npc-search").value.trim().toLowerCase();
-  const shown = list.filter(n => (!role || n.role === role || (role === "staff" && STAFF.includes(n.role)))
+  const all = view === "archive" ? archived : list;
+  const shown = all.filter(n => (!role || n.role === role || (role === "staff" && isStaff(n.role)))
     && (!q || (n.name + " " + n.traits.join(" ") + " " + n.archetype).toLowerCase().includes(q)));
   const f = sortVal[sort.key];
   shown.sort((a, b) => { const x = f(a), y = f(b); return (typeof x === "string" ? x.localeCompare(y) : x - y) * sort.dir; });
-  $("#npc-count").textContent = shown.length + " of " + list.length;
+  $("#npc-count").textContent = shown.length + " of " + all.length;
   const head = el("tr", {}, ...COLS.map(([k, label, c]) => {
     const th = el("th", {className: (k ? "sort " : "") + (c || ""), textContent: label});
     if (k) {
@@ -153,7 +195,7 @@ function renderList() {
     const tr = el("tr", {className: "click" + (selected && n.id === selected.id ? " sel" : "") + (n.enabled ? "" : " off"), tabIndex: 0},
       el("td", {className: "av"}, thumb(n.look_url)),
       el("td", {}, el("b", {textContent: n.name})),
-      el("td", {className: "muted", textContent: opts.roles[n.role] || n.role}),
+      el("td", {className: "muted", textContent: opts.roles[n.role] || n.role + " (deleted role)"}),
       el("td", {}, n.archetype && n.role === "punter" ? el("span", {className: "tag gold", textContent: opts.archetypes[n.archetype].label}) : null),
       el("td", {}, el("div", {className: "badges"}, ...n.traits.map(t => el("span", {className: "tag", textContent: opts.modifiers[t].label})))),
       el("td", {className: kind === "ok" ? "pos" : kind === "warn" ? "neg" : "muted", textContent: st}),
@@ -164,7 +206,8 @@ function renderList() {
     return tr;
   });
   $("#roster").replaceChildren(el("table", {}, el("thead", {}, head), el("tbody", {}, ...rows)));
-  if (!shown.length) $("#roster").append(el("p", {className: "empty", textContent: "Nobody matches."}));
+  if (!shown.length) $("#roster").append(el("p", {className: "empty", textContent: view === "archive" && !archived.length
+    ? "Nobody's archived. Archive someone from the roster to take them off the floor without losing them." : "Nobody matches."}));
 }
 
 // ------------------------------------------------------------ the editor
@@ -185,6 +228,7 @@ function newNpc() {
   $("#npc-name").focus();
 }
 function renderEditor() {
+  if (view === "staff") return renderStaffEditor();
   const box = $("#editor");
   const scrollWas = box.querySelector(".pb")?.scrollTop || 0;
   box.replaceChildren();
@@ -211,6 +255,11 @@ function renderEditor() {
     const done = el("button", {type: "button", className: "primary", textContent: "Done"});
     done.addEventListener("click", () => { draft = null; renderEditor(); renderBulkList(); });
     head.append(drop, done);
+  } else if (selected?.archived_at) {   // in the archive: back to the roster, or gone for good
+    const restore = el("button", {type: "button", textContent: "Restore", onclick: () => archive(false)});
+    const del = el("button", {type: "button", className: "ghost danger", textContent: "Delete for good"});
+    del.addEventListener("click", () => confirmIn(del, "Delete " + selected.name + " and their history for good? This can't be undone.", deleteNpc));
+    head.append(restore, del, el("button", {type: "button", className: "primary", textContent: "Save", onclick: saveDraft}));
   } else {
     if (selected) {
       if (selected.role === "punter") {
@@ -219,9 +268,10 @@ function renderEditor() {
       }
       const reset = el("button", {type: "button", className: "ghost", textContent: "Reset stats"});
       reset.addEventListener("click", () => confirmIn(reset, "Clear their lifetime figures?", () => act("reset-stats", "Stats cleared.")));
-      const del = el("button", {type: "button", className: "ghost danger", textContent: "Delete"});
-      del.addEventListener("click", () => confirmIn(del, "Delete " + selected.name + " for good?", deleteNpc));
-      head.append(reset, del);
+      const arch = el("button", {type: "button", className: "ghost", textContent: "Archive",
+        title: "Off the floor and into the Archive, where you can restore them or delete them for good"});
+      arch.addEventListener("click", () => archive(true));
+      head.append(reset, arch);
     }
     head.append(el("button", {type: "button", className: "primary", textContent: selected ? "Save" : "Create", onclick: saveDraft}));
   }
@@ -237,7 +287,12 @@ function renderEditor() {
   name.addEventListener("input", () => { d.name = name.value; });
   if (bulkOn) name.addEventListener("change", renderBulkList);
   const role = el("select", {id: "npc-role-sel"}, ...Object.entries(opts.roles).map(([k, v]) => el("option", {value: k, textContent: v + (opts.on_the_floor.includes(k) ? "" : " (not on the floor yet)"), selected: k === d.role})));
-  role.addEventListener("change", () => { d.role = role.value; renderEditor(); });
+  role.addEventListener("change", () => {
+    d.role = role.value;
+    const u = opts.uniforms[opts.staff[d.role]?.uniform];
+    if (u) { wear(d.look, u); updatePreview(); H.status(`Dressed in the ${u.name} uniform.`); }
+    renderEditor();
+  });
   const enabled = el("input", {type: "checkbox", id: "npc-enabled", checked: d.enabled});
   enabled.addEventListener("change", () => { d.enabled = enabled.checked; });
   const walk = el("canvas", {width: 128, height: 128, id: "pv-walk"}), idle = el("canvas", {width: 128, height: 128, id: "pv-idle"}), sit = el("canvas", {width: 128, height: 128, id: "pv-sit"});
@@ -280,14 +335,17 @@ function bodyRow(L) {
   const rnd = el("button", {type: "button", textContent: "Randomise"});
   rnd.addEventListener("click", () => { randomise(L); renderEditor(); updatePreview(); });
   const uni = el("select", {ariaLabel: "Uniform"}, el("option", {value: "", textContent: "Put on a uniform…"}),
-    ...Object.keys(opts.uniforms).map(k => el("option", {value: k, textContent: opts.roles[k] || k})));
+    ...Object.entries(opts.uniforms).map(([k, u]) => el("option", {value: k, textContent: u.name})));
   uni.addEventListener("change", () => {
     if (!uni.value) return;
-    for (const slot of opts.slots) if (!["hair", "beard", "glasses"].includes(slot.slot)) L[slot.slot] = null;
-    Object.assign(L, JSON.parse(JSON.stringify(opts.uniforms[uni.value][L.body])));
+    wear(L, opts.uniforms[uni.value]);
     renderEditor(); updatePreview();
   });
   return el("div", {className: "controls"}, body, skins, el("span", {className: "grow", style: "flex: 1"}), rnd, uni);
+}
+function wear(L, uniform) {   // the uniform's slots come off, then its pieces for that body go on (hair, beard, glasses stay)
+  for (const slot of opts.uniform_slots) L[slot] = null;
+  Object.assign(L, JSON.parse(JSON.stringify(uniform[L.body])));
 }
 function lookDesigner(d) {
   const L = d.look;
@@ -351,14 +409,20 @@ function updatePreview() {
     } catch (e) { note() && (note().textContent = e.message); }
   }, 250);
 }
-function animate(now) {   // the preview: walking round in a circle, standing, seated
+function animate(now) {   // the preview: walking round in a circle, standing, seated (a uniform's: both bodies)
+  const t = (now - animStart) / 1000;
+  const dir = [2, 3, 0, 1][Math.floor(t / 1.6) % 4];   // down, right, up, left
   const walk = H.view.querySelector("#pv-walk");
   if (walk && previewUrl && !H.view.hidden) {
-    const t = (now - animStart) / 1000;
-    const dir = [2, 3, 0, 1][Math.floor(t / 1.6) % 4];   // down, right, up, left
     frame(walk, previewUrl, 1 + Math.floor(t * 10) % 8, dir, 2);
     frame(H.view.querySelector("#pv-idle"), previewUrl, Math.floor(t * 1.5) % 2, 6, 2);
     frame(H.view.querySelector("#pv-sit"), previewUrl, 0, 8, 2);
+  }
+  for (const body of ["male", "female"]) {
+    const w = H.view.querySelector(`#uv-${body}-walk`), url = uniPreview[body];
+    if (!w || !url || H.view.hidden) continue;
+    frame(w, url, 1 + Math.floor(t * 10) % 8, dir, 2);
+    frame(H.view.querySelector(`#uv-${body}-idle`), url, Math.floor(t * 1.5) % 2, 6, 2);
   }
   requestAnimationFrame(animate);
 }
@@ -599,6 +663,234 @@ async function act(what, message) {
   catch (e) { H.status(e.message, "warn"); }
 }
 async function deleteNpc() {
-  try { await H.api("DELETE", "/api/npcs/" + selected.id); H.status("Deleted " + selected.name + ".", "ok"); selected = null; draft = null; await refresh(); renderEditor(); }
+  try { await H.api("DELETE", "/api/npcs/" + selected.id); H.status("Deleted " + selected.name + " for good.", "ok"); selected = null; draft = null; await refresh(); renderEditor(); }
   catch (e) { H.status(e.message, "warn"); }
+}
+async function archive(on) {
+  const who = selected.name;
+  try {
+    await H.api("POST", `/api/npcs/${selected.id}/${on ? "archive" : "restore"}`);
+    H.status(on ? `Archived ${who}: off the floor and into the Archive (Restore brings them back).` : `${who} is back on the roster.`, "ok");
+    selected = null; draft = null; await refresh(); renderEditor();
+  } catch (e) { H.status(e.message, "warn"); }
+}
+
+// ------------------------------------------------------------ staff roles and uniforms
+// Roles on top: the built-in ones keep their names but can change uniform; added ones (a Waitress, say) show in every
+// Role menu at once and can be deleted once nobody has them. Uniforms below: the same for both bodies (only pieces
+// that come in both fits) or a male and a female version. Dress puts everyone whose role wears one into it as saved.
+let staffSel = null, staffDraft = null, uniPreview = {male: null, female: null}, uniTimer = null;
+const NEW_UNIFORM = {top: ["tshirt", "white"], bottom: ["pants", "black"], shoes: ["shoes", "black"]};
+const copy = o => JSON.parse(JSON.stringify(o));
+
+const people = role => list.concat(archived).filter(n => n.role === role).length;
+function staffRow(sel, go, ...cells) {
+  const tr = el("tr", {className: "click" + (sel ? " sel" : ""), tabIndex: 0}, ...cells);
+  tr.addEventListener("click", go);
+  tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  return tr;
+}
+function renderStaff() {
+  if (view !== "staff") return;
+  const is = (kind, k) => staffSel?.kind === kind && staffSel.key === k;
+  const added = r => r.builtin ? null : el("span", {className: "tag", style: "margin-left: 6px", textContent: "added"});
+  const roles = Object.entries(opts.staff).map(([k, r]) => staffRow(is("role", k), () => pickStaff("role", k),
+    el("td", {}, el("b", {textContent: r.label}), added(r)),
+    el("td", {className: "muted", textContent: k === "punter" ? "Their own clothes" : opts.uniforms[r.uniform]?.name || "None"}),
+    el("td", {className: "faint", textContent: opts.on_the_floor.includes(k) ? "" : "Not on the floor yet"}),
+    el("td", {className: "num", textContent: people(k)})));
+  const uniforms = Object.entries(opts.uniforms).map(([k, u]) => {
+    const by = Object.values(opts.staff).filter(r => r.uniform === k).map(r => r.label);
+    return staffRow(is("uniform", k), () => pickStaff("uniform", k),
+      el("td", {}, el("b", {textContent: u.name}), added(u)),
+      el("td", {className: "muted", textContent: u.fits === "same" ? "Same for both" : "Male and female"}),
+      el("td", {className: by.length ? "" : "faint", textContent: by.join(", ") || "No role yet"}));
+  });
+  const th = (...labels) => el("thead", {}, el("tr", {}, ...labels.map(([t, c]) => el("th", {className: c || "", textContent: t}))));
+  $("#staff").replaceChildren(
+    el("h4", {}, "Roles", el("span", {className: "grow"}), el("button", {type: "button", id: "staff-new-role", textContent: "New role", onclick: () => pickStaff("role", null)})),
+    el("table", {}, th(["Role"], ["Uniform"], [""], ["People", "num"]), el("tbody", {}, ...roles)),
+    el("h4", {style: "margin-top: 14px"}, "Uniforms", el("span", {className: "grow"}), el("button", {type: "button", id: "staff-new-uniform", textContent: "New uniform", onclick: () => pickStaff("uniform", null)})),
+    el("table", {}, th(["Uniform"], ["Fits"], ["Worn by"]), el("tbody", {}, ...uniforms)));
+}
+function pickStaff(kind, key) {
+  staffSel = {kind, key};
+  if (kind === "role") {
+    const r = key ? opts.staff[key] : {label: "", uniform: ""};
+    staffDraft = {label: r.label, uniform: r.uniform};
+    previewUniform(opts.uniforms[r.uniform]);
+  } else {
+    const u = key ? opts.uniforms[key] : {name: "", fits: "same", male: NEW_UNIFORM, female: NEW_UNIFORM};
+    staffDraft = copy({name: u.name, fits: u.fits, male: u.male, female: u.female});
+    previewUniform(draftUniform());
+  }
+  renderStaff(); renderEditor();
+  (key ? null : $(kind === "role" ? "#role-name" : "#uni-name"))?.focus();
+}
+function renderStaffEditor() {
+  const box = $("#editor");
+  box.replaceChildren();
+  if (!staffSel) {
+    box.append(el("div", {className: "ph", textContent: "Staff & uniforms"}),
+      el("p", {className: "empty", textContent: "Pick a role or a uniform on the left, or add one. A new role shows in the Role menus (and Bulk create) straight away."}));
+    return;
+  }
+  if (staffSel.kind === "role") roleEditor(box); else uniformEditor(box);
+}
+function confirmStaff(btn, question, yes) {   // confirmIn, but No redraws this editor
+  const y = el("button", {type: "button", className: "primary", textContent: "Yes"}), n = el("button", {type: "button", textContent: "No"});
+  btn.replaceWith(el("span", {className: "confirm", style: "text-transform: none; letter-spacing: 0; color: var(--fg)"}, question, y, n));
+  y.addEventListener("click", yes); n.addEventListener("click", renderEditor);
+}
+function uniStage() {
+  const fig = (id, cap) => el("figure", {}, el("canvas", {width: 128, height: 128, id}), el("figcaption", {textContent: cap}));
+  return el("div", {className: "npc-stage", style: "justify-content: center"},
+    fig("uv-male-walk", "Male"), fig("uv-male-idle", "Standing"), fig("uv-female-walk", "Female"), fig("uv-female-idle", "Standing"),
+    el("span", {id: "pv-note", textContent: ""}));
+}
+function roleEditor(box) {
+  const key = staffSel.key, r = key ? opts.staff[key] : null, d = staffDraft, n = key ? people(key) : 0;
+  const head = el("div", {className: "ph"}, el("b", {textContent: key ? "Role · " + r.label : "New role"}), el("span", {className: "grow"}));
+  if (r && !r.builtin) {
+    const del = el("button", {type: "button", className: "ghost danger", textContent: "Delete"});
+    del.addEventListener("click", () => confirmStaff(del, `Delete the ${r.label} role?`, () => deleteStaff("roles", key)));
+    head.append(del);
+  }
+  head.append(el("button", {type: "button", className: "primary", id: "role-save", textContent: key ? "Save" : "Create", onclick: saveStaff}));
+  const name = el("input", {id: "role-name", value: d.label, maxLength: 24, placeholder: "e.g. Waitress", disabled: !!r?.builtin});
+  name.addEventListener("input", () => { d.label = name.value; });
+  const uni = el("select", {id: "role-uniform", disabled: key === "punter"}, el("option", {value: "", textContent: key === "punter" ? "Their own clothes" : "None"}),
+    ...Object.entries(opts.uniforms).map(([k, u]) => el("option", {value: k, textContent: u.name, selected: k === d.uniform})));
+  uni.addEventListener("change", () => { d.uniform = uni.value; previewUniform(opts.uniforms[d.uniform]); renderEditor(); });
+  const notes = [];
+  if (r?.builtin) notes.push("Built-in roles keep their names; their uniform can change.");
+  if (key) notes.push(`${n === 1 ? "1 NPC has" : n + " NPCs have"} this role (archived ones included)${r.builtin || !n ? "." : ": give them another role before deleting it."}`);
+  if (key !== "punter" && key !== "dealer") notes.push("Staff other than dealers aren't on the floor yet: they're ready for when they are.");
+  if (key !== "punter") notes.push("New NPCs in this role, made one at a time or in bulk, come dressed in its uniform. Changing it doesn't change anyone already dressed: the uniform's Dress button does that.");
+  box.append(head, el("div", {className: "pb padded", style: "display: grid; gap: var(--gap); align-content: start"},
+    el("div", {className: "grid2", style: "grid-template-columns: 1fr 1fr"},
+      el("label", {className: "field"}, el("span", {textContent: "Name"}), name), el("label", {className: "field"}, el("span", {textContent: "Uniform"}), uni)),
+    d.uniform ? uniStage() : null,
+    ...notes.map(t => el("p", {className: "hint", style: "margin: 0", textContent: t}))));
+}
+function uniformEditor(box) {
+  const key = staffSel.key, u = key ? opts.uniforms[key] : null, d = staffDraft;
+  const roles = key ? Object.entries(opts.staff).filter(([, r]) => r.uniform === key) : [];
+  const wearers = list.filter(n => roles.some(([k]) => k === n.role)).length;
+  const head = el("div", {className: "ph"}, el("b", {textContent: key ? "Uniform · " + u.name : "New uniform"}), el("span", {className: "grow"}));
+  if (wearers) {
+    const dress = el("button", {type: "button", id: "uni-dress", textContent: `Dress ${wearers === 1 ? "1 person" : wearers + " people"}`,
+      title: "Put everyone on the roster whose role wears this uniform into it, as saved"});
+    dress.addEventListener("click", () => confirmStaff(dress, `Re-dress ${wearers === 1 ? "1 person" : wearers + " people"} in the saved ${u.name} uniform?`, () => dressAll(key)));
+    head.append(dress);
+  }
+  if (u && !u.builtin) {
+    const del = el("button", {type: "button", className: "ghost danger", textContent: "Delete"});
+    del.addEventListener("click", () => confirmStaff(del, `Delete the ${u.name} uniform?`, () => deleteStaff("uniforms", key)));
+    head.append(del);
+  }
+  head.append(el("button", {type: "button", className: "primary", id: "uni-save", textContent: key ? "Save" : "Create", onclick: saveStaff}));
+  const name = el("input", {id: "uni-name", value: d.name, maxLength: 24, placeholder: "e.g. Waitress"});
+  name.addEventListener("input", () => { d.name = name.value; });
+  const fits = el("div", {className: "seg", id: "uni-fits"}, ...[["same", "Same for both"], ["split", "Male and female versions"]].map(([k, t]) => {
+    const b = el("button", {type: "button", textContent: t, ariaPressed: String(d.fits === k)});
+    b.addEventListener("click", () => { if (d.fits !== k) { setFits(d, k); previewUniform(draftUniform()); renderEditor(); } });
+    return b;
+  }));
+  const pieces = d.fits === "same"
+    ? el("div", {className: "uni-cols", style: "grid-template-columns: minmax(0, 1fr)"}, el("div", {}, el("h4", {textContent: "Both"}), pieceRows(d.male, ["male", "female"])))
+    : el("div", {className: "uni-cols"}, el("div", {}, el("h4", {textContent: "Male"}), pieceRows(d.male, ["male"])),
+        el("div", {}, el("h4", {textContent: "Female"}), pieceRows(d.female, ["female"])));
+  const notes = [d.fits === "same" ? "The same pieces for both: only what comes in both fits is offered (the formal shirt and waistcoats are male only, blouses female)." : "A version for each body.",
+    "Hair, beards and glasses stay the person's own.",
+    roles.length ? "Worn by: " + roles.map(([, r]) => r.label).join(", ") + "." : key ? "No role wears it yet: pick it for a role above." : "Once it's made, pick it for a role above.",
+    u?.builtin ? "Built in: change it as you like, but it can't be deleted." : null].filter(Boolean);
+  box.append(head,
+    el("div", {className: "npc-ed-top", style: "grid-template-columns: minmax(0, 1fr)"}, uniStage(),
+      el("div", {className: "grid2", style: "grid-template-columns: 1fr auto; align-items: end"},
+        el("label", {className: "field"}, el("span", {textContent: "Name"}), name), fits)),
+    el("div", {className: "pb"}, pieces, el("div", {style: "padding: 0 var(--pad) var(--pad); display: grid; gap: 4px"},
+      ...notes.map(t => el("p", {className: "hint", style: "margin: 0", textContent: t})))));
+}
+function setFits(d, to) {   // same <-> split: split starts both from the shared pieces; same keeps the male pieces that fit both
+  if (to === "split") { d.female = copy(d.male); d.fits = to; return; }
+  for (const slot of opts.slots.filter(s => opts.uniform_slots.includes(s.slot))) {
+    const c = d.male[slot.slot], both = slot.options.filter(o => o.bodies.length > 1);
+    if (!c || both.some(o => o.id === c[0])) continue;
+    if (slot.required) { const o = both[0]; d.male[slot.slot] = [o.id, o.colours.includes(c[1]) ? c[1] : o.colours[0]]; }
+    else delete d.male[slot.slot];
+  }
+  d.female = copy(d.male); d.fits = to;
+}
+function pieceRows(P, bodies) {
+  const wrap = el("div", {style: "display: grid; gap: 5px"});
+  for (const slot of opts.slots.filter(s => opts.uniform_slots.includes(s.slot))) {
+    const fits = slot.options.filter(o => bodies.every(b => o.bodies.includes(b)));
+    const choice = P[slot.slot], current = choice && fits.find(o => o.id === choice[0]);
+    const optSel = el("select", {ariaLabel: slot.label + (bodies.length === 1 ? " (" + bodies[0] + ")" : "")},
+      el("option", {value: "", textContent: slot.required ? "Pick one" : "None"}),
+      ...fits.map(o => el("option", {value: o.id, textContent: o.label, selected: current === o})));
+    if (!current) optSel.value = "";
+    const colSel = el("select", {ariaLabel: slot.label + " colour", disabled: !current},
+      ...(current ? current.colours.map(c => el("option", {value: c, textContent: c.replace(/_/g, " "), selected: choice[1] === c})) : [el("option", {textContent: "—"})]));
+    optSel.addEventListener("change", () => {
+      if (!optSel.value) delete P[slot.slot];
+      else {
+        const o = fits.find(x => x.id === optSel.value);
+        P[slot.slot] = [o.id, choice && o.colours.includes(choice[1]) ? choice[1] : o.colours[0]];
+      }
+      previewUniform(draftUniform()); renderEditor();
+    });
+    colSel.addEventListener("change", () => { P[slot.slot] = [P[slot.slot][0], colSel.value]; previewUniform(draftUniform()); });
+    wrap.append(el("label", {className: "slot"}, el("span", {textContent: slot.label}), optSel, colSel));
+  }
+  return wrap;
+}
+function draftUniform() { const d = staffDraft; return d.fits === "same" ? {male: d.male, female: d.male} : d; }
+function mannequin(body, pieces) {   // someone to try a uniform on
+  const hair = opts.slots.find(s => s.slot === "hair").options.find(o => o.id === (body === "male" ? "parted" : "bob"));
+  const colour = hair.colours.includes("dark_brown") ? "dark_brown" : hair.colours[0];
+  return {body, skin: "light", hair: [hair.id, colour], ...copy(pieces)};
+}
+function previewUniform(u) {
+  clearTimeout(uniTimer);
+  uniPreview = {male: null, female: null};
+  if (!u) return;
+  uniTimer = setTimeout(async () => {
+    const notes = [];
+    for (const body of ["male", "female"]) {
+      try { uniPreview[body] = (await H.api("POST", "/api/looks/preview", {look: mannequin(body, u[body])})).url; }
+      catch (e) { notes.push(body[0].toUpperCase() + body.slice(1) + ": " + e.message); }
+    }
+    const note = H.view.querySelector("#pv-note");
+    if (note) note.textContent = notes.join(" · ");
+  }, 250);
+}
+async function saveStaff() {
+  const {kind, key} = staffSel, d = staffDraft;
+  const body = kind === "role" ? {label: d.label, uniform: d.uniform}
+    : d.fits === "same" ? {name: d.name, fits: "same", pieces: d.male} : {name: d.name, fits: "split", male: d.male, female: d.female};
+  try {
+    const r = await H.api(key ? "PUT" : "POST", `/api/staff/${kind}s` + (key ? "/" + key : ""), body);
+    await loadOptions();
+    const what = kind === "role" ? `the ${opts.staff[r.key].label} role` : `the ${opts.uniforms[r.key].name} uniform`;
+    H.status((key ? "Saved " : "Added ") + what + (kind === "role" && !key ? ": it's in the Role menus now." : "."), "ok");
+    pickStaff(kind, r.key);
+  } catch (e) { H.status(e.message, "warn"); }
+}
+async function deleteStaff(kind, key) {
+  const label = kind === "roles" ? opts.staff[key].label + " role" : opts.uniforms[key].name + " uniform";
+  try {
+    await H.api("DELETE", `/api/staff/${kind}/${key}`);
+    await loadOptions();
+    staffSel = null; renderStaff(); renderEditor();
+    H.status(`Deleted the ${label}.`, "ok");
+  } catch (e) { H.status(e.message, "warn"); renderEditor(); }
+}
+async function dressAll(key) {
+  try {
+    const r = await H.api("POST", `/api/staff/uniforms/${key}/dress`);
+    H.status(r.dressed.length ? `Dressed ${r.dressed.length}: ${r.dressed.join(", ")}.` : "Everyone was already wearing it.", "ok");
+    await refresh(); renderEditor();
+  } catch (e) { H.status(e.message, "warn"); renderEditor(); }
 }

@@ -43,6 +43,8 @@ def test_create_edit_and_delete_an_npc(client):
     assert r.status_code == 200 and r.json()["look_id"] != npc["look_id"] and r.json()["traits"] == ["chaser"]
     assert client.put(f"/api/npcs/{npc['id']}", json={"look": {**look, "top": ["formal", "white"]}}).status_code == 400  # no female fit
     assert client.post("/api/npcs", json={"name": "", "look": look}).status_code == 400
+    assert client.delete(f"/api/npcs/{npc['id']}").status_code == 400   # only from the archive
+    assert client.post(f"/api/npcs/{npc['id']}/archive").status_code == 200
     assert client.delete(f"/api/npcs/{npc['id']}").status_code == 200
     assert client.get(f"/api/npcs/{npc['id']}").status_code == 404
 

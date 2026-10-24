@@ -130,6 +130,23 @@ class Casino:
     def joined_sessions(self):
         return [s for s in self.sessions if s.player is not None and s.preview is None]
 
+    def online_players(self) -> set[int]:
+        return {s.player.id for s in self.joined_sessions()}
+
+    def send_off(self, player_id: int, kind: str, until: float | None = None, reason: str = ""):
+        """The admin page banned, timed out ("ban" | "timeout") or deleted ("removed") a player: anyone playing as
+        them is told why and hung up on (the socket's end stands them up). Returns how many sessions that was."""
+        gone = [s for s in self.joined_sessions() if s.player.id == player_id]
+        for s in gone:
+            self._barred(s, {"kind": kind, "until": until, "reason": reason})
+        return len(gone)
+
+    def _barred(self, session: Session, bar: dict):
+        until = bar.get("until")
+        session.push({"type": "barred", "kind": bar["kind"], "reason": bar.get("reason") or "",
+                      "retry_in": max(1, round(until - time.time())) if until else None})
+        session.close()
+
     def broadcast_world(self):
         """The live floor plan changed (a publish that needed no restart): everyone rebuilds the floor."""
         for table_id, runner in self.tables.items():   # a Master Table's options, and its seat points where it stands now
@@ -220,6 +237,9 @@ class Casino:
         if session.player is not None:
             return session.error("Already joined.")
         player = self.store.player_by_token(token) if token else None
+        bar = player and self.store.barred(player.id, time.time())
+        if bar:
+            return self._barred(session, bar)
         if player is None:
             s = bank.settings(self.store)
             player = self.store.create_player(bank=s["start_bank"] * 100, hand=s["start_hand"] * 100)

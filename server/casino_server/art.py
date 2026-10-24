@@ -131,7 +131,7 @@ BODY_DEFS = {"body": "body/body.json", "head_male": "head/heads/human/heads_huma
              "head_female": "head/heads/human/heads_human_female.json"}
 SLOT_ORDER = ("hair", "beard", "top", "over", "bottom", "shoes", "neck", "glasses", "hat")
 
-# Uniforms: a starting point for staff in the designer (colours can still change).
+# The built-in uniforms (staff.py lays the admin page's changes and additions over them).
 # The formal shirt and waistcoats only come in a male fit; the female uniforms use a blouse.
 UNIFORMS = {
     "dealer": {
@@ -416,7 +416,6 @@ def catalogue() -> dict:
         "slots": [{"slot": slot, "label": SLOT_LABELS[slot], "required": slot in REQUIRED,
                    "options": [{"id": oid, "label": label, "bodies": bodies_of(rel), "colours": colours_of(rel)}
                                for oid, (label, rel) in OPTIONS[slot].items()]} for slot in SLOT_ORDER],
-        "uniforms": UNIFORMS,
     }
 
 

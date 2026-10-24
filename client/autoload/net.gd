@@ -27,6 +27,8 @@ var _away := false        # told the server we're hidden, so it has stopped send
 var _resyncing := false   # dropping buffered messages until the server's `resync` marker
 var _resync_sent_ms := 0
 var _last_frame_ms := 0
+## Barred by the casino (`barred`): no reconnecting until this tick (-1: not until the page is reloaded).
+var _barred_until_ms := 0
 var _on_visibility: JavaScriptObject  # kept alive: JS holds it as the visibilitychange listener
 
 
@@ -111,6 +113,9 @@ func _process(delta: float) -> void:
 				var parsed = JSON.parse_string(_socket.get_packet().get_string_from_utf8())
 				if not parsed is Dictionary:
 					continue
+				if parsed.get("type") == "barred":   # banned, timed out or removed: the server hangs up next
+					var wait = parsed.get("retry_in")
+					_barred_until_ms = now + int(float(wait) * 1000.0) if wait != null else -1
 				if _resyncing:
 					if parsed.get("type") != "resync":
 						continue  # stale: the snapshot after the marker replaces it
@@ -119,6 +124,11 @@ func _process(delta: float) -> void:
 					resynced.emit(parsed)
 				message_received.emit(parsed)
 		WebSocketPeer.STATE_CLOSED:
+			if _barred_until_ms < 0 or now < _barred_until_ms:
+				if _was_open:
+					_was_open = false
+					disconnected.emit()
+				return
 			if _was_open:
 				_was_open = false
 				print("[Net] disconnected (code %d)" % _socket.get_close_code())

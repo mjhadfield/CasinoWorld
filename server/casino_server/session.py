@@ -40,5 +40,9 @@ class Session:
             return
         self.queue.put_nowait(msg)
 
+    def close(self):
+        """Hang up once what's queued has gone (the sender closes the socket at the None)."""
+        self.queue.put_nowait(None)
+
     def error(self, message: str):
         self.push({"type": "error", "message": message})
