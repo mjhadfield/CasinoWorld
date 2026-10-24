@@ -15,7 +15,7 @@ a tab for each kind of table, because they have different parts:
   Mississippi streets; primary for the bet every hand must have: the Ante, Blackjack's bet, Hold'em's Blind, Let It
   Ride's three, Baccarat's Banker box and hand; side for the bonus bets, Baccarat's Tie and Dragons; and the trim for
   the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
-  the betting spots' artwork and glow colour; the Jackpot disc, the shuffler,
+  the betting spots' artwork and glow colour; the Jackpot disc and the jackpot sign (below); the shuffler,
   shoe and discard rack; the card backs (a design, its colour, and the card's colour round it) and fronts (Classic,
   Jumbo index, Vintage or Minimal, in red and black or four colours; High Card Flush puts four colours over the
   style's unless the player's turned that off in Settings); the chairs' frame metal and upholstery; and
@@ -117,6 +117,20 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   `box_of`) says which chairs; the chair's ChairBack draws it with the back, so it's in front of the whole chair
   (`Seating.draw_reserved_sign()`: the board is `assets/sprites/reserved_sign.png` from `tools/build_art.py sign`,
   bent round whichever face of the back is towards us). The Drop Box pill draws over its foot between hands.
+- **The jackpot sign** (`scenes/table/jackpot_sign.gd`, `JackpotSign`) stands on every card table's felt by the
+  dealer, top left as the players see it (`CasinoTable.JACKPOT_SIGN`, its foot): between the rail and the dealer's
+  cards, left of the ledge, clear of every game's shuffler, shoe and rack (the layout audit checks it). Its face
+  rises in front of the rail behind it. It shows the one progressive jackpot as it grows, "your £1 is in" while
+  the local player's Jackpot bet is on the disc (their seat is in `jackpot_lights`), and is powered off where the
+  game has no Jackpot bet (Baccarat, a blank Master Table). A win plays out on the sign of the table it was won
+  at (`celebrate()`, from that table's `jackpot_won` event, for 12 seconds); `Session.jackpot_held()` keeps that
+  sign on the old amount from the server's reset until then, and every other sign just takes the new amount. Its
+  design is the style's `jackpotSign`: `twin` (the shuffler's housing and display colours), `brass` (a marquee
+  with chasing bulbs), `led` (a red dot-matrix that scrolls a win), `screen` (a floor screen that rains confetti),
+  `flap` (a split-flap board in the rail's wood) or `neon`. It's drawn in the mockup's own units (220 across,
+  scaled to 40), redrawing only on screen when what it shows changes or while it animates. The designer draws it
+  too (`jackpotSign()` in render.js, its place from `geometry.json`'s `sign`), and "Jackpot lit" shows it with
+  your £1 in.
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of
@@ -131,7 +145,7 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 
 Every card table follows the same alignment rules:
 - **Equipment:** the shuffler (or shoe) and discard rack sit inside the felt's cream border, level with the
-  dealer's cards.
+  dealer's cards. The jackpot sign stands above them on the left, between the rail and the dealer's cards.
 - **Dealer's cards:** they sit clear of the chip tray, as a separate thing on the felt (`DEALER_Y` -106.5, about 6
   units below the tray; the audit prints the gap).
 - **Player cards:** their bottom edge sits 2 units inside the front border.

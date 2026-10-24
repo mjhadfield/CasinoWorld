@@ -145,6 +145,8 @@ func _ghost(t: CasinoTable) -> void:
 	var lights := t.get_node_or_null("Felt/Lights") as CanvasItem
 	if lights:
 		lights.visible = false
+	if t.jackpot_sign:   # (the new table's stands in the same place, on or off for its game)
+		t.jackpot_sign.visible = false
 	t.remove_from_group("navigation_obstacles")
 	t.remove_from_group("tables")
 	for n in t.find_children("*", "CollisionPolygon2D", true, false) + t.find_children("*", "CollisionShape2D", true, false):

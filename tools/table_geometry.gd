@@ -73,6 +73,7 @@ func _initialize() -> void:
 			"shuffler": _node_pos(t, "Felt/Machines/Shuffler"),
 			"shoe": _node_pos(t, "Felt/Fixtures/Shoe"),
 			"discard": _node_pos(t, "Felt/Fixtures/DiscardRack"),
+			"sign": v(t.JACKPOT_SIGN) if t.jackpot_sign else null, "sign_on": "jackpot" in t.bet_spots(),   # (off: no Jackpot bet)
 			"chairs": [], "spots": [], "cards": [], "dealer_cards": [], "extra": {},
 			"primary": t.primary_spots().filter(func(s): return s in t.bet_spots()),   # (they glow first, the side bets after)
 		}

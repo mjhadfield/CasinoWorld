@@ -267,7 +267,7 @@ sections:
   where the game puts every spot and card, and "Spot glow" to watch seat 2's spots glow as they do when you sit
   down (the main bet, then the side bets once it's down); the parts are the felt, border line, rail (wood, leather armrest or
   leather all round, the bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting
-  spots (and their glow colour), Jackpot disc, shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
+  spots (and their glow colour), Jackpot disc, jackpot sign (six designs), shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
   border, rail, printing, number colours, float, wheel and chairs. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to

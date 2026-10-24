@@ -52,7 +52,8 @@ The game's copies came from the Google Fonts repository (`github.com/google/font
 - **Montserrat:** `Montserrat[wght].ttf`, instanced at weight 600 with `--remove-overlaps`.
 
 The admin designer serves copies of the game's files, plus DejaVu Sans Bold (already in the game, with
-`DejaVu-LICENSE.txt`).
+`DejaVu-LICENSE.txt`), and for the jackpot sign's displays VT323 and Barlow Condensed Bold (both already in the
+game, under the OFL).
 
 | Font | Used for | Licence |
 |---|---|---|
@@ -60,7 +61,8 @@ The admin designer serves copies of the game's files, plus DejaVu Sans Bold (alr
 | [Cormorant SC](https://fonts.google.com/specimen/Cormorant+SC) | Monte Carlo printing | OFL 1.1 |
 | [Josefin Sans](https://fonts.google.com/specimen/Josefin+Sans) | Midnight Deco printing | OFL 1.1 |
 | [Montserrat](https://fonts.google.com/specimen/Montserrat) | Modern Vegas printing | OFL 1.1 |
-| [Barlow / Barlow Condensed](https://fonts.google.com/specimen/Barlow) | the mockup page itself, chip and card lettering (Barlow Condensed is already in the game) | OFL 1.1 |
+| [Barlow / Barlow Condensed](https://fonts.google.com/specimen/Barlow) | the mockup page itself, chip and card lettering, the jackpot sign's screen and split-flap (Barlow Condensed is already in the game) | OFL 1.1 |
+| [VT323](https://fonts.google.com/specimen/VT323) | the jackpot sign's LCD and LED displays (already in the game, for the ATM's screen) | OFL 1.1 |
 
 ## The game's own art in the mockup
 

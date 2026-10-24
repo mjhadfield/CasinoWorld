@@ -6,8 +6,8 @@ extends Control
 ## centre, in the table's own style, with the line above them saying what's happening (its countdown draining in
 ## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
 ## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
-## place while it's open; a decision's extras (Blackjack's Split and Double) flank it, so the core buttons never move. Stand up sits at the bar's right edge. The table's jackpot, if it has one, sits top left
-## under your balance; Paytable top right, left of the HUD's minimap.
+## place while it's open; a decision's extras (Blackjack's Split and Double) flank it, so the core buttons never move. Stand up sits at the bar's right edge. Paytable sits top
+## right, left of the HUD's minimap. (The table's jackpot is on the table itself: JackpotSign.)
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
 signal chip_picked(value: int)
@@ -39,7 +39,6 @@ const CHIP_PHONE := 36.0
 const BUTTON_H := 50.0     # Ready and the decisions: as tall as the chips
 const SIDE_GAP := 16.0     # the chips to Ready on one side, to Undo on the other
 const CORNER_INSET := Vector2(24, 16)   # the HUD's corner pills from the screen's edges, clear of a wall at the floor's edge
-const TOP_LEFT_Y := 68.0   # under the HUD's wallet pill, top left
 
 ## The top of the bar's fade, in screen pixels (the Master Table's pills and the Pai Gow sorter sit above it).
 var bar_top := 0.0
@@ -67,9 +66,6 @@ var _undo: BarButton
 var _clear: BarButton
 var _auto: BarSwitch
 var _sit_out: BarSwitch
-var _jackpot: PanelContainer
-var _jackpot_in: Label
-var _jackpot_amount: Label
 var _corner: HBoxContainer
 var _pay: BarButton
 var _stand: BarButton
@@ -173,26 +169,6 @@ func _build_where() -> void:
 
 
 func _build_corners() -> void:
-	_jackpot = PanelContainer.new()
-	_jackpot.position = Vector2(CORNER_INSET.x, TOP_LEFT_Y)
-	add_child(_jackpot)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 0)
-	_jackpot.add_child(box)
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	box.add_child(top)
-	var title := _label("JACKPOT", 13, BRASS)
-	title.add_theme_constant_override("outline_size", 0)
-	top.add_child(title)
-	_jackpot_in = _label("Your £1 is in", 12, Color("1b1307"))
-	_jackpot_in.add_theme_stylebox_override("normal", _box(BRASS_HI, BRASS_HI, 8, Vector4(7, 0, 7, 0)))
-	_jackpot_in.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(_jackpot_in)
-	_jackpot_amount = _label("", 32, BRASS_HI)
-	box.add_child(_jackpot_amount)
-	_light_jackpot(false)
-
 	_corner = HBoxContainer.new()
 	_corner.add_theme_constant_override("separation", 8)
 	add_child(_corner)
@@ -239,11 +215,6 @@ static func _lifted(s: StyleBoxFlat) -> StyleBoxFlat:
 	s.shadow_size = 8
 	s.shadow_offset = Vector2(0, 2)
 	return s
-
-
-func _light_jackpot(lit: bool) -> void:
-	_jackpot.add_theme_stylebox_override("panel", _box(Color(0.086, 0.063, 0.027, 0.93), BRASS_HI if lit else Color(BRASS, 0.6), 12, Vector4(16, 8, 16, 9)))
-	_jackpot_in.visible = lit
 
 
 # ------------------------------------------------------------------ fed by the HUD
@@ -303,7 +274,7 @@ func close_paytable() -> void:
 ## is_ready, sit_out, actions ([{id, label, key?, place?, pressed?}]; place "commit" goes beside the chips on the
 ## left, "switch" is a switch on the right, "left"/"right" flank the decision, anything else is a decision in the
 ## chips' place), info, hand, hide,
-## timer (0-1, or -1 for none), on_felt, title, seats, jackpot (or -1), jackpot_mine.
+## timer (0-1, or -1 for none), on_felt, title, seats.
 func update_view(s: Dictionary) -> void:
 	var can_bet: bool = s.get("can_bet", false)
 	var actions: Array = s.get("actions", [])
@@ -355,14 +326,6 @@ func update_view(s: Dictionary) -> void:
 	if t >= 0.0:
 		_timer_fill.size.x = _timer.size.x * clampf(t, 0.0, 1.0)
 		_timer_fill.color = WARN if s.get("timer_low", false) else BRASS_HI
-	# top left: the jackpot
-	var jp := float(s.get("jackpot", -1.0))
-	_jackpot.visible = jp > 0.0
-	if jp > 0.0:
-		_jackpot_amount.text = Money.format(int(jp))
-		var mine: bool = s.get("jackpot_mine", false)
-		if mine != _jackpot_in.visible:
-			_light_jackpot(mine)
 	_layout()
 
 
@@ -506,7 +469,6 @@ func _layout() -> void:
 		_place(_stand, Vector2(vs.x - 22.0 - stand.x, mid - stand.y / 2.0), stand)
 	var corner := _corner.get_combined_minimum_size()
 	_place(_corner, Vector2(vs.x - right_inset - corner.x, CORNER_INSET.y), corner)
-	_jackpot.size = Vector2.ZERO
 
 
 ## A label's width with nothing trimmed (its minimum shrinks to the ellipsis once it may trim).

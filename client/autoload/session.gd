@@ -41,6 +41,10 @@ var _jackpot_amount := 0.0
 var _jackpot_rate := 0.0
 var _jackpot_ceiling := 0.0
 var _jackpot_received_at := 0.0
+# The table a jackpot was just won at -> [what its meter showed before the win, until when]: its sign keeps
+# showing that until the win is shown there (JackpotSign), so the drop doesn't give it away.
+var _jackpot_holds := {}
+const JACKPOT_HOLD_MAX := 90.0
 
 
 func _ready() -> void:
@@ -99,6 +103,9 @@ func _on_message(msg: Dictionary) -> void:
 				shown_balance = balance
 				balance_changed.emit(shown_balance)
 		"jackpot":
+			var won_at: String = msg.get("table", "")
+			if won_at != "" and jackpot_held(won_at) < 0.0:   # (a second win in the same hand keeps the first's)
+				_jackpot_holds[won_at] = [jackpot_now(), _now() + JACKPOT_HOLD_MAX]
 			_jackpot_amount = float(msg.get("amount", 0))
 			_jackpot_rate = float(msg.get("rate", 0))
 			_jackpot_ceiling = float(msg.get("ceiling", 0))
@@ -145,6 +152,19 @@ func character(id: int) -> Dictionary:
 func jackpot_now() -> float:
 	var amount := _jackpot_amount + _jackpot_rate * (_now() - _jackpot_received_at)
 	return minf(amount, _jackpot_ceiling) if _jackpot_ceiling > 0.0 else amount
+
+
+## What a table's jackpot sign shows while the win there hasn't been shown yet, or -1 if it isn't holding.
+func jackpot_held(table_id: String) -> float:
+	var hold: Array = _jackpot_holds.get(table_id, [])
+	if hold.is_empty() or _now() > float(hold[1]):
+		return -1.0
+	return float(hold[0])
+
+
+## The win's been shown at that table: its sign shows the meter again.
+func release_jackpot(table_id: String) -> void:
+	_jackpot_holds.erase(table_id)
 
 
 func _now() -> float:

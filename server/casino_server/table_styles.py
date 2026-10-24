@@ -4,7 +4,7 @@ admin_web/tables/, the same renderer as the signed-off mockup in docs/table_styl
 
 There are three kinds, each with its own styles, default and placement, because the tables have different
 parts: the card tables ("cards"), Roulette ("roulette") and Craps ("craps"). A style is only looks: for a
-card table the felt, rail, chip tray, printing, betting spots, Jackpot disc, shuffler, shoe, discard rack, card
+card table the felt, rail, chip tray, printing, betting spots, Jackpot disc and sign, shuffler, shoe, discard rack, card
 backs and chips; for Roulette the felt, rail, printing, number colours, float and wheel; for Craps the felt, rail,
 printing, rubber, chip rack and dice. Where anything sits on the felt never changes. Every table uses its kind's
 default style (House) unless `tables` gives it another. Card House is Mike's design (2026-10-21); Roulette's
@@ -35,7 +35,7 @@ HOUSE = {
     "spots": "deco", "glow": "#ffdf9e",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
     "back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
-    "jackpot": "led", "jackpotRim": "thin", "chips": "clay",
+    "jackpot": "led", "jackpotRim": "thin", "jackpotSign": "brass", "chips": "clay",
     "chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 
@@ -52,7 +52,7 @@ _PRESET_BASE = {
     "spots": "double", "glow": "#ffdf9e",
     "print": {"font": "cinzel", "ink": "#f1e4c4", "accent": "#c9a24a"},
     "back": "emerald", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
-    "jackpot": "gold", "jackpotRim": "thin", "chips": "clay",
+    "jackpot": "gold", "jackpotRim": "thin", "jackpotSign": "brass", "chips": "clay",
     "chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 
@@ -82,20 +82,23 @@ BUILT_IN = {
                      rail__wood="walnut", rail__armrest="player", rail__bead="gold", tray__finish="lid",
                      shuffler="gunmetal", rack="smoked", rackTint="#1e2328", spots="foil",
                      print__font="cormorant", print__ink="#e8d3a0", print__accent="#e0b84e", glow="#f0c75e",
-                     back="monogram", jackpotRim="standard", chips="ceramic"),
+                     back="monogram", jackpotRim="standard", jackpotSign="flap", chips="ceramic"),
     "deco": _preset("Midnight Deco", felt__colour="#14284a", felt__texture="weave", felt__vignette=0.5, border="deco",
                     led="#ffd28a", rail__wood="rosewood", rail__armrest="none", rail__leather="#1a2234",
                     rail__bead="gold", shuffler="brass", shoe="wood", shoeTint="#6b0f19", rack="wood",
                     rackTint="#1e2328", spots="deco", print__font="josefin", print__ink="#e8d3a0",
-                    print__accent="#e0b84e", back="sunburst", jackpotRim="standard"),
+                    print__accent="#e0b84e", back="sunburst", jackpotRim="standard", jackpotSign="neon"),
     "vegas": _preset("Modern Vegas", felt__colour="#1a3f93", felt__texture="weave", felt__vignette=0.35, border="led",
                      led="#8fd3ff", rail__wood="ebony", rail__bead="chrome", tray__finish="steel",
                      shufflerTint="#1c1e22", rack="smoked", rackTint="#1e2328", spots="double",
                      print__font="montserrat", print__ink="#f4f4f2", print__accent="#8fd3ff", glow="#8fd3ff",
-                     back="stripe", jackpot="led", jackpotRim="standard", chips="ceramic"),
+                     back="stripe", jackpot="led", jackpotRim="standard", jackpotSign="screen", chips="ceramic"),
 }
 
 WOODS = ("mahogany", "walnut", "wenge", "rosewood", "ebony")
+# The progressive's sign standing on the felt by the dealer (JackpotSign in the client): a twin of the shuffler, a
+# brass marquee, a red pit LED, a floor screen, a split-flap board in the rail's wood, or neon.
+JACKPOT_SIGNS = ("twin", "brass", "led", "screen", "flap", "neon")
 CHOICES = {
     "felt.texture": ("weave", "velvet", "plain"),
     "border": ("none", "pinstripe", "gilt", "double", "deco", "led"),
@@ -117,6 +120,7 @@ CHOICES = {
     "suits": ("two", "four"),
     "jackpot": ("clear", "gold", "led"),
     "jackpotRim": ("thin", "standard", "heavy"),
+    "jackpotSign": JACKPOT_SIGNS,
     "chips": ("classic", "clay", "ceramic", "stripes", "metal", "house", "vintage"),
     "chairs.frame": seating.CHOICES["frame"],
 }

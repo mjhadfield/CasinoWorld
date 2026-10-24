@@ -1,6 +1,6 @@
 extends SceneTree
 # Table layout audit: for every table scene, checks the shuffler/shoe/discard rack sit inside the felt's
-# cream border, the dealer's cards clear the chip tray, and lists one seat's rows (side bets, main bets,
+# cream border, the dealer's cards clear the chip tray, the jackpot sign stands clear of them all, and lists one seat's rows (side bets, main bets,
 # cards) with the gap above each and the gap from the cards to the front border. Table-local units.
 # Roulette (LAYOUT_ONLY=rou) has its own check: the wheel, float, chip hole, title and layout sit inside the
 # felt (clear of the bay and the rail), and the results sign stands clear of the table.
@@ -71,6 +71,14 @@ func _initialize() -> void:
 			var e: Rect2 = eq[name]
 			var gap: float = minf(absf(e.position.x - d.end.x), absf(d.position.x - e.end.x))
 			print("    %s clear of dealer cards: %s (x gap %.1f)" % [name, not e.intersects(d), gap])
+		var js = t.jackpot_sign
+		if js:   # (standing, its face rises over the rail behind it; what it stands on must be felt)
+			var sr: Rect2 = js.drawn_rect()
+			print("  jackpot sign   ", fmt(sr), "  stands inside border: %s  x gap to tray %.1f" % [
+				inside(border, js.footprint()), tray.position.x - sr.end.x])
+			print("    clear of dealer cards: %s (y gap %.1f)" % [not sr.intersects(d), d.position.y - sr.end.y])
+			for name in eq:
+				print("    clear of %s: %s" % [name, not sr.intersects(eq[name])])
 		# One seat's column (the middle seat)
 		var seat: int = t.seat_count() / 2
 		var rows := []

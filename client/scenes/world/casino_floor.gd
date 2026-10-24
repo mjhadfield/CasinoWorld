@@ -933,8 +933,7 @@ func _seated_view() -> Dictionary:
 		"timer": t.timer_fraction() if timed and left > 0.0 else -1.0, "timer_low": left < 5.0,
 		"on_felt": _total(my_bets) * t.boxes(), "title": t.game_title(),
 		"seats": "%d of %d %s" % [t.occupants.values().filter(func(o): return not o.has("box_of")).size(), t.seat_count(),
-			"at the rail" if t is CrapsTable else "seated"],
-		"jackpot": Session.jackpot_now() if "jackpot" in t.bet_spots() else -1.0, "jackpot_mine": int(my_bets.get("jackpot", 0)) > 0}
+			"at the rail" if t is CrapsTable else "seated"]}
 
 
 ## A round's over (the next one's betting opens): what it won or lost you flashes beside the bar's balance.

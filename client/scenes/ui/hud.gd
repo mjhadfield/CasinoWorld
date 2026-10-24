@@ -3,7 +3,7 @@ extends CanvasLayer
 ## it to switch character); top right: the minimap (Minimap, with Find and its guide under it).
 ## Walking: the interact prompt under your feet (Use ATM, Play) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
-## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
+## when you have one, the line saying what's happening), Paytable and Stand up.
 ## Before you're on the floor, the front door covers it all (FrontDoor: loading, the character select, the designer).
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 

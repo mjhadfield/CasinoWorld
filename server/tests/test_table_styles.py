@@ -2,6 +2,8 @@
 Roulette and Craps each keeping their own styles."""
 import copy
 
+import pytest
+
 from conftest import enter, recv_until  # noqa: F401  (the client fixture lives in conftest)
 
 from casino_server import table_styles
@@ -128,3 +130,11 @@ def test_roulette_and_craps_have_their_own_styles_and_placement(client):
     assert client.put("/api/table-styles/tables", json={"tables": {"rou_1": "house"}}).status_code == 400
     assert "green_room" not in client.get("/api/table-styles").json()["styles"]
     assert client.delete("/api/table-styles/styles/green_room?kind=roulette").json()["tables"] == {}
+
+
+def test_a_card_style_picks_its_jackpot_sign():
+    assert table_styles.clean_design({})["jackpotSign"] == table_styles.HOUSE["jackpotSign"]   # (saved before the sign)
+    for sign in table_styles.JACKPOT_SIGNS:
+        assert table_styles.clean_design({"jackpotSign": sign})["jackpotSign"] == sign
+    with pytest.raises(ValueError):
+        table_styles.clean_design({"jackpotSign": "hologram"})

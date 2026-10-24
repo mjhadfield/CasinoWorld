@@ -131,7 +131,8 @@ def main():
     # ...and the game's lettering, so the designer prints with the very same fonts.
     fonts = OUT_WEB.parent / "fonts"
     fonts.mkdir(exist_ok=True)
-    for name in ("Cinzel-SemiBold", "CormorantSC-Bold", "JosefinSans-SemiBold", "Montserrat-SemiBold", "DejaVuSans-Bold"):
+    for name in ("Cinzel-SemiBold", "CormorantSC-Bold", "JosefinSans-SemiBold", "Montserrat-SemiBold", "DejaVuSans-Bold",
+                 "VT323-Regular", "BarlowCondensed-Bold"):   # (the last two: the jackpot sign's displays)
         shutil.copy(ROOT / "client" / "assets" / "fonts" / f"{name}.ttf", fonts / f"{name}.ttf")
     print(f"wrote {len(WOODS)} woods and {len(shades)} shades to {OUT_GAME.relative_to(ROOT)} and {OUT_WEB.relative_to(ROOT)}")
 

@@ -121,7 +121,8 @@ touch the store.
 
 The table
 games share one progressive jackpot (`jackpot.py`), worked out from elapsed time when read, with no
-background task. The slots have their own Mini/Minor/Major/Grand meters (`slots/jackpots.py`).
+background task. Every card table shows it on its own jackpot sign (docs/tables.md); after a win, the new amount
+names the table it was won at, so only that table's sign celebrates. The slots have their own Mini/Minor/Major/Grand meters (`slots/jackpots.py`).
 
 ## The client: one world, a camera, an animation queue per table
 
@@ -235,8 +236,7 @@ A Godot 4.7 project exported to the web.
   above them only when you've a decision on the clock (bets closing, your turn, the sorter, with its draining countdown)
   or a prompt you asked for (a hovered spot's payout) -- it doesn't narrate the hand, Ready (Repeat Bet until you've bet; Craps: the
   dice) on their left, Undo, Clear, Auto rebet and Sit out (Craps: Working) on their right, and a decision in the
-  chips' place while it's open, and Stand up at the bar's right edge; the table's jackpot (only at tables with one)
-  top left under your balance, Paytable top right left of the minimap (the paytable opens under it, folding the minimap if it was open, and scrolls when a game's rules run past the screen). Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
+  chips' place while it's open, and Stand up at the bar's right edge; Paytable top right left of the minimap (the paytable opens under it, folding the minimap if it was open, and scrolls when a game's rules run past the screen). Each table's `seated_view()` feeds it (an action's `place`: `commit` beside the chips,
   `switch` a switch, else a decision). Game-specific panels (the Pai Gow sorter, the slot screen) sit alongside it.
 
 ## Working on it

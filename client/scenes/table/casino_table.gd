@@ -2,7 +2,7 @@
 class_name CasinoTable
 extends FloorGame
 ## What every table game on the casino floor shares: the swept-bay table and
-## its seats, the dealer, the chips and cards on the felt, the Jackpot lights,
+## its seats, the dealer, the chips and cards on the felt, the Jackpot lights and sign,
 ## the shuffler and discard rack, and the animation queue. A game's table
 ## (TcpTable, BlackjackTable) extends this and adds its own layout and events.
 ##
@@ -46,6 +46,7 @@ const RAIL := 7.0
 const DEALER_Y := -106.5  # dealer's cards: clear of the chip tray, level with the shuffler and discard rack
 const TITLE_Y := -88.0
 const JACKPOT_Y := -78.0
+const JACKPOT_SIGN := Vector2(-64, -119.5)   # the jackpot sign's foot: between the rail and the dealer's cards, left of the ledge
 const SPOT_R := 7.5       # circle spots: a chip (radius 6) plus a sliver of felt
 const SEAT_GAP := 49.0
 const CHAIR_Y := 40.0
@@ -95,6 +96,7 @@ var _glow_since := {}             # spot -> when it started glowing (local secon
 @onready var _dyn: Node2D = $Felt/Dynamic
 @onready var shuffler: CardShuffler = get_node_or_null("Felt/Machines/Shuffler")   # card games only
 @onready var discard_rack: DiscardRack = get_node_or_null("Felt/Fixtures/DiscardRack")
+var jackpot_sign: JackpotSign   # card games only: built in _ready()
 
 
 func _init() -> void:
@@ -110,6 +112,11 @@ func _ready() -> void:
 		var layer := get_node_or_null(path) as Node2D
 		if layer:
 			layer.position = -_felt.position
+	var machines := get_node_or_null("Felt/Machines")
+	if machines:   # (every card table: the sign's off at a game with no Jackpot bet)
+		jackpot_sign = JackpotSign.new()
+		jackpot_sign.position = JACKPOT_SIGN
+		machines.add_child(jackpot_sign)
 	_build_collision()
 
 
@@ -881,6 +888,10 @@ func _animate(speed: float, ev: Dictionary) -> float:
 					_chips_for(seat)[spot] = stack
 			_queued_promoted(queued.keys())
 			my_hand_changed.emit("")
+			return 0.0
+		"jackpot_won":   # (only here: every other table's sign just takes the new amount)
+			if jackpot_sign:
+				jackpot_sign.celebrate(int(ev.amount))
 			return 0.0
 	return _animate_game(ev, d)
 
