@@ -1,11 +1,12 @@
 // Settings: how the floor runs (NPCs on or off, the population, cooldowns, dealer shifts), the Default seating style, and
-// the Bank (the lobby ATM's rules and what new players start with), side by side.
+// the Bank (the lobby ATM's rules and what new players start with), and this browser's admin preferences, side by side.
+import { ZOOM_STEP } from "/admin-ui/plan/plan.js";
 let H;
 
 export function init(h) {
   H = h;
   h.view.innerHTML = `
-  <div class="wb" style="grid-template-columns: minmax(0, 560px) minmax(0, 560px) minmax(0, 1fr)">
+  <div class="wb" style="grid-template-columns: minmax(0, 560px) minmax(0, 560px) minmax(0, 560px) minmax(0, 1fr)">
     <form class="panel" id="settings-form">
       <div class="ph">Floor <span class="grow"></span><button type="submit" class="primary">Save</button></div>
       <div class="pb padded">
@@ -54,8 +55,20 @@ export function init(h) {
         <p class="hint">The lobby's ATM moves money between a player's bank and the cash they play with. Withdrawals come in £50 notes, so the limit and rounding are multiples of £50. With a bank at the threshold or more, one withdrawal per wait may be up to half the bank, rounded down (£2,000 → £1,000, £6,700 → £3,000); between them the usual limit applies. The bank can go overdrawn without limit; the wait applies only while it is. Changes apply to the next use of the ATM, and the starting amounts to players who arrive from now on.</p>
       </div>
     </form>
+    <div class="panel">
+      <div class="ph">This browser</div>
+      <div class="pb padded">
+        <label class="field"><span>Floor plan scroll zoom: <b id="p-zoom-out"></b> per wheel notch</span>
+          <input type="range" id="p-zoom" min="${ZOOM_STEP.min}" max="${ZOOM_STEP.max}" step="1"></label>
+        <p class="hint">Saved as you move it (no Save needed) and kept in this browser only. Lower zooms more gently; ${ZOOM_STEP.default}% is the default (it used to be 15%).</p>
+      </div>
+    </div>
   </div>`;
   const $ = s => h.view.querySelector(s);
+  const zoom = $("#p-zoom"), saved = +H.remember.get("zoom_step");
+  const showZoom = () => { $("#p-zoom-out").textContent = zoom.value + "%"; };
+  zoom.value = saved >= ZOOM_STEP.min && saved <= ZOOM_STEP.max ? saved : ZOOM_STEP.default; showZoom();
+  zoom.addEventListener("input", () => { H.remember.set("zoom_step", zoom.value); showZoom(); });
   $("#s-npcs-on").addEventListener("change", async e => {
     const on = e.target.checked;
     try {

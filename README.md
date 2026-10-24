@@ -261,7 +261,8 @@ sections:
   players start with (bank and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
   the most a withdrawal can be (a multiple of £50: it pays in £50 notes), the bank at which one withdrawal per wait
   may be up to half the bank rounded down to a step (£2,000, every 60 min, to £1,000), and the wait between
-  withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank.
+  withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank. **This browser**: the Floor
+  plan's scroll zoom per wheel notch (2–25%, default 8%), saved as you move it, in this browser's storage only.
 
 ## Money
 Each player has cash in hand (their `balance`: what they bet with, shown top left) and a bank balance, which can go

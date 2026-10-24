@@ -18,9 +18,9 @@
 import * as G from "/admin-ui/plan/geom.js";
 import { drawRoom, drawItem, drawPaths, drawReach, loadTables, onImage } from "/admin-ui/plan/draw.js";
 
-let $, el, api, status, top;
+let $, el, api, status, top, remember;
 export function init(h) {
-  ({ el, api, status, top } = h);
+  ({ el, api, status, top, remember } = h);
   app = h.view;
   $ = s => app.querySelector(s) || top.querySelector(s);
 }
@@ -934,10 +934,13 @@ function dbl(e) {
   if (r) setMode("room", S.draft.rooms.indexOf(r));
 }
 
+// Each wheel notch zooms by Settings › Floor plan's "Scroll zoom" (per cent, this browser only).
+export const ZOOM_STEP = { min: 2, max: 25, default: 8 };
 function wheel(e) {
   e.preventDefault();
-  const b = canvas.getBoundingClientRect();
-  zoomAt({ x: e.clientX - b.left, y: e.clientY - b.top }, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+  const b = canvas.getBoundingClientRect(), pc = +remember.get("zoom_step");
+  const f = 1 + (pc >= ZOOM_STEP.min && pc <= ZOOM_STEP.max ? pc : ZOOM_STEP.default) / 100;
+  zoomAt({ x: e.clientX - b.left, y: e.clientY - b.top }, e.deltaY < 0 ? f : 1 / f);
 }
 
 // ---------------------------------------------------------------- keys
