@@ -175,7 +175,9 @@ func _refresh() -> void:
 		if not slot.required:
 			style.add_item("None")
 			style.set_item_metadata(0, "")
-		for o in slot.options:
+		var styles: Array = slot.options.duplicate()
+		styles.sort_custom(func(a, b): return str(a.label).naturalnocasecmp_to(str(b.label)) < 0)
+		for o in styles:
 			if spec.get("body") in o.bodies:
 				style.add_item(str(o.label))
 				style.set_item_metadata(style.item_count - 1, o.id)
@@ -189,8 +191,14 @@ func _refresh() -> void:
 		if current.is_empty():
 			colour.add_item("-")
 			continue
-		for c in current.colours:
-			colour.add_item(str(c).replace("_", " ").capitalize())
+		var colours: Array = current.colours.duplicate()
+		colours.sort_custom(func(a, b): return _colour_label(a).naturalnocasecmp_to(_colour_label(b)) < 0)
+		for c in colours:
+			colour.add_item(_colour_label(c))
 			colour.set_item_metadata(colour.item_count - 1, c)
 			if c == choice[1]:
 				colour.select(colour.item_count - 1)
+
+
+func _colour_label(c) -> String:
+	return str(c).replace("_", " ").capitalize()
