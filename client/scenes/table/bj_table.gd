@@ -596,12 +596,12 @@ func _settle(ev: Dictionary, d: float) -> float:
 	var n := hands.size()
 	if ev.has("sweep"):  # a Dealer Blackjack beat everyone or the dealer bust: hand after hand, no checking
 		var gap := float(ev.sweep) * d
-		var k := 0
+		var paid := 0
 		for entry in ev.hands:
 			if int(entry.hand) < n:
-				_after(k * gap).timeout.connect(_settle_hand.bind(seat, int(entry.hand), n, entry, d))
-				k += 1
-		_after(maxf(k - 1, 0) * gap + 0.15 * d).timeout.connect(func():
+				_after(paid * gap).timeout.connect(_settle_hand.bind(seat, int(entry.hand), n, entry, d))
+				paid += 1
+		_after(maxf(paid - 1, 0) * gap + 0.15 * d).timeout.connect(func():
 			var k := 0
 			for hand in hands:
 				for card in hand.cards:
@@ -609,7 +609,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 					k += 1
 				hand.cards = []
 				hand.gone = true)
-		return k * gap
+		return paid * gap
 	var t := 0.19 * d
 	if str(ev.get("say", "")) != "":
 		_after(t).timeout.connect(dealer.say.bind(ev.say, 2.0 + pause * 2))
