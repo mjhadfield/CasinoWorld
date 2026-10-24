@@ -841,7 +841,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	var my_roll := phase == "betting" and shooter == my_seat and my_seat >= 0
 	if waiting_to_join():
 		return {"info": "Game in progress, wait for the next come out roll to join", "actions": [],
-			"hide": ["ready", "rebet", "auto_rebet"], "quiet_betting": true}
+			"hide": ["ready", "rebet", "auto_rebet"], "quiet_betting": true, "prompt": true}
 	if not hover.is_empty():
 		var spot := spot_for(hover.id)
 		var i := info(spot)
@@ -882,7 +882,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			"kind": "done" if coming else "quiet", "pressed": coming})
 	actions.append({"id": "working", "label": "Working  [W]", "key": "W", "pressed": working.get(my_seat, false), "place": "switch"})
 	return {"info": info_text, "actions": actions, "my_turn": my_roll, "hide": ["ready", "rebet", "auto_rebet"],
-		"quiet_betting": true}
+		"quiet_betting": true, "prompt": not hover.is_empty()}
 
 
 func action_message(id: String) -> Array:

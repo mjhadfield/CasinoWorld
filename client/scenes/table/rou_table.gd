@@ -433,7 +433,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			count += 1
 	if total > 0 and accepting_bets():
 		info += "  ·  Your bets: %s on %d spot%s" % [Money.format(total), count, "" if count == 1 else "s"]
-	return {"info": info, "actions": [], "my_turn": false}
+	return {"info": info, "actions": [], "my_turn": false, "prompt": hover_spot != "" and bets().has(hover_spot)}
 
 
 # ------------------------------------------------------------------ snapshot

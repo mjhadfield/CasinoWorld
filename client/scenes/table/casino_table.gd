@@ -176,7 +176,8 @@ func zero_bets() -> Dictionary:
 
 
 ## What the seated HUD bar shows and offers. `ctx` has can_bet, has_bets,
-## my_ready, my_bets. Returns {info, actions: [{id, label, key}], my_turn}.
+## my_ready, my_bets. Returns {info, actions: [{id, label, key}], my_turn, prompt?}. The floor shows `info` only
+## while you're up against a countdown (betting, your decision, the sorter) or when `prompt` is true.
 func seated_view(ctx: Dictionary) -> Dictionary:
 	return {"info": _betting_info(ctx), "actions": [], "my_turn": false}
 

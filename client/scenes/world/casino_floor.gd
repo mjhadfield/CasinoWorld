@@ -912,15 +912,13 @@ func _seated_view() -> Dictionary:
 	var ctx := {"can_bet": _can_bet(), "has_bets": _total(my_bets) > 0, "my_ready": my_ready, "my_bets": my_bets}
 	var view: Dictionary = t.seated_view(ctx)
 	_actions = view.get("actions", [])
-	var info: String = view.get("info", "")
-	var hand := ""
-	if t.in_hand and my_hand != "" and t.phase != "betting":
-		hand = my_hand
-	elif ctx.can_bet and not t.accepting_bets():
-		info = "Bets you put down now play the next hand" + ("  ·  %s" % info if info != "" else "")
 	var my_turn: bool = view.get("my_turn", false)
 	# the bar's draining line: a countdown you're up against (betting before you're Ready, a decision, the sorter)
 	var timed: bool = my_turn or hud.sorter.is_open() or (t.phase == "betting" and ctx.can_bet and not my_ready)
+	# The line only speaks when there's a decision on the clock, or the table's `prompt` asks for it (a hovered spot's
+	# payout, the Master table's "click the dealer"). It doesn't narrate the hand: that's on the felt and the dealer says it.
+	var info: String = view.get("info", "") if timed or view.get("prompt", false) else ""
+	var hand := my_hand if timed and t.in_hand and t.phase != "betting" else ""
 	var left := t.timer_left()
 	return {"can_bet": ctx.can_bet, "can_ready": ctx.can_bet and t.can_ready(), "can_undo": ctx.can_bet and not _placed.is_empty(),
 		"has_bets": ctx.has_bets, "can_rebet": played_a_hand, "sit_out": t.sit_out_ok(),

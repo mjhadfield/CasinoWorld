@@ -27,7 +27,7 @@ func queues_bets() -> bool:
 
 
 func seated_view(_ctx: Dictionary) -> Dictionary:
-	return {"info": "Click the dealer to choose a game", "actions": [], "my_turn": false, "quiet_betting": true}
+	return {"info": "Click the dealer to choose a game", "actions": [], "my_turn": false, "quiet_betting": true, "prompt": true}
 
 
 func _countdown_text(_left: float) -> String:
