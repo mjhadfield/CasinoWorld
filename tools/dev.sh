@@ -126,6 +126,7 @@ export_web() {
     mkdir -p "$ROOT/build/web"
     cd "$ROOT/client"
     godot --headless --export-release Web ../build/web/index.html
+    python3 "$ROOT/tools/patch_web_gl.py" "$ROOT/build/web/index.js"   # (else the game freezes after ~50 minutes)
     compress_web "$ROOT/build/web"
 }
 

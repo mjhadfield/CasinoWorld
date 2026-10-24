@@ -16,6 +16,14 @@ There are two big costs:
 - **Draw calls.** In GL Compatibility, every polygon, circle and antialiased line is its own draw call, replayed
   every frame even when nothing changed. A felt drawn straight is 300 to 400 of them, with three or four on screen.
 
+Every polygon, circle and arc in a `_draw()` also gets a fresh GL buffer and vertex array each time it redraws
+(about 15,000 a second on the dev floor, measured 2026-10-25). Emscripten names GL objects from a counter that
+never goes back, and pads its lookup tables with nulls up to it, so after about 134 million the buffers table
+outgrew V8's longest array: `glGenBuffers` threw `RangeError: Invalid array length` and the game froze, after
+about 50 minutes. `tools/dev.sh export` now patches `index.js` (`tools/patch_web_gl.py`) so a deleted object's
+id is handed out again, as desktop GL does. The patch stops the export if a new Godot changes the code it
+expects. Cutting the redraws themselves is [docs/tasks/gl-churn.md](tasks/gl-churn.md).
+
 There is also a fixed cost per frame that the game can't remove. Godot's web context uses explicit swap control,
 so Emscripten copies an offscreen back buffer at the end of every frame and queries GL state while it does
 (`blitOffscreenFramebuffer`, about 1 to 3 ms on the dev desktop).
