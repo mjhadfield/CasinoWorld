@@ -16,7 +16,7 @@ suit colours. (`HcfTable.card_look()`, over `CasinoTable.card_look()`.)
 
 ## Decisions
 
-Everyone at once: **fold**, or **raise** 1x (2x with a 5-card flush, 3x with 6 or 7). Running out of time
+Everyone at once: **fold** (**Backspace**), or **raise** 1x (**Space**; 2x with a 5-card flush, 3x with 6 or 7, on **2**/**3**). Running out of time
 folds.
 - **Raise:** your flush goes face down in front of you, and the other cards are set aside and swept. The
   dealer's hand is shown the same way: the flush slides forward and the rest is swept.

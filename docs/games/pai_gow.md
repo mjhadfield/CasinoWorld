@@ -19,7 +19,7 @@ You pick your cards up into the **sorter**, a panel over the bottom of the table
 particular order; **Sort** (**S**) puts them in order. Tap a card (or press **1**–**7**) to move it between
 your 2-card **Low** hand and your 5-card **High** hand; it glides across, and the other cards shuffle along to
 make room. The panel names both hands and warns you about a foul (the High hand must beat the Low).
-**House Way** (**H**) sets it for you, and **Set hand** (**Enter**) puts it down: the Low hand upright in the
+**House Way** (**H**) sets it for you, and **Set hand** (**Space** or **Enter**) puts it down: the Low hand upright in the
 LOW box, the High hand sideways in the HIGH box below it. If you run out of time, House Way sets it.
 
 ## The dealer's hand
@@ -42,7 +42,7 @@ neither collect Envy nor trigger it.
 - **Face Up Pai Gow:** no commission. The dealer's hand is set and shown before you set yours, and you may
   **Fold**: your cards are mucked unseen and every bet on them (Ante, Fortune, Jackpot) is lost at
   settlement. A dealer Ace-high Pai Gow pushes every Ante. Nobody sets a hand then: if your cards win a side
-  bet you **Claim bonus**, otherwise you **Fold**.
+  bet you **Claim bonus** (**Space**), otherwise you **Fold** (**Backspace**).
 
 ## A second box
 Not offered at either Pai Gow table.

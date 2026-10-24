@@ -411,16 +411,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				slot_screen.cancel_pressed()
 		get_viewport().set_input_as_handled()
+	elif state == "seated" and event is InputEventKey and event.pressed and not event.echo and _action_key(event):
+		get_viewport().set_input_as_handled()
 	elif state == "seated" and event.is_action_pressed("ready_up"):
 		if _can_bet():
 			_on_ready()
 		get_viewport().set_input_as_handled()
 	elif state == "seated" and event is InputEventKey and event.pressed and not event.echo:
-		for a in _actions:  # the action buttons' keys: P/F, H/S/D/P, I/N
-			if a.get("key", "") != "" and event.physical_keycode == OS.find_keycode_from_string(a.key):
-				_on_action(str(a.id))
-				get_viewport().set_input_as_handled()
-				return
 		var key: Key = event.physical_keycode
 		if key >= KEY_1 and key <= KEY_5 and _can_bet():   # the bar's chips, left to right
 			if hud.pick_chip(key - KEY_1):
@@ -428,6 +425,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif key == KEY_BACKSPACE:
 			_undo()
 			get_viewport().set_input_as_handled()
+
+
+## The action buttons' keys, ahead of Ready and Undo: Space plays on (Hit, Play, Let it ride, Roll...) and Backspace
+## stops (Stand, Fold, Check, Pull back), with letters and numbers for the rest (Double D, Split P, bigger bets 2-4).
+func _action_key(event: InputEventKey) -> bool:
+	for a in _actions:
+		if a.get("key", "") != "" and event.physical_keycode == OS.find_keycode_from_string(a.key):
+			_on_action(str(a.id))
+			return true
+	return false
 
 
 ## A click on a glowing chair, caught before the click-to-walk sees it.

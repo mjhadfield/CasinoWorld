@@ -12,9 +12,9 @@ Two cards each (private), two to the dealer, five community cards, all face down
 ## Decisions
 
 Everyone decides at once at each stage, and once your Play bet is down you're done.
-- Before the flop: bet **4x** or **3x**, or **check** (**C**).
-- After the flop: **2x** or check.
-- After the river (the turn and river are turned together): **1x** or **fold**.
+- Before the flop: bet **4x** (**4**) or **3x** (**Space**), or **check** (**Backspace**).
+- After the flop: **2x** (**Space**) or check (**Backspace**).
+- After the river (the turn and river are turned together): **1x** (**Space**) or **fold** (**Backspace**).
 - Running out of time checks, or folds after the river.
 
 ## A second box

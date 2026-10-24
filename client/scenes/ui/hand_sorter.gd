@@ -10,7 +10,7 @@ extends PanelContainer
 ## The panel names both hands as you go and warns when the High hand doesn't
 ## beat the Low (a foul), asking the server (pg_check) so it uses the real
 ## Joker and House Way rules. House Way (H) asks the server for the House Way
-## split (pg_suggest); Set hand (Enter) sends it (set_hand); at Face Up Pai Gow
+## split (pg_suggest); Set hand (Space or Enter) sends it (set_hand); at Face Up Pai Gow
 ## there's Fold too. The table closes the panel once your hand is set -- by
 ## you, or by House Way if time runs out.
 ##
@@ -64,14 +64,14 @@ func _ready() -> void:
 	_sort_button.pressed.connect(_sort_rows)
 	_house_button = _button(buttons, "House Way", "H", "quiet")
 	_house_button.pressed.connect(func(): Net.send("pg_suggest"))
-	_set_button = _button(buttons, "Set hand", "Enter", "primary")
+	_set_button = _button(buttons, "Set hand", "Space", "primary")
 	_set_button.pressed.connect(_submit)
 	_fold_button = _button(buttons, "Fold", "", "fold")
 	_fold_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
 			Net.send("fold"))
-	_claim_button = _button(buttons, "Claim bonus", "Enter", "primary")
+	_claim_button = _button(buttons, "Claim bonus", "Space", "primary")
 	_claim_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
@@ -134,7 +134,7 @@ func open_claim(cards: Array, bonus) -> void:
 		b.visible = false
 	_claim_button.visible = bonus != null
 	_fold_button.visible = bonus == null
-	_fold_button.setup("Fold", "Enter", "fold")
+	_fold_button.setup("Fold", "Backspace", "fold")
 	_low_row.visible = false
 	_low_label.text = ("Your hand makes %s -- claim your bonus." % bonus) if bonus != null else "No bonus in your hand."
 	_high_label.text = ""
@@ -294,7 +294,8 @@ static func _rank(code: String) -> int:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+	if event.keycode in [KEY_ENTER, KEY_KP_ENTER] or (event.keycode == KEY_SPACE and not (_claim_mode and _bonus == null)) \
+			or (event.keycode == KEY_BACKSPACE and _claim_mode and _bonus == null):   # Space goes on, Backspace folds
 		if _claim_mode:
 			(_claim_button if _bonus != null else _fold_button).pressed.emit()
 		else:

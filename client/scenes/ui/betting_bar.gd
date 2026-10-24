@@ -607,8 +607,11 @@ class BarButton extends Button:
 	func _shown_words() -> String:
 		return words.to_upper() if kind in ["primary", "normal", "quiet", "fold", "done"] else words
 
+	func _key_text() -> String:
+		return "BKSP" if key == "Backspace" else key.to_upper()   # (the font has no ⌫)
+
 	func _key_w() -> float:
-		return 0.0 if key == "" or hide_key else FONT.get_string_size(key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, _key_size()).x + 10.0 * zoom
+		return 0.0 if key == "" or hide_key else FONT.get_string_size(_key_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, _key_size()).x + 10.0 * zoom
 
 	func _size() -> void:
 		var h: float = {"tool": 40.0, "ghost": 40.0}.get(kind, BUTTON_H) * zoom
@@ -656,7 +659,7 @@ class BarButton extends Button:
 				var r := Rect2(x, mid - 9.0 * zoom, _key_w(), 18.0 * zoom)
 				draw_style_box(BettingBar._box(Color(0, 0, 0, 0), kc, maxi(2, roundi(4 * zoom)), Vector4.ZERO), r)
 				var ka := FONT.get_ascent(ks)
-				draw_string(FONT, Vector2(x + 5.0 * zoom, mid + (ka - FONT.get_descent(ks)) / 2.0 - 0.5 * zoom), key.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ks, kc)
+				draw_string(FONT, Vector2(x + 5.0 * zoom, mid + (ka - FONT.get_descent(ks)) / 2.0 - 0.5 * zoom), _key_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, ks, kc)
 
 	func _draw_glyph(c: Vector2, col: Color) -> void:
 		match glyph:

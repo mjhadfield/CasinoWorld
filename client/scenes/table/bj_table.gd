@@ -25,7 +25,7 @@ const LAST_CARD_Y := -17.0   # no card sits lower: its bottom stays 2 inside the
 const BET_R := 10.5
 const SPOTS := ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
 const SIDE_SPOTS := ["super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
-const ACTION_KEYS := {"hit": "H", "stand": "S", "double": "D", "split": "P"}
+const ACTION_KEYS := {"hit": "Space", "stand": "Backspace", "double": "D", "split": "P"}   # Space plays on, Backspace stops, at every table
 const FLANK := {"split": "left", "double": "right"}
 
 var _hands := {}          # seat -> [{cards: [Card2D], key, dkey, label, done, gone}]
@@ -232,8 +232,8 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			if box >= 0:
 				var cost := int(insurance_costs.get(box, 0))
 				info = box_prefix(box) + "Insurance? -- %ds" % left
-				actions = [{"id": "insure", "label": "Insurance %s  [I]" % Money.format(cost, true), "key": "I"},
-					{"id": "no_insurance", "label": "No insurance  [N]", "key": "N"}]
+				actions = [{"id": "insure", "label": "Insurance %s  [Space]" % Money.format(cost, true), "key": "Space"},
+					{"id": "no_insurance", "label": "No insurance  [Backspace]", "key": "Backspace"}]
 			else:
 				info = "Insurance is open" if not in_hand else "Waiting for the others"
 		"peek":

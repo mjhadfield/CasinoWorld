@@ -139,8 +139,8 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	var actions := []
 	if my_turn:
 		var ante := int(ctx.get("my_bets", {}).get("ante", 0))
-		actions = [{"id": "play", "label": "Play %s  [P]" % Money.format(ante, true), "key": "P"},
-			{"id": "fold", "label": "Fold  [F]", "key": "F"}]
+		actions = [{"id": "play", "label": "Play %s  [Space]" % Money.format(ante, true), "key": "Space"},
+			{"id": "fold", "label": "Fold  [Backspace]", "key": "Backspace"}]
 	return {"info": info, "actions": actions, "my_turn": my_turn}
 
 

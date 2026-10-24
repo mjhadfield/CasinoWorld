@@ -132,10 +132,11 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	var actions := []
 	if my_turn:
 		var ante := my_ante if my_ante > 0 else int(ctx.get("my_bets", {}).get("ante", 0))
-		actions = [{"id": "fold", "label": "Fold  [F]", "key": "F"}]
+		actions = [{"id": "fold", "label": "Fold  [Backspace]", "key": "Backspace"}]
 		for times in [1, 2, 3]:
-			actions.append({"id": "bet%d" % times, "label": "%dx %s  [%d]" % [times, Money.format(ante * times, true), times],
-				"key": str(times)})
+			var key := "Space" if times == 1 else str(times)   # Space bets the least, Backspace folds
+			actions.append({"id": "bet%d" % times, "label": "%dx %s  [%s]" % [times, Money.format(ante * times, true), key],
+				"key": key})
 	return {"info": info, "actions": actions, "my_turn": my_turn}
 
 

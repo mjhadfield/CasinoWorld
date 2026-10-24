@@ -13,7 +13,7 @@ Three cards each (private) and two community cards.
 
 ## Decisions
 
-After your three cards, **let it ride** (**R**) or **pull back** (**P**) bet 1; after the first community
+After your three cards, **let it ride** (**Space**) or **pull back** (**Backspace**) bet 1; after the first community
 card, bet 2. Pulled bets come straight back. Running out of time pulls back. The £ always plays.
 
 ## A second box

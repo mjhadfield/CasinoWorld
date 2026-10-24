@@ -13,14 +13,14 @@ motion, then each winner is paid in turn. Winnings stay beside their spots until
 ## The deal
 
 One card at a time to every box, the dealer's up-card, a second card each, and the hole card face down. With
-an Ace showing, everyone can take **Insurance** (**I**) or decline (**N**). With an Ace or a 10 showing, the
+an Ace showing, everyone can take **Insurance** (**Space**) or decline (**Backspace**). With an Ace or a 10 showing, the
 dealer checks the hole card for Blackjack. Once the dealer can't have Blackjack, any player Blackjack is paid
 3:2 straight away. A Dealer Blackjack that beats everyone (no player Blackjack to push) is swept in one quick
 go, box after box, with no settling each hand in turn.
 
 ## Your turn
 
-Boxes play in turn from first base. **Hit** (**H**), **Stand** (**S**), **Double** (**D**, on any two cards,
+Boxes play in turn from first base. **Hit** (**Space**), **Stand** (**Backspace**), **Double** (**D**, on any two cards,
 also after splitting) or **Split** (**P**, any pair, up to 4 times; split Aces get one card each). You have
 20 seconds per decision; out of time stands. A bust is swept at once. Hit and Stand are always in the middle of
 the betting bar, in the same place every time, with Split on their left and Double on their right when they're

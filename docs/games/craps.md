@@ -75,7 +75,7 @@ during a come-out and you're in at once.
 ## The shooter
 
 Anyone seated can shoot, NPCs included. After a seven-out the dice move clockwise (seat 0, the right-hand end
-of the near rail, to seat 7). With **Take dice** on the bar you can take them from an NPC: at once if no point is on, otherwise when
+of the near rail, to seat 7). With **Take dice** (**Space**) on the bar you can take them from an NPC: at once if no point is on, otherwise when
 the point is decided. If the shooter leaves, the next player takes the dice and the point. A human with
 nothing on the table for 40 rolls is stood up.
 

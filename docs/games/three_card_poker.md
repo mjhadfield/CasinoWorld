@@ -13,8 +13,8 @@ Each hand comes out of the shuffler as a packet of three and is then dealt acros
 ## Deciding
 
 Once the cards are dealt, everyone decides at the same time.
-- **Play** (**P**) matches your Ante. Your cards go face down, sideways, on the Play box, with the bet on top.
-- **Fold** (**F**) puts your cards in a messy face-down pile. A fold loses your Ante, Pair Plus and Jackpot
+- **Play** (**Space**) matches your Ante. Your cards go face down, sideways, on the Play box, with the bet on top.
+- **Fold** (**Backspace**) puts your cards in a messy face-down pile. A fold loses your Ante, Pair Plus and Jackpot
   bets. The exception is a Prime bet on three cards of one colour, which has already won: you tuck your
   cards under it, and it's paid at settlement.
 - There's a shared 20-second timer, which ends once everyone has decided, and anyone still undecided folds.

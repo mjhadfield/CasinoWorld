@@ -66,8 +66,8 @@ up, and turn back when they stand.
 
 ## Betting at the card tables
 
-- Pick a chip in the tray and click the spots *on the felt* in front of you. Right-click takes a chip off, and
-  **Undo** takes back your last chip this round.
+- Pick a chip in the tray (or press **1**–**5**) and click the spots *on the felt* in front of you. Right-click takes a chip off, and
+  **Undo** (or **Backspace**) takes back your last chip this round.
 - **Repeat Bet** (or **Space**) puts your last hand's bets down again, and cuts the countdown to 3 quiet seconds. It
   sits where Ready does until you've bet, then the button turns back into Ready. **Auto rebet** (the **Rebet** switch on the bar) puts last hand's
   bets back down as each hand ends; timing out of any decision unticks it.
@@ -94,6 +94,15 @@ up, and turn back when they stand.
   until Box 1 has decided, and Box 1 decides first on every street. While you play it, a wooden
   **RESERVED** sign hangs on its chair's back for everyone to see. Between hands it also shows **Drop Box** to give the seat back (the sign goes
   with it); the box also goes when you stand up, and when a Master Table changes game. Not at Pai Gow or Baccarat.
+
+## Keys at the tables
+
+Every game uses the same two keys for its decisions: **Space** plays on and **Backspace** stops. Space is Hit,
+Play, Let it ride, Insurance, the smallest bet or raise on offer (3x before the flop at Ultimate Texas Hold'em),
+Set hand, Roll and Take dice; Backspace is Stand, Fold, Check, Pull back and No insurance. The rest keep a key of
+their own, shown in its box on the button: **D** Double and **P** Split at Blackjack, and the bigger bets by their
+number (**2**, **3**, **4**). While betting is open the same keys are Ready/Repeat Bet and Undo, and **Esc** stands
+you up.
 
 ## Dealers
 

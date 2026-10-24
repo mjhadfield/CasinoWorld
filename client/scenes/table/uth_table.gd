@@ -142,17 +142,18 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 		var ante := my_ante if my_ante > 0 else int(ctx.get("my_bets", {}).get("ante", 0))
 		match stage:
 			0:
-				actions = [_bet(4, ante), _bet(3, ante), {"id": "check", "label": "Check  [C]", "key": "C"}]
+				actions = [_bet(4, ante), _bet(3, ante), {"id": "check", "label": "Check  [Backspace]", "key": "Backspace"}]
 			1:
-				actions = [_bet(2, ante), {"id": "check", "label": "Check  [C]", "key": "C"}]
+				actions = [_bet(2, ante), {"id": "check", "label": "Check  [Backspace]", "key": "Backspace"}]
 			_:
-				actions = [_bet(1, ante), {"id": "fold", "label": "Fold  [F]", "key": "F"}]
+				actions = [_bet(1, ante), {"id": "fold", "label": "Fold  [Backspace]", "key": "Backspace"}]
 	return {"info": info, "actions": actions, "my_turn": my_turn}
 
 
+## A bet of `times` the ante: Space for the smallest on offer (3x preflop), its number otherwise.
 func _bet(times: int, ante: int) -> Dictionary:
-	return {"id": "bet%d" % times, "label": "Bet %dx %s  [%d]" % [times, Money.format(ante * times, true), times],
-		"key": str(times)}
+	var key := "Space" if times == [3, 2, 1][mini(stage, 2)] else str(times)
+	return {"id": "bet%d" % times, "label": "Bet %dx %s  [%s]" % [times, Money.format(ante * times, true), key], "key": key}
 
 
 func action_message(id: String) -> Array:

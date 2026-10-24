@@ -12,8 +12,8 @@ the dealer.
 
 ## 3rd, 4th and 5th Street
 
-Everyone decides at once on one timer. **Fold** (**F**), or bet **1x**, **2x** or **3x** your Ante
-(**1**/**2**/**3**). Running out of time folds. After each street the dealer sweeps the folds and turns the
+Everyone decides at once on one timer. **Fold** (**Backspace**), or bet **1x**, **2x** or **3x** your Ante
+(**Space**/**2**/**3**). Running out of time folds. After each street the dealer sweeps the folds and turns the
 next community card.
 
 ## A second box

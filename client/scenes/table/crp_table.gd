@@ -875,10 +875,10 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 	var actions := []
 	if my_roll:
 		actions.append({"id": "pass_dice", "label": "Pass dice", "place": "commit", "kind": "quiet"})
-		actions.append({"id": "roll", "label": "Roll  [R]", "key": "R", "place": "commit", "kind": "primary"})
+		actions.append({"id": "roll", "label": "Roll  [Space]", "key": "Space", "place": "commit", "kind": "primary"})
 	elif my_seat >= 0 and shooter != my_seat:
 		var coming: bool = my_seat in want_dice
-		actions.append({"id": "take_dice", "label": "Dice coming" if coming else "Take dice  [T]", "key": "T", "place": "commit",
+		actions.append({"id": "take_dice", "label": "Dice coming" if coming else "Take dice  [Space]", "key": "Space", "place": "commit",
 			"kind": "done" if coming else "quiet", "pressed": coming})
 	actions.append({"id": "working", "label": "Working  [W]", "key": "W", "pressed": working.get(my_seat, false), "place": "switch"})
 	return {"info": info_text, "actions": actions, "my_turn": my_roll, "hide": ["ready", "rebet", "auto_rebet"],
