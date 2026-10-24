@@ -16,6 +16,10 @@ Everyone decides at once on one timer. **Fold** (**F**), or bet **1x**, **2x** o
 (**1**/**2**/**3**). Running out of time folds. After each street the dealer sweeps the folds and turns the
 next community card.
 
+## A second box
+With a second box (README, Betting at the card tables), Box 2's hole cards turn over for you once Box 1 has
+decided 3rd Street, and on every street Box 1 decides before Box 2.
+
 ## Settling
 
 Your two cards plus the three community cards. Every bet still in play pays the same: Royal 500:1, Straight

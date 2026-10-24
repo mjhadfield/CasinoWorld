@@ -91,6 +91,8 @@ class UltimateTexasHoldemMachine(TableMachine):
     FLAT_SPOTS = {"jackpot": uth.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance: you need six times your Ante (Ante, Blind and a 4x Play), plus side bets."
+    CANT_COVER_BOTH = "Not enough balance: you need six times your Ante, plus side bets, on both boxes."
+    SECOND_BOX = True
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=Deck, lines: DealerLines | None = None):
@@ -140,6 +142,7 @@ class UltimateTexasHoldemMachine(TableMachine):
             raise TableError("You've nothing to decide.")
         if h.decided:
             raise TableError("You've already decided.")
+        self._box_first(seat)
         options = ACTIONS[self.stage]
         if action not in options:
             raise TableError({0: "Bet 4x or 3x, or check.", 1: "Bet 2x or check.", 2: "Bet 1x or fold."}[self.stage])
@@ -169,7 +172,7 @@ class UltimateTexasHoldemMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
 
     # ------------------------------------------------------------------ the clock
     def _advance(self, now: float) -> list:
@@ -331,6 +334,10 @@ class UltimateTexasHoldemMachine(TableMachine):
                          else {"spot": "jackpot", "action": "collect", "amount": h.bets.jackpot})
         return sorted(steps, key=lambda s: s["action"] != "collect")
 
+    def _box_private(self, seat: int) -> dict:
+        h = self.round[seat]
+        return {"cards": [c.code for c in h.cards], "hand": self._seen_label(h)}
+
     def _seen_label(self, h: Hand) -> str:
         seen = h.cards + self.board[:self.revealed]
         if len(seen) >= 5:
@@ -370,7 +377,7 @@ class UltimateTexasHoldemMachine(TableMachine):
                 entry["cards"] = [c.code for c in h.cards]
                 entry["result"] = {"outcome": h.result.outcome, "returned": h.paid}
             elif not h.swept:
-                show = viewer == i
+                show = self._sees(viewer, i)
                 entry["cards"] = [c.code if show else "??" for c in h.cards]
                 entry["hand"] = self._seen_label(h) if show else None
         board = [c.code if k < self.revealed else "??" for k, c in enumerate(self.board)]

@@ -87,3 +87,44 @@ class NpcParticipant(Participant):
     def refund(self, amount, note):
         self.npc.bankroll += amount
         self.npc.wagered -= amount
+
+
+class BoxParticipant(Participant):
+    """A player's second box: a seat of its own, played with their own money through their own
+    participant. `flow` counts what this box has staked (-) and been paid (+), so its hand has a
+    net of its own while the wallet is shared."""
+    is_human = True
+
+    def __init__(self, owner):
+        self.owner = owner
+        self.flow = 0
+
+    @property
+    def entity_id(self):
+        return self.owner.entity_id
+
+    @property
+    def name(self):
+        return self.owner.name
+
+    @property
+    def session(self):
+        return self.owner.session
+
+    @property
+    def balance(self) -> int:
+        return self.owner.balance
+
+    def debit(self, amount, note):
+        if not self.owner.debit(amount, note):
+            return False
+        self.flow -= max(0, amount)
+        return True
+
+    def credit(self, amount, note):
+        self.owner.credit(amount, note)
+        self.flow += max(0, amount)
+
+    def refund(self, amount, note):
+        self.owner.refund(amount, note)
+        self.flow += max(0, amount)

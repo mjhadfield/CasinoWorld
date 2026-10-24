@@ -63,6 +63,11 @@ game result and every penny is decided on the server; the client only renders an
 - **Participants (`participants.py`).** A seat holds a participant, human or NPC, with the same `debit`,
   `credit` and `refund`. The machine never knows which kind it's dealing with, so NPCs play by exactly the
   same rules and money moves.
+- **A second box** is a real seat, linked to its player's (`Seat.box` / `Seat.box_of` in `base.py`). It holds a
+  `BoxParticipant` that spends through its player's own participant but counts its own flow, so the box is dealt,
+  decided and settled like any seat and gets a `round_net` of its own. `set_bets`, Ready and queued bets mirror the
+  player's onto it; `humans_seated()` and `seat_of()` skip it. In the decide-at-once games its `_private` parts only
+  reach its player (as `mine_box`) once their own hand has decided (`_reveal_boxes`, `box_revealed`).
 - **Timings** are a dataclass per game. `CASINO_SPEED` scales them, and tests use instant ones.
 - **The Master Table (`tables/master.py`)** is a machine that holds another: whichever card game it's been asked
   for, built by the Casino's `_make_machine` and passed everything it doesn't handle itself, so the runner, the NPCs

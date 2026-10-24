@@ -34,7 +34,7 @@ DEFAULT_ANIM, DEFAULT_SPEED = "cloth", 1.0
 MORPH = {"cloth": 2.7, "sweep": 3.0, "dust": 3.3}
 # Actions a player can take at the chosen game's table; refused while there's none, or while it's changing.
 ACTIONS = {"set_bet", "set_bets", "clear_bets", "rebet", "set_auto_rebet", "ready", "decide", "insure",
-           "play_action", "set_hand", "fold", "claim", "working_bets", "suggest", "check"}
+           "play_action", "set_hand", "fold", "claim", "working_bets", "suggest", "check", "take_box", "drop_box"}
 
 
 @dataclass
@@ -154,7 +154,7 @@ class MasterMachine:
         return min(due) if due else None
 
     def seat_of(self, participant) -> int | None:
-        return next((i for i, s in enumerate(self.seats) if s.participant is participant), None)
+        return next((i for i, s in enumerate(self.seats) if s.participant is participant and s.box_of is None), None)
 
     def free_seats(self) -> list[int]:
         if self.inner is None:
@@ -162,7 +162,8 @@ class MasterMachine:
         return self.inner.free_seats()
 
     def humans_seated(self) -> list[int]:
-        return [i for i, s in enumerate(self.seats) if s.participant is not None and s.participant.is_human]
+        return [i for i, s in enumerate(self.seats)
+                if s.participant is not None and s.participant.is_human and s.box_of is None]
 
     def rules(self) -> dict:
         if self.inner is not None:
@@ -270,6 +271,10 @@ class MasterMachine:
         """Change to `game` ("" for the blank table), between hands."""
         events = []
         self.queued = None
+        if self.inner is not None:   # second boxes end with the game (between hands, so nothing's riding on them)
+            for i, s in enumerate(self.inner.seats):
+                if s.box is not None:
+                    events += self.inner._release_box(i, now, "game_change")
         old = self.seats
         # bets on the felt go back (none are paid for until betting closes)
         if self.inner is not None:

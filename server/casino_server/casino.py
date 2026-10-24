@@ -30,6 +30,7 @@ from casino_server.world import Entity, World
 
 PLAYER_LOOK = "player_default"
 MAX_NAME = 16
+DECISIONS = {"decide", "insure", "act", "fold", "claim"}   # table messages a player can send for their second box (`seat`)
 MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackjack": blackjack.BlackjackMachine,
             "pai_gow_fortune": pai_gow.FortunePaiGowMachine, "pai_gow_face_up": pai_gow.FaceUpPaiGowMachine,
             "mississippi_stud": mississippi_stud.MississippiStudMachine,
@@ -209,6 +210,7 @@ class Casino:
             "voyage_choose": self._table_action,
             "expedition_choose": self._table_action,
             "choose_game": self._table_action, "game_vote": self._table_action, "cancel_game_change": self._table_action,
+            "second_box": self._table_action, "drop_box": self._table_action,
         }.get(kind)
         if handler is None:
             return session.error(f"Unknown message type: {kind}")
@@ -332,7 +334,23 @@ class Casino:
             return session.error("Sit at a table first.")
         runner, seat, kind = self.tables[session.table], session.seat, msg["type"]
         try:
-            if kind == "bet":
+            if kind in DECISIONS and msg.get("seat") is not None:   # a decision for their second box
+                try:
+                    box = int(msg["seat"])
+                except (TypeError, ValueError):
+                    raise TableError("There's no such seat.")
+                if box != seat and runner.machine.seats[seat].box != box:
+                    raise TableError("That's not your box.")
+                seat = box
+            if kind == "second_box":
+                try:
+                    box = int(msg.get("seat"))
+                except (TypeError, ValueError):
+                    raise TableError("Pick the seat beside you.")
+                runner.act("take_box", seat, box)
+            elif kind == "drop_box":
+                runner.act("drop_box", seat)
+            elif kind == "bet":
                 spot = str(msg.get("spot"))
                 if "add" in msg:  # relative, so rapid clicks don't race the server's echo
                     current = runner.machine.working_bets(seat).get(spot, 0)

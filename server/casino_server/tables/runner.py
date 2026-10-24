@@ -8,7 +8,8 @@ task per table, owned by the Casino's lifespan.
 
 Every joined session gets every table's events, so tables are live to watch
 from the floor. Keys starting "_" never leave the server: card faces a seat
-may keep private ("_private") only go to the session in that seat, and "_paid"
+may keep private ("_private") only go to the session in that seat (a second box's
+go to its player as "mine_box", once they may see them), and "_paid"
 lists participants whose balance the event changed (they get a wallet update
 straight after it). Each seat's result for the hand goes out once: on its
 settle_seat ("round_net"), or for a seat that had none (bust, folded, paid early)
@@ -50,14 +51,19 @@ class TableRunner:
     def viewer_seat(self, session) -> int | None:
         for i, seat in enumerate(self.machine.seats):
             p = seat.participant
-            if p is not None and p.is_human and p.session is session:
+            if p is not None and p.is_human and p.session is session and seat.box_of is None:
                 return i
         return None
 
+    def _box_of_viewer(self, seat: int | None) -> int | None:
+        return self.machine.seats[seat].box if seat is not None else None
+
     def snapshot_for(self, session) -> dict:
         dealers = getattr(self.casino, "dealers", None)
+        seat = self.viewer_seat(session)
         return {"type": "table_state", "table": self.table_id,
-                **self.machine.snapshot(self.viewer_seat(session), self.clock()),
+                **self.machine.snapshot(seat, self.clock()),
+                "my_box": self._box_of_viewer(seat), "second_box": bool(getattr(self.machine, "SECOND_BOX", False)),
                 "on_duty": dealers.on_table(self.table_id) if dealers and getattr(self.machine, "DEALER", True) else None}
 
     def publish(self, events: list):
@@ -70,8 +76,11 @@ class TableRunner:
                 body = public
                 if private:
                     seat = self.viewer_seat(session)
+                    box = self._box_of_viewer(seat)
                     if seat in private:
                         body = {**copy.deepcopy(public), "mine": private[seat]}
+                    if box in private and self.machine._box_shown(box):
+                        body = {**copy.deepcopy(body), "mine_box": private[box]}
                 session.push({"type": "table_event", "table": self.table_id, "event": body})
             # A Master Table changed game: the whole table again, as each viewer may see it.
             if event.get("_resnap"):

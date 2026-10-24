@@ -29,6 +29,8 @@ signal my_hand_changed(text: String)
 signal round_cleared
 ## At a Master Table: the local player, sitting here, clicked the dealer (to choose or change the game).
 signal dealer_clicked
+## The local player clicked a chair's 2nd Box pill (a free seat beside them) or Drop Box (their second box's).
+signal box_clicked(seat: int)
 
 # Table shape (table coordinates; the front edge is at y≈0).
 const HALF_W := 156.0                  # felt half-width
@@ -59,7 +61,11 @@ var game := ""
 
 var ready_seats := {}
 var auto_rebet_seats := {}  # seats with Auto rebet ticked (their spots don't glow: the bets go down by themselves)
-var in_hand := false      # the local player was dealt into this hand
+var in_hand := false      # the local player was dealt into this hand (either of their boxes)
+var my_box := -1          # the seat beside them the local player plays as a second box, or -1
+var second_box_ok := false  # this table offers a second box (its game does)
+var dealt_seats := []     # the seats dealt into the hand being played
+var _my_hands := {}       # each of the local player's boxes -> its hand's name, for the bar
 var jackpot_lights := {}  # seat -> "flash" (bet on the disc) | "solid" (locked in)
 var _timer_end := 0.0     # betting or decision countdown, in local seconds
 var _timer_total := 1.0
@@ -244,6 +250,126 @@ func glowing_spots() -> Array:
 	if not primary.any(down):
 		return primary
 	return spots.filter(func(spot): return not spot in primary and not down.call(spot))
+
+
+# ------------------------------------------------------------------ a second box
+## The local player's seats: their own, then their second box if they have one.
+func my_seats() -> Array:
+	var seats := []
+	if my_seat >= 0:
+		seats.append(my_seat)
+	if my_box >= 0:
+		seats.append(my_box)
+	return seats
+
+
+func is_mine(seat: int) -> bool:
+	return seat >= 0 and (seat == my_seat or seat == my_box)
+
+
+## How many boxes the local player's bets go on (each bet is matched on a second box).
+func boxes() -> int:
+	return 2 if my_box >= 0 else 1
+
+
+## The private part of an event for one of the local player's boxes: "mine" for their own seat, "mine_box" for
+## their second box (which only comes once they may see it).
+func mine_for(ev: Dictionary, seat: int):
+	if seat >= 0 and seat == my_seat:
+		return ev.get("mine")
+	if seat >= 0 and seat == my_box:
+		return ev.get("mine_box")
+	return null
+
+
+## "Box 1: " / "Box 2: " before what the bar says about a box -- once there are two.
+func box_prefix(seat: int) -> String:
+	if my_box < 0:
+		return ""
+	return "Box 1: " if seat == my_seat else "Box 2: "
+
+
+## The local player's box `seat` has a new hand name ("" when gone): the bar shows it, or with two boxes
+## "Box 1: Pair  ·  Box 2: Flush".
+func _show_hand(seat: int, text: String) -> void:
+	if text == "":
+		_my_hands.erase(seat)
+	else:
+		_my_hands[seat] = text
+	var parts := []
+	for s in my_seats():
+		if _my_hands.has(s):
+			parts.append(box_prefix(s) + str(_my_hands[s]))
+	my_hand_changed.emit("  ·  ".join(parts))
+
+
+## The hand names in an event's private parts, for whichever of the local player's boxes `still_in` says is in.
+func _note_hands(ev: Dictionary, still_in: Callable) -> void:
+	for seat in my_seats():
+		var mine = mine_for(ev, seat)
+		if mine is Dictionary and mine.has("hand") and still_in.call(seat):
+			_show_hand(seat, str(mine.hand))
+
+
+## The local player's second box, turned over for them now their own hand's decided: its cards flip where they lie.
+## (High Card Flush sorts them first.)
+func _reveal_box(seat: int, mine, d: float) -> float:
+	var decided = get("decided_seats")   # (a box that's gone already -- out of time -- stays face down)
+	if not mine is Dictionary or not mine.has("cards") or (decided is Dictionary and decided.has(seat)):
+		return 0.0
+	var cards := _cards_for(seat)
+	for k in mini(cards.size(), mine.cards.size()):
+		_after(k * 0.12 * d).timeout.connect(cards[k].flip_to.bind(mine.cards[k], 0.22 * d))
+	if mine.has("hand"):
+		_show_hand(seat, str(mine.hand))
+	return 0.3 * d
+
+
+## Which chair shows a pill while the local player's sat here: a free seat beside them ("take"), or their second
+## box's while it's not in the hand being played ("drop"). {} for none.
+func box_pill(seat: int) -> Dictionary:
+	if mode != "seated" or my_seat < 0 or not second_box_ok or Engine.is_editor_hint():
+		return {}
+	if seat == my_box:
+		return {} if (phase != "betting" and seat in dealt_seats) else {"kind": "drop", "text": "DROP BOX"}
+	if my_box < 0 and absi(seat - my_seat) == 1 and seat < seat_count() and not occupants.has(seat):
+		return {"kind": "take", "text": "2ND BOX"}
+	return {}
+
+
+const PILL_SIZE := Vector2(30, 9)
+
+func _pill_centre(seat: int) -> Vector2:
+	return chair_pos(seat) + on_screen(Vector2(0, -6))
+
+
+## The chair whose pill is at `local` (table coordinates), or -1.
+func box_pill_at(local: Vector2) -> int:
+	for seat in seat_count():
+		if not box_pill(seat).is_empty() and Rect2(_pill_centre(seat) - PILL_SIZE / 2 - Vector2(2, 2),
+				PILL_SIZE + Vector2(4, 4)).has_point(local):
+			return seat
+	return -1
+
+
+func _draw_box_pills(pulse: float) -> void:
+	for seat in seat_count():
+		var pill := box_pill(seat)
+		if pill.is_empty():
+			continue
+		var c := _pill_centre(seat)
+		var take: bool = pill.kind == "take"
+		var rect := Rect2(c - PILL_SIZE / 2, PILL_SIZE)
+		var fill := Color(0.08, 0.07, 0.06, 0.88)
+		var edge := Color(1, 0.84, 0.45, 0.65 + 0.35 * pulse) if take else Color(0.85, 0.82, 0.78, 0.8)
+		draw_rect(rect, fill)
+		draw_rect(rect, edge, false, 0.7)
+		# (laid out large and scaled down: Godot's centring is off at tiny font sizes)
+		var k := 0.1
+		draw_set_transform(c, 0.0, Vector2(k, k))
+		draw_string(Card2D.FONT, Vector2(-PILL_SIZE.x / 2 / k, 16), str(pill.text), HORIZONTAL_ALIGNMENT_CENTER,
+			PILL_SIZE.x / k, 46, edge)
+		draw_set_transform(Vector2.ZERO)
 
 
 func dealer_card_pos(index: int) -> Vector2:
@@ -516,12 +642,18 @@ func apply_snapshot(state: Dictionary) -> void:
 		_start_timer(float(state.timer))
 	var seats: Array = state.get("seats", [])
 	in_hand = false
+	my_box = int(state.my_box) if state.get("my_box") != null else -1
+	second_box_ok = bool(state.get("second_box", false))
+	dealt_seats.clear()
+	_my_hands.clear()
 	auto_rebet_seats.clear()
 	for i in seats.size():
 		var s = seats[i]
 		if s == null:
 			continue
 		occupants[i] = {"entity": s.entity, "name": s.name, "human": s.human}
+		if s.get("box_of") != null:
+			occupants[i].box_of = int(s.box_of)
 		if s.get("ready"):
 			ready_seats[i] = true
 		if s.get("auto_rebet"):
@@ -563,8 +695,13 @@ func _reset_felt(keep := []) -> void:
 
 
 func handle_event(ev: Dictionary) -> void:
-	if ev.kind == "settle_seat" and int(ev.seat) == my_seat:
+	if ev.kind == "settle_seat" and is_mine(int(ev.seat)):
 		Session.hold_balance(true)  # show the new balance when the chips reach you
+	# (whose a second box is goes at once, as my_seat does: the bets you click are matched on it from now)
+	if ev.kind == "box_taken" and int(ev.of) == my_seat and my_seat >= 0:
+		my_box = int(ev.seat)
+	elif ev.kind == "box_dropped" and int(ev.seat) == my_box:
+		my_box = -1
 	_queue.append(_animate.bind(ev))
 
 
@@ -643,20 +780,28 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			occupants[int(ev.seat)] = {"entity": ev.entity, "name": ev.name, "human": ev.human}
 			queue_redraw()
 			return 0.0
-		"stood":
+		"stood", "box_dropped":   # (a second box goes back like an empty seat; its chips to its player)
 			var seat := int(ev.seat)
+			var home := chair_pos(int(ev.of)) if ev.kind == "box_dropped" else chair_pos(seat)
 			occupants.erase(seat)
 			ready_seats.erase(seat)
 			auto_rebet_seats.erase(seat)
+			_my_hands.erase(seat)
 			if phase == "betting":
 				jackpot_lights.erase(seat)
 				for spot in _chips_for(seat).keys():
-					_take_stack(seat, spot, chair_pos(seat), d)
+					_take_stack(seat, spot, home, d)
 			for stack in _queued.get(seat, {}).values():
-				_fly_and_free(stack, chair_pos(seat), 0.25 * d)
+				_fly_and_free(stack, home, 0.25 * d)
 			_queued.erase(seat)
 			queue_redraw()
 			return 0.0
+		"box_taken":
+			occupants[int(ev.seat)] = {"entity": ev.entity, "name": ev.name, "human": true, "box_of": int(ev.of)}
+			queue_redraw()
+			return 0.0
+		"box_revealed":
+			return _reveal_box(int(ev.seat), ev.get("mine_box"), d)
 		"bet_changed":
 			if ev.get("queued", false):
 				_show_queued(int(ev.seat), ev.bets, d)
@@ -684,7 +829,8 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			return 0.0
 		"bets_closed":
 			_timer_end = 0.0
-			in_hand = my_seat in ev.seats.map(func(x): return int(x))
+			dealt_seats = ev.seats.map(func(x): return int(x))
+			in_hand = my_seats().any(func(x): return x in dealt_seats)
 			return _lock_jackpots(ev.get("jackpots", []), d)
 		"betting_reset":
 			_timer_end = 0.0
@@ -712,6 +858,8 @@ func _animate(speed: float, ev: Dictionary) -> float:
 		"betting_open":
 			phase = "betting"
 			in_hand = false
+			dealt_seats.clear()
+			_my_hands.clear()
 			# Bets put down during the last hand stay where they are and count now (the
 			# server's bet_changed that follows finds them already there).
 			var queued := _queued.duplicate()
@@ -785,8 +933,8 @@ func _move_card(card: Card2D, place: Array, duration: float, delay := 0.0) -> vo
 ## winnings -- slide back to their owners, then the dealer clears the cards.
 func _return_chips(d: float) -> float:
 	var mine_back := false
-	if my_seat >= 0:
-		mine_back = _chips_for(my_seat).size() > 0 or _payouts.get(my_seat, []).size() > 0
+	for seat in my_seats():
+		mine_back = mine_back or _chips_for(seat).size() > 0 or _payouts.get(seat, []).size() > 0
 	for seat in _seat_chips.keys():
 		for spot in _seat_chips[seat].keys():
 			_take_stack(seat, spot, chair_pos(seat), d)
@@ -1102,14 +1250,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if mode == "seated" and my_seat >= 0:
-		for spot in bet_spots():
-			if _on_spot(p, spot):
-				if event.button_index == MOUSE_BUTTON_LEFT:
-					spot_clicked.emit(spot)
-				elif event.button_index == MOUSE_BUTTON_RIGHT:
-					spot_removed.emit(spot)
-				get_viewport().set_input_as_handled()
-				return
+		var pill := box_pill_at(p)
+		if pill >= 0 and event.button_index == MOUSE_BUTTON_LEFT:
+			box_clicked.emit(pill)
+			get_viewport().set_input_as_handled()
+			return
+		for seat in my_seats():   # (a click on your second box's spot is a bet on yours: they're matched)
+			for spot in bet_spots():
+				if _on_spot(p, spot, seat):
+					if event.button_index == MOUSE_BUTTON_LEFT:
+						spot_clicked.emit(spot)
+					elif event.button_index == MOUSE_BUTTON_RIGHT:
+						spot_removed.emit(spot)
+					get_viewport().set_input_as_handled()
+					return
 
 
 ## Sat here: one of your spots, or the master table's dealer (what _unhandled_input takes a click on).
@@ -1118,18 +1272,21 @@ func clickable_at(local: Vector2) -> bool:
 		return super(local)
 	if is_master and over_dealer(local):
 		return true
-	if my_seat >= 0:
+	if box_pill_at(local) >= 0:
+		return true
+	for seat in my_seats():
 		for spot in bet_spots():
-			if _on_spot(local, spot):
+			if _on_spot(local, spot, seat):
 				return true
 	return false
 
 
-## Whether `p` is on one of the local player's spots: near its middle, or anywhere on its printed shape.
-func _on_spot(p: Vector2, spot: String) -> bool:
-	if p.distance_to(spot_pos(my_seat, spot)) < spot_radius(spot):
+## Whether `p` is on one of the local player's spots (at `seat`, one of their boxes): near its middle, or anywhere
+## on its printed shape.
+func _on_spot(p: Vector2, spot: String, seat := my_seat) -> bool:
+	if p.distance_to(spot_pos(seat, spot)) < spot_radius(spot):
 		return true
-	var s := spot_shape(my_seat, spot)
+	var s := spot_shape(seat, spot)
 	return s.shape != "circle" and Geometry2D.is_point_in_polygon(p, StyledFelt.shape(s, -1.0))
 
 
@@ -1145,6 +1302,7 @@ func _draw() -> void:
 	if Engine.is_editor_hint():
 		return
 	_draw_spot_glows(now)
+	_draw_box_pills(pulse)
 	for seat in ready_seats:
 		var p := chair_pos(seat) + on_screen(Vector2(13, -12))
 		draw_circle(p, 3.5, Color("2e9e4f"))

@@ -147,6 +147,8 @@ class BlackjackMachine(TableMachine):
     FLAT_SPOTS = {"jackpot": bj.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need a Blackjack bet alongside them."
     CANT_COVER = "Not enough balance for that."
+    SECOND_BOX = True
+    HIDE_BOX = False   # (every hand is dealt face up, and played in turn)
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=None, lines: DealerLines | None = None, rng=None):

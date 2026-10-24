@@ -21,6 +21,10 @@ folds.
   Jackpot riding: those cards are tucked under the Straight Flush bet, as with a Prime at Three Card Poker,
   and still pay. A raised hand tucks a straight flush in another suit the same way.
 
+## A second box
+With a second box (README, Betting at the card tables), Box 2's seven cards turn over for you, sorted with its
+flush first, once Box 1 has raised or folded. Its own flush sets how far it can raise.
+
 ## Settling
 
 The longest flush wins, then the high cards. The dealer qualifies with a 3-card flush, 9-high; if not, the

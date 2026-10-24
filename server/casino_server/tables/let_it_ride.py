@@ -74,6 +74,8 @@ class LetItRideMachine(TableMachine):
     FLAT_SPOTS = {"bonus": lir.BONUS_BET, "jackpot": lir.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need the three main bets alongside them."
     CANT_COVER = "Not enough balance for three equal bets plus side bets."
+    CANT_COVER_BOTH = "Not enough balance for three equal bets plus side bets on both boxes."
+    SECOND_BOX = True
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=Deck, lines: DealerLines | None = None):
@@ -117,6 +119,7 @@ class LetItRideMachine(TableMachine):
             raise TableError("You're not in this hand.")
         if h.decided:
             raise TableError("You've already decided.")
+        self._box_first(seat)
         if action not in ("ride", "pull"):
             raise TableError("Let it ride, or pull the bet back.")
         return self._decide(seat, action == "ride", now)
@@ -139,7 +142,7 @@ class LetItRideMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
 
     def _leaving_mid_hand(self, seat: int, now: float, reason: str) -> list:
         h = self.round.get(seat)
@@ -277,6 +280,10 @@ class LetItRideMachine(TableMachine):
                          else {"spot": "jackpot", "action": "collect", "amount": h.bets.jackpot})
         return sorted(steps, key=lambda s: s["action"] != "collect")
 
+    def _box_private(self, seat: int) -> dict:
+        h = self.round[seat]
+        return {"cards": [c.code for c in h.cards], "hand": self._seen_label(h)}
+
     def _seen_label(self, h: Hand) -> str:
         seen = h.cards + self.community[:self.revealed]
         if len(seen) == 5:
@@ -321,7 +328,7 @@ class LetItRideMachine(TableMachine):
                 entry["cards"] = [c.code for c in h.cards]
                 entry["result"] = {"returned": h.paid}
             else:
-                show = viewer == i
+                show = self._sees(viewer, i)
                 entry["cards"] = [c.code if show else "??" for c in h.cards]
                 entry["hand"] = self._seen_label(h) if show else None
         community = [c.code if k < self.revealed else "??" for k, c in enumerate(self.community)]

@@ -227,9 +227,10 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 		"dealing", "side_bets":
 			info = "Dealing..."
 		"insurance":
-			if insurance_seats.has(my_seat):
-				var cost := int(insurance_costs.get(my_seat, 0))
-				info = "Insurance? -- %ds" % left
+			var box := _insuring_seat()
+			if box >= 0:
+				var cost := int(insurance_costs.get(box, 0))
+				info = box_prefix(box) + "Insurance? -- %ds" % left
 				actions = [{"id": "insure", "label": "Insurance %s  [I]" % Money.format(cost, true), "key": "I"},
 					{"id": "no_insurance", "label": "No insurance  [N]", "key": "N"}]
 			else:
@@ -239,9 +240,9 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 		"naturals":
 			info = "Paying Blackjacks"
 		"playing":
-			if turn_seat == my_seat and in_hand:
-				info = "Your turn -- %ds" % left
-				var bet := _hand_bet(my_seat, turn_hand)
+			if is_mine(turn_seat) and in_hand:
+				info = box_prefix(turn_seat) + "Your turn -- %ds" % left
+				var bet := _hand_bet(turn_seat, turn_hand)
 				for option in turn_options:
 					var label: String = str(option).capitalize()
 					if option in ["double", "split"]:
@@ -262,13 +263,21 @@ func _hand_bet(seat: int, idx: int) -> int:
 	return int(chips[hands[idx].key].amount) if chips.has(hands[idx].key) else 0
 
 
+## Which of the local player's boxes is still to say about insurance, or -1: their own first.
+func _insuring_seat() -> int:
+	for seat in my_seats():
+		if insurance_seats.has(seat):
+			return seat
+	return -1
+
+
 func action_message(id: String) -> Array:
 	match id:
 		"insure":
-			return ["insure", {"take": true}]
+			return ["insure", {"take": true, "seat": _insuring_seat()}]
 		"no_insurance":
-			return ["insure", {"take": false}]
-	return ["act", {"action": id}]
+			return ["insure", {"take": false, "seat": _insuring_seat()}]
+	return ["act", {"action": id, "seat": turn_seat}]
 
 
 # ------------------------------------------------------------------ snapshot
@@ -289,7 +298,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		var s = seats[i]
 		if s == null or s.get("hands", []).is_empty():
 			continue
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 		_set_stack(i, "bet", 0)
 		var hands: Array = s.hands

@@ -88,6 +88,8 @@ class MississippiStudMachine(TableMachine):
     FLAT_SPOTS = {"jackpot": ms.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance: you need ten times your Ante (to bet 3x on every street), plus side bets."
+    CANT_COVER_BOTH = "Not enough balance: you need ten times your Ante, plus side bets, on both boxes."
+    SECOND_BOX = True
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=Deck, lines: DealerLines | None = None):
@@ -124,6 +126,7 @@ class MississippiStudMachine(TableMachine):
             raise TableError("You're not in this hand.")
         if h.decided:
             raise TableError("You've already decided this street.")
+        self._box_first(seat)
         if action not in ACTIONS:
             raise TableError("Fold, or bet 1x, 2x or 3x your Ante.")
         times = ACTIONS[action]
@@ -152,7 +155,7 @@ class MississippiStudMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
 
     # ------------------------------------------------------------------ the clock
     def _advance(self, now: float) -> list:
@@ -340,6 +343,10 @@ class MississippiStudMachine(TableMachine):
             return self.lines.say("mississippi_stud", "win", name=name, hand=hand, pays=f"{r.multiplier} to 1")
         return self.lines.say("mississippi_stud", r.outcome, name=name, hand=hand)
 
+    def _box_private(self, seat: int) -> dict:
+        h = self.round[seat]
+        return {"cards": [c.code for c in h.cards], "hand": self._seen_label(h)}
+
     def _seen_label(self, h: Hand) -> str:
         """What a player's cards make so far (shown to them alone)."""
         seen = h.cards + self.community[:self.revealed]
@@ -387,7 +394,7 @@ class MississippiStudMachine(TableMachine):
                 entry["cards"] = [] if h.folded else [c.code for c in h.cards]
                 entry["result"] = {"outcome": h.result.outcome, "returned": h.paid}
             elif not h.swept:
-                show = viewer == i
+                show = self._sees(viewer, i)
                 entry["cards"] = [c.code if show else "??" for c in h.cards]
                 entry["hand"] = self._seen_label(h) if show else None
         community = [c.code if k < self.revealed else "??" for k, c in enumerate(self.community)]

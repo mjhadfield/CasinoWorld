@@ -16,6 +16,10 @@ Three cards each (private) and two community cards.
 After your three cards, **let it ride** (**R**) or **pull back** (**P**) bet 1; after the first community
 card, bet 2. Pulled bets come straight back. Running out of time pulls back. The £ always plays.
 
+## A second box
+With a second box (README, Betting at the card tables), Box 2's cards turn over for you once Box 1 has decided
+its first bet, and on each bet Box 1 decides before Box 2.
+
 ## Settling
 
 A pair of 10s or better pays every bet still up (v2's paytable).

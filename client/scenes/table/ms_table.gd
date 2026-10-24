@@ -22,7 +22,6 @@ const STREET_LABELS := ["3RD", "4TH", "5TH"]
 var street := 0
 var live_seats := {}     # seats still in this hand
 var decided_seats := {}  # seats that have acted this street
-var my_decided := false
 var my_ante := 0
 
 
@@ -95,11 +94,23 @@ func fold_pile(seat: int, index: int) -> Array:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return phase == "deciding" and live_seats.has(my_seat) and not my_decided
+	return acting_seat() >= 0
+
+
+## Which of the local player's boxes is still to decide this street, or -1: their own first.
+func acting_seat() -> int:
+	if phase != "deciding":
+		return -1
+	for seat in my_seats():
+		if live_seats.has(seat) and not decided_seats.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
-	var my_turn := deciding()
+	var seat := acting_seat()
+	var my_turn := seat >= 0
+	var live := my_seats().any(func(x): return live_seats.has(x))
 	var left := ceili(timer_left())
 	var info := ""
 	match phase:
@@ -109,8 +120,8 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			info = "Dealing..."
 		"deciding":
 			if my_turn:
-				info = "%s -- %ds" % [STREET_NAMES[street], left]
-			elif live_seats.has(my_seat):
+				info = box_prefix(seat) + "%s -- %ds" % [STREET_NAMES[street], left]
+			elif live:
 				info = "Waiting for the others"
 			elif in_hand:
 				info = "You've folded"
@@ -129,14 +140,13 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 
 
 func action_message(id: String) -> Array:
-	return ["act", {"action": id}]
+	return ["act", {"action": id, "seat": acting_seat()}]
 
 
 # ------------------------------------------------------------------ snapshot
 func _apply_game_snapshot(state: Dictionary) -> void:
 	live_seats.clear()
 	decided_seats.clear()
-	my_decided = false
 	street = int(state.get("street", 0))
 	var seats: Array = state.get("seats", [])
 	for i in seats.size():
@@ -150,15 +160,13 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		var cards: Array = s.get("cards", [])
 		if cards.is_empty() or s.get("result") != null:
 			continue
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 			my_ante = int(s.get("bets", {}).get("ante", 0))
 		if not s.get("folded"):
 			live_seats[i] = true
 			if s.get("decided"):
 				decided_seats[i] = true
-				if i == my_seat:
-					my_decided = true
 		for k in cards.size():
 			var card := _new_card(cards[k], card_pos(i, k))
 			if s.get("folded"):
@@ -175,7 +183,6 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 # ------------------------------------------------------------------ events -> animation
 func _note_event(ev: Dictionary) -> void:
 	if ev.kind in ["bets_closed", "betting_open"]:
-		my_decided = false
 		decided_seats.clear()
 	if ev.kind == "betting_open":
 		live_seats.clear()
@@ -187,9 +194,7 @@ func _note_event(ev: Dictionary) -> void:
 			live_seats[int(seat)] = true
 		if my_seat >= 0 and live_seats.has(my_seat):
 			my_ante = int(_chips_for(my_seat)["ante"].amount) if _chips_for(my_seat).has("ante") else 0
-	var mine = ev.get("mine")
-	if mine is Dictionary and mine.has("hand") and live_seats.has(my_seat):
-		my_hand_changed.emit(str(mine.hand))
+	_note_hands(ev, func(seat): return live_seats.has(seat))
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
@@ -200,7 +205,6 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			phase = "deciding"
 			street = int(ev.street)
 			decided_seats.clear()
-			my_decided = false
 			_start_timer(float(ev.seconds))
 			return 0.0
 		"street_bet":
@@ -217,7 +221,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 
 
 func handle_event(ev: Dictionary) -> void:
-	if ev.kind == "bonus_settle" and ev.seats.any(func(e): return int(e.seat) == my_seat):
+	if ev.kind == "bonus_settle" and ev.seats.any(func(e): return is_mine(int(e.seat))):
 		Session.hold_balance(true)  # show the new balance when the chips reach you
 	super(ev)
 
@@ -274,14 +278,12 @@ func _deal(ev: Dictionary, d: float) -> float:
 func _street_bet(ev: Dictionary, d: float) -> float:
 	var seat := int(ev.seat)
 	decided_seats[seat] = true
-	if seat == my_seat:
-		my_decided = true
 	if int(ev.times) > 0:
 		_add_stack_from(seat, STREETS[int(ev.street)], int(ev.amount), chair_pos(seat), d)
 		return 0.1 * d
 	live_seats.erase(seat)
-	if seat == my_seat:
-		my_hand_changed.emit("")
+	if is_mine(seat):
+		_show_hand(seat, "")
 	var cards := _cards_for(seat)
 	for k in cards.size():
 		_move_card(cards[k], fold_pile(seat, k), 0.28 * d, k * 0.05 * d)

@@ -114,6 +114,8 @@ class ThreeCardPokerMachine(TableMachine):
     FLAT_SPOTS = {"jackpot": tcp.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance to cover that plus a matching Play bet."
+    CANT_COVER_BOTH = "Not enough balance to cover that and a matching Play bet on both boxes."
+    SECOND_BOX = True
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=Deck, lines: DealerLines | None = None):
@@ -149,6 +151,7 @@ class ThreeCardPokerMachine(TableMachine):
             raise TableError("You're not in this hand.")
         if rs.decided:
             raise TableError("You've already decided.")
+        self._box_first(seat)
         if play:
             if not rs.participant.debit(rs.bets.ante, "play"):
                 return self._fold(seat, now, reason="funds")
@@ -157,6 +160,10 @@ class ThreeCardPokerMachine(TableMachine):
                      "_paid": [rs.participant]}
             return [event] + self._all_decided(now)
         return self._fold(seat, now)
+
+    def _box_private(self, seat: int) -> dict:
+        cards = self.round[seat].cards
+        return {"cards": [c.code for c in cards], "hand": tcp.hand_label(tcp.evaluate_three_card_hand(cards))}
 
     def _fold(self, seat: int, now: float, reason: str = "") -> list:
         rs = self.round[seat]
@@ -175,7 +182,7 @@ class ThreeCardPokerMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
 
     # ------------------------------------------------------------------ the clock
     def _advance(self, now: float) -> list:
@@ -359,7 +366,7 @@ class ThreeCardPokerMachine(TableMachine):
             if rs.settled or (rs.swept and not rs.held):
                 entry["cards"] = []
             else:  # face down until their settle; you know your own
-                show = viewer == i
+                show = self._sees(viewer, i)
                 entry["cards"] = [c.code if show else "??" for c in rs.cards]
                 entry["hand"] = tcp.hand_label(tcp.evaluate_three_card_hand(rs.cards)) if show else None
             if rs.settled:

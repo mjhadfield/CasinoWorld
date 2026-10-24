@@ -23,7 +23,7 @@ const SPOTS := ["ante", "flush", "straight_flush", "jackpot"]
 var decided_seats := {}
 var round_seats := {}
 var my_ante := 0
-var my_max_raise := 1
+var max_raises := {}  # each of the local player's boxes -> how far its flush lets it raise
 var _flush := {}    # seat -> [Card2D] face down in front
 var _held := {}     # seat -> [Card2D] tucked under the Straight Flush bet
 var _aside := {}    # seat -> [Card2D] waiting to be swept
@@ -116,11 +116,22 @@ static func sort_hand(codes: Array, flush: Array) -> Array:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return phase == "deciding" and round_seats.has(my_seat) and not decided_seats.has(my_seat)
+	return acting_seat() >= 0
+
+
+## Which of the local player's boxes is still to decide, or -1: their own first.
+func acting_seat() -> int:
+	if phase != "deciding":
+		return -1
+	for seat in my_seats():
+		if round_seats.has(seat) and not decided_seats.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
-	var my_turn := deciding()
+	var seat := acting_seat()
+	var my_turn := seat >= 0
 	var left := ceili(timer_left())
 	var info := ""
 	match phase:
@@ -130,15 +141,15 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			info = "Dealing..."
 		"deciding":
 			if my_turn:
-				info = "Raise or fold -- %ds" % left
-			elif round_seats.has(my_seat):
+				info = box_prefix(seat) + "Raise or fold -- %ds" % left
+			elif my_seats().any(func(x): return round_seats.has(x)):
 				info = "Waiting for the others"
 			else:
 				info = "Watching this hand"
 	var actions := []
 	if my_turn:
 		var ante := my_ante if my_ante > 0 else int(ctx.get("my_bets", {}).get("ante", 0))
-		for times in range(my_max_raise, 0, -1):
+		for times in range(int(max_raises.get(seat, 1)), 0, -1):
 			actions.append({"id": "raise%d" % times, "label": "Raise %dx %s  [%d]" % [times, Money.format(ante * times, true), times],
 				"key": str(times)})
 		actions.append({"id": "fold", "label": "Fold  [F]", "key": "F"})
@@ -146,7 +157,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 
 
 func action_message(id: String) -> Array:
-	return ["act", {"action": id}]
+	return ["act", {"action": id, "seat": acting_seat()}]
 
 
 # ------------------------------------------------------------------ snapshot
@@ -167,7 +178,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		if cards.is_empty() or s.get("result") != null:
 			continue
 		round_seats[i] = true
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 			my_ante = int(s.get("bets", {}).get("ante", 0))
 		if not s.get("decided"):
@@ -204,7 +215,7 @@ func _note_event(ev: Dictionary) -> void:
 		round_seats.clear()
 		decided_seats.clear()
 		my_ante = 0
-		my_max_raise = 1
+		max_raises.clear()
 	if ev.kind == "bets_closed":
 		round_seats.clear()
 		decided_seats.clear()
@@ -212,12 +223,11 @@ func _note_event(ev: Dictionary) -> void:
 			round_seats[int(seat)] = true
 		if my_seat >= 0 and round_seats.has(my_seat):
 			my_ante = int(_chips_for(my_seat)["ante"].amount) if _chips_for(my_seat).has("ante") else 0
-	var mine = ev.get("mine")
-	if mine is Dictionary:
-		if mine.has("max_raise"):
-			my_max_raise = int(mine.max_raise)
-		if mine.has("hand") and round_seats.has(my_seat):
-			my_hand_changed.emit(str(mine.hand))
+	for seat in my_seats():
+		var mine = mine_for(ev, seat)
+		if mine is Dictionary and mine.has("max_raise"):
+			max_raises[seat] = int(mine.max_raise)
+	_note_hands(ev, func(seat): return round_seats.has(seat))
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
@@ -288,6 +298,20 @@ func _deal(ev: Dictionary, d: float) -> float:
 	return total
 
 
+## Your second box, turned over now your own hand's decided: sorted with its flush first, like your own.
+func _reveal_box(seat: int, mine, d: float) -> float:
+	if not mine is Dictionary or not mine.has("cards") or decided_seats.has(seat):
+		return 0.0
+	if mine.has("max_raise"):
+		max_raises[seat] = int(mine.max_raise)
+	var cards := _cards_for(seat)
+	var sorted_codes := sort_hand(mine.cards, mine.get("flush", []))
+	for k in mini(cards.size(), sorted_codes.size()):
+		_after(k * 0.06 * d).timeout.connect(cards[k].flip_to.bind(sorted_codes[k], 0.2 * d))
+	_show_hand(seat, str(mine.get("hand", "")))
+	return 0.5 * d
+
+
 ## A raise (chips onto Raise, the flush face down in front) or a fold; either
 ## way a tucked straight flush goes under its bet and the rest is set aside.
 func _action(ev: Dictionary, d: float) -> float:
@@ -296,12 +320,12 @@ func _action(ev: Dictionary, d: float) -> float:
 	var times := int(ev.times)
 	if times > 0:
 		_add_stack_from(seat, "raise", int(ev.amount), chair_pos(seat), d)
-	elif seat == my_seat:
-		my_hand_changed.emit("")
+	elif is_mine(seat):
+		_show_hand(seat, "")
 	var cards: Array = _cards_for(seat).duplicate()
 	var flush_cards := []
 	var held_cards := []
-	var mine = ev.get("mine")
+	var mine = mine_for(ev, seat)
 	if mine is Dictionary:  # your own: pick them out by face
 		for code in mine.get("flush", []):
 			flush_cards.append(_take_code(cards, code))

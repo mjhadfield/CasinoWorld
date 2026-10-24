@@ -226,6 +226,7 @@ func _register(t: FloorGame) -> void:
 	t.spot_clicked.connect(_on_spot_clicked)
 	t.spot_removed.connect(_on_spot_removed)
 	t.dealer_clicked.connect(_on_dealer_clicked.bind(t))
+	t.box_clicked.connect(_on_box_clicked.bind(t))
 	t.my_hand_changed.connect(func(text: String):
 		if t == active_table:
 			my_hand = text)
@@ -803,7 +804,10 @@ func _on_spot_clicked(spot: String) -> void:
 		return
 	var trial := my_bets.duplicate()
 	trial[spot] = old + add
-	if active_table.max_cost(trial) > Session.balance:
+	if active_table.max_cost(trial) * active_table.boxes() > Session.balance:
+		if active_table.max_cost(trial) <= Session.balance:
+			hud.show_toast("You wouldn't have enough to match that on your second box.")
+			return
 		var main := active_table.main_spot()
 		hud.show_toast("You wouldn't have enough to match that Ante with a Play bet." if spot == "ante"
 			else "You wouldn't have enough left to double." if spot == main else "Not enough balance for that.")
@@ -876,6 +880,18 @@ func _on_action(id: String) -> void:
 		Net.send(msg[0], msg[1])
 
 
+## A chair's pill while you're sat: play the free seat beside you as a second box (every bet you make is matched on
+## it), or give your second box back.
+func _on_box_clicked(seat: int, t: CasinoTable) -> void:
+	if state != "seated" or t != active_table:
+		return
+	if seat == t.my_box:
+		hud.ask("Stop playing your second box?", "Drop", "Keep", func(): Net.send("drop_box"))
+	else:
+		hud.ask("Play second box? Your bets will be matched", "Yes", "Cancel",
+			func(): Net.send("second_box", {"seat": seat}))
+
+
 func _request_stand() -> void:
 	if state != "seated":
 		return
@@ -911,8 +927,9 @@ func _seated_view() -> Dictionary:
 		"is_ready": my_ready, "my_turn": my_turn, "actions": _actions, "info": info, "hand": hand,
 		"hide": view.get("hide", []), "quiet_betting": view.get("quiet_betting", false),
 		"timer": t.timer_fraction() if timed and left > 0.0 else -1.0, "timer_low": left < 5.0,
-		"on_felt": _total(my_bets), "title": t.game_title(),
-		"seats": "%d of %d %s" % [t.occupants.size(), t.seat_count(), "at the rail" if t is CrapsTable else "seated"],
+		"on_felt": _total(my_bets) * t.boxes(), "title": t.game_title(),
+		"seats": "%d of %d %s" % [t.occupants.values().filter(func(o): return not o.has("box_of")).size(), t.seat_count(),
+			"at the rail" if t is CrapsTable else "seated"],
 		"jackpot": Session.jackpot_now() if "jackpot" in t.bet_spots() else -1.0, "jackpot_mine": int(my_bets.get("jackpot", 0)) > 0}
 
 
@@ -936,6 +953,7 @@ func _leave_table() -> void:
 	if t:
 		t.mode = ""
 		t.my_seat = -1
+		t.my_box = -1
 		stand = _on_floor(t, t.stand_pos(my_seat))
 		player.stand_at(t, my_seat)
 	my_seat = -1
@@ -1158,7 +1176,7 @@ func _on_table_state(msg: Dictionary) -> void:
 	var seats: Array = msg.get("seats", [])
 	for i in seats.size():
 		var s = seats[i]
-		if s != null and entities.has(s.entity):
+		if s != null and s.get("box_of") == null and entities.has(s.entity):   # (nobody sits at a second box)
 			entities[s.entity].sit_at(t, i, false)
 	if t == active_table and state == "seated":
 		var mine = seats[my_seat] if my_seat < seats.size() else null
@@ -1190,7 +1208,15 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 		"bet_changed":
 			if mine and int(ev.seat) == my_seat:
 				my_bets = ev.bets.duplicate()
-				hud.set_pending(t.pending_cost(my_bets))
+				hud.set_pending(t.pending_cost(my_bets) * t.boxes())
+		"box_taken":
+			if mine and int(ev.of) == my_seat:
+				hud.set_pending(t.pending_cost(my_bets) * t.boxes())
+		"box_dropped":
+			if mine and int(ev.of) == my_seat:
+				hud.set_pending(t.pending_cost(my_bets) * t.boxes())
+				if ev.get("reason", "") == "game_change":
+					hud.show_toast("Your second box ended with the change of game.", 4.0)
 		"ready":
 			if mine and int(ev.seat) == my_seat:
 				my_ready = true
@@ -1199,7 +1225,7 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 				my_ready = false
 				_placed.clear()
 				hud.set_pending(0)
-				if my_seat in ev.seats.map(func(x): return int(x)):
+				if ev.seats.any(func(x): return t.is_mine(int(x))):
 					played_a_hand = true
 					_staked = true
 		"throw":  # Craps: dice are out -- the chips you put down are paid for now
@@ -1357,6 +1383,7 @@ func _follow_master(old: CasinoTable, t: CasinoTable, seat: int, rules: Dictiona
 		return
 	old.mode = ""
 	old.my_seat = -1
+	old.my_box = -1
 	active_table = t
 	my_seat = seat
 	t.my_seat = seat

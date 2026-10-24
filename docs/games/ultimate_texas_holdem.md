@@ -17,6 +17,10 @@ Everyone decides at once at each stage, and once your Play bet is down you're do
 - After the river (the turn and river are turned together): **1x** or **fold**.
 - Running out of time checks, or folds after the river.
 
+## A second box
+With a second box (README, Betting at the card tables), Box 2's hole cards turn over for you once Box 1 has
+decided before the flop, and at each stage Box 1 decides before Box 2.
+
 ## Settling
 
 The dealer qualifies with a pair; if not, the Ante pushes. The Blind pays only on a Straight or better win. A

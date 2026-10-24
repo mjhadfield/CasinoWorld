@@ -48,6 +48,8 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `choose_game` | `game` | Master Table: ask for a card game (`three_card_poker` … `baccarat`). Anyone else seated is asked first (`master_vote`); otherwise it changes between hands. |
 | `game_vote` | `accept` (bool) | Master Table: agree to, or turn down, the game someone asked for. |
 | `cancel_game_change` | | Master Table: stay on this game instead of the one agreed for after this hand. |
+| `second_box` | `seat` | Play the free seat beside you as a second box (see "A second box" below). |
+| `drop_box` | | Give your second box back. Refused while it's in the hand being played. |
 
 ## Server → client
 | type | fields | when |
@@ -63,7 +65,7 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `entity_update` | `id`, `name`?, `look`? | Someone renamed, or an NPC was restyled on the admin page (a `look` id starting `x_` is a server-built sheet at `/looks/<id>.png`). |
 | `entity_despawn` | `id` | Someone left. |
 | `seated` | `table`, `seat`, `rules` | You sat down. `rules` holds the paytable, `chips`, `min_ante` and `seats`. A `table_state` follows. |
-| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on join, and when you sit. |
+| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on join, and when you sit. |
 | `table_event` | `table`, `event` | Something happened at a table. Every joined player gets every table's events (see below). |
 | `notice` / `error` | `message` | Information, or a rejected action. |
 | `pong` | `t` | The reply to `ping`. |
@@ -297,6 +299,27 @@ While it changes, `phase` is `changing` and every bet is refused.
 | event | fields | meaning |
 |---|---|---|
 | `dealer_change` | `dealer` {`id`, `name`, `look`} | A fresh dealer relieves the last one. Shifts are set on the admin page, and a relief only happens while the table is taking bets. |
+
+### Every card table but Pai Gow and Baccarat: a second box
+A seated player can also play the free seat right beside them as a second box: Three Card Poker, Blackjack,
+Mississippi Stud, Ultimate Texas Hold'em, Let It Ride and High Card Flush, and a Master Table while it's one of
+those. The box is a seat of its own, dealt, decided and settled like any other, with its own `round_net`, but its
+money is its player's: every bet they make is matched on it (`bet`, `clear_bets`, `rebet`, Auto rebet, `ready`,
+queued bets), and a bet they can't cover on both boxes is refused. Its seat entry in snapshots carries `box_of`
+(the player's own seat); nobody's avatar sits there.
+
+Decisions for the box are the usual messages (`decide`, `act`, `insure`) with `seat` set to the box's seat. In the
+games where everyone decides at once, its cards stay hidden from its player until their own hand has decided, and on
+every street or stage their own hand decides first ("Decide Box 1 first."). Blackjack's cards are face up and its
+turns go seat by seat, so nothing waits there.
+
+| event | fields | meaning |
+|---|---|---|
+| `box_taken` | `seat`, `of`, `entity`, `name` | The player in seat `of` is playing `seat` as a second box. Their bets follow at once as `bet_changed` for it. |
+| `box_dropped` | `seat`, `of`, `reason` | The box is given back: `dropped`, `stood` (they stood up, or were stood up), or `game_change` (a Master Table changing game). Standing up mid-hand treats the box as the seat itself would be. |
+| `box_revealed` | `seat`, `of`, `mine_box` | The player's own hand has decided: the box's private cards, as `dealt` gave them for a seat of your own (`cards`, `hand`, and at High Card Flush `flush`, `max_raise`). |
+
+Any event with private parts carries `mine_box` alongside `mine` for the player's second box, once it's been shown.
 
 ### Every table but Craps: each seat's result for the hand
 The runner (`tables/runner.py`) adds what the hand won or lost each seat's player, counted from their balance when bets were taken, so it covers side bets, raises, doubles and jackpots. The client floats it, green or red, off the back of that seat's chair.

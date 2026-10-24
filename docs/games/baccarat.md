@@ -11,6 +11,9 @@ Player, Banker or Tie, plus the Player Dragon and Banker Dragon bonuses. There a
 One for the whole table, out of the shuffler card by card, with running totals. Third cards follow the
 standard tableau. The dealer calls it, then every seat settles quickly.
 
+## A second box
+Not offered: there's no hand of your own to play twice.
+
 ## Payouts
 
 Banker pays less 5%, rounded down to the penny. Tie pays 8:1.

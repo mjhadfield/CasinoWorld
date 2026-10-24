@@ -25,6 +25,10 @@ also after splitting) or **Split** (**P**, any pair, up to 4 times; split Aces g
 Each hand's total sits just above its first card and stays put as the hand draws. Split hands sit a card's width
 apart with their bets in a row above them, so their totals are short: a soft total shows both counts (`7/17`).
 
+## A second box
+With a second box (README, Betting at the card tables), each box is offered insurance and takes its turn in seat
+order like any other seat. Every card's face up, so nothing waits on Box 1.
+
 ## The dealer
 
 Draws to 17 and stands on all 17s. Boxes are then settled from third base.

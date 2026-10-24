@@ -44,6 +44,9 @@ neither collect Envy nor trigger it.
   settlement. A dealer Ace-high Pai Gow pushes every Ante. Nobody sets a hand then: if your cards win a side
   bet you **Claim bonus**, otherwise you **Fold**.
 
+## A second box
+Not offered at either Pai Gow table.
+
 ## NPCs
 
 They set by the House Way. At Face Up they play the dealer's shown hand: they set to win if any split can,

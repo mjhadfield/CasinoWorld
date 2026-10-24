@@ -20,6 +20,10 @@ Once the cards are dealt, everyone decides at the same time.
 - There's a shared 20-second timer, which ends once everyone has decided, and anyone still undecided folds.
   NPCs take 2–10 seconds.
 
+## A second box
+With a second box (README, Betting at the card tables), you Play or Fold Box 1 first; then Box 2's cards turn over
+for you and you decide it. Out of time folds whichever is still undecided. Standing up mid-hand folds both.
+
 ## Settling, one step at a time
 
 1. The dealer takes the folded hands and their bets.

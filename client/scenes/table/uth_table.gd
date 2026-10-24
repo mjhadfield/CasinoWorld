@@ -103,11 +103,23 @@ func fold_pile(seat: int, index: int) -> Array:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return phase == "deciding" and waiting_seats.has(my_seat) and not decided_seats.has(my_seat)
+	return acting_seat() >= 0
+
+
+## Which of the local player's boxes is still to decide at this stage, or -1: their own first.
+func acting_seat() -> int:
+	if phase != "deciding":
+		return -1
+	for seat in my_seats():
+		if waiting_seats.has(seat) and not decided_seats.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
-	var my_turn := deciding()
+	var seat := acting_seat()
+	var my_turn := seat >= 0
+	var live: Array = my_seats().filter(func(x): return live_seats.has(x))
 	var left := ceili(timer_left())
 	var info := ""
 	match phase:
@@ -117,9 +129,10 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			info = "Dealing..."
 		"deciding":
 			if my_turn:
-				info = "%s -- %ds" % [STAGE_NAMES[stage], left]
-			elif live_seats.has(my_seat):
-				info = "Your Play bet's down" if not waiting_seats.has(my_seat) else "Waiting for the others"
+				info = box_prefix(seat) + "%s -- %ds" % [STAGE_NAMES[stage], left]
+			elif not live.is_empty():
+				info = "Waiting for the others" if live.any(func(x): return waiting_seats.has(x)) \
+					else ("Your Play bets are down" if live.size() > 1 else "Your Play bet's down")
 			elif in_hand:
 				info = "You've folded"
 			else:
@@ -143,7 +156,7 @@ func _bet(times: int, ante: int) -> Dictionary:
 
 
 func action_message(id: String) -> Array:
-	return ["act", {"action": id}]
+	return ["act", {"action": id, "seat": acting_seat()}]
 
 
 # ------------------------------------------------------------------ snapshot
@@ -162,7 +175,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		var cards: Array = s.get("cards", [])
 		if cards.is_empty() or s.get("result") != null:
 			continue
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 			my_ante = int(s.get("bets", {}).get("ante", 0))
 		if not s.get("folded"):
@@ -204,9 +217,7 @@ func _note_event(ev: Dictionary) -> void:
 			waiting_seats[int(seat)] = true
 		if my_seat >= 0 and live_seats.has(my_seat):
 			my_ante = int(_chips_for(my_seat)["ante"].amount) if _chips_for(my_seat).has("ante") else 0
-	var mine = ev.get("mine")
-	if mine is Dictionary and mine.has("hand") and live_seats.has(my_seat):
-		my_hand_changed.emit(str(mine.hand))
+	_note_hands(ev, func(seat): return live_seats.has(seat))
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
@@ -295,8 +306,8 @@ func _action(ev: Dictionary, d: float) -> float:
 		"fold":
 			waiting_seats.erase(seat)
 			live_seats.erase(seat)
-			if seat == my_seat:
-				my_hand_changed.emit("")
+			if is_mine(seat):
+				_show_hand(seat, "")
 			var cards := _cards_for(seat)
 			for k in cards.size():
 				_move_card(cards[k], fold_pile(seat, k), 0.28 * d, k * 0.05 * d)

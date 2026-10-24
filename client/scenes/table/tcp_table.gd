@@ -18,7 +18,6 @@ const SPOTS := ["ante", "pair_plus", "prime", "jackpot"]
 
 var decided_seats := {}  # seats that have acted this hand
 var round_seats := []    # seats dealt into this hand
-var my_decided := false
 
 
 # ------------------------------------------------------------------ layout
@@ -109,11 +108,20 @@ func fold_pile(seat: int, index: int) -> Array:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return in_hand and not my_decided
+	return in_hand and acting_seat() >= 0
+
+
+## Which of the local player's boxes is still to decide, or -1: their own first (a second box waits for it).
+func acting_seat() -> int:
+	for seat in my_seats():
+		if (seat in round_seats or seat in dealt_seats) and not decided_seats.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
-	var my_turn := phase == "deciding" and in_hand and not my_decided  # everyone decides at once
+	var seat := acting_seat()
+	var my_turn := phase == "deciding" and in_hand and seat >= 0  # everyone decides at once
 	var left := ceili(timer_left())
 	var info := ""
 	match phase:
@@ -123,7 +131,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			info = "Dealing..."
 		"deciding":
 			if my_turn:
-				info = "Play or fold? -- %ds" % left
+				info = box_prefix(seat) + "Play or fold? -- %ds" % left
 			elif in_hand:
 				info = "Waiting for the others to decide"
 			else:
@@ -137,14 +145,13 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 
 
 func action_message(id: String) -> Array:
-	return ["decide", {"play": id == "play"}]
+	return ["decide", {"play": id == "play", "seat": acting_seat()}]
 
 
 # ------------------------------------------------------------------ snapshot
 func _apply_game_snapshot(state: Dictionary) -> void:
 	decided_seats.clear()
 	round_seats.clear()
-	my_decided = false
 	var seats: Array = state.get("seats", [])
 	for i in seats.size():
 		var s = seats[i]
@@ -152,12 +159,10 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 			continue
 		if not s.get("cards", []).is_empty():
 			round_seats.append(i)
-			if i == my_seat:
+			if is_mine(i):
 				in_hand = true
 			if s.get("decided"):
 				decided_seats[i] = true
-				if i == my_seat:
-					my_decided = true
 		var cards: Array = s.get("cards", [])
 		for k in cards.size():
 			var card := _new_card(cards[k], card_pos(i, k))
@@ -177,7 +182,6 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 # ------------------------------------------------------------------ events -> animation
 func _note_event(ev: Dictionary) -> void:
 	if ev.kind in ["bets_closed", "betting_open"]:
-		my_decided = false
 		decided_seats.clear()
 	if ev.kind == "betting_open":
 		round_seats.clear()
@@ -195,10 +199,8 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			return 0.0
 		"decision":
 			decided_seats[int(ev.seat)] = true
-			if int(ev.seat) == my_seat:
-				my_decided = true
-				if not ev.play:
-					my_hand_changed.emit("")
+			if is_mine(int(ev.seat)) and not ev.play:
+				_show_hand(int(ev.seat), "")
 			return _decision(ev, d)
 		"fold_sweep":
 			return _fold_sweep(ev, d)
@@ -258,7 +260,7 @@ func _deal(ev: Dictionary, d: float) -> float:
 			_after(total + k * 0.12 * d).timeout.connect(cards[k].flip_to.bind(mine.cards[k], 0.22 * d))
 		_after(total + 0.5 * d).timeout.connect(func():
 			my_cards_shown.emit(mine.cards, mine.hand)
-			my_hand_changed.emit(mine.hand))
+			_show_hand(my_seat, mine.hand))
 	return total
 
 

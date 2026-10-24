@@ -89,11 +89,22 @@ func dealer_card_pos(index: int) -> Vector2:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return phase == "deciding" and round_seats.has(my_seat) and not decided_seats.has(my_seat)
+	return acting_seat() >= 0
+
+
+## Which of the local player's boxes is still to decide on this bet, or -1: their own first.
+func acting_seat() -> int:
+	if phase != "deciding":
+		return -1
+	for seat in my_seats():
+		if round_seats.has(seat) and not decided_seats.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
-	var my_turn := deciding()
+	var seat := acting_seat()
+	var my_turn := seat >= 0
 	var left := ceili(timer_left())
 	var info := ""
 	match phase:
@@ -103,8 +114,8 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 			info = "Dealing..."
 		"deciding":
 			if my_turn:
-				info = "Bet %d -- %ds" % [stage + 1, left]
-			elif round_seats.has(my_seat):
+				info = box_prefix(seat) + "Bet %d -- %ds" % [stage + 1, left]
+			elif my_seats().any(func(x): return round_seats.has(x)):
 				info = "Waiting for the others"
 			else:
 				info = "Watching this hand"
@@ -117,7 +128,7 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 
 
 func action_message(id: String) -> Array:
-	return ["act", {"action": id}]
+	return ["act", {"action": id, "seat": acting_seat()}]
 
 
 # ------------------------------------------------------------------ snapshot
@@ -136,7 +147,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		round_seats[i] = true
 		if s.get("decided"):
 			decided_seats[i] = true
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 			my_unit = int(s.get("bets", {}).get("ante", 0))
 		for k in cards.size():
@@ -160,9 +171,7 @@ func _note_event(ev: Dictionary) -> void:
 			round_seats[int(seat)] = true
 		if my_seat >= 0 and round_seats.has(my_seat):
 			my_unit = int(_chips_for(my_seat)["ante"].amount) if _chips_for(my_seat).has("ante") else 0
-	var mine = ev.get("mine")
-	if mine is Dictionary and mine.has("hand") and round_seats.has(my_seat):
-		my_hand_changed.emit(str(mine.hand))
+	_note_hands(ev, func(seat): return round_seats.has(seat))
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
