@@ -188,5 +188,6 @@ tbody tr:hover > td { background: color-mix(in srgb, var(--bg-2) 70%, transparen
 tr.sel > td { background: var(--accent-soft) !important; }
 tr.sel > td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 tr.off > td { opacity: .5; }
+th.pick, td.pick { width: 30px; padding-right: 0; }
 tr.click { cursor: pointer; }
 td.wrap { white-space: normal; }

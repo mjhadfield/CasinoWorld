@@ -83,6 +83,7 @@ sections:
   dealers (tables `npcs` and `npc_visits`). **Archive:** Archive (on the roster) takes someone off the floor (a punter
   finishes their round, a dealer is relieved at the next betting window) and out of the roster without losing them
   (`npcs.archived_at`); there they can be restored, or deleted for good, which only the archive allows.
+  Both lists tick the same way as Players (`admin_web/sections/multi.js`) to archive, restore or delete several at once.
   **Staff & uniforms** (`casino_server/staff.py`, meta key `staff`): the roles and the uniforms. New staff roles (a
   Waitress, say) join the Role menus, the roster's filter (under Other staff) and Bulk create at once; the built-in roles
   keep their names but can change uniform, and added roles can be deleted once nobody, archived or not, has them. A
@@ -103,7 +104,9 @@ sections:
 - **Players:** everyone's cash, bank and lifetime staked, returned and net from the ledger, and who's playing now.
   Pick a player to manage them: **Protected** (nothing here can delete, ban or time them out until it's unticked),
   **Time out** (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**,
-  and **Delete for good** (the player and their ledger). A ban, timeout or delete sends them out at once if they're
+  and **Delete for good** (the player and their ledger). Tick several (Shift-click a box to tick the run since the
+  last one, Ctrl/Cmd-click a row to tick it without opening it, the header box for everyone shown) to Protect,
+  Unprotect, Time out, Ban, Let back in or Delete them all at once; protected players are skipped and named. A ban, timeout or delete sends them out at once if they're
   playing; bans and timeouts follow the device's account (players have no logins), so a new browser comes in as a new
   player. A hand they were in plays out, and money for a deleted player is dropped.
 - **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added

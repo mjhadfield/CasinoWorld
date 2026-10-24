@@ -3,14 +3,17 @@
 // Punters come and go on their own (each brings a budget they're willing to lose and takes a break after a visit);
 // dealers work shifts. Bulk create swaps the roster for a batch to generate, review and create at once.
 // Three views: the Roster; the Archive (archived NPCs are off the floor and out of the roster until restored, and only
-// they can be deleted for good); and Staff & uniforms (staff roles, and the uniforms each wears).
-let H, $, el, money, signed;
+// they can be deleted for good); and Staff & uniforms (staff roles, and the uniforms each wears). In the roster and
+// the archive, tick several (multi.js) to archive, restore or delete them all at once from the bar over the table.
+import { Picker, each, report } from "/admin-ui/sections/multi.js";
+let H, $, el, money, signed, picker;
 let opts = null, list = [], archived = [], selected = null, draft = null, pollTimer = null, previewTimer = null, tab = "design";
 let previewUrl = null, animStart = performance.now(), sort = {key: "role", dir: 1}, view = "roster";
 const isStaff = role => role !== "punter" && role !== "dealer";
 
 export function init(h) {
   H = h; el = h.el; money = h.money; signed = h.signed; $ = s => h.view.querySelector(s) || h.top.querySelector(s);
+  picker = new Picker(el, () => { renderList(); pickedBar(); });
   const views = el("div", {className: "seg", id: "npc-views"}, ...[["roster", "Roster"], ["archive", "Archive"], ["staff", "Staff & uniforms"]].map(([k, t]) => {
     const b = el("button", {type: "button", textContent: t, ariaPressed: String(view === k)});
     b.dataset.view = k;
@@ -26,7 +29,7 @@ export function init(h) {
     el("button", {type: "button", className: "primary", id: "npc-new", textContent: "New NPC"}));
   h.view.innerHTML = `
   <div class="wb" style="grid-template-columns: minmax(0, 1fr) minmax(760px, 46%)">
-    <div class="panel"><div class="pb" id="roster"></div><div class="pb" id="bulk" hidden></div><div class="pb" id="staff" hidden></div></div>
+    <div class="panel"><div class="ph" id="npc-picked" hidden></div><div class="pb" id="roster"></div><div class="pb" id="bulk" hidden></div><div class="pb" id="staff" hidden></div></div>
     <div class="panel" id="editor"></div>
   </div>
   <style>
@@ -103,6 +106,7 @@ function setView(v) {
   if (v === view) return;
   if (bulkOn) bulkMode(false);
   view = v; selected = null; draft = null;
+  picker.ids.clear(); pickedBar();
   for (const b of $("#npc-views").children) b.setAttribute("aria-pressed", String(b.dataset.view === v));
   $("#roster").hidden = v === "staff"; $("#staff").hidden = v !== "staff";
   for (const id of ["#npc-role", "#npc-search", "#npc-count"]) $(id).hidden = v === "staff";
@@ -118,6 +122,36 @@ function setView(v) {
 export function shown(on) {
   clearInterval(pollTimer);
   if (on && opts) pollTimer = setInterval(() => { if (!document.hidden) refresh().catch(() => {}); }, 5000);
+}
+
+// ------------------------------------------------------------ the ticked NPCs, all at once
+function pickedBar() {
+  const bar = $("#npc-picked");
+  bar.hidden = !picker.size || view === "staff" || bulkOn;
+  if (bar.hidden) return;
+  const picked = (view === "archive" ? archived : list).filter(n => picker.has(n.id)), n = picked.length;
+  const who = n === 1 ? "1 NPC" : n + " NPCs";
+  const btn = (text, fn, cls = "") => el("button", {type: "button", className: cls, textContent: text, onclick: fn});
+  const run = async (verb, call) => {
+    bar.querySelectorAll("button").forEach(b => { b.disabled = true; });
+    const r = await each(picked, call);
+    H.status(report(verb, r), r.skipped.length ? "warn" : "ok");
+    if (selected && picker.has(selected.id)) { selected = null; draft = null; }
+    picker.ids.clear();
+    await refresh(); renderEditor(); pickedBar();
+  };
+  const acts = [];
+  if (view === "archive") {
+    const del = btn("Delete for good", null, "ghost danger");
+    del.onclick = () => {
+      const y = btn("Yes", () => run("Deleted", x => H.api("DELETE", "/api/npcs/" + x.id)), "primary"), no = btn("No", pickedBar);
+      del.replaceWith(el("span", {className: "confirm"}, `Delete ${who} and their history for good?`, y, no));
+    };
+    acts.push(btn("Restore", () => run("Restored", x => H.api("POST", `/api/npcs/${x.id}/restore`))), del);
+  } else {
+    acts.push(btn("Archive", () => run("Archived", x => H.api("POST", `/api/npcs/${x.id}/archive`))));
+  }
+  bar.replaceChildren(el("b", {textContent: who + " ticked"}), ...acts, el("span", {className: "grow"}), btn("Clear", () => picker.clear(), "ghost"));
 }
 
 // ------------------------------------------------------------ Sheets: a look's 64x64 frames
@@ -182,7 +216,9 @@ function renderList() {
   const f = sortVal[sort.key];
   shown.sort((a, b) => { const x = f(a), y = f(b); return (typeof x === "string" ? x.localeCompare(y) : x - y) * sort.dir; });
   $("#npc-count").textContent = shown.length + " of " + all.length;
-  const head = el("tr", {}, ...COLS.map(([k, label, c]) => {
+  picker.keep(all.map(n => n.id)); picker.shown(shown.map(n => n.id));
+  if (!$("#npc-picked").querySelector(".confirm")) pickedBar();
+  const head = el("tr", {}, picker.head(), ...COLS.map(([k, label, c]) => {
     const th = el("th", {className: (k ? "sort " : "") + (c || ""), textContent: label});
     if (k) {
       if (sort.key === k) th.setAttribute("aria-sort", sort.dir > 0 ? "ascending" : "descending");
@@ -193,6 +229,7 @@ function renderList() {
   const rows = shown.map(n => {
     const [st, kind] = statusOf(n);
     const tr = el("tr", {className: "click" + (selected && n.id === selected.id ? " sel" : "") + (n.enabled ? "" : " off"), tabIndex: 0},
+      picker.box(n.id, n.name),
       el("td", {className: "av"}, thumb(n.look_url)),
       el("td", {}, el("b", {textContent: n.name})),
       el("td", {className: "muted", textContent: opts.roles[n.role] || n.role + " (deleted role)"}),
@@ -201,7 +238,7 @@ function renderList() {
       el("td", {className: kind === "ok" ? "pos" : kind === "warn" ? "neg" : "muted", textContent: st}),
       el("td", {className: "num " + (n.net > 0 ? "pos" : n.net < 0 ? "neg" : ""), textContent: n.role === "punter" ? signed(n.net) : ""}),
       el("td", {className: "num", textContent: n.role === "punter" ? n.visits : ""}));
-    tr.addEventListener("click", () => select(n));
+    picker.row(tr, n.id, () => select(n));
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(n); } });
     return tr;
   });
@@ -505,6 +542,7 @@ let bulkOn = false, batch = [], bulkKey = 0;
 const setup = {count: 10, role: "punter", archetype: "mix", body: "", traits: [], enabled: true};
 function bulkMode(on) {
   bulkOn = on; selected = null; draft = null;
+  picker.ids.clear(); pickedBar();
   $("#roster").hidden = on; $("#bulk").hidden = !on;
   for (const id of ["#npc-role", "#npc-search", "#npc-new", "#npc-count"]) $(id).hidden = on;
   $("#npc-bulk").textContent = on ? "Back to the roster" : "Bulk create";

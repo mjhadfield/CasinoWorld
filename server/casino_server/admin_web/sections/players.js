@@ -1,7 +1,9 @@
 // Players: everyone who's played, from the ledger, in one sortable table, with who's on now. A row opens them on the
 // right: protect them (then nothing here can delete, ban or time them out), time them out, ban them, let them back in,
-// or delete them for good. Their game-by-game figures are on Player stats.
-let H, data = null, sort = {key: "wagered", dir: -1}, q = "", selected = null, pollTimer = null;
+// or delete them for good. Their game-by-game figures are on Player stats. Tick several (multi.js) to do any of that
+// to them all at once from the bar over the table; protected players are skipped by anything that would change them.
+import { Picker, each, report } from "/admin-ui/sections/multi.js";
+let H, data = null, sort = {key: "wagered", dir: -1}, q = "", selected = null, pollTimer = null, picker;
 
 const COLS = [
   ["name", "Player", ""], ["status", "Now", ""], ["balance", "Cash", "num"], ["bank", "Bank", "num"], ["wagered", "Staked", "num"],
@@ -16,8 +18,9 @@ export function init(h) {
   search.addEventListener("input", () => { q = search.value.trim().toLowerCase(); draw(); });
   h.top.append(search, h.el("span", {className: "hint", id: "players-count"}), h.el("span", {className: "grow"}),
     h.el("button", {type: "button", textContent: "Refresh", onclick: load}));
+  picker = new Picker(h.el, () => { draw(); bulkBar(); });
   h.view.append(h.el("div", {className: "wb", style: "grid-template-columns: minmax(0, 1fr) 420px"},
-    h.el("div", {className: "panel"}, h.el("div", {className: "pb", id: "players"})),
+    h.el("div", {className: "panel"}, h.el("div", {className: "ph", id: "players-bulk", hidden: true}), h.el("div", {className: "pb", id: "players"})),
     h.el("div", {className: "panel", id: "player-card"})));
 }
 
@@ -26,13 +29,14 @@ export async function load(quiet) {
     data = await H.api("GET", "/api/players");
     for (const p of data.players) p.games_n = Object.keys(p.games).length;
     if (selected) selected = data.players.find(p => p.id === selected.id) || null;
-    draw(); card();
+    picker.keep(data.players.map(p => p.id));
+    draw(); card(); bulkBar();
     if (quiet !== true) H.status("Players loaded.");
   } catch (e) { H.status("Couldn't load players: " + e.message, "warn"); }
 }
 export function shown(on) {   // who's on now
   clearInterval(pollTimer);
-  if (on && data) pollTimer = setInterval(() => { if (!document.hidden && !H.view.querySelector("#player-card .confirm, #player-card input:focus")) load(true); }, 10000);
+  if (on && data) pollTimer = setInterval(() => { if (!document.hidden && !H.view.querySelector(".confirm, input:focus")) load(true); }, 10000);
 }
 
 function statusOf(p) {   // [text, class]
@@ -50,10 +54,12 @@ function draw() {
   const rows = data.players.filter(p => !q || p.name.toLowerCase().includes(q))
     .sort((a, b) => (typeof val(a) === "string" ? String(val(a)).localeCompare(val(b)) : (val(a) ?? 0) - (val(b) ?? 0)) * sort.dir);
   H.top.querySelector("#players-count").textContent = `${rows.length} of ${data.players.length}`;
+  picker.shown(rows.map(p => p.id));
   const cls = n => n > 0 ? "pos" : n < 0 ? "neg" : "";
   const body = rows.map(p => {
     const [st, stCls] = statusOf(p);
     const tr = el("tr", {className: "click" + (selected && selected.id === p.id ? " sel" : ""), tabIndex: 0},
+      picker.box(p.id, p.name),
       el("td", {}, el("b", {textContent: p.name}), p.protected ? el("span", {className: "tag gold", style: "margin-left: 6px", textContent: "Protected"}) : null),
       el("td", {className: stCls, textContent: st}),
       el("td", {className: "num", textContent: money(p.balance)}), el("td", {className: "num " + (p.bank < 0 ? "neg" : ""), textContent: money(p.bank)}),
@@ -62,11 +68,11 @@ function draw() {
       el("td", {className: "num", textContent: p.bets}), el("td", {className: "num", textContent: p.games_n}),
       el("td", {textContent: p.last_at ? when(p.last_at) : "—"}));
     const pick = () => { selected = p; draw(); card(); };
-    tr.addEventListener("click", pick);
+    picker.row(tr, p.id, pick);
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
     return tr;
   });
-  const head = el("tr", {}, ...COLS.map(([k, label, c]) => {
+  const head = el("tr", {}, picker.head(), ...COLS.map(([k, label, c]) => {
     const th = el("th", {className: "sort " + c, textContent: label});
     if (sort.key === k) th.setAttribute("aria-sort", sort.dir > 0 ? "ascending" : "descending");
     th.addEventListener("click", () => { sort = sort.key === k ? {key: k, dir: -sort.dir} : {key: k, dir: k === "name" || k === "status" ? 1 : -1}; draw(); });
@@ -146,4 +152,43 @@ async function remove() {
     H.status(`Deleted ${name} for good.`, "ok");
   } catch (e) { H.status(e.message, "warn"); }
   await load(true);
+}
+
+// ------------------------------------------------------------ the ticked players, all at once
+function bulkBar() {
+  const {el} = H;
+  const bar = H.view.querySelector("#players-bulk");
+  bar.hidden = !picker.size;
+  if (!picker.size) return;
+  const picked = data.players.filter(p => picker.has(p.id)), n = picked.length;
+  const who = n === 1 ? "1 player" : n + " players";
+  const reason = el("input", {placeholder: "Reason (optional)", maxLength: 200, style: "width: 180px", ariaLabel: "Reason"});
+  const length = el("select", {ariaLabel: "How long"}, ...TIMEOUTS.map(([m, t]) => el("option", {value: m, textContent: t, selected: m === 60})));
+  const btn = (text, fn, cls = "") => el("button", {type: "button", className: cls, textContent: text, onclick: fn});
+  const ask = (b, question, yes) => {
+    const y = el("button", {type: "button", className: "primary", textContent: "Yes"}), no = el("button", {type: "button", textContent: "No"});
+    b.replaceWith(el("span", {className: "confirm"}, question, y, no));
+    y.addEventListener("click", yes); no.addEventListener("click", bulkBar);
+  };
+  const run = async (verb, call) => {
+    bar.querySelectorAll("button").forEach(b => { b.disabled = true; });
+    const r = await each(picked, call);
+    H.status(report(verb, r), r.skipped.length ? "warn" : "ok");
+    if (selected && r.done.includes(selected.name) && verb === "Deleted") selected = null;
+    picker.ids.clear();
+    await load(true);
+  };
+  const post = (what, body) => p => H.api("POST", `/api/players/${p.id}/${what}`, body ?? {});
+  const ban = btn("Ban", null, "danger");
+  ban.onclick = () => ask(ban, `Ban ${who}?`, () => run("Banned", post("ban", {reason: reason.value})));
+  const del = btn("Delete for good", null, "ghost danger");
+  del.onclick = () => ask(del, `Delete ${who}, their money and history, for good?`, () => run("Deleted", p => H.api("DELETE", "/api/players/" + p.id)));
+  bar.replaceChildren(el("b", {textContent: who + " ticked"}),
+    btn("Protect", () => run("Protected", post("protect", {on: true}))),
+    btn("Unprotect", () => run("Unprotected", post("protect", {on: false}))),
+    el("span", {className: "sep"}), reason, length,
+    btn("Time out", () => run("Timed out", post("timeout", {minutes: +length.value, reason: reason.value}))),
+    ban, btn("Let back in", () => run("Let back in", post("lift"))),
+    el("span", {className: "sep"}), del,
+    el("span", {className: "grow"}), btn("Clear", () => picker.clear(), "ghost"));
 }
