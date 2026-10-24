@@ -22,6 +22,7 @@ const GAMES := [
 	["high_card_flush", "High Card Flush", "Seven cards: the longest flush wins. Raise on five or more."],
 	["baccarat", "Baccarat", "Back the Player, the Banker or a Tie. No decisions to make."],
 ]
+const FIVE_SEATS := ["let_it_ride", "high_card_flush"]
 const GOLD := Color("ecd396")
 const MUTED := Color("9ba39e")
 const WARN := Color("f2c14e")
@@ -166,23 +167,25 @@ func _row(i: int) -> Button:
 
 
 ## Open the menu at table `table_id`: `current` is the game being played ("" at the blank table); `full`, whether
-## every seat's taken (the five-seat games need one free); `note`, a line under the title.
+## every seat's taken (a six-seat game moving to a five-seat one needs one free); `note`, a line under the title.
 func open_menu(table_id: String, current: String, full: bool, note: String, warn := false) -> void:
 	_title.text = "What would you like to play?" if current == "" else "Change the game"
 	_sub.text = note
 	_sub.add_theme_color_override("font_color", WARN if warn else MUTED)
+	var five_now: bool = current in FIVE_SEATS   # (already five seats: another five-seat game loses no one)
 	for g in GAMES:
 		var r: Dictionary = _rows[g[0]]
-		var five: bool = g[0] in ["let_it_ride", "high_card_flush"]
-		r.button.disabled = g[0] == current or (five and full)
+		var five: bool = g[0] in FIVE_SEATS
+		var blocked := five and full and not five_now
+		r.button.disabled = g[0] == current or blocked
 		r.button.modulate.a = 0.45 if r.button.disabled and g[0] != current else 1.0
 		var tags := []
 		if g[0] == current:
 			tags.append("PLAYING NOW")
 		if five:
-			tags.append("NEEDS A FREE SEAT" if full else "SEATS FIVE")
+			tags.append("NEEDS A FREE SEAT" if blocked else "SEATS FIVE")
 		r.tags.text = "  ·  ".join(tags)
-		r.tags.add_theme_color_override("font_color", WARN if five and full else GOLD)
+		r.tags.add_theme_color_override("font_color", WARN if blocked else GOLD)
 		r.tags.visible = not tags.is_empty()
 	_show_thumbs(table_id)
 	_menu.size = Vector2.ZERO

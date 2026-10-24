@@ -29,7 +29,7 @@ opens.
   stays on this game). Any bets on the felt come back first, since nothing is paid for until betting closes.
 - **NPCs:** each one stays if it likes the new game (a favourite always, otherwise half the time; a Card counter only
   for Blackjack), or gets up and goes. Those who stay play the new game from its first betting round.
-- **Five seats:** Let It Ride and High Card Flush seat five. They're offered only while a seat is free. Everyone keeps
+- **Five seats:** Let It Ride and High Card Flush seat five. From a six-seat game they're offered only while a seat is free; between the two of them a full table can switch freely. Everyone keeps
   their order; the empty seat that goes (or the new one that comes, going back to six) is the one that moves people
   least. The chairs slide with their sitters.
 
