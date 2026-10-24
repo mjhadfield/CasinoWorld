@@ -225,7 +225,12 @@ A Godot 4.7 project exported to the web.
   its size (Small by default), table names (the ATM's too) and zoom (steps from its smallest view, two in by default)
   are settings. The floor feeds it each frame (`follow`) and works out its Find: the nearest table of a kind by the
   nav map's path (one with a free seat first), or, clicking a table, bank or ATM the map names, that one; drawn on the
-  floor (`scenes/world/route_line.gd`) and the map, with Walk there, until you arrive, sit anywhere, or stop it. On
+  floor (`scenes/world/route_line.gd`) and the map, with Walk there, until you arrive, sit anywhere, or stop it. Find's
+  way is planned like a person would walk it: on a second, roomier nav map (the floor baked again with 24px clearance,
+  its own `NavigationServer2D` map), joined to where you stand and to the goal on the tight one, then rounded at each
+  corner as wide as the floor allows (every point of the curve checked standable). Walk there walks that exact way.
+  On the floor it's a ribbon (brass rails, chevrons flowing on, a beacon at the end) built once per path and animated
+  by its shaders, so it never redraws while it plays; the part behind you fades with a shader parameter. On
   the small map Find's list keeps to its width. Walking, standing at a piece
   you can use (furniture in group `interactables`: the ATM) shows a prompt under your feet (E, or click the piece),
   as does standing by a table or slot with a free chair (Play: you sit in the nearest free chair), and the ATM's

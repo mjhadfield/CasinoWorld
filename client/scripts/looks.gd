@@ -56,10 +56,13 @@ static func _loader() -> Node:
 	return tree.root.get_node_or_null("LookLoader") if tree else null
 
 
-## The facing ("up"/"down"/"left"/"right") for a movement vector.
-static func dir_from(v: Vector2, current := "down") -> String:
+## The facing ("up"/"down"/"left"/"right") for a movement vector. With `hold` over 1, the way you face now wins
+## until the other is that much stronger, so walking a diagonal doesn't flick between the two.
+static func dir_from(v: Vector2, current := "down", hold := 1.0) -> String:
 	if v.length() < 0.01:
 		return current
-	if absf(v.x) > absf(v.y):
+	var x := absf(v.x) * (hold if current in ["left", "right"] else 1.0)
+	var y := absf(v.y) * (hold if current in ["up", "down"] else 1.0)
+	if x > y:
 		return "right" if v.x > 0 else "left"
 	return "down" if v.y > 0 else "up"

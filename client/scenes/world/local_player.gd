@@ -58,7 +58,7 @@ func _physics_process(delta: float) -> void:
 			and get_real_velocity().length() < speed * 0.25:
 		_tap_target = null  # walked into something on the way to a tap (a held walk slides on)
 	var moving := get_real_velocity().length() > 5.0
-	avatar.set_action("walk" if moving else "idle", Looks.dir_from(dir, avatar.facing))
+	avatar.set_action("walk" if moving else "idle", Looks.dir_from(dir, avatar.facing, 1.25))   # (round a curve's diagonal without flicking)
 	_send_timer -= delta
 	if _send_timer <= 0.0:
 		_send_timer = SEND_INTERVAL
@@ -80,6 +80,22 @@ func walk_to(pos: Vector2) -> void:
 		_tap_target = pos
 		_holding = false
 		_plan_path(pos)
+
+
+## Walk `path` (in the floor's frame, from where you are) to its end, as it is: Find's way there.
+func walk_along(path: PackedVector2Array) -> void:
+	if controls_enabled and path.size() >= 2:
+		_tap_target = path[path.size() - 1]
+		_holding = false
+		_path = path.duplicate()   # (it's eaten as you go, and the floor's still drawing it)
+
+
+## What's left of the way you're walking, from where you are.
+func remaining_path() -> PackedVector2Array:
+	var rest := PackedVector2Array([position])
+	if _tap_target != null:
+		rest.append_array(_path if _path.size() > 1 else PackedVector2Array([_tap_target]))
+	return rest
 
 
 ## The navigation map's way to `goal` (only while the floor's upright: the map is in its frame).

@@ -180,7 +180,8 @@ func _build_guide() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	_guide.add_child(row)
-	_guide_name = _label("", 16, INK)
+	_guide_name = _label("", 16, INK)   # (just its name: room for a word or two, then ...)
+	_guide_name.custom_minimum_size.x = 84
 	_guide_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_guide_name.clip_text = true
 	_guide_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -327,12 +328,20 @@ func set_route(path: PackedVector2Array, target: Variant = null, what := "", met
 	_route = path
 	_target = target if not path.is_empty() else null
 	if _target != null:
-		_guide_name.text = "Guiding to " + what
+		_guide_name.text = what
+		_guide_name.tooltip_text = what
 		_guide_dist.text = "%d m" % maxi(metres, 1)
 	if was != (_target != null):
 		_layout()
 	else:
 		_map.queue_redraw()
+
+
+static func _length_of(path: PackedVector2Array) -> float:
+	var length := 0.0
+	for i in range(1, path.size()):
+		length += path[i - 1].distance_to(path[i])
+	return length
 
 
 func guiding() -> bool:
@@ -561,11 +570,27 @@ func _draw_map() -> void:
 				_hits.append([_screen_rect(xf, b.rect), b.cabs])
 			labels.append({"at": b.rect.get_center(), "text": "Slots", "sub": "Full" if b.free == 0 else "", "w": maxf(b.rect.size.x, 200.0) * sc,
 				"near": _zone_of.get(b.room) != here_zone, "full": b.free == 0})
-	if _target != null:
+	if _target != null:   # the way: brass on a dark casing, chevrons every 26px pointing on, and a pin at the end
+		_map.draw_polyline(_route, Color(0, 0, 0, 0.55), 5.5 * px, true)
+		_map.draw_polyline(_route, BRASS_HI, 2.4 * px, true)
+		var gap := 26.0 * px
+		var next := gap
+		var along := 0.0
+		var total := _length_of(_route)
 		for i in range(1, _route.size()):
-			_map.draw_dashed_line(_route[i - 1], _route[i], BRASS_HI, 2.2 * px, 5.0 * px)
-		_map.draw_arc(_target, 7.0 * px, 0, TAU, 20, BRASS_HI, 2.0 * px)
-		_map.draw_circle(_target, 2.5 * px, BRASS_HI)
+			var a := _route[i - 1]
+			var seg := _route[i] - a
+			var l := seg.length()
+			while l > 0.0 and next <= along + l and next < total - gap * 0.6:
+				var at := a + seg * ((next - along) / l)
+				var f := seg / l * 3.2 * px
+				_map.draw_polyline(PackedVector2Array([at - f + f.orthogonal(), at, at - f - f.orthogonal()]), INK, 1.6 * px, true)
+				next += gap
+			along += l
+		_map.draw_circle(_target, 7.5 * px, Color(BRASS_HI, 0.22))
+		_map.draw_circle(_target, 4.6 * px, Color(0, 0, 0, 0.7))
+		_map.draw_circle(_target, 3.4 * px, BRASS_HI)
+		_map.draw_circle(_target, 1.3 * px, INK)
 	for p in _people:
 		if shown.has(_room_at(p)):
 			_map.draw_circle(p, 3.6 * px, Color(0, 0, 0, 0.6))

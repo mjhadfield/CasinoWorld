@@ -30,6 +30,9 @@ extends Node2D
 ## The HUD's minimap is fed from here every frame (where you are, which room, the turn, the other real players), and
 ## its Find is worked out here: the nearest table of a kind by the navigation map's path (one with a free seat if
 ## there is one), drawn on the floor (RouteLine) and the map until you get there, sit down anywhere, or stop it.
+## Find's way is planned the way a person would walk it: on a second, roomier navigation map (WIDE_CLEARANCE) that
+## keeps well off the tables and walls, and rounded at the corners as far as the floor allows. Walk there walks
+## exactly that way.
 ##
 ## A preview (Session.preview: the admin page's Preview button) builds the draft's floor instead, to walk round
 ## alone: nobody else is there, and the tables can't be sat at.
@@ -83,10 +86,21 @@ var _placed: Array = []   # this round's chips, newest last ([spot, amount added
 var _round_start := -1    # your balance as this round's betting opened (its result flashes in the bar at the next)
 var _staked := false      # whether you had bets in this round
 var route_line: RouteLine  # Find's way there, on the floor
-var _guide := {}           # while Find guides you: {kind, name, goal, replan}
+var _guide := {}           # while Find guides you: {kind, name, goal, path, replan}
+var _wide_nav: NavigationRegion2D   # the floor baked again with room to spare, for Find's ways (on its own map)
+var _wide_map: RID
+var _wide_query := NavigationPathQueryParameters2D.new()   # (simplified: the rounding makes its curves)
+var _wide_result := NavigationPathQueryResult2D.new()
 var _arriving := false     # off the floor to pick another character: its welcome starts you at the spawn point
 const GUIDE_ARRIVED := 24.0   # this close to where you'd stand, you're there
 const PX_PER_METRE := 32.0
+const WIDE_CLEARANCE := 24.0  # how far Find's ways keep off things (you're 9 wide: Nav's agent_radius)
+const CORNERS := [96.0, 64.0, 40.0, 24.0, 12.0]   # how far before a corner its curve starts, widest first
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _wide_map.is_valid():
+		NavigationServer2D.free_rid(_wide_map)
 
 
 func _enter_tree() -> void:
@@ -110,6 +124,17 @@ func _ready() -> void:
 	Sfx.start_room()
 	route_line = RouteLine.new()
 	world.add_child(route_line)
+	_wide_map = NavigationServer2D.map_create()
+	NavigationServer2D.map_set_cell_size(_wide_map, nav.navigation_polygon.cell_size)
+	NavigationServer2D.map_set_active(_wide_map, true)
+	_wide_query.map = _wide_map
+	_wide_query.simplify_path = true
+	_wide_query.simplify_epsilon = 6.0
+	_wide_nav = NavigationRegion2D.new()
+	_wide_nav.navigation_polygon = nav.navigation_polygon.duplicate()
+	_wide_nav.navigation_polygon.agent_radius = WIDE_CLEARANCE
+	add_child(_wide_nav)
+	_wide_nav.set_navigation_map(_wide_map)
 	hud.minimap.find_opened.connect(func(): hud.minimap.show_find(_find_options()))
 	hud.minimap.find_picked.connect(_guide_to)
 	hud.minimap.map_picked.connect(func(targets: Array): _guide_to(Minimap.kind_of(targets[0]) if targets[0] is FloorGame else "atm", targets))
@@ -117,7 +142,7 @@ func _ready() -> void:
 		if not _guide.is_empty() and state == "walking":
 			_heading_for = {}
 			_heading_atm = null
-			player.walk_to(_guide.goal))
+			player.walk_along(_guide.path))
 	hud.minimap.guide_closed.connect(_stop_guide)
 
 	hud.rebet_pressed.connect(func():
@@ -162,20 +187,21 @@ func _ready() -> void:
 
 ## The walkable floor: every room (the outlines overlap a pixel, so the baker joins them), less its wall bodies --
 ## which leave the doorways open -- and everything else in group navigation_obstacles. It reads the obstacles where
-## they are now, so it waits while the floor is turned.
+## they are now, so it waits while the floor is turned. Find's roomier copy (_wide_nav) is baked alongside.
 func _bake_navigation() -> void:
 	if not is_zero_approx(world.rotation):
 		_bake_pending = true
 		return
 	_bake_pending = false
-	var poly: NavigationPolygon = nav.navigation_polygon
-	poly.clear_outlines()
-	if rooms.is_empty():
-		return
-	for r in rooms.values():
-		var b: Rect2 = r.rect.grow(1)
-		poly.add_outline(PackedVector2Array([b.position, Vector2(b.end.x, b.position.y), b.end, Vector2(b.position.x, b.end.y)]))
-	nav.bake_navigation_polygon(false)
+	for region in [nav, _wide_nav]:
+		var poly: NavigationPolygon = region.navigation_polygon
+		poly.clear_outlines()
+		if rooms.is_empty():
+			continue
+		for r in rooms.values():
+			var b: Rect2 = r.rect.grow(1)
+			poly.add_outline(PackedVector2Array([b.position, Vector2(b.end.x, b.position.y), b.end, Vector2(b.position.x, b.end.y)]))
+		region.bake_navigation_polygon(false)
 
 
 # ------------------------------------------------------------------ the floor plan
@@ -534,20 +560,81 @@ func _nearest(kind: String, among := []) -> Dictionary:
 		var path := _path_to(goal)
 		if path.is_empty():
 			continue
-		var length := 0.0
-		for i in range(1, path.size()):
-			length += path[i - 1].distance_to(path[i])
+		var length := _length(path)
 		if best.is_empty() or (free and not best.free) or (free == best.free and length < best.length):
 			best = {"goal": goal, "path": path, "length": length, "free": free}
 	return best
 
 
-## The navigation map's way from you to `goal` (World's frame; the map is in it, and Find only runs while it's upright).
+## The way from you to `goal` (World's frame; the maps are in it, and Find only runs while it's upright): along the
+## roomy map where it can, with the tight one (Nav) from where you stand onto it and off it to `goal`, which are
+## usually closer to things than it goes. The tight way alone if the roomy one's no good (a narrow doorway, say).
 func _path_to(goal: Vector2) -> PackedVector2Array:
 	var map := player.get_world_2d().navigation_map
 	if NavigationServer2D.map_get_iteration_id(map) <= 0:
 		return PackedVector2Array([player.position, goal])
-	return NavigationServer2D.map_get_path(map, player.position, goal, true)
+	var tight := NavigationServer2D.map_get_path(map, player.position, goal, true)
+	if NavigationServer2D.map_get_iteration_id(_wide_map) <= 0 or tight.is_empty():
+		return tight
+	_wide_query.start_position = player.position
+	_wide_query.target_position = goal
+	NavigationServer2D.query_path(_wide_query, _wide_result)
+	var wide := _wide_result.path
+	if wide.size() < 2:
+		return tight
+	var route := NavigationServer2D.map_get_path(map, player.position, wide[0], true)
+	route.append_array(wide.slice(1))
+	route.append_array(NavigationServer2D.map_get_path(map, wide[wide.size() - 1], goal, true).slice(1))
+	var out := PackedVector2Array()
+	for p in route:   # (where the pieces meet, a point can come twice)
+		if out.is_empty() or out[out.size() - 1].distance_to(p) > 1.0:
+			out.append(p)
+	return out if _length(out) < _length(tight) * 1.3 + 48.0 else tight
+
+
+static func _length(path: PackedVector2Array) -> float:
+	var length := 0.0
+	for i in range(1, path.size()):
+		length += path[i - 1].distance_to(path[i])
+	return length
+
+
+## `path` with each corner rounded: a curve from a point before it to one after (half way to the next corner at
+## most), as wide as it can be with all of it somewhere you can stand (on the tight map) and no tighter than the
+## floor's ribbon can bend round (RouteLine.HALF_WIDTH), else the corner as it was.
+func _rounded(path: PackedVector2Array) -> PackedVector2Array:
+	if path.size() < 3:
+		return path
+	var map := player.get_world_2d().navigation_map
+	var standable := func(q: Vector2) -> bool:
+		return NavigationServer2D.map_get_closest_point(map, q).distance_to(q) < 1.0
+	var out := PackedVector2Array([path[0]])
+	for i in range(1, path.size() - 1):
+		var p := path[i]
+		var back := path[i - 1] - p
+		var on := path[i + 1] - p
+		var curve := PackedVector2Array([p])
+		var half_turn := absf(back.angle_to(-on)) / 2.0
+		for reach in CORNERS:
+			var d := minf(reach, minf(back.length(), on.length()) / 2.0)
+			if d * cos(half_turn) ** 2 < (RouteLine.HALF_WIDTH + 2.0) * sin(half_turn):   # (its tightest radius)
+				continue
+			var a := p + back.normalized() * d
+			var b := p + on.normalized() * d
+			var steps := maxi(2, ceili(d / 6.0))
+			var pts := PackedVector2Array()
+			for k in steps + 1:
+				var t := float(k) / steps
+				pts.append(a.lerp(p, t).lerp(p.lerp(b, t), t))
+			if Array(pts).all(standable):
+				curve = pts
+				break
+		for q in curve:   # (one corner's curve can end where the next one's starts)
+			if out[out.size() - 1].distance_to(q) > 0.5:
+				out.append(q)
+	if out[out.size() - 1].distance_to(path[path.size() - 1]) > 0.5:
+		out.append(path[path.size() - 1])
+	return out
 
 
 ## Find's pick (the nearest of a kind), or the map's (one table, bank or ATM: `among`).
@@ -566,11 +653,10 @@ func _guide_to(kind: String, among := []) -> void:
 
 
 func _show_guide(path: PackedVector2Array) -> void:
-	var length := 0.0
-	for i in range(1, path.size()):
-		length += path[i - 1].distance_to(path[i])
+	path = _rounded(path)
+	_guide.path = path
 	route_line.path = path
-	hud.minimap.set_route(path, _guide.goal, _guide.name, roundi(length / PX_PER_METRE))
+	hud.minimap.set_route(path, _guide.goal, _guide.name, roundi(_length(path) / PX_PER_METRE))
 
 
 func _stop_guide() -> void:
@@ -591,12 +677,19 @@ func _update_guide(delta: float) -> void:
 		hud.show_toast("You're at %s" % str(_guide.name).trim_suffix(" (full)"))
 		_stop_guide()
 		return
+	route_line.trim_to(player.position)
 	_guide.replan -= delta
-	if _guide.replan <= 0.0 and is_zero_approx(world.rotation):
-		_guide.replan = 0.4
-		var path := _path_to(_guide.goal)
-		if not path.is_empty():
-			_show_guide(path)
+	if _guide.replan > 0.0 or not is_zero_approx(world.rotation):
+		return
+	_guide.replan = 0.4
+	var target = player.target()
+	if target != null and target == _guide.goal:   # walking it (Walk there): the floor's way stays, the map's shortens
+		var rest: PackedVector2Array = player.remaining_path()
+		hud.minimap.set_route(rest, _guide.goal, _guide.name, roundi(_length(rest) / PX_PER_METRE))
+		return
+	var path := _path_to(_guide.goal)
+	if not path.is_empty():
+		_show_guide(path)
 
 
 # ------------------------------------------------------------------ taking a seat
