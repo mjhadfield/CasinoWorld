@@ -407,7 +407,7 @@ admin page's Slot design tab.
     Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the lobby's `atm_panel` (the cash machine), the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
     `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes, the graphics presets and the minimap's.
-    `ui_theme` is the client-wide theme the floor sets on the root window: the brass scroll bars, and the gap between a
+    `ui_theme` is the client-wide theme the floor merges into Godot's default theme (so it reaches the HUD's CanvasLayer too): the brass scroll bars, and the gap between a
     ScrollContainer's rows and its bar.
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
   - `autoload/`: `net` (the socket), `session` (your account's characters, the one you're playing, your balance), `sfx` (`Sfx.play(key)` for your own
