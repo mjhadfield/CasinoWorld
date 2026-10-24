@@ -114,7 +114,7 @@ up, so they're public.
 |---|---|---|
 | `dealt` | `order`, `interval`, `cards` {seat: [two codes]}, `labels` {seat: total}, `dealer_up`, `shoe` | One card at a time out of the shoe, `interval` seconds apart: a card to each box from first base, the dealer's up-card, a second card each, then the hole card face down (`order` lists them, e.g. [[0, 0], ["dealer", 0], [0, 1], ["dealer", 1]]). `shoe` {`remaining`, `total`, `cut`, `cut_out`} is the shoe after the deal. |
 | `cut_card` | | The cut card came out: this is the last hand before the shuffle. |
-| `side_bets` | `seats[]` {`seat`, `steps[]` {`spot`, `action`, `amount`, `payout`}, `hand`, `returned`}, `pause` | Super Pairs, 21+3, Top 3 and the Jackpot settle straight after the deal off the first two cards and the up-card: losers swept (`collect`), winners paid (`pay`) beside their spots, where stake and winnings stay until `round_end`. |
+| `side_bets` | `seats[]` {`seat`, `steps[]` {`spot`, `action`, `amount`, `payout`}, `hand`, `returned`}, `pause`, `step`, `sweep_gap` | Super Pairs, 21+3, Top 3 and the Jackpot settle straight after the deal off the first two cards and the up-card, `pause` seconds in: each box's losers (`collect`, listed first) swept together, `sweep_gap` apart, in one `step`, then its winners paid (`pay`) a `step` each beside their spots, where stake and winnings stay until `round_end`. |
 | `insurance_open` | `seconds`, `seats`, `costs` {seat: pence} | An Ace showing: everyone may insure, at once, for half their bet. Ends early once all have decided; anyone undecided declines. |
 | `insurance` | `seat`, `take`, `amount`, `reason` | A seat's insurance decision. |
 | `peek` | | An Ace or 10 showing: the dealer checks the hole card. |

@@ -59,8 +59,9 @@ class Timings:
     deal_card: float = 0.32       # each card out of the shoe
     deal_pause: float = 0.6       # after the last card
     jackpot_lock: float = 1.6     # before the deal, as at Three Card Poker
-    side_pause: float = 0.8       # before the side bets are settled
-    side_step: float = 0.45       # each side bet swept or paid
+    side_pause: float = 0.6       # before the side bets are settled
+    side_step: float = 0.45       # a box's losing side bets swept together, then each winner paid
+    side_sweep_gap: float = 0.12  # between the stacks of one sweep
     insurance: float = 10.0       # everyone decides at once
     last_decision: float = 0.8
     peek: float = 1.6             # the dealer checks the hole card
@@ -273,7 +274,7 @@ class BlackjackMachine(TableMachine):
     def _settle_side_bets(self, now: float) -> list:
         """Side bets settle straight after the deal, off each box's two cards and the up-card."""
         self.phase = "side_bets"
-        seats, pool_boxes, steps_total = [], [], 0
+        seats, pool_boxes, settle_time = [], [], 0.0
         for seat, box in sorted(self.round.items()):
             side_bets = {k: box.bets[k] for k in bj.SIDE_BETS if box.bets[k]}
             if not side_bets:
@@ -306,12 +307,15 @@ class BlackjackMachine(TableMachine):
                 events.append({"kind": "jackpot_won", "seat": seat, "amount": box.side.returns["jackpot"],
                                "name": box.participant.name})
             seats.append({"seat": seat, "steps": steps, "hand": box.side.hand, "returned": won})
-            steps_total += len(steps)
+            lost = sum(s["action"] == "collect" for s in steps)
+            settle_time += self.timings.side_step * (len(steps) - lost + (lost > 0)) \
+                + self.timings.side_sweep_gap * max(lost - 1, 0)
         if not seats:
             return self._after_side_bets(now)
         t = self.timings
-        self.deadline = now + t.side_pause + t.side_step * steps_total + 0.5 * t.side_step * len(seats)
-        events.append({"kind": "side_bets", "seats": seats, "pause": t.side_pause,
+        self.deadline = now + t.side_pause + settle_time + 0.5 * t.side_step * len(seats)
+        events.append({"kind": "side_bets", "seats": seats, "pause": t.side_pause, "step": t.side_step,
+                       "sweep_gap": t.side_sweep_gap,
                        "_paid": [self.round[s["seat"]].participant for s in seats]})
         return events
 

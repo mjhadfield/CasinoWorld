@@ -7,7 +7,8 @@ the rest of the shoe go through the shuffler and a fresh shoe goes in.
 ## Bets
 
 The Blackjack circle, plus the side bets from v2: Super Pairs, 21+3, Top 3 (with a 21+3 bet) and the £1
-Jackpot. Side bets settle straight after the deal; winnings stay beside their spots until the hand is over.
+Jackpot. Side bets settle straight after the deal: a box's losing side bets are swept together in one quick
+motion, then each winner is paid in turn. Winnings stay beside their spots until the hand is over.
 
 ## The deal
 
@@ -20,7 +21,9 @@ dealer checks the hole card for Blackjack. Once the dealer can't have Blackjack,
 
 Boxes play in turn from first base. **Hit** (**H**), **Stand** (**S**), **Double** (**D**, on any two cards,
 also after splitting) or **Split** (**P**, any pair, up to 4 times; split Aces get one card each). You have
-20 seconds per decision; out of time stands. A bust is swept at once.
+20 seconds per decision; out of time stands. A bust is swept at once. Hit and Stand are always in the middle of
+the betting bar, in the same place every time, with Split on their left and Double on their right when they're
+offered.
 
 Each hand's total sits just above its first card and stays put as the hand draws. Split hands sit a card's width
 apart with their bets in a row above them, so their totals are short: a soft total shows both counts (`7/17`).

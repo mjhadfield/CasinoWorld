@@ -26,6 +26,7 @@ const BET_R := 10.5
 const SPOTS := ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
 const SIDE_SPOTS := ["super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
 const ACTION_KEYS := {"hit": "H", "stand": "S", "double": "D", "split": "P"}
+const FLANK := {"split": "left", "double": "right"}
 
 var _hands := {}          # seat -> [{cards: [Card2D], key, dkey, label, done, gone}]
 var _uid := 0
@@ -247,7 +248,10 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 					var label: String = str(option).capitalize()
 					if option in ["double", "split"]:
 						label += " " + Money.format(bet, true)
-					actions.append({"id": option, "label": "%s  [%s]" % [label, ACTION_KEYS[option]], "key": ACTION_KEYS[option]})
+					var a := {"id": option, "label": "%s  [%s]" % [label, ACTION_KEYS[option]], "key": ACTION_KEYS[option]}
+					if option in FLANK:   # Hit and Stand stay put in the middle; Split and Double either side
+						a.place = FLANK[option]
+					actions.append(a)
 			elif turn_seat >= 0 and occupants.has(turn_seat):
 				info = "%s to play" % occupants[turn_seat].name
 		"dealer":
@@ -434,19 +438,31 @@ func _deal(ev: Dictionary, d: float) -> float:
 	return t + 0.35 * d
 
 
-## Side bets settle at once: losers swept, winners paid beside their spots,
-## where they stay with the stake until the hand's over.
+## Side bets settle at once: a box's losers swept in one go, then its winners paid
+## one by one beside their spots, where they stay with the stake until the hand's over.
 func _side_bets(ev: Dictionary, d: float) -> float:
 	phase = "side_bets"
-	var pause := float(ev.get("pause", 0.8)) * d
-	var t := pause
+	var step_t := float(ev.get("step", 0.45)) * d
+	var gap := float(ev.get("sweep_gap", 0.12)) * d
+	var t := float(ev.get("pause", 0.6)) * d
 	for entry in ev.seats:
 		var seat := int(entry.seat)
-		for step in entry.steps:
+		var lost := 0
+		for step in entry.steps:   # the server sends the losers first
+			if step.action == "collect":
+				var at := t + lost * gap
+				_after(at).timeout.connect(_settle_step.bind(seat, step, d))
+				if step.spot == "jackpot":  # a lost Jackpot's light goes off
+					_after(at).timeout.connect(func(): jackpot_lights.erase(seat))
+				lost += 1
+				continue
+			if lost > 0:   # the sweep's done
+				t += step_t + (lost - 1) * gap
+				lost = 0
 			_after(t).timeout.connect(_settle_step.bind(seat, step, d))
-			if step.spot == "jackpot" and step.action == "collect":  # a lost Jackpot's light goes off
-				_after(t).timeout.connect(func(): jackpot_lights.erase(seat))
-			t += 0.45 * d
+			t += step_t
+		if lost > 0:
+			t += step_t + (lost - 1) * gap
 		t += 0.2 * d
 	return t
 

@@ -6,7 +6,7 @@ extends Control
 ## centre, in the table's own style, with the line above them saying what's happening (its countdown draining in
 ## gold under it). The commit button (Ready, Repeat Bet until you've bet, or Craps' dice) hugs the chips on the left;
 ## Undo, Clear and the Auto rebet and Sit out switches (Craps: Working) hug them on the right. A decision (Play/Fold, Hit/Stand...) takes the chips'
-## place while it's open. Stand up sits at the bar's right edge. The table's jackpot, if it has one, sits top left
+## place while it's open; a decision's extras (Blackjack's Split and Double) flank it, so the core buttons never move. Stand up sits at the bar's right edge. The table's jackpot, if it has one, sits top left
 ## under your balance; Paytable top right, left of the HUD's minimap.
 ## The HUD feeds it (set_chips, update_view) and passes its signals on.
 
@@ -60,6 +60,8 @@ var _commit: HBoxContainer
 var _ready_btn: BarButton
 var _chips: HBoxContainer
 var _decide: HBoxContainer
+var _flank_l: HBoxContainer   # a decision's extras, either side of it
+var _flank_r: HBoxContainer
 var _tools: HBoxContainer
 var _undo: BarButton
 var _clear: BarButton
@@ -119,6 +121,12 @@ func _ready() -> void:
 	_decide.add_theme_constant_override("separation", 10)
 	_decide.hide()
 	add_child(_decide)
+	_flank_l = HBoxContainer.new()
+	_flank_r = HBoxContainer.new()
+	for f in [_flank_l, _flank_r]:
+		f.add_theme_constant_override("separation", 10)
+		f.hide()
+		add_child(f)
 	_tools = HBoxContainer.new()
 	_tools.add_theme_constant_override("separation", 7)
 	add_child(_tools)
@@ -293,17 +301,20 @@ func close_paytable() -> void:
 
 ## What the bar offers right now (the floor's _seated_view): can_bet, can_ready, can_undo, has_bets, can_rebet,
 ## is_ready, sit_out, actions ([{id, label, key?, place?, pressed?}]; place "commit" goes beside the chips on the
-## left, "switch" is a switch on the right, anything else is a decision in the chips' place), info, hand, hide,
+## left, "switch" is a switch on the right, "left"/"right" flank the decision, anything else is a decision in the
+## chips' place), info, hand, hide,
 ## timer (0-1, or -1 for none), on_felt, title, seats, jackpot (or -1), jackpot_mine.
 func update_view(s: Dictionary) -> void:
 	var can_bet: bool = s.get("can_bet", false)
 	var actions: Array = s.get("actions", [])
 	var hide: Array = s.get("hide", [])
-	var decisions := actions.filter(func(a): return not a.get("place", "") in ["commit", "switch"])
+	var decisions := actions.filter(func(a): return not a.get("place", "") in ["commit", "switch", "left", "right"])
 	var deciding := not decisions.is_empty()
 	_build_actions(actions)
 	_chips.visible = not deciding
 	_decide.visible = deciding
+	_flank_l.visible = deciding and _flank_l.get_child_count() > 0
+	_flank_r.visible = deciding and _flank_r.get_child_count() > 0
 	for c in _chips.get_children():
 		c.disabled = not can_bet
 		c.short = can_bet and c.value > Session.shown_balance
@@ -374,7 +385,7 @@ func _build_actions(actions: Array) -> void:
 	if sig == _shown:
 		return
 	_shown = sig
-	for box in [_decide]:
+	for box in [_decide, _flank_l, _flank_r]:
 		for c in box.get_children():
 			c.queue_free()
 	for c in _commit.get_children():
@@ -407,6 +418,10 @@ func _build_actions(actions: Array) -> void:
 		if place == "commit":
 			_commit.add_child(b)
 			_commit.move_child(b, _ready_btn.get_index())
+		elif place == "left":
+			_flank_l.add_child(b)
+		elif place == "right":
+			_flank_r.add_child(b)
 		else:
 			_decide.add_child(b)
 
@@ -465,6 +480,11 @@ func _layout() -> void:
 	var row_y := top + PAD_TOP + block_h + (14.0 if phone else ROW_GAP)
 	var mid := row_y + maxf(row_h, cs.y) / 2.0
 	_place(centre, Vector2((vs.x - cs.x) / 2.0, mid - cs.y / 2.0), cs)
+	if _decide.visible:
+		var fl := _flank_l.get_combined_minimum_size()
+		var fr := _flank_r.get_combined_minimum_size()
+		_place(_flank_l, Vector2((vs.x - cs.x) / 2.0 - 10.0 - fl.x, mid - fl.y / 2.0), fl)
+		_place(_flank_r, Vector2((vs.x + cs.x) / 2.0 + 10.0, mid - fr.y / 2.0), fr)
 	var chips_w := _chips.get_combined_minimum_size().x
 	var left := (vs.x - chips_w) / 2.0
 	if phone:
