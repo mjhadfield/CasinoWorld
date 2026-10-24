@@ -50,7 +50,7 @@ Mike's decisions (2026-10-22):
 - [x] Animation and speed can be picked per table on the Floor plan tab
 - [x] `tools/dev.sh test` passes
 - [x] Docs: `docs/games/master_table.md`, `docs/games/README.md`, `docs/tables.md`, `server/protocol.md`, README
-- [ ] Mike places one on the live floor and plays it
+- [x] Mike places one on the live floor and plays it
 
 ## Handoff
 - **State:** built and live 2026-10-22. Nothing is placed on the live floor: Mike adds a Master Table from the Floor

@@ -38,7 +38,7 @@ engines (Python's round() is banker's).
 - [x] The game's slot screen plays it
 - [x] Sounds, docs
 - [x] `tools/dev.sh test` passes (`--all`: the slots maths changed)
-- [ ] Mike: reopen Star Trek's sign-off, switch Red Alert on (bonus scatter), pictures, re-freeze maths, sign off, Build, Install
+- [x] Mike: reopen Star Trek's sign-off, switch Red Alert on (bonus scatter), pictures, re-freeze maths, sign off, Build, Install
 
 ## Handoff
 - **State:** the bonus is built and in the library (committed 2026-10-20). What's left is Mike's, on the live board:
