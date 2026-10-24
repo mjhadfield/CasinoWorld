@@ -120,8 +120,10 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 - **The jackpot sign** (`scenes/table/jackpot_sign.gd`, `JackpotSign`) stands on every card table's felt by the
   dealer, top left as the players see it (`CasinoTable.JACKPOT_SIGN`, its foot): between the rail and the dealer's
   cards, left of the ledge, clear of every game's shuffler, shoe and rack (the layout audit checks it). Its face
-  rises in front of the rail behind it. It shows the one progressive jackpot as it grows, "your £1 is in" while
-  the local player's Jackpot bet is on the disc (their seat is in `jackpot_lights`), and is powered off where the
+  rises in front of the rail behind it. It shows the one progressive jackpot as it grows, always under its own
+  PROGRESSIVE JACKPOT lettering; while the local player's Jackpot bet is on the disc (their seat is in
+  `jackpot_lights`) its light blinks blue, on the designs with one (the twin's status lamp, the LED's and the
+  screen's power lights). It's powered off where the
   game has no Jackpot bet (Baccarat, a blank Master Table). A win plays out on the sign of the table it was won
   at (`celebrate()`, from that table's `jackpot_won` event, for 12 seconds); `Session.jackpot_held()` keeps that
   sign on the old amount from the server's reset until then, and every other sign just takes the new amount. Its
@@ -129,8 +131,8 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   with chasing bulbs), `led` (a red dot-matrix that scrolls a win), `screen` (a floor screen that rains confetti),
   `flap` (a split-flap board in the rail's wood) or `neon`. It's drawn in the mockup's own units (220 across,
   scaled to 40), redrawing only on screen when what it shows changes or while it animates. The designer draws it
-  too (`jackpotSign()` in render.js, its place from `geometry.json`'s `sign`), and "Jackpot lit" shows it with
-  your £1 in.
+  too (`jackpotSign()` in render.js, its place from `geometry.json`'s `sign`), and "Jackpot lit" shows its light
+  blue, as a bet does.
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of

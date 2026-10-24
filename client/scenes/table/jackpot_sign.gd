@@ -2,8 +2,8 @@ class_name JackpotSign
 extends Node2D
 ## The progressive jackpot's sign, standing on the felt by the dealer: top left as the players see it, between
 ## the rail and the dealer's cards, clear of every game's machines (CasinoTable.JACKPOT_SIGN). It shows the
-## casino's one jackpot as it grows (Session.jackpot_now()), "your £1 is in" while the local player's Jackpot
-## bet is on the disc, and a win's celebration (celebrate()) at the table it was won at. Every other table's sign
+## casino's one jackpot as it grows (Session.jackpot_now()), a blinking blue light (where it has one: the twin,
+## LED and screen) while the local player's Jackpot bet is on the disc, and a win's celebration (celebrate()) at the table it was won at. Every other table's sign
 ## just drops to the new amount; the winning table's holds the old one until the win is shown there
 ## (Session.jackpot_held()). It's powered off at a game with no Jackpot bet (Baccarat, a blank Master Table).
 ##
@@ -118,7 +118,7 @@ func _view(now: float) -> Dictionary:
 		pence = held if held >= 0.0 else Session.jackpot_now()
 	var tick := int((now - _win_start if state == "win" else now) * 4.0)
 	var anim := 0
-	if state == "win" or state == "in" or design == "brass":
+	if state == "win" or design == "brass" or (state == "in" and design in ["twin", "led", "screen"]):   # (a bet's light blinks)
 		anim = tick
 	elif design == "neon":
 		anim = int(_flicker(tick))
@@ -225,10 +225,8 @@ func _twin(v: Dictionary) -> void:
 		legend_c = (Color("8a5a00") if light else GOLD) if v.flash else (Color("1f7a3a") if light else lit)
 		lamp = LAMPS[v.tick % 3]
 	elif v.in:
-		legend = "YOUR %s IS IN" % Money.format(100, true)
-		legend_c = Color("1f7a3a") if light else lit
 		glow = v.flash
-		lamp = LAMPS[2] if glow else Color("1d3a55")
+		lamp = _bet_light(v)
 	_text(legend, Vector2(10, 57), 7, legend_c, _spacing(MONTSERRAT, 1), -1)
 	if glow:
 		draw_circle(Vector2(207, 57), 5.5, Color(lamp, 0.3))
@@ -244,7 +242,7 @@ func _brass(v: Dictionary) -> void:
 	_fill(Rect2(0, 0, 220, 68), 9, Color("fff1c2") if flash else BRASS)
 	_fill(Rect2(2, 2, 216, 64), 7, Color("1a1309"))
 	draw_line(Vector2(9, 3.5), Vector2(211, 3.5), Color(BRASS_HI, 0.4), 2.0)
-	var step: int = v.tick if v.in else v.tick / 2
+	var step: int = v.tick / 2
 	for row in 2:
 		for i in 17:
 			var lit: bool = v.on and (((v.flash if row == 0 else not v.flash) if v.win
@@ -253,9 +251,8 @@ func _brass(v: Dictionary) -> void:
 			if lit:
 				draw_circle(at, 4.5, Color(GOLD, 0.35))
 			draw_circle(at, 2.0, Color("fff1c2") if lit else Color("7a6234") if v.on else Color("3a2f1f"))
-	if v.in or v.win:
-		var pill := "JACKPOT WINNER" if v.win else "YOUR %s IS IN" % Money.format(100, true)
-		_pill(pill, Vector2(110, 20), 8, Color.WHITE if v.win and not v.flash else BRASS_HI, Color("1b1307"))
+	if v.win:
+		_pill("JACKPOT WINNER", Vector2(110, 20), 8, Color.WHITE if not v.flash else BRASS_HI, Color("1b1307"))
 	else:
 		_text("JACKPOT", Vector2(110, 20), 10, BRASS if v.on else Color("5c4a28"), _spacing(CINZEL, 4))
 	if v.on:
@@ -277,13 +274,9 @@ func _led(v: Dictionary) -> void:
 	elif v.win:
 		plate = Color.WHITE if v.flash else Color("b3261e")
 		ink = Color("b3261e") if v.flash else Color.WHITE
-	elif v.in:
-		plate = Color("e0a020")
-		ink = Color("1a1000")
 	_fill(Rect2(7, 8, 44, 44), 3, plate)
-	var lines := ["YOU'RE", "IN"] if v.in else ["JACK", "POT"]
-	_text(lines[0], Vector2(29, 23.8), 13, ink, BARLOW, 0, Color.TRANSPARENT, 40)
-	_text(lines[1], Vector2(29, 36.2), 13, ink, BARLOW, 0, Color.TRANSPARENT, 40)
+	_text("JACK", Vector2(29, 23.8), 13, ink, BARLOW, 0, Color.TRANSPARENT, 40)
+	_text("POT", Vector2(29, 36.2), 13, ink, BARLOW, 0, Color.TRANSPARENT, 40)
 	_fill(Rect2(57, 8, 156, 44), 2, Color.BLACK)
 	_fill(Rect2(58, 9, 154, 42), 1.5, Color("140303"))
 	var px := _fit("888,888.88", 28, VT323, 144)
@@ -301,8 +294,9 @@ func _led(v: Dictionary) -> void:
 	for x in range(59, 212, 3):
 		grid.append_array([Vector2(x, 9), Vector2(x, 51)])
 	draw_multiline(grid, Color(0, 0, 0, 0.3), 1.0)
-	var power: Color = OFF_RED if not v.on else LAMPS[v.tick % 3] if v.win else Color("3ad35f")
-	draw_circle(Vector2(209, 60), 4.0, Color(power, 0.3))
+	var power: Color = OFF_RED if not v.on else LAMPS[v.tick % 3] if v.win else _bet_light(v) if v.in else Color("3ad35f")
+	if not (v.in and not v.flash):
+		draw_circle(Vector2(209, 60), 4.0, Color(power, 0.3))
 	draw_circle(Vector2(209, 60), 2.0, power)
 
 
@@ -325,17 +319,17 @@ func _screen(v: Dictionary) -> void:
 				piece.append(at + c.rotated(turn))
 			draw_colored_polygon(piece, colours[i % 4])
 	if v.on:
-		if v.in:
-			_pill("YOUR %s IS IN" % Money.format(100, true), Vector2(110, 15.5), 8, GOLD, Color("1a1400"))
-		else:
-			_text("JACKPOT WINNER" if v.win else "PROGRESSIVE JACKPOT", Vector2(110, 15.5), 9,
-				Color.WHITE if flash else GOLD, _spacing(BARLOW, 2))
+		_text("JACKPOT WINNER" if v.win else "PROGRESSIVE JACKPOT", Vector2(110, 15.5), 9,
+			Color.WHITE if flash else GOLD, _spacing(BARLOW, 2))
 		_text("JACKPOT!" if v.headline else v.money, Vector2(110, 37.5), 30,
 			Color("ffe9a8") if v.win and not v.flash else Color.WHITE, BARLOW, 0,
 			Color(GOLD, 0.9) if v.win else Color("6e96ff", 0.7), 196)
 	draw_colored_polygon(PackedVector2Array([Vector2(8, 6), Vector2(86, 6), Vector2(62, 56), Vector2(8, 56)]),
 		Color(1, 1, 1, 0.06))   # the glass's sheen
-	draw_rect(Rect2(108, 61, 4, 3), Color(1, 1, 1, 0.25) if v.on else OFF_RED)
+	var power := _bet_light(v) if v.in else Color(1, 1, 1, 0.25) if v.on else OFF_RED
+	if v.in and v.flash:
+		draw_rect(Rect2(106, 59.5, 8, 6), Color(power, 0.3))
+	draw_rect(Rect2(108, 61, 4, 3), power)
 
 
 ## A split-flap board in the rail's wood: ten tiles that flip as the amount changes (and scramble at each
@@ -370,12 +364,9 @@ func _flap(v: Dictionary) -> void:
 	elif v.win:
 		plate = Color("fff1c2") if v.flash else BRASS
 		ink = Color("1b1307")
-	elif v.in:
-		plate = BRASS
-		ink = Color("1b1307")
 	_fill(Rect2(38, 47, 144, 13), 2, plate)
 	_outline(Rect2(38.5, 47.5, 143, 12), 2, Color(BRASS, 0.55), 1.0)
-	var words := "JACKPOT WINNER" if v.win else "YOUR %s IS IN" % Money.format(100, true) if v.in else "PROGRESSIVE JACKPOT"
+	var words := "JACKPOT WINNER" if v.win else "PROGRESSIVE JACKPOT"
 	_text(words, Vector2(110, 53.5), 7, ink, _spacing(CINZEL, 1), 0, Color.TRANSPARENT, 136)
 
 
@@ -391,13 +382,13 @@ func _neon(v: Dictionary) -> void:
 		draw_polyline(tube, Color("2e2b33"), 1.5, true)
 		_text("JACKPOT", Vector2(110, 19.5), 11, Color("3b3742"), _spacing(JOSEFIN, 4))
 		return
-	var frame: Color = NEON[v.tick % 4] if v.win else NEON[2] if v.in else NEON[0]
-	var label: Color = NEON[(v.tick + 2) % 4] if v.win else NEON[2] if v.in else NEON[0]
+	var frame: Color = NEON[v.tick % 4] if v.win else NEON[0]
+	var label: Color = NEON[(v.tick + 2) % 4] if v.win else NEON[0]
 	draw_polyline(tube, Color(frame, 0.12), 7.0, true)
 	draw_polyline(tube, Color(frame, 0.3), 4.0, true)
 	draw_polyline(tube, frame.lerp(Color.WHITE, 0.35), 1.5, true)
 	var flicker: bool = not v.win and _flicker(v.tick)
-	_text("WINNER!" if v.win else "YOU'RE IN" if v.in else "JACKPOT", Vector2(110, 19.5), 11,
+	_text("WINNER!" if v.win else "JACKPOT", Vector2(110, 19.5), 11,
 		Color("6a3560") if flicker else Color("fff2fb"), _spacing(JOSEFIN, 4), 0,
 		Color.TRANSPARENT if flicker else label)
 	_text("JACKPOT!" if v.headline else v.money, Vector2(110, 40), 25, Color("effdff"), JOSEFIN, 0,
@@ -405,6 +396,11 @@ func _neon(v: Dictionary) -> void:
 
 
 # ------------------------------------------------------------------ helpers (all in the mockup's units)
+## A sign's light while the local player's Jackpot bet is on: blinking blue.
+func _bet_light(v: Dictionary) -> Color:
+	return LAMPS[2] if v.flash else Color("1d3a55")
+
+
 ## Draws in the mockup's units from here on: 220 across, the shadow's foot at this node's origin.
 func _base() -> void:
 	draw_set_transform(Vector2(-MOCK.x / 2, -MOCK.y) * K, 0, Vector2(K, K))

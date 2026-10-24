@@ -90,7 +90,7 @@ export const SLOTS = [
     { key: "jackpotRim", type: "seg", options: [["thin", "Thin"], ["standard", "Standard"], ["heavy", "Heavy"]], label: "Rim thickness (grows inward)" }] },
   { id: "jackpotSign", label: "Jackpot sign", keys: ["jackpotSign"], hint: "by the dealer; off where there's no Jackpot", ctl: [
     { key: "jackpotSign", type: "seg", options: [["twin", "Shuffler twin"], ["brass", "Brass marquee"], ["led", "Pit LED"], ["screen", "Floor screen"],
-      ["flap", "Split-flap"], ["neon", "Neon"]], label: "Jackpot lit shows it with your £1 in. The twin takes the shuffler's housing; the split-flap, the rail's wood." }] },
+      ["flap", "Split-flap"], ["neon", "Neon"]], label: "Jackpot lit shows its light blinking blue, as a Jackpot bet does (the twin, LED and screen have one). The twin takes the shuffler's housing; the split-flap, the rail's wood." }] },
   { id: "equip", label: "Shuffler, shoe, rack", keys: ["shuffler", "shufflerTint", "shufflerWood", "shoe", "shoeTint", "shoeWood", "rack", "rackTint", "rackWood"], ctl: [
     { key: "shuffler", type: "seg", options: [["gunmetal", "Brushed metal (today)"], ["black", "Gloss with LED"], ["brass", "Wood & brass"]], label: "Shuffler" },
     { key: "shufflerTint", type: "swatch", options: HOUSINGS, custom: true, label: "Shuffler housing colour (metal and gloss)" },
@@ -812,7 +812,8 @@ function card(ctx, D, code, x, y, rot = 0) {
 
 // ---------------------------------------------------------------- equipment
 // The jackpot sign (JackpotSign.gd), showing an amount: drawn in the game's mockup units (220 across, the shadow's
-// foot at `at`), scaled to 40 table units. `on` false is a game with no Jackpot bet; `lit`, your £1 is in.
+// foot at `at`), scaled to 40 table units. `on` false is a game with no Jackpot bet; `lit`, a Jackpot bet is on (its
+// light, where it has one, is blue).
 const SIGN_K = 40 / 220, SIGN_AMOUNT = "£12,480.37";
 function jackpotSign(ctx, D, at, on, lit) {
   const design = D.jackpotSign || "brass", inn = on && lit;
@@ -826,10 +827,9 @@ function jackpotSign(ctx, D, at, on, lit) {
     if (opts.glow) { ctx.shadowColor = opts.glow; ctx.shadowBlur = 6; }
     ctx.fillStyle = colour; ctx.fillText(s, x, y); ctx.restore(); return w;
   };
-  const pill = (s, x, y, fill, ink) => { ctx.font = '8px "TS Montserrat"'; const w = ctx.measureText(s).width; box(x - w / 2 - 7, y - 6, w + 14, 12, 6, fill); word(s, x, y, 8, ink, "TS Montserrat"); };
   const wood = (x, y, w, h, r, pick) => { ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.clip(); const k = woodTex(D, pick);
     ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / SIGN_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
-  const yours = "YOUR £1 IS IN";
+  const BLUE = "#4aa8ff";
   // its shadow and foot
   for (const [rx, ry, a] of [[104, 9, 0.16], [94, 7, 0.2], [82, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(110, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
   const tint = D.shufflerTint || "#3a3e44";
@@ -844,36 +844,35 @@ function jackpotSign(ctx, D, at, on, lit) {
     if (on) word(SIGN_AMOUNT, 110, 28, 32, lit, "TS VT323", { glow: rgba(lit, 0.55), max: 188 });
     const [r, g, b] = hex(tint), light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5 && kind !== "brass";
     let legend = light ? "#2a2d31" : "#a4aab2";
-    if (!on) legend = rgba(legend, 0.45); else if (inn) legend = light ? "#1f7a3a" : lit;
-    word(inn ? yours : "PROGRESSIVE JACKPOT", 10, 57, 7, legend, "TS Montserrat", { align: "left", spacing: 1 });
-    const lamp = !on ? "#7a1f1a" : inn ? "#4aa8ff" : "#38e06a";
+    if (!on) legend = rgba(legend, 0.45);
+    word("PROGRESSIVE JACKPOT", 10, 57, 7, legend, "TS Montserrat", { align: "left", spacing: 1 });
+    const lamp = !on ? "#7a1f1a" : inn ? BLUE : "#38e06a";
     if (on) { ctx.beginPath(); ctx.arc(207, 57, 5.5, 0, Math.PI * 2); ctx.fillStyle = rgba(lamp, 0.3); ctx.fill(); }
     ctx.beginPath(); ctx.arc(207, 57, 3, 0, Math.PI * 2); ctx.fillStyle = lamp; ctx.fill();
   } else if (design === "led") {
     box(0, 0, 220, 68, 4, "#2a2a2d"); box(1, 1, 218, 66, 3, "#0e0e10"); line(5, 2.5, 215, 2.5, "#2e2e33", 3);
-    const [plate, ink] = !on ? ["#3a1310", "#6e423d"] : inn ? ["#e0a020", "#1a1000"] : ["#b3261e", "#ffffff"];
+    const [plate, ink] = !on ? ["#3a1310", "#6e423d"] : ["#b3261e", "#ffffff"];
     box(7, 8, 44, 44, 3, plate);
-    const lines = inn ? ["YOU'RE", "IN"] : ["JACK", "POT"];
-    word(lines[0], 29, 23.8, 13, ink, "TS Barlow", { max: 40 }); word(lines[1], 29, 36.2, 13, ink, "TS Barlow", { max: 40 });
+    word("JACK", 29, 23.8, 13, ink, "TS Barlow", { max: 40 }); word("POT", 29, 36.2, 13, ink, "TS Barlow", { max: 40 });
     box(57, 8, 156, 44, 2, "#000000"); box(58, 9, 154, 42, 1.5, "#140303");
     word("888,888.88", 205, 30, 28, "#2e0907", "TS VT323", { align: "right", max: 144 });
     if (on) word(SIGN_AMOUNT, 205, 30, 28, "#ff3b2f", "TS VT323", { align: "right", max: 144, glow: "rgba(255,59,47,.75)" });
     ctx.fillStyle = "rgba(0,0,0,.3)";
     for (let y = 10; y < 51; y += 3) ctx.fillRect(58, y - 0.5, 154, 1);
     for (let x = 59; x < 212; x += 3) ctx.fillRect(x - 0.5, 9, 1, 42);
-    const power = on ? "#3ad35f" : "#ff2a1a";
+    const power = !on ? "#ff2a1a" : inn ? BLUE : "#3ad35f";
     ctx.beginPath(); ctx.arc(209, 60, 4, 0, Math.PI * 2); ctx.fillStyle = rgba(power, 0.3); ctx.fill();
     ctx.beginPath(); ctx.arc(209, 60, 2, 0, Math.PI * 2); ctx.fillStyle = power; ctx.fill();
   } else if (design === "screen") {
     box(0, 0, 220, 68, 6, "#0a0a0c"); line(6, 2.5, 214, 2.5, "#2a2a30", 3);
     box(6, 6, 208, 50, 3, on ? "#141c52" : "#050507");
     if (on) {
-      if (inn) pill(yours, 110, 15.5, "#ffd36b", "#1a1400");
-      else word("PROGRESSIVE JACKPOT", 110, 15.5, 9, "#ffd36b", "TS Barlow", { spacing: 2 });
+      word("PROGRESSIVE JACKPOT", 110, 15.5, 9, "#ffd36b", "TS Barlow", { spacing: 2 });
       word(SIGN_AMOUNT, 110, 37.5, 30, "#ffffff", "TS Barlow", { glow: "rgba(110,150,255,.7)", max: 196 });
     }
     ctx.beginPath(); path(ctx, [[8, 6], [86, 6], [62, 56], [8, 56]]); ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
-    ctx.fillStyle = on ? "rgba(255,255,255,.25)" : "#ff2a1a"; ctx.fillRect(108, 61, 4, 3);
+    if (inn) { ctx.fillStyle = rgba(BLUE, 0.3); ctx.fillRect(106, 59.5, 8, 6); }
+    ctx.fillStyle = !on ? "#ff2a1a" : inn ? BLUE : "rgba(255,255,255,.25)"; ctx.fillRect(108, 61, 4, 3);
   } else if (design === "flap") {
     box(0, 0, 220, 68, 6, "#2e1c10"); wood(1, 1, 218, 66, 5, "match");
     line(6, 3, 214, 3, "rgba(255,255,255,.14)", 4); line(6, 65, 214, 65, "rgba(0,0,0,.25)", 2);
@@ -884,17 +883,17 @@ function jackpotSign(ctx, D, at, on, lit) {
       if (tiles[i] !== " ") word(tiles[i], x + 9, 26, 26, "#f2ede0", "TS Barlow");
       line(x, 25.5, x + 18, 25.5, "#000000", 1);
     }
-    const [plate, ink] = !on ? ["#2a1d10", "#5c4a28"] : inn ? ["#c9a24a", "#1b1307"] : ["#1c130a", "#c9a24a"];
+    const [plate, ink] = !on ? ["#2a1d10", "#5c4a28"] : ["#1c130a", "#c9a24a"];
     box(38, 47, 144, 13, 2, plate); ctx.beginPath(); rrect(ctx, 38.5, 47.5, 143, 12, 2); ctx.strokeStyle = "rgba(201,162,74,.55)"; ctx.lineWidth = 1; ctx.stroke();
-    word(inn ? yours : "PROGRESSIVE JACKPOT", 110, 53.5, 7, ink, "TS Cinzel", { spacing: 1, max: 136 });
+    word("PROGRESSIVE JACKPOT", 110, 53.5, 7, ink, "TS Cinzel", { spacing: 1, max: 136 });
   } else if (design === "neon") {
     box(0, 0, 220, 68, 6, "#26262e"); box(1, 1, 218, 66, 5, "#0b0b10"); line(6, 2.5, 214, 2.5, "#24242c", 3);
     const tube = colour => { ctx.beginPath(); rrect(ctx, 6, 6, 208, 55, 6); ctx.strokeStyle = colour; ctx.stroke(); };
     if (!on) { ctx.lineWidth = 1.5; tube("#2e2b33"); word("JACKPOT", 110, 19.5, 11, "#3b3742", "TS Josefin", { spacing: 4 }); }
     else {
-      const frame = inn ? "#ffd23e" : "#ff4fd8";
+      const frame = "#ff4fd8";
       for (const [w, c] of [[7, rgba(frame, 0.12)], [4, rgba(frame, 0.3)], [1.5, lighten(frame, 0.35)]]) { ctx.lineWidth = w; tube(c); }
-      word(inn ? "YOU'RE IN" : "JACKPOT", 110, 19.5, 11, "#fff2fb", "TS Josefin", { spacing: 4, glow: frame });
+      word("JACKPOT", 110, 19.5, 11, "#fff2fb", "TS Josefin", { spacing: 4, glow: frame });
       word(SIGN_AMOUNT, 110, 40, 25, "#effdff", "TS Josefin", { glow: "#3ee8ff", max: 196 });
     }
   } else {   // brass
@@ -904,8 +903,7 @@ function jackpotSign(ctx, D, at, on, lit) {
       if (lit) { ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,211,107,.35)"; ctx.fill(); }
       ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fillStyle = lit ? "#fff1c2" : on ? "#7a6234" : "#3a2f1f"; ctx.fill();
     }
-    if (inn) pill(yours, 110, 20, "#ecd396", "#1b1307");
-    else word("JACKPOT", 110, 20, 10, on ? "#c9a24a" : "#5c4a28", "TS Cinzel", { spacing: 4 });
+    word("JACKPOT", 110, 20, 10, on ? "#c9a24a" : "#5c4a28", "TS Cinzel", { spacing: 4 });
     if (on) word(SIGN_AMOUNT, 110, 41.5, 25, "#ecd396", "TS Montserrat", { glow: "rgba(255,211,107,.35)", max: 200 });
   }
   ctx.restore();
