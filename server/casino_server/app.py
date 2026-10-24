@@ -920,6 +920,12 @@ def npc_options(request: Request):
             "tables": {tid: cfg["name"] for tid, cfg in floor.TABLES.items()}}
 
 
+@app.get("/api/look-options")
+def look_options():
+    """What the game's character designer offers (art.catalogue())."""
+    return art.catalogue()
+
+
 @app.post("/api/looks/preview")
 async def look_preview(request: Request):
     data = await _body(request)
@@ -1329,7 +1335,9 @@ async def players_stats(request: Request):
     return {"players": players, "games": roster.GAMES, "now": now}
 
 
-# Player management. A protected player can't be deleted, banned or timed out until they're unprotected.
+# Player management. Protected, bans and timeouts are the account's (the device's), so they cover all its characters;
+# a player id names a character, and acts on its account. A protected account can't be deleted, banned or timed out
+# until it's unprotected.
 MAX_TIMEOUT_MIN = 60 * 24 * 365
 
 
@@ -1349,25 +1357,25 @@ def _reason(data: dict) -> str:
 @app.post("/api/players/{player_id}/protect")
 async def players_protect(player_id: int, request: Request):
     data = await _body(request)
-    _player(request, player_id, change=False)
-    request.app.state.casino.store.set_protected(player_id, bool(data.get("on", True)))
+    p = _player(request, player_id, change=False)
+    request.app.state.casino.store.set_protected(p["account_id"], bool(data.get("on", True)))
     return request.app.state.casino.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/ban")
 async def players_ban(player_id: int, request: Request):
     data = await _body(request)
-    _player(request, player_id)
+    p = _player(request, player_id)
     casino = request.app.state.casino
-    casino.store.set_bar(player_id, banned=True, reason=_reason(data))
-    casino.send_off(player_id, "ban", reason=_reason(data))
+    casino.store.set_bar(p["account_id"], banned=True, reason=_reason(data))
+    casino.send_off(p["account_id"], "ban", reason=_reason(data))
     return casino.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/timeout")
 async def players_timeout(player_id: int, request: Request):
     data = await _body(request)
-    _player(request, player_id)
+    p = _player(request, player_id)
     try:
         minutes = float(data.get("minutes"))
     except (TypeError, ValueError):
@@ -1376,27 +1384,44 @@ async def players_timeout(player_id: int, request: Request):
         raise HTTPException(400, "A timeout is a minute to a year.")
     casino = request.app.state.casino
     until = time.time() + minutes * 60
-    casino.store.set_bar(player_id, until=until, reason=_reason(data))
-    casino.send_off(player_id, "timeout", until=until, reason=_reason(data))
+    casino.store.set_bar(p["account_id"], until=until, reason=_reason(data))
+    casino.send_off(p["account_id"], "timeout", until=until, reason=_reason(data))
     return casino.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/lift")
 async def players_lift(player_id: int, request: Request):
-    """Let them back in (a ban or a timeout)."""
-    _player(request, player_id)
-    request.app.state.casino.store.set_bar(player_id)
+    """Let their account back in (a ban or a timeout)."""
+    p = _player(request, player_id)
+    request.app.state.casino.store.set_bar(p["account_id"])
     return request.app.state.casino.store.player(player_id)
 
 
 @app.delete("/api/players/{player_id}")
 async def players_delete(player_id: int, request: Request):
-    """Gone for good, ledger and all. Anyone playing as them is hung up on; their device comes back as a new player."""
+    """One character gone for good, ledger and all (the account keeps its others). If it's playing, that session
+    is hung up on."""
     p = _player(request, player_id)
     casino = request.app.state.casino
-    casino.send_off(player_id, "removed")
+    casino.send_off(p["account_id"], "removed", player_id=player_id)
     casino.store.delete_player(player_id)
     return {"deleted": p["id"], "name": p["name"]}
+
+
+@app.delete("/api/accounts/{account_id}")
+async def accounts_delete(account_id: int, request: Request):
+    """An account and every character on it gone for good. Anyone on it is hung up on; the device comes back as a
+    new account with no characters."""
+    store = request.app.state.casino.store
+    a = store.account(account_id)
+    if a is None:
+        raise HTTPException(404, "No such account.")
+    if a["protected"]:
+        raise HTTPException(400, "That account is protected: unprotect it first.")
+    names = [p.name for p in store.characters(account_id)]
+    request.app.state.casino.send_off(account_id, "removed")
+    store.delete_account(account_id)
+    return {"deleted": account_id, "names": names}
 
 
 @app.get("/credits", response_class=HTMLResponse)

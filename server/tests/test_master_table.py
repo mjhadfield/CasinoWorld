@@ -14,7 +14,7 @@ from casino_server.tables import master
 from casino_server.tables.base import TableError
 from casino_server.tables.master import MasterMachine, remap
 
-from conftest import CLASSIC_PLAN, recv_until
+from conftest import CLASSIC_PLAN, enter, recv_until
 from test_machine import FakeJackpot, FakeParticipant
 
 
@@ -279,8 +279,7 @@ def _fast(machine):
 
 def test_choosing_over_the_websocket(master_client):
     with master_client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join"})
-        recv_until(ws, "welcome")
+        enter(ws)
         ws.send_json({"type": "sit", "table": "mt_1", "seat": 3})
         seated = recv_until(ws, "seated")
         state = recv_until(ws, "table_state", where=lambda m: m["table"] == "mt_1")

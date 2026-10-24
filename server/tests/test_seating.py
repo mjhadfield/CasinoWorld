@@ -1,5 +1,5 @@
 """Seating styles: the default every table uses, editing it, more styles per table."""
-from conftest import recv_until  # noqa: F401  (the client fixture lives in conftest)
+from conftest import enter, recv_until  # noqa: F401  (the client fixture lives in conftest)
 
 from casino_server import seating
 
@@ -9,14 +9,12 @@ def test_every_table_starts_on_the_default_style(client):
     assert data["styles"] == {"default": seating.DEFAULT_STYLE} and data["tables"] == {}
     assert data["styles"]["default"]["chair"] == "stool" and data["styles"]["default"]["craps_spot"] == "footprints"
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        assert recv_until(ws, "welcome")["seating"]["styles"]["default"]["sit"] == "swivel"
+        assert enter(ws)[1]["seating"]["styles"]["default"]["sit"] == "swivel"
 
 
 def test_editing_a_style_reaches_the_floor(client):
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        recv_until(ws, "welcome")
+        enter(ws)
         r = client.put("/api/seating/styles/default", json={"upholstery": "#145C43", "back": 1.1, "frame": "chrome"})
         assert r.status_code == 200, r.text
         style = recv_until(ws, "seating")["seating"]["styles"]["default"]

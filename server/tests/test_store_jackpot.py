@@ -18,7 +18,7 @@ def test_new_player_gets_starting_balance_and_ledger_reconciles(store):
     store.adjust(p.id, 5_000, "payout", "three_card_poker")
     total = store.db.execute("SELECT SUM(amount) FROM ledger WHERE player_id = ? AND account = 'hand'", (p.id,)).fetchone()[0]
     assert total == store.balance(p.id) == 100_000 + 2_500
-    assert store.player_by_token(p.token).id == p.id
+    assert store.characters(p.account_id)[0].id == p.id
 
 
 def test_balance_never_goes_negative(store):

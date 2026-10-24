@@ -101,14 +101,16 @@ sections:
     ahead (Hit-and-run) or doubled up (a Gambler), then sit out a cooldown while others take their place.
   - **Stats** per NPC, and **Bring in now**, **Send home**, **Reset stats** and **Archive**.
   - Staff other than dealers can be designed, but don't work the floor yet.
-- **Players:** everyone's cash, bank and lifetime staked, returned and net from the ledger, and who's playing now.
-  Pick a player to manage them: **Protected** (nothing here can delete, ban or time them out until it's unticked),
-  **Time out** (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**,
-  and **Delete for good** (the player and their ledger). Tick several (Shift-click a box to tick the run since the
-  last one, Ctrl/Cmd-click a row to tick it without opening it, the header box for everyone shown) to Protect,
-  Unprotect, Time out, Ban, Let back in or Delete them all at once; protected players are skipped and named. A ban, timeout or delete sends them out at once if they're
-  playing; bans and timeouts follow the device's account (players have no logins), so a new browser comes in as a new
-  player. A hand they were in plays out, and money for a deleted player is dropped.
+- **Players:** every character's difficulty, cash, bank and lifetime staked, returned and net from the ledger, and
+  who's playing now. A device's account holds up to three characters (players have no logins). Pick a character to
+  manage it: **Protected** (nothing here can delete, ban or time out the account until it's unticked), **Time out**
+  (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**, **Delete
+  character** (it and its ledger) and **Delete the whole account** (every character on the device). Protected, bans
+  and timeouts are the account's, so they cover every character on it. Tick several (Shift-click a box to tick the run
+  since the last one, Ctrl/Cmd-click a row to tick it without opening it, the header box for everyone shown) to
+  Protect, Unprotect, Time out, Ban, Let back in or Delete them all at once; protected players are skipped and named.
+  A ban, timeout or delete sends them out at once if they're playing; a new browser comes in as a new account. A hand
+  they were in plays out, and money for a deleted character is dropped.
 - **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added
   together: staked, returned, net, bets and returned %.
 - **Slots:** the jackpot meters and their settings, each machine's figures (spins, staked, returned, bonuses; humans
@@ -278,7 +280,7 @@ sections:
   game opens, and the craps standing spot). The card tables and Roulette take their chairs' frame and upholstery
   from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API
   (`/api/seating`) already takes more styles and gives tables their own (`PUT /api/seating/tables`). **Bank**: what new
-  players start with (bank and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
+  characters start with (the bank for each difficulty, Easy, Normal and Hard, and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
   the most a withdrawal can be (a multiple of £50: it pays in £50 notes), the bank at which one withdrawal per wait
   may be up to half the bank rounded down to a step (£2,000, every 60 min, to £1,000), and the wait between
   withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank. **This browser**: the Floor

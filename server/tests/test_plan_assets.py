@@ -6,7 +6,7 @@ import json
 from PIL import Image
 
 from casino_server import plan
-from tests.conftest import recv_until
+from tests.conftest import enter, recv_until
 
 
 def png(w=40, h=60, colour=(200, 40, 40, 255)) -> bytes:
@@ -91,8 +91,7 @@ def test_floor_textures_upload_and_bad_pictures_are_refused(client):
 
 def test_players_are_told_when_the_art_changes(client):
     with client.websocket_connect("/ws") as ws:
-        ws.receive_json()
-        ws.send_json({"type": "join", "token": ""})
+        enter(ws, hello=True)
         recv_until(ws, "entity_spawn")
         client.put("/api/plan-assets/lamp.png", content=png())
         assert recv_until(ws, "plan_art_changed")["version"] > 0

@@ -1,4 +1,4 @@
-# Casino World protocol (v5)
+# Casino World protocol (v6)
 
 Messages are JSON objects with a `type` field, carried over a WebSocket at `/ws`.
 The server is authoritative, so the client sends intents and renders what comes back.
@@ -6,24 +6,38 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 `"??"` is a face-down card.
 
 ## Connecting
+A device has an **account** (its token), and an account has up to three **characters**: each with its own name,
+look, difficulty, money and stats. Bans, timeouts and the admin page's Protected are the account's.
+
 1. The server sends `hello` {`protocol`}.
-2. The client replies `join` {`token`}. On a device's first visit the token is `""`; after that
-   it's the one saved from `welcome`. A floor-plan preview (the admin page's Preview button, `/?preview=<room>`)
-   sends `join` {`token`, `preview`: room id} instead: it gets only `welcome` (with the draft's floor) and `wallet`,
-   has no body on the floor, isn't sent the casino's goings-on, and everything else it sends is ignored.
-3. The server sends, in order:
+2. The client replies `join` {`token`}. On a device's first visit the token is `""`; after that it's the one saved
+   from `account`. The reply is `account`: the character select. Nobody is on the floor yet. A banned or timed-out
+   account gets `barred` instead.
+3. The client makes, changes or deletes characters (`create_character`, `edit_character`, `delete_character`, each
+   answered with a fresh `account`) and picks one with `pick_character`. The server then sends, in order:
    - `welcome`
    - `wallet`
-   - `jackpot`
+   - `jackpot`, `slot_jackpots`
    - `world_snapshot`
    - one `table_state` per table
    - your own `entity_spawn`, which everyone receives
+4. `leave_character` takes you off the floor (standing you up first) and back to the select: `character_left`, then
+   `account`. Picking a character that's playing in another window takes it over: that window gets
+   `character_left` {`reason`: `elsewhere`} and `account`. A reconnect asks with `resume`, which gives way instead.
+
+A floor-plan preview (the admin page's Preview button, `/?preview=<room>`) sends `join` {`token`, `preview`: room id}
+instead: it gets only `welcome` (with the draft's floor) and `wallet`, has no body on the floor, isn't sent the
+casino's goings-on, and everything else it sends is ignored.
 
 ## Client → server
 | type | fields | meaning |
 |---|---|---|
-| `join` | `token`, `preview` (optional room id) | Identify, or create a new player. Must come first. With `preview`, a look round the floor plan's draft instead (see Connecting). |
-| `set_name` | `name` | Choose a display name, up to 16 characters. The reply is a fresh `welcome`, and everyone gets `entity_update`. |
+| `join` | `token`, `preview` (optional room id) | Identify the device's account, or make a new one (an empty or unknown token). Must come first. The reply is `account`. With `preview`, a look round the floor plan's draft instead (see Connecting). |
+| `create_character` | `name`, `look`, `difficulty` | A new character (at most `account.max`). `name`: up to 16 characters, spaces squashed, not the same as another of yours. `look`: a look spec (art.py: `body`, `skin`, and each slot's [option, colour] or null). `difficulty`: `easy`, `normal` or `hard`, which sets the starting bank (`account.difficulties`). The reply is `character_made` {`id`} and `account`, or an `error` saying what's wrong. |
+| `edit_character` | `id`, `name`, `look` | Change one of your characters' name and look (checked as above). Refused while it's on the floor. The reply is `account`. |
+| `delete_character` | `id` | Delete one of your characters, its money and history. Refused while it's on the floor. The reply is `account`. |
+| `pick_character` | `id`, `resume` (optional bool) | Onto the floor as that character (see Connecting). If it's playing in another window it's taken over from there; with `resume` (a reconnect) the reply is `character_left` {`reason`: `elsewhere`} and `account` instead. |
+| `leave_character` | | Off the floor and back to the character select (standing you up first). A hand you're in plays out for that character. The reply is `character_left` {`reason`: `switch`} and `account`. |
 | `move` | `x`, `y`, `dir`, `anim` | Your avatar's position on the floor, sent about 10 times a second while moving. It's ignored while you're seated. |
 | `sit` | `table`, `seat` | Sit at a seat (0–5; seat 0 is first base, the dealer's left). |
 | `stand` | | Stand up. At Three Card Poker, standing before you've acted on a hand folds it; at Blackjack it stands every hand you still have to play (they're settled as normal). |
@@ -54,7 +68,10 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 ## Server → client
 | type | fields | when |
 |---|---|---|
-| `welcome` | `player` {`id`, `name`}, `token`, `entity_id`, `look`, `needs_name`, `world`, `preview`, `seating`, `table_styles` | The reply to `join` and `set_name`. `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
+| `account` | `token`, `characters` [{`id`, `name`, `look`, `difficulty`, `balance`, `bank`, `online`}], `max`, `difficulties` {`easy`, `normal`, `hard`: starting bank, pence}, `last` (id last played, or null) | The character select: the reply to `join` and to every character message, and what a resync sends before you've picked. Save `token`. A character's `look` is its sheet's id (`x_…`, or `player_default` for one with no look of its own); `online` means it's on the floor somewhere. |
+| `character_made` | `id` | The character `create_character` made (an `account` follows). |
+| `character_left` | `reason` (`switch` \| `elsewhere`), `name` | You're off the floor (you left, or the character was picked in another window), or a `resume` gave way. An `account` follows. |
+| `welcome` | `player` {`id`, `name`, `difficulty`}, `entity_id`, `look`, `world`, `preview`, `seating`, `table_styles` | The reply to `pick_character`. `look` is the character's sheet. `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
 | `wallet` | `balance` | Your cash in hand (what you bet with; your bank balance is only on the ATM's `atm`). Sent on join, after each money-moving table event (straight after that event), and after an ATM withdrawal or deposit. |
 | `atm` | `bank`, `can`, `why` (`""`, `carrying`, `overdrawn`), `cap`, `wait` (seconds), `big`, `big_wait` (seconds), `threshold`, `hand_under`, `cooldown_min`, `big_wait_min`, `history` [{`kind` withdraw/deposit, `amount`, `t` (unix)}], `done` {`kind`, `amount`}, `error` | The reply to `atm_open`, `atm_withdraw` and `atm_deposit`: your bank balance (pence, negative when overdrawn); whether you can withdraw now and, if not, why (holding `hand_under` or more, or overdrawn and `wait` seconds from the next); the most a withdrawal can be (`cap`: the usual limit, or with `big` the bigger one, half the bank rounded down, which a bank at `threshold` or more allows once every `big_wait_min` minutes; `big_wait` is how long until it's back, while the usual limit applies in between); the overdrawn wait in minutes; your last four ATM moves, newest first. `done` comes after a withdrawal or deposit went through, `error` when it didn't. |
 | `jackpot` | `amount`, `rate` (pence/s), `ceiling` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. |
@@ -68,9 +85,9 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 | `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on join, and when you sit. |
 | `table_event` | `table`, `event` | Something happened at a table. Every joined player gets every table's events (see below). |
 | `notice` / `error` | `message` | Information, or a rejected action. |
-| `barred` | `kind` (`ban` \| `timeout` \| `removed`), `reason`, `retry_in` (seconds, or null) | The admin page has shut this player out: the reply to `join` from a banned or timed-out player, or sent to one playing when it happens (`removed`: their account was deleted). The server hangs up straight after. The client shows why and doesn't reconnect until `retry_in` has passed (never, without a reload, when it's null). |
+| `barred` | `kind` (`ban` \| `timeout` \| `removed`), `reason`, `retry_in` (seconds, or null) | The admin page has shut this account out: the reply to `join` (or `pick_character`) from a banned or timed-out account, or sent to anyone on it when it happens, at the character select too (`removed`: the account, or the character being played, was deleted). The server hangs up straight after. The client shows why and doesn't reconnect until `retry_in` has passed (never, without a reload, when it's null). |
 | `pong` | `t` | The reply to `ping`. |
-| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `wallet`, `jackpot`, `world_snapshot` and one `table_state` per table, as on join. Before joining, it's followed by `hello` instead. |
+| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `welcome`, `wallet`, `jackpot`, `slot_jackpots`, `world_snapshot` and one `table_state` per table, as on picking. At the character select it's followed by `account`, and before joining by `hello`. |
 | `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables restarts the server instead), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
 | `plan_art_changed` | `version` | The floor plan's asset library changed (an upload, an edit, a delete). The client refetches `GET /api/plan/art`. Previews get it too. |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
@@ -341,11 +358,17 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 | `PUT /api/npcs/{id}` | Change any of those fields. A new look or name shows on the floor at once (`entity_update` / `dealer_change`). |
 | `DELETE /api/npcs/{id}` | Sends them home if they're here, then deletes them and their visits. |
 | `POST /api/npcs/{id}/bring-in`, `/send-home`, `/reset-stats` | In through the door now (cooldown or not), out now, or clear their lifetime figures. |
+| `GET /api/look-options` | The game's character designer's catalogue: `bodies`, `skins`, and `slots` [{`slot`, `label`, `required`, `options` [{`id`, `label`, `bodies`, `colours`}]}]. |
 | `GET /api/npc-options` | The look designer's catalogue (bodies, skins, each slot's options with the bodies they fit and their colours, uniforms), plus the roles, archetypes, modifiers, games and tables. |
 | `POST /api/looks/preview` | {`look`} → {`id`, `url`}: builds the sheet (cached). |
 | `GET /looks/{id}.png` | A built sheet: immutable, cache it. |
 | `GET` / `PUT /api/npc-settings` | Floor `population`, `cooldown_min` and `bust_cooldown_min` ([lo, hi] minutes), `regular_cooldown` (a multiplier), `dealer_shift_min`, `dealer_stagger_min`. |
-| `GET /api/players` | Each player's lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
+| `GET /api/players` | Every character: `account_id`, `difficulty`, `balance`, `bank`, its account's `protected`, `banned`, `timeout_until`, `bar_reason`, `online`, and its lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
+| `POST /api/players/{id}/protect` | {`on`}: protect (or not) the character's account: nothing here can ban, time out or delete it, or any character on it. |
+| `POST /api/players/{id}/ban`, `/timeout`, `/lift` | Ban the character's account ({`reason`}), time it out ({`minutes` 1 to a year, `reason`}), or let it back in. Anyone on it is sent `barred` and hung up on. Refused (400) while protected. |
+| `DELETE /api/players/{id}` | Delete that character, its money and its ledger. Refused while protected. |
+| `DELETE /api/accounts/{id}` | Delete an account and every character on it. Its device comes back as a new account. |
+| `GET` / `PUT /api/bank-settings` | The Bank settings (whole pounds; minutes for the waits): `start_bank_easy`, `start_bank` (Normal), `start_bank_hard`, `start_hand`, and the ATM's `hand_under`, `low_cap`, `threshold`, `big_wait_min`, `big_step`, `cooldown_min`. |
 | `GET /credits` | LPC art credits for every layer the designer can use. |
 
 ## The world

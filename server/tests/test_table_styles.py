@@ -2,7 +2,7 @@
 Roulette and Craps each keeping their own styles."""
 import copy
 
-from conftest import recv_until  # noqa: F401  (the client fixture lives in conftest)
+from conftest import enter, recv_until  # noqa: F401  (the client fixture lives in conftest)
 
 from casino_server import table_styles
 
@@ -15,8 +15,7 @@ def test_every_card_table_starts_on_house(client):
     assert "rou_1" not in data["games"] and "crp_1" not in data["games"]
     assert data["games"]["tcp_1"]["layout"] == "tcp" and data["games"]["pgu_1"]["layout"] == "pgu"
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        welcome = recv_until(ws, "welcome")["table_styles"]
+        welcome = enter(ws)[1]["table_styles"]
         assert welcome["cards"]["styles"]["house"]["design"]["rail"]["armrest"] == "all"
         assert welcome["roulette"]["styles"]["house"]["design"] == table_styles.ROULETTE_HOUSE
         assert welcome["craps"]["styles"]["house"]["design"] == table_styles.CRAPS_HOUSE
@@ -30,8 +29,7 @@ def test_every_built_in_and_house_is_a_valid_design():
 
 def test_editing_house_reaches_the_floor(client):
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        recv_until(ws, "welcome")
+        enter(ws)
         design = copy.deepcopy(table_styles.HOUSE)
         design["felt"]["colour"] = "#0F5B3F"
         design["chips"] = "vintage"
@@ -111,8 +109,7 @@ def test_roulette_and_craps_have_their_own_styles_and_placement(client):
     assert list(client.get("/api/table-styles?kind=craps").json()["games"]) == ["crp_1"]
     assert client.get("/api/table-styles?kind=slots").status_code == 404
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        recv_until(ws, "welcome")
+        enter(ws)
         design = copy.deepcopy(table_styles.ROULETTE_HOUSE)
         design["numbers"]["red"] = "#C8283A"
         design["wheel"]["metal"] = "chrome"

@@ -74,6 +74,25 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
+# A plain look for the characters tests make (the admin page's default new look).
+LOOK = {"body": "female", "skin": "light", "hair": ["bob", "chestnut"], "top": ["tshirt", "teal"],
+        "bottom": ["pants", "navy"], "shoes": ["shoes", "black"]}
+
+
+def enter(ws, token="", name="Tester", difficulty="normal", look=None, hello=False):
+    """Onto the floor: `join` with the token, make a character if the account has none, and pick its first one.
+    Returns (account, welcome) -- `account` as it was before the pick. With `hello`, reads the server's hello first."""
+    if hello:
+        assert ws.receive_json()["type"] == "hello"
+    ws.send_json({"type": "join", "token": token})
+    account = recv_until(ws, "account")
+    if not account["characters"]:
+        ws.send_json({"type": "create_character", "name": name, "look": look or LOOK, "difficulty": difficulty})
+        account = recv_until(ws, "account")
+    ws.send_json({"type": "pick_character", "id": account["characters"][0]["id"]})
+    return account, recv_until(ws, "welcome")
+
+
 def rig(client, *codes, table="tcp_1"):
     client.app.state.casino.tables[table].machine.deck_factory = lambda: RiggedDeck(list(codes))
 

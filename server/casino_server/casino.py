@@ -12,14 +12,14 @@ import sys
 import time
 from datetime import datetime
 
-from casino_server import PROTOCOL_VERSION, bank, floor, plan, seating, sounds, table_styles
+from casino_server import PROTOCOL_VERSION, art, bank, floor, plan, seating, sounds, table_styles
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
 from casino_server.npc import NpcDirector
 from casino_server.participants import HumanParticipant
 from casino_server.session import Session
-from casino_server.store import InsufficientFunds, Player, Store
+from casino_server.store import DIFFICULTIES, MAX_CHARACTERS, InsufficientFunds, Player, Store
 from casino_server.slots.jackpots import SlotProgressives
 from casino_server.slots.stats import SlotStats
 from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, master, mississippi_stud,
@@ -28,7 +28,7 @@ from casino_server.tables.base import TableError
 from casino_server.tables.runner import TableRunner
 from casino_server.world import Entity, World
 
-PLAYER_LOOK = "player_default"
+PLAYER_LOOK = "player_default"   # a character with no look of its own (one from before characters)
 MAX_NAME = 16
 DECISIONS = {"decide", "insure", "act", "fold", "claim"}   # table messages a player can send for their second box (`seat`)
 MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackjack": blackjack.BlackjackMachine,
@@ -133,10 +133,13 @@ class Casino:
     def online_players(self) -> set[int]:
         return {s.player.id for s in self.joined_sessions()}
 
-    def send_off(self, player_id: int, kind: str, until: float | None = None, reason: str = ""):
-        """The admin page banned, timed out ("ban" | "timeout") or deleted ("removed") a player: anyone playing as
-        them is told why and hung up on (the socket's end stands them up). Returns how many sessions that was."""
-        gone = [s for s in self.joined_sessions() if s.player.id == player_id]
+    def send_off(self, account_id: int, kind: str, until: float | None = None, reason: str = "",
+                 player_id: int | None = None):
+        """The admin page banned, timed out ("ban" | "timeout") or deleted ("removed") an account (or, with
+        `player_id`, deleted just that character): every session on it -- at the character select too -- is told
+        why and hung up on (the socket's end stands them up). Returns how many sessions that was."""
+        gone = [s for s in self.sessions if s.account is not None and s.account["id"] == account_id and s.preview is None
+                and (player_id is None or (s.player is not None and s.player.id == player_id))]
         for s in gone:
             self._barred(s, {"kind": kind, "until": until, "reason": reason})
         return len(gone)
@@ -209,12 +212,21 @@ class Casino:
             return
         if kind == "resync":
             return self._resync(session)
-        if session.player is None:
+        if session.account is None:
             return session.error("Send `join` first.")
         if session.preview is not None:
             return   # (a preview only looks)
+        account_handler = {
+            "create_character": self._create_character, "edit_character": self._edit_character,
+            "delete_character": self._delete_character, "pick_character": self._pick_character,
+            "leave_character": self._leave_character,
+        }.get(kind)
+        if account_handler is not None:
+            return account_handler(session, msg)
+        if session.player is None:
+            return session.error("Pick a character first.")
         handler = {
-            "set_name": self._set_name, "move": self._move, "sit": self._sit, "stand": self._stand_msg,
+            "move": self._move, "sit": self._sit, "stand": self._stand_msg,
             "bet": self._table_action, "clear_bets": self._table_action, "rebet": self._table_action, "auto_rebet": self._table_action,
             "ready": self._table_action, "decide": self._table_action, "insure": self._table_action,
             "act": self._table_action, "set_hand": self._table_action, "fold": self._table_action, "claim": self._table_action,
@@ -233,19 +245,161 @@ class Casino:
             return session.error(f"Unknown message type: {kind}")
         handler(session, msg)
 
+    # ------------------------------------------------------------------ accounts and characters
     def _join(self, session: Session, token: str):
-        if session.player is not None:
+        """Who's at the keyboard: the device's account (a new one for a new device), answered with `account` --
+        their characters to pick from. Nobody's on the floor until they pick one."""
+        if session.account is not None:
             return session.error("Already joined.")
-        player = self.store.player_by_token(token) if token else None
-        bar = player and self.store.barred(player.id, time.time())
+        account = self.store.account_by_token(token) if token else None
+        bar = account and self.store.barred(account["id"], time.time())
         if bar:
             return self._barred(session, bar)
-        if player is None:
+        session.account = account or self.store.create_account()
+        self._send_account(session)
+
+    def _send_account(self, session: Session):
+        aid = session.account["id"]
+        online = self.online_players()
+        s = bank.settings(self.store)
+        session.push({"type": "account", "token": session.account["token"], "max": MAX_CHARACTERS,
+                      "characters": [{"id": p.id, "name": p.name, "look": self._look_of(p), "difficulty": p.difficulty,
+                                      "balance": p.balance, "bank": p.bank, "online": p.id in online}
+                                     for p in self.store.characters(aid)],
+                      "difficulties": {d: bank.start_bank(s, d) for d in DIFFICULTIES},
+                      "last": self.store.last_played(aid)})
+
+    @staticmethod
+    def _look_of(player: Player) -> str:
+        """The sheet a character walks about as: its look's id, or the stock one."""
+        if not player.look:
+            return PLAYER_LOOK
+        try:
+            return art.look_id(player.look)
+        except art.ArtError:   # (a piece that's gone from the catalogue since)
+            return PLAYER_LOOK
+
+    def _after_look(self, session: Session, spec: dict | None, then):
+        """Run `then` once the look's sheet is built (straight away if it's built already, or there's no builder):
+        building one takes a moment, so it's done off the event loop."""
+        if not spec or self.looks is None or self.looks.path(art.look_id(spec)):
+            return then()
+        future = asyncio.get_running_loop().run_in_executor(None, self.looks.ensure, spec)
+
+        def done(f):
+            if session not in self.sessions:
+                return
+            if f.exception() is not None:
+                return session.error(f"That look couldn't be made: {f.exception()}")
+            then()
+        future.add_done_callback(done)
+
+    def _mine(self, session: Session, msg: dict) -> Player | None:
+        try:
+            p = self.store.character(int(msg.get("id")))
+        except (TypeError, ValueError):
+            p = None
+        if p is None or p.account_id != session.account["id"]:
+            session.error("No such character.")
+            return None
+        return p
+
+    def _character_fields(self, session: Session, msg: dict, editing: int | None = None) -> tuple[str, dict] | None:
+        """The name and look sent for a character, cleaned, or None (and the reason sent) if they won't do."""
+        name = " ".join(str(msg.get("name") or "").split())[:MAX_NAME]
+        if not name:
+            session.error("Give your character a name.")
+            return None
+        if any(p.name.casefold() == name.casefold() and p.id != editing for p in self.store.characters(session.account["id"])):
+            session.error(f"You already have a character called {name}.")
+            return None
+        look = msg.get("look")
+        if not isinstance(look, dict):
+            session.error("Choose how your character looks.")
+            return None
+        try:
+            look = art.validate(look)
+        except art.ArtError as e:
+            session.error(str(e))
+            return None
+        return name, look
+
+    def _create_character(self, session: Session, msg: dict):
+        if len(self.store.characters(session.account["id"])) >= MAX_CHARACTERS:
+            return session.error(f"You can have {MAX_CHARACTERS} characters: delete one to make another.")
+        difficulty = msg.get("difficulty")
+        if difficulty not in DIFFICULTIES:
+            return session.error("Pick Easy, Normal or Hard.")
+        fields = self._character_fields(session, msg)
+        if fields is None:
+            return
+        name, look = fields
+
+        def create():
+            if len(self.store.characters(session.account["id"])) >= MAX_CHARACTERS:   # (two at once)
+                return session.error(f"You can have {MAX_CHARACTERS} characters: delete one to make another.")
             s = bank.settings(self.store)
-            player = self.store.create_player(bank=s["start_bank"] * 100, hand=s["start_hand"] * 100)
+            p = self.store.create_character(session.account["id"], name, look, difficulty,
+                                            bank=bank.start_bank(s, difficulty), hand=s["start_hand"] * 100)
+            session.push({"type": "character_made", "id": p.id})
+            self._send_account(session)
+        self._after_look(session, look, create)
+
+    def _playing_elsewhere(self, player_id: int) -> list[Session]:
+        return [s for s in self.joined_sessions() if s.player.id == player_id]
+
+    def _edit_character(self, session: Session, msg: dict):
+        p = self._mine(session, msg)
+        if p is None:
+            return
+        if self._playing_elsewhere(p.id):
+            return session.error(f"{p.name} is on the floor: leave first to change them.")
+        fields = self._character_fields(session, msg, editing=p.id)
+        if fields is None:
+            return
+        name, look = fields
+
+        def save():
+            self.store.update_character(p.id, name=name, look=look)
+            self._send_account(session)
+        self._after_look(session, look, save)
+
+    def _delete_character(self, session: Session, msg: dict):
+        p = self._mine(session, msg)
+        if p is None:
+            return
+        if self._playing_elsewhere(p.id):
+            return session.error(f"{p.name} is on the floor: leave first to delete them.")
+        self.store.delete_player(p.id)
+        self._send_account(session)
+
+    def _pick_character(self, session: Session, msg: dict):
+        """Onto the floor as one of their characters. If it's playing somewhere else already it's taken over from
+        there (that window goes back to its character select), unless this is a reconnect (`resume`), which gives
+        way instead."""
+        if session.player is not None:
+            return session.error("You're already playing: leave first.")
+        p = self._mine(session, msg)
+        if p is None:
+            return
+        bar = self.store.barred(p.account_id, time.time())
+        if bar:
+            return self._barred(session, bar)
+        others = self._playing_elsewhere(p.id)
+        if others and msg.get("resume"):
+            session.push({"type": "character_left", "reason": "elsewhere", "name": p.name})
+            return self._send_account(session)
+        for other in others:
+            self._leave(other, "elsewhere")
+        self._after_look(session, p.look, lambda: self._enter(session, p))
+
+    def _enter(self, session: Session, player: Player):
+        if session.player is not None:   # (picked twice while the look was being built)
+            return
         session.player = player
         self._serial += 1
         session.entity_id = f"p{player.id}-{self._serial}"
+        self.store.played(player.id, self.wall())
         self._welcome(session)
         self.send_wallet(session)
         session.push(self.jackpot.snapshot())
@@ -253,25 +407,41 @@ class Casino:
         session.push(self.world.snapshot())
         for runner in self.tables.values():
             session.push(runner.snapshot_for(session))
-        self.world.add(Entity(session.entity_id, "player", player.name, PLAYER_LOOK), at=f"point:{floor.SPAWN}")
+        self.world.add(Entity(session.entity_id, "player", player.name, self._look_of(player)),
+                       at=f"point:{floor.SPAWN}")
+
+    def _leave_character(self, session: Session, msg: dict):
+        if session.player is None:
+            return self._send_account(session)
+        self._leave(session, "switch")
+
+    def _leave(self, session: Session, reason: str):
+        """Off the floor and back to the character select ("switch": they asked; "elsewhere": the character was
+        picked in another window). A hand they're in plays out for the character that sat down."""
+        name = session.player.name
+        if session.table is not None:
+            self._stand(session)
+        if session.entity_id:
+            self.world.remove(session.entity_id)
+        session.player, session.entity_id = None, ""
+        session.push({"type": "character_left", "reason": reason, "name": name})
+        self._send_account(session)
 
     def _join_preview(self, session: Session, token: str, room_id: str):
         """A floor-plan preview (the admin page's Preview button): the draft's floor to walk round alone, with the
         tables shown but not dealt. It has no body on the floor and isn't sent the casino's goings-on."""
-        if session.player is not None:
+        if session.account is not None:
             return session.error("Already joined.")
         if self.preview_world is None:
             return session.error("Previews aren't available here.")
-        player = (self.store.player_by_token(token) if token else None) or Player(0, "", "Preview", 0)
-        session.player, session.preview = player, room_id
+        session.account = {"id": 0, "token": ""}
+        session.player, session.preview = Player(0, 0, "Preview", 0), room_id
         session.entity_id = "preview"
-        self._welcome(session, needs_name=False)
-        session.push({"type": "wallet", "balance": player.balance})
+        self._welcome(session)
+        session.push({"type": "wallet", "balance": 0})
 
-    def _welcome(self, session: Session, needs_name: bool | None = None):
+    def _welcome(self, session: Session):
         player = session.player
-        if needs_name is None:
-            needs_name = player.name.startswith("Guest ")
         if session.preview is not None:
             try:
                 world = self.preview_world(session.preview)
@@ -280,19 +450,21 @@ class Casino:
                 world = plan.world(plan.live())
         else:
             world = plan.world(plan.live())
-        session.push({"type": "welcome", "player": {"id": player.id, "name": player.name},
-                      "token": player.token, "entity_id": session.entity_id, "look": PLAYER_LOOK,
-                      "needs_name": needs_name, "world": world, "preview": session.preview,
-                      "seating": seating.load(self.store), "table_styles": table_styles.load_all(self.store)})
+        session.push({"type": "welcome", "player": {"id": player.id, "name": player.name, "difficulty": player.difficulty},
+                      "entity_id": session.entity_id, "look": self._look_of(player), "world": world,
+                      "preview": session.preview, "seating": seating.load(self.store),
+                      "table_styles": table_styles.load_all(self.store)})
 
     def _resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while
         hidden, up to this marker, so send the whole picture afresh instead of a backlog."""
         session.away = False
         session.push({"type": "resync", "table": session.table, "seat": session.seat})
-        if session.player is None:  # hidden before joining: the hello it dropped
+        if session.account is None:  # hidden before joining: the hello it dropped
             return session.push({"type": "hello", "protocol": PROTOCOL_VERSION})
-        self._welcome(session)      # (in case it was hidden between `join` and `welcome`)
+        if session.player is None:   # at the character select
+            return self._send_account(session)
+        self._welcome(session)      # (in case it was hidden between picking and `welcome`)
         if session.preview is not None:
             return
         self.send_wallet(session)
@@ -301,18 +473,6 @@ class Casino:
         session.push(self.world.snapshot())
         for runner in self.tables.values():
             session.push(runner.snapshot_for(session))
-
-    def _set_name(self, session: Session, msg: dict):
-        name = " ".join(str(msg.get("name") or "").split())[:MAX_NAME]
-        if not name:
-            return session.error("Pick a name with at least one letter.")
-        self.store.set_name(session.player.id, name)
-        session.player.name = name
-        self.world.rename(session.entity_id, name)
-        if session.table is not None:
-            participant = self.tables[session.table].machine.seats[session.seat].participant
-            participant.name = name
-        self._welcome(session, needs_name=False)
 
     def _move(self, session: Session, msg: dict):
         try:

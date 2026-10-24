@@ -1,16 +1,19 @@
-// Players: everyone who's played, from the ledger, in one sortable table, with who's on now. A row opens them on the
-// right: protect them (then nothing here can delete, ban or time them out), time them out, ban them, let them back in,
-// or delete them for good. Their game-by-game figures are on Player stats. Tick several (multi.js) to do any of that
+// Players: every character, from the ledger, in one sortable table, with who's on now. A device's account holds up to
+// three characters; protecting, timing out, banning and letting back in are the account's, so they cover all of them.
+// A row opens the character on the right: protect its account (then nothing here can delete, ban or time it out), time
+// it out, ban it, let it back in, or delete the character or the whole account for good. Their game-by-game figures are on Player stats. Tick several (multi.js) to do any of that
 // to them all at once from the bar over the table; protected players are skipped by anything that would change them.
 import { Picker, each, report } from "/admin-ui/sections/multi.js";
 let H, data = null, sort = {key: "wagered", dir: -1}, q = "", selected = null, pollTimer = null, picker;
 
 const COLS = [
-  ["name", "Player", ""], ["status", "Now", ""], ["balance", "Cash", "num"], ["bank", "Bank", "num"], ["wagered", "Staked", "num"],
+  ["name", "Player", ""], ["difficulty", "Difficulty", ""], ["status", "Now", ""], ["balance", "Cash", "num"], ["bank", "Bank", "num"], ["wagered", "Staked", "num"],
   ["returned", "Returned", "num"], ["net", "Net", "num"], ["bets", "Bets", "num"], ["games", "Games", "num"], ["last_at", "Last played", ""],
 ];
 const TIMEOUTS = [[15, "15 minutes"], [60, "1 hour"], [360, "6 hours"], [1440, "1 day"], [10080, "1 week"]];
 const when = t => new Date(t).toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
+const DIFFICULTY = {easy: "Easy", normal: "Normal", hard: "Hard"};
+const sameDevice = p => data.players.filter(o => o.account_id === p.account_id);   // p and its account's other characters
 
 export function init(h) {
   H = h;
@@ -61,6 +64,7 @@ function draw() {
     const tr = el("tr", {className: "click" + (selected && selected.id === p.id ? " sel" : ""), tabIndex: 0},
       picker.box(p.id, p.name),
       el("td", {}, el("b", {textContent: p.name}), p.protected ? el("span", {className: "tag gold", style: "margin-left: 6px", textContent: "Protected"}) : null),
+      el("td", {textContent: DIFFICULTY[p.difficulty] || p.difficulty}),
       el("td", {className: stCls, textContent: st}),
       el("td", {className: "num", textContent: money(p.balance)}), el("td", {className: "num " + (p.bank < 0 ? "neg" : ""), textContent: money(p.bank)}),
       el("td", {className: "num", textContent: money(p.wagered)}),
@@ -89,15 +93,16 @@ function card() {
     box.replaceChildren(el("div", {className: "ph", textContent: "Player"}), el("p", {className: "empty", textContent: "Pick a player to protect, time out, ban or delete them."}));
     return;
   }
-  const p = selected, locked = p.protected;
+  const p = selected, locked = p.protected, others = sameDevice(p).filter(o => o.id !== p.id);
+  const device = others.length ? `${p.name}'s device (all ${others.length + 1} characters)` : p.name;
   const stat = (label, value, c = "") => el("div", {className: "stat"}, el("small", {textContent: label}), el("b", {className: c, textContent: value}));
   const protect = el("input", {type: "checkbox", id: "pl-protect", checked: p.protected});
   protect.addEventListener("change", () => act("protect", {on: protect.checked},
-    protect.checked ? `${p.name} is protected: nothing here can delete, ban or time them out.` : `${p.name} isn't protected any more.`));
+    protect.checked ? `${device} is protected: nothing here can delete, ban or time them out.` : `${device} isn't protected any more.`));
 
   const sections = [];
   if (p.banned || p.timeout_until) {
-    const lift = el("button", {type: "button", id: "pl-lift", textContent: "Let them back in", disabled: locked, onclick: () => act("lift", undefined, `${p.name} can come back in.`)});
+    const lift = el("button", {type: "button", id: "pl-lift", textContent: "Let them back in", disabled: locked, onclick: () => act("lift", undefined, `${device} can come back in.`)});
     sections.push(el("div", {className: "card"},
       el("b", {className: "neg", textContent: p.banned ? "Banned" : "Timed out till " + when(p.timeout_until * 1000)}),
       p.bar_reason ? el("p", {className: "hint", style: "margin: 4px 0 0", textContent: "Reason: " + p.bar_reason}) : null,
@@ -107,27 +112,31 @@ function card() {
   const length = el("select", {id: "pl-length", disabled: locked}, ...TIMEOUTS.map(([m, t]) => el("option", {value: m, textContent: t, selected: m === 60})));
   const timeout = el("button", {type: "button", id: "pl-timeout", textContent: "Time out", disabled: locked});
   timeout.addEventListener("click", () => act("timeout", {minutes: +length.value, reason: reason.value},
-    `${p.name} is timed out for ${length.selectedOptions[0].textContent}${p.online ? ": they've been sent out" : ""}.`));
+    `${device} is timed out for ${length.selectedOptions[0].textContent}${p.online ? ": they've been sent out" : ""}.`));
   const ban = el("button", {type: "button", className: "danger", id: "pl-ban", textContent: "Ban", disabled: locked || p.banned});
-  ban.addEventListener("click", () => confirm(ban, `Ban ${p.name}? They can't come in until you let them back.`,
-    () => act("ban", {reason: reason.value}, `${p.name} is banned${p.online ? ": they've been sent out" : ""}.`)));
-  const del = el("button", {type: "button", className: "ghost danger", id: "pl-delete", textContent: "Delete for good", disabled: locked});
+  ban.addEventListener("click", () => confirm(ban, `Ban ${device}? They can't come in until you let them back.`,
+    () => act("ban", {reason: reason.value}, `${device} is banned${p.online ? ": they've been sent out" : ""}.`)));
+  const del = el("button", {type: "button", className: "ghost danger", id: "pl-delete", textContent: "Delete character", disabled: locked});
   del.addEventListener("click", () => confirm(del, `Delete ${p.name}, their money and history, for good? This can't be undone.`, remove));
+  const delAll = others.length ? el("button", {type: "button", className: "ghost danger", id: "pl-delete-account", textContent: "Delete the whole account", disabled: locked}) : null;
+  delAll?.addEventListener("click", () => confirm(delAll, `Delete ${p.name}, ${others.map(o => o.name).join(", ")} and the device's account, for good? This can't be undone.`, removeAccount));
   const stats = el("a", {href: "#stats/" + p.id, textContent: "Game by game on Player stats"});
 
   box.replaceChildren(
     el("div", {className: "ph"}, el("b", {textContent: p.name}), p.protected ? el("span", {className: "tag gold", textContent: "Protected"}) : null),
     el("div", {className: "pb padded", style: "display: grid; gap: var(--gap); align-content: start"},
       el("div", {className: "stats"}, stat("Now", statusOf(p)[0] || "Not playing", statusOf(p)[1]), stat("Cash", money(p.balance)), stat("Bank", money(p.bank), p.bank < 0 ? "neg" : ""),
-        stat("Net", signed(p.net), p.net > 0 ? "pos" : p.net < 0 ? "neg" : ""), stat("First came", p.created_at ? when(p.created_at) : "—"), stat("Player no.", p.id)),
+        stat("Net", signed(p.net), p.net > 0 ? "pos" : p.net < 0 ? "neg" : ""), stat("Difficulty", DIFFICULTY[p.difficulty] || p.difficulty),
+        stat("Made", p.created_at ? when(p.created_at) : "—"), stat("Player no.", p.id), stat("Account no.", p.account_id)),
+      el("p", {className: "hint", style: "margin: 0", textContent: others.length ? "Also on this device: " + others.map(o => o.name).join(", ") : "The only character on this device."}),
       stats,
-      el("label", {className: "controls"}, protect, el("span", {}, el("b", {textContent: "Protected"}), el("span", {className: "hint", textContent: " — can't be deleted, banned or timed out (untick first)"}))),
+      el("label", {className: "controls"}, protect, el("span", {}, el("b", {textContent: "Protected"}), el("span", {className: "hint", textContent: " — the device's account: can't be deleted, banned or timed out (untick first)"}))),
       ...sections,
       el("div", {className: "card", style: "display: grid; gap: var(--gap)" + (locked ? "; opacity: .55" : "")},
         el("label", {className: "field"}, el("span", {textContent: "Reason (for a timeout or ban)"}), reason),
         el("div", {className: "controls"}, length, timeout, el("span", {className: "grow", style: "flex: 1"}), ban),
-        el("p", {className: "hint", style: "margin: 0", textContent: "Either sends them out at once if they're playing (a hand they're in plays out without them). Bans and timeouts follow their device's account: a new browser comes in as a new player."})),
-      el("div", {className: "controls"}, del),
+        el("p", {className: "hint", style: "margin: 0", textContent: "Either sends them out at once if they're playing (a hand they're in plays out without them). Bans and timeouts are the device's account's, so they cover every character on it; a new browser comes in as a new account."})),
+      el("div", {className: "controls"}, del, delAll),
       locked ? el("p", {className: "hint", style: "margin: 0", textContent: "Protected: untick Protected to time out, ban or delete them."}) : null));
 }
 
@@ -141,6 +150,15 @@ async function act(what, body, message) {
   try {
     await H.api("POST", `/api/players/${selected.id}/${what}`, body ?? {});
     H.status(message, "ok");
+  } catch (e) { H.status(e.message, "warn"); }
+  await load(true);
+}
+async function removeAccount() {
+  const names = sameDevice(selected).map(o => o.name).join(", ");
+  try {
+    await H.api("DELETE", "/api/accounts/" + selected.account_id);
+    selected = null;
+    H.status(`Deleted ${names} and their account for good.`, "ok");
   } catch (e) { H.status(e.message, "warn"); }
   await load(true);
 }

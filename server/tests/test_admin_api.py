@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-from conftest import recv_until  # noqa: F401  (the client fixture lives in conftest)
+from conftest import enter, recv_until  # noqa: F401  (the client fixture lives in conftest)
 
 ADMIN_WEB = Path(__file__).resolve().parents[1] / "casino_server" / "admin_web"
 
@@ -63,8 +63,7 @@ def test_settings_and_players(client):
     assert r.status_code == 200 and r.json()["population"] == 9 and r.json()["cooldown_min"] == [10, 20]
     assert client.put("/api/npc-settings", json={"population": 99}).status_code == 400
     with client.websocket_connect("/ws") as ws:
-        ws.send_json({"type": "join", "token": ""})
-        recv_until(ws, "welcome")
+        enter(ws)
     players = client.get("/api/players").json()["players"]
     assert players and players[0]["wagered"] == 0 and "net" in players[0]
 

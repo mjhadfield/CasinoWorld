@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from casino_server import PROTOCOL_VERSION
 from casino_server.app import app
 
-from conftest import recv_until, rig
+from conftest import LOOK, enter, recv_until, rig
 
 TABLE = "tcp_1"
 STARTING_BALANCE = 100_000   # the test client's new players' cash in hand (conftest)
@@ -13,10 +13,10 @@ STARTING_BALANCE = 100_000   # the test client's new players' cash in hand (conf
 CODES = ["Ks", "Kd", "4c", "Qh", "9s", "3d"]
 
 
-def join(ws, token=""):
+def join(ws, token="", name="Tester"):
+    """Onto the floor as the account's first character (made, if it has none)."""
     assert ws.receive_json() == {"type": "hello", "protocol": PROTOCOL_VERSION}
-    ws.send_json({"type": "join", "token": token})
-    welcome = recv_until(ws, "welcome")
+    _, welcome = enter(ws, token, name=name)
     wallet = recv_until(ws, "wallet")
     jackpot = recv_until(ws, "jackpot")
     world = recv_until(ws, "world_snapshot")
@@ -31,34 +31,41 @@ def sit(ws, seat=0, table=TABLE):
 
 def test_join_sends_everything_and_token_remembers_player(client):
     with client.websocket_connect("/ws") as ws:
-        welcome, wallet, jackpot, world, tables = join(ws)
-        assert wallet["balance"] == STARTING_BALANCE and welcome["needs_name"]
+        assert ws.receive_json()["type"] == "hello"
+        ws.send_json({"type": "join", "token": ""})
+        account = recv_until(ws, "account")
+        assert account["characters"] == [] and account["max"] == 3 and account["last"] is None
+        token = account["token"]
+        ws.send_json({"type": "create_character", "name": "Tester", "look": LOOK, "difficulty": "normal"})
+        made = recv_until(ws, "character_made")["id"]
+        ws.send_json({"type": "pick_character", "id": made})
+        welcome = recv_until(ws, "welcome")
+        wallet = recv_until(ws, "wallet")
+        jackpot = recv_until(ws, "jackpot")
+        world = recv_until(ws, "world_snapshot")
+        tables = [recv_until(ws, "table_state"), recv_until(ws, "table_state")]
+        assert wallet["balance"] == STARTING_BALANCE and welcome["look"].startswith("x_")
         assert welcome["entity_id"].startswith(f"p{welcome['player']['id']}-")
         assert jackpot["rate"] > 0 and world["entities"] == []
         assert {t["table"] for t in tables} == {"tcp_1", "bj_1"}
         assert tables[0]["phase"] == "betting" and len(tables[0]["seats"]) == 6
         spawn = recv_until(ws, "entity_spawn")
         assert spawn["entity"]["id"] == welcome["entity_id"] and spawn["at"] == "point:classic_floor/spawn"
-        token, player_id = welcome["token"], welcome["player"]["id"]
+        assert spawn["entity"]["look"] == welcome["look"]
+        player_id = welcome["player"]["id"]
     with client.websocket_connect("/ws") as ws:
         welcome, *_ = join(ws, token)
         assert welcome["player"]["id"] == player_id
 
 
-def test_set_name_and_presence_between_two_players(client):
+def test_presence_between_two_players(client):
     with client.websocket_connect("/ws") as a, client.websocket_connect("/ws") as b:
-        wa, *_ = join(a)
+        wa, *_ = join(a, name="Mike H")
         wb, _, _, world_b, _ = join(b)
-        assert [e["id"] for e in world_b["entities"]] == [wa["entity_id"]]
-        a.send_json({"type": "set_name", "name": "  Mike   H  "})
-        assert recv_until(a, "welcome")["player"]["name"] == "Mike H"
-        update = recv_until(b, "entity_update")
-        assert update == {"type": "entity_update", "id": wa["entity_id"], "name": "Mike H"}
+        assert [(e["id"], e["name"]) for e in world_b["entities"]] == [(wa["entity_id"], "Mike H")]
         a.send_json({"type": "move", "x": 120.5, "y": 300, "dir": "left", "anim": "walk"})
         move = recv_until(b, "entity_move")
         assert (move["x"], move["y"], move["dir"], move["anim"]) == (120.5, 300, "left", "walk")
-        a.send_json({"type": "set_name", "name": "   "})
-        assert recv_until(a, "error")
     with client.websocket_connect("/ws") as c:
         _, _, _, world, _ = join(c)
         assert world["entities"] == []  # both earlier players have left
@@ -226,12 +233,13 @@ def test_away_pauses_messages_and_resync_sends_fresh_state(client):
         wa, *_ = join(a)
         join(b)
         a.send_json({"type": "away"})
-        time.sleep(0.2)                       # (b's rename below must land after a went away)
-        b.send_json({"type": "set_name", "name": "Bea"})
-        recv_until(b, "welcome")
+        time.sleep(0.2)                       # (b's move below must land after a went away)
+        b.send_json({"type": "move", "x": 50, "y": 60, "dir": "up", "anim": "walk"})
+        b.send_json({"type": "ping", "t": 2})
+        recv_until(b, "pong")
         a.send_json({"type": "resync"})
         before, marker = _until_resync(a)
-        assert not any(m["type"] == "entity_update" for m in before)  # nothing was sent while away
+        assert not any(m["type"] == "entity_move" for m in before)  # nothing was sent while away
         assert marker == {"type": "resync", "table": None, "seat": None}
         assert [a.receive_json()["type"] for _ in range(5)] == ["welcome", "wallet", "jackpot", "slot_jackpots", "world_snapshot"]
         assert {a.receive_json()["table"] for _ in range(2)} == {"tcp_1", "bj_1"}
@@ -259,7 +267,7 @@ def test_resync_before_join_sends_hello_again(client):
         _until_resync(ws)
         assert ws.receive_json() == {"type": "hello", "protocol": PROTOCOL_VERSION}
         ws.send_json({"type": "join", "token": ""})
-        assert recv_until(ws, "welcome")["needs_name"]
+        assert recv_until(ws, "account")["characters"] == []
 
 
 def test_lan_http_redirects_to_https_but_localhost_does_not():

@@ -88,7 +88,7 @@ class TableRunner:
                     session.push(self.snapshot_for(session))
             # Money moved by this event: new balances follow the event that explains them.
             for participant in event.get("_paid", []):
-                if participant.is_human and participant.session in self.casino.sessions:
+                if participant.is_human and participant.here:
                     self.casino.send_wallet(participant.session)
 
     def _add_nets(self, event: dict):

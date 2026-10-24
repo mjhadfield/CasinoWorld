@@ -9,6 +9,8 @@ a whole `big_step` (£2,000 → £1,000, £3,500 → £1,000, £6,700 → £3,00
 bigger one is any withdrawal over `low_cap`. The bank may go overdrawn without limit, but while it is you can withdraw
 only once every `cooldown_min` minutes (the withdrawal that first takes it overdrawn is allowed, and starts the clock).
 Deposits are any amount you hold. Settings are whole pounds (minutes for the wait), kept in meta `bank_settings`.
+A new character's bank depends on the difficulty picked for it (`start_bank` is Normal's); the ATM's rules are the
+same for every difficulty.
 
 An ATM is any library asset with `"interact": "atm"` (the Modern lobby's cash machine); you use one on foot,
 standing in front of it.
@@ -20,8 +22,10 @@ from casino_server import plan
 NOTE = 5_000            # £50: withdrawals are in these
 REACH = 64.0            # how near an ATM's base you must be (the client offers it from nearer; this allows for lag)
 DEFAULT_SETTINGS = {
-    "start_bank": 1000,     # a new player's bank, £
-    "start_hand": 0,        # and cash in hand, £
+    "start_bank": 1000,     # a new character's bank on Normal, £
+    "start_bank_easy": 5000,  # ...on Easy
+    "start_bank_hard": 250,   # ...on Hard
+    "start_hand": 0,        # and cash in hand (any difficulty), £
     "hand_under": 500,      # withdrawals only while holding less than this, £
     "low_cap": 250,         # the most a withdrawal, £...
     "threshold": 2000,      # ...unless the bank's at least this, £, when one withdrawal...
@@ -31,6 +35,8 @@ DEFAULT_SETTINGS = {
 }
 _LIMITS = {   # key -> (lowest, highest, what it is)
     "start_bank": (-1_000_000, 1_000_000, "The starting bank"),
+    "start_bank_easy": (-1_000_000, 1_000_000, "The Easy starting bank"),
+    "start_bank_hard": (-1_000_000, 1_000_000, "The Hard starting bank"),
     "start_hand": (0, 1_000_000, "The starting cash in hand"),
     "hand_under": (0, 1_000_000, "The cash-in-hand limit"),
     "low_cap": (50, 1_000_000, "A withdrawal limit"),
@@ -44,6 +50,11 @@ _LIMITS = {   # key -> (lowest, highest, what it is)
 def settings(store) -> dict:
     saved = store.get_json("bank_settings", {})
     return {**DEFAULT_SETTINGS, **{k: v for k, v in saved.items() if k in DEFAULT_SETTINGS}}
+
+
+def start_bank(s: dict, difficulty: str) -> int:
+    """A new character's starting bank for that difficulty, in pence."""
+    return {"easy": s["start_bank_easy"], "hard": s["start_bank_hard"]}.get(difficulty, s["start_bank"]) * 100
 
 
 def clean_settings(data: dict) -> dict:

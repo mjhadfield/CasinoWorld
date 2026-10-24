@@ -27,7 +27,9 @@ class Participant:
 
 class HumanParticipant(Participant):
     """A connected player: money goes through the SQLite wallet and ledger. The
-    runner sends their new balance after the table event that moved the money."""
+    runner sends their new balance after the table event that moved the money.
+    It keeps the character it sat down as: a hand that finishes after they've
+    switched character (or left) still pays that one."""
     is_human = True
 
     def __init__(self, session, casino, game: str):
@@ -35,29 +37,36 @@ class HumanParticipant(Participant):
         self.casino = casino
         self.game = game
         self.entity_id = session.entity_id
+        self.player_id = session.player.id
         self.name = session.player.name
 
     @property
+    def here(self) -> bool:
+        """Still connected as the character that sat down (so their wallet's worth sending)."""
+        s = self.session
+        return s in self.casino.sessions and s.player is not None and s.player.id == self.player_id
+
+    @property
     def balance(self) -> int:
-        return self.casino.store.balance(self.session.player.id)
+        return self.casino.store.balance(self.player_id)
 
     def debit(self, amount, note):
         from casino_server.store import InsufficientFunds
         if amount <= 0:
             return True
         try:
-            self.casino.store.adjust(self.session.player.id, -amount, "bet", self.game, note)
+            self.casino.store.adjust(self.player_id, -amount, "bet", self.game, note)
         except InsufficientFunds:
             return False
         return True
 
     def credit(self, amount, note):
         if amount > 0:
-            self.casino.store.adjust(self.session.player.id, amount, "payout", self.game, note)
+            self.casino.store.adjust(self.player_id, amount, "payout", self.game, note)
 
     def refund(self, amount, note):
         if amount > 0:   # a "bet" row the other way: it takes the stake back off what they've wagered
-            self.casino.store.adjust(self.session.player.id, amount, "bet", self.game, note)
+            self.casino.store.adjust(self.player_id, amount, "bet", self.game, note)
 
 
 class NpcParticipant(Participant):
@@ -110,6 +119,10 @@ class BoxParticipant(Participant):
     @property
     def session(self):
         return self.owner.session
+
+    @property
+    def here(self) -> bool:
+        return self.owner.here
 
     @property
     def balance(self) -> int:

@@ -101,10 +101,15 @@ game result and every penny is decided on the server; the client only renders an
 
 ### Storage and money
 
-`store.py` is SQLite (WAL, so a commit on the event loop costs microseconds; copy it with `.backup`): players (one per device token), balances in integer pence, a ledger row for every
+`store.py` is SQLite (WAL, so a commit on the event loop costs microseconds; copy it with `.backup`): accounts (one per device token, holding the ban, timeout and Protected state), their characters (the `players` table, up to three an account, each with a name, a look spec, a difficulty and its own money), balances in integer pence, a ledger row for every
 change in the same transaction (so balances always reconcile), the roster, and a `meta` table.
 
-A player has two balances. **Cash in hand** (`players.balance`) is what every table bets from and what the HUD's
+A session joins as an account and then picks a character (`Session.account`, then `Session.player`); only a
+picked character is on the floor. The ledger, the ATM and the stats all key on the character. A `HumanParticipant`
+remembers the character that sat down, so a hand that finishes after a switch pays that one. A new character's bank
+comes from the difficulty picked for it (`bank.start_bank`); nothing else about the game changes with difficulty.
+
+A character has two balances. **Cash in hand** (`players.balance`) is what every table bets from and what the HUD's
 top left shows. The **bank** (`players.bank`) can go overdrawn. Money moves between them only at the lobby's ATM
 (`bank.py`, `Store.transfer`), which writes a ledger row per account (`ledger.account` is `hand` or `bank`), and
 the ATM's rules are the admin page's Bank settings: new players' starting bank and cash, withdrawals in £50 notes
@@ -242,5 +247,5 @@ A Godot 4.7 project exported to the web.
 - Interactive objects on the floor plan beyond the ATM: an asset's `interact` has only the one kind, and the admin
   page's asset editor doesn't set it (the build script for the Modern lobby's pieces does).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
-- Customising your own look, chat and emotes.
+- Chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.

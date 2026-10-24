@@ -1,8 +1,11 @@
 """
-SQLite persistence: players (identified by a per-device token), their money,
-a ledger of every balance change, and the progressive jackpot.
+SQLite persistence: accounts (one per device, by its token), their characters (the `players` table: up to
+MAX_CHARACTERS each), the characters' money, a ledger of every balance change, and the progressive jackpot.
 
-A player has cash in hand (`balance`: what they bet with, and what the game's
+An account is who's at the keyboard: bans, timeouts and the admin page's Protected belong to it, so they cover
+all its characters. A character is who walks the floor: a name, a look, a difficulty and its own money and stats.
+
+A character has cash in hand (`balance`: what they bet with, and what the game's
 top-left shows) and a bank balance (`bank`, which may go overdrawn), and the
 lobby's ATM moves money between them (bank.py's rules, transfer() here).
 
@@ -17,23 +20,33 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-STARTING_BANK = 100_000  # £1,000 (new players get bank.py's setting; this is its default, and what existing
+STARTING_BANK = 100_000  # £1,000 (new characters get bank.py's setting; this is its default, and what existing
                          # players were given when the bank arrived)
+MAX_CHARACTERS = 3       # per account
+DIFFICULTIES = ("easy", "normal", "hard")
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS players (
+CREATE TABLE IF NOT EXISTS accounts (
     id         INTEGER PRIMARY KEY,
-    token      TEXT    NOT NULL UNIQUE,
+    token      TEXT    NOT NULL UNIQUE,    -- the device's
+    created_at TEXT    NOT NULL,
+    protected  INTEGER NOT NULL DEFAULT 0, -- the admin page won't delete, ban or time them out
+    banned     INTEGER NOT NULL DEFAULT 0,
+    timeout_until REAL,                    -- unix time a timeout ends
+    bar_reason TEXT                        -- shown to them with a ban or timeout
+);
+CREATE TABLE IF NOT EXISTS players (      -- the characters
+    id         INTEGER PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
     name       TEXT    NOT NULL,
     balance    INTEGER NOT NULL,           -- cash in hand
     created_at TEXT    NOT NULL,
     bank       INTEGER NOT NULL DEFAULT 0, -- may be negative (overdrawn)
     last_withdraw_at REAL,                 -- unix time of the last ATM withdrawal
     last_big_at      REAL,                 -- and of the last one over the usual limit (bank.py)
-    protected  INTEGER NOT NULL DEFAULT 0, -- the admin page won't delete, ban or time them out
-    banned     INTEGER NOT NULL DEFAULT 0,
-    timeout_until REAL,                    -- unix time a timeout ends
-    bar_reason TEXT                        -- shown to them with a ban or timeout
+    look       TEXT,                       -- JSON look spec (art.py); NULL: the stock player_default sheet
+    difficulty TEXT    NOT NULL DEFAULT 'normal',   -- 'easy' | 'normal' | 'hard': what the bank started with
+    last_played_at REAL                    -- unix time it was last picked
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY,
@@ -103,13 +116,16 @@ class InsufficientFunds(Exception):
 
 @dataclass
 class Player:
+    """A character."""
     id: int
-    token: str
+    account_id: int
     name: str
     balance: int                  # cash in hand
     bank: int = 0
     last_withdraw_at: float | None = None
     last_big_at: float | None = None
+    look: dict | None = None      # the spec; None: player_default
+    difficulty: str = "normal"
 
 
 def _now() -> str:
@@ -130,15 +146,54 @@ class Store:
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
         self._add_bank()
-        added = {"players": {"last_big_at": "REAL", "protected": "INTEGER NOT NULL DEFAULT 0",
-                             "banned": "INTEGER NOT NULL DEFAULT 0", "timeout_until": "REAL", "bar_reason": "TEXT"},
-                 "npcs": {"archived_at": "TEXT"}}
+        added = {"npcs": {"archived_at": "TEXT"}}
+        if "token" in self._columns("players"):   # (from before accounts: its columns that came later, for the move)
+            added["players"] = {"last_big_at": "REAL", "protected": "INTEGER NOT NULL DEFAULT 0",
+                                "banned": "INTEGER NOT NULL DEFAULT 0", "timeout_until": "REAL", "bar_reason": "TEXT"}
         for table, columns in added.items():   # columns that came after the table did
-            have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
+            have = self._columns(table)
             for name, decl in columns.items():
                 if name not in have:
                     self.db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
         self.db.commit()
+        self._add_accounts(path)
+        self.db.execute("CREATE INDEX IF NOT EXISTS players_account ON players(account_id)")
+        self.db.commit()
+
+    def _columns(self, table: str) -> set[str]:
+        return {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
+
+    def _add_accounts(self, path: Path):
+        """A database from before characters (a player per device token): back it up beside itself as
+        <name>.pre-characters.sqlite, then give each player an account holding its token and bar state, and make
+        it that account's one Normal character, keeping its id (so the ledger and stats carry on)."""
+        if "token" not in self._columns("players"):
+            return
+        backup = path.with_name(f"{path.stem}.pre-characters.sqlite")
+        if not backup.exists():
+            dest = sqlite3.connect(backup)
+            self.db.backup(dest)
+            dest.close()
+        self.db.execute("PRAGMA foreign_keys = OFF")   # (the ledger points at players while it's rebuilt)
+        try:
+            with self.db:
+                self.db.execute("INSERT INTO accounts (id, token, created_at, protected, banned, timeout_until, bar_reason)"
+                                " SELECT id, token, created_at, protected, banned, timeout_until, bar_reason FROM players")
+                self.db.execute("""CREATE TABLE players_new (
+                    id INTEGER PRIMARY KEY, account_id INTEGER NOT NULL REFERENCES accounts(id), name TEXT NOT NULL,
+                    balance INTEGER NOT NULL, created_at TEXT NOT NULL, bank INTEGER NOT NULL DEFAULT 0,
+                    last_withdraw_at REAL, last_big_at REAL, look TEXT, difficulty TEXT NOT NULL DEFAULT 'normal',
+                    last_played_at REAL)""")
+                self.db.execute("INSERT INTO players_new (id, account_id, name, balance, created_at, bank, last_withdraw_at,"
+                                " last_big_at) SELECT id, id, name, balance, created_at, bank, last_withdraw_at, last_big_at"
+                                " FROM players")
+                self.db.execute("DROP TABLE players")
+                self.db.execute("ALTER TABLE players_new RENAME TO players")
+                bad = self.db.execute("PRAGMA foreign_key_check").fetchall()
+                if bad:
+                    raise sqlite3.IntegrityError(f"moving players to accounts broke {len(bad)} references")
+        finally:
+            self.db.execute("PRAGMA foreign_keys = ON")
 
     def _add_bank(self):
         """A database from before the bank: add its columns, and give everyone already playing the starting bank
@@ -157,32 +212,72 @@ class Store:
     def close(self):
         self.db.close()
 
-    # ------------------------------------------------------------------ players
-    def player_by_token(self, token: str) -> Player | None:
-        row = self.db.execute("SELECT id, token, name, balance, bank, last_withdraw_at, last_big_at FROM players"
-                              " WHERE token = ?",
-                              (token,)).fetchone()
-        return Player(**dict(row)) if row else None
+    # ------------------------------------------------------------------ accounts and characters
+    def account_by_token(self, token: str) -> dict | None:
+        row = self.db.execute("SELECT id, token FROM accounts WHERE token = ?", (token,)).fetchone()
+        return dict(row) if row else None
 
-    def create_player(self, name: str = "", bank: int = STARTING_BANK, hand: int = 0) -> Player:
+    def create_account(self) -> dict:
         token = secrets.token_urlsafe(24)
         with self.db:
+            self.db.execute("INSERT INTO accounts (token, created_at) VALUES (?, ?)", (token, _now()))
+        return self.account_by_token(token)
+
+    _CHARACTER = "id, account_id, name, balance, bank, last_withdraw_at, last_big_at, look, difficulty"
+
+    def _character(self, row) -> Player:
+        d = dict(row)
+        d["look"] = json.loads(d["look"]) if d["look"] else None
+        return Player(**d)
+
+    def character(self, player_id: int) -> Player | None:
+        row = self.db.execute(f"SELECT {self._CHARACTER} FROM players WHERE id = ?", (player_id,)).fetchone()
+        return self._character(row) if row else None
+
+    def characters(self, account_id: int) -> list[Player]:
+        """An account's characters, oldest first."""
+        return [self._character(r) for r in self.db.execute(
+            f"SELECT {self._CHARACTER} FROM players WHERE account_id = ? ORDER BY id", (account_id,))]
+
+    def last_played(self, account_id: int) -> int | None:
+        row = self.db.execute("SELECT id FROM players WHERE account_id = ? AND last_played_at IS NOT NULL"
+                              " ORDER BY last_played_at DESC LIMIT 1", (account_id,)).fetchone()
+        return row[0] if row else None
+
+    def create_character(self, account_id: int, name: str, look: dict | None = None, difficulty: str = "normal",
+                         bank: int = STARTING_BANK, hand: int = 0) -> Player:
+        """A new character, with its starting bank (and cash in hand) on the ledger."""
+        with self.db:
             cur = self.db.execute(
-                "INSERT INTO players (token, name, balance, bank, created_at) VALUES (?, ?, 0, ?, ?)",
-                (token, name or "Guest", bank, _now()))
+                "INSERT INTO players (account_id, name, balance, bank, created_at, look, difficulty)"
+                " VALUES (?, ?, 0, ?, ?, ?, ?)",
+                (account_id, name, bank, _now(), json.dumps(look, sort_keys=True) if look else None, difficulty))
             player_id = cur.lastrowid
-            if not name:
-                self.db.execute("UPDATE players SET name = ? WHERE id = ?", (f"Guest {player_id}", player_id))
             self.db.execute(
                 "INSERT INTO ledger (player_id, at, kind, amount, balance_after, account) VALUES (?, ?, 'start', ?, ?, 'bank')",
                 (player_id, _now(), bank, bank))
         if hand:
             self.adjust(player_id, hand, "start")
-        return self.player_by_token(token)
+        return self.character(player_id)
 
-    def set_name(self, player_id: int, name: str):
+    def create_player(self, name: str = "", bank: int = STARTING_BANK, hand: int = 0) -> Player:
+        """A new account with one character (named "Guest <id>" when no name's given): for tests and tools."""
+        account = self.create_account()
+        p = self.create_character(account["id"], name or "Guest", bank=bank, hand=hand)
+        if not name:
+            self.update_character(p.id, name=f"Guest {p.id}")
+        return self.character(p.id)
+
+    def update_character(self, player_id: int, name: str | None = None, look: dict | None = None):
         with self.db:
-            self.db.execute("UPDATE players SET name = ? WHERE id = ?", (name, player_id))
+            if name is not None:
+                self.db.execute("UPDATE players SET name = ? WHERE id = ?", (name, player_id))
+            if look is not None:
+                self.db.execute("UPDATE players SET look = ? WHERE id = ?", (json.dumps(look, sort_keys=True), player_id))
+
+    def played(self, player_id: int, now: float):
+        with self.db:
+            self.db.execute("UPDATE players SET last_played_at = ? WHERE id = ?", (now, player_id))
 
     # A player deleted on the admin page may still have a hand finishing at a table: their balance reads 0 and
     # money moves for them are dropped (adjust), rather than failing the table.
@@ -279,54 +374,73 @@ class Store:
         return pence
 
     # ------------------------------------------------------------------ player management (the admin page)
-    _PLAYER_ADMIN = "id, name, created_at, protected, banned, timeout_until, bar_reason"
+    # Protected, bans and timeouts are the account's: they cover every character on that device.
+    _PLAYER_ADMIN = ("p.id, p.name, p.created_at, p.account_id, p.difficulty, a.protected, a.banned, a.timeout_until,"
+                     " a.bar_reason, (SELECT COUNT(*) FROM players q WHERE q.account_id = p.account_id) AS characters")
 
     def player(self, player_id: int) -> dict | None:
-        row = self.db.execute(f"SELECT {self._PLAYER_ADMIN} FROM players WHERE id = ?", (player_id,)).fetchone()
+        row = self.db.execute(f"SELECT {self._PLAYER_ADMIN} FROM players p JOIN accounts a ON a.id = p.account_id"
+                              " WHERE p.id = ?", (player_id,)).fetchone()
         return {**dict(row), "protected": bool(row["protected"]), "banned": bool(row["banned"])} if row else None
 
-    def barred(self, player_id: int, now: float) -> dict | None:
-        """{kind: "ban" | "timeout", until (unix time or None), reason} while they're kept out, else None."""
-        p = self.player(player_id)
-        if p is None:
+    def account(self, account_id: int) -> dict | None:
+        row = self.db.execute("SELECT id, created_at, protected, banned, timeout_until, bar_reason FROM accounts"
+                              " WHERE id = ?", (account_id,)).fetchone()
+        return {**dict(row), "protected": bool(row["protected"]), "banned": bool(row["banned"])} if row else None
+
+    def barred(self, account_id: int, now: float) -> dict | None:
+        """{kind: "ban" | "timeout", until (unix time or None), reason} while the account's kept out, else None."""
+        a = self.account(account_id)
+        if a is None:
             return None
-        if p["banned"]:
-            return {"kind": "ban", "until": None, "reason": p["bar_reason"] or ""}
-        if p["timeout_until"] and p["timeout_until"] > now:
-            return {"kind": "timeout", "until": p["timeout_until"], "reason": p["bar_reason"] or ""}
+        if a["banned"]:
+            return {"kind": "ban", "until": None, "reason": a["bar_reason"] or ""}
+        if a["timeout_until"] and a["timeout_until"] > now:
+            return {"kind": "timeout", "until": a["timeout_until"], "reason": a["bar_reason"] or ""}
         return None
 
-    def set_protected(self, player_id: int, on: bool):
+    def set_protected(self, account_id: int, on: bool):
         with self.db:
-            self.db.execute("UPDATE players SET protected = ? WHERE id = ?", (int(on), player_id))
+            self.db.execute("UPDATE accounts SET protected = ? WHERE id = ?", (int(on), account_id))
 
-    def set_bar(self, player_id: int, banned: bool = False, until: float | None = None, reason: str | None = None):
-        """Ban them, time them out till `until`, or (neither) let them back in."""
+    def set_bar(self, account_id: int, banned: bool = False, until: float | None = None, reason: str | None = None):
+        """Ban the account, time it out till `until`, or (neither) let it back in."""
         with self.db:
-            self.db.execute("UPDATE players SET banned = ?, timeout_until = ?, bar_reason = ? WHERE id = ?",
-                            (int(banned), until, reason or None, player_id))
+            self.db.execute("UPDATE accounts SET banned = ?, timeout_until = ?, bar_reason = ? WHERE id = ?",
+                            (int(banned), until, reason or None, account_id))
 
     def delete_player(self, player_id: int):
-        """Gone for good, with their ledger."""
+        """A character gone for good, with its ledger (the account stays)."""
         with self.db:
             self.db.execute("DELETE FROM ledger WHERE player_id = ?", (player_id,))
             self.db.execute("DELETE FROM players WHERE id = ?", (player_id,))
 
+    def delete_account(self, account_id: int):
+        """An account and all its characters gone for good."""
+        with self.db:
+            self.db.execute("DELETE FROM ledger WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
+                            (account_id,))
+            self.db.execute("DELETE FROM players WHERE account_id = ?", (account_id,))
+            self.db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+
     def player_stats(self) -> list[dict]:
-        """Every player's lifetime figures from the ledger: staked, returned, net, last
-        activity, and the same per game."""
+        """Every character's lifetime figures from the ledger: staked, returned, net, last
+        activity, and the same per game (with its account's bar state)."""
         rows = self.db.execute("""
-            SELECT p.id, p.name, p.balance, p.bank, p.created_at, p.protected, p.banned, p.timeout_until, p.bar_reason, l.game,
+            SELECT p.id, p.name, p.balance, p.bank, p.created_at, p.account_id, p.difficulty,
+                   a.protected, a.banned, a.timeout_until, a.bar_reason, l.game,
                    COALESCE(SUM(CASE WHEN l.kind = 'bet' THEN -l.amount END), 0) AS wagered,
                    COALESCE(SUM(CASE WHEN l.kind = 'payout' THEN l.amount END), 0) AS returned,
                    COUNT(CASE WHEN l.kind = 'bet' AND l.amount < 0 THEN 1 END) AS bets,
                    MAX(l.at) AS last_at
-            FROM players p LEFT JOIN ledger l ON l.player_id = p.id
+            FROM players p JOIN accounts a ON a.id = p.account_id LEFT JOIN ledger l ON l.player_id = p.id
             GROUP BY p.id, l.game ORDER BY p.id""").fetchall()
         players: dict[int, dict] = {}
         for r in rows:
             p = players.setdefault(r["id"], {"id": r["id"], "name": r["name"], "balance": r["balance"],
-                                             "bank": r["bank"], "created_at": r["created_at"], "protected": bool(r["protected"]),
+                                             "bank": r["bank"], "created_at": r["created_at"],
+                                             "account_id": r["account_id"], "difficulty": r["difficulty"],
+                                             "protected": bool(r["protected"]),
                                              "banned": bool(r["banned"]), "timeout_until": r["timeout_until"],
                                              "bar_reason": r["bar_reason"], "wagered": 0, "returned": 0, "bets": 0,
                                              "last_at": None, "games": {}})

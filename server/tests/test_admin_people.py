@@ -5,7 +5,7 @@ import time
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from conftest import recv_until
+from conftest import enter, recv_until
 
 LOOK = {"body": "female", "skin": "olive", "hair": ["bob", "black"], "top": ["tshirt", "teal"],
         "bottom": ["pants", "navy"], "shoes": ["shoes", "black"]}
@@ -98,10 +98,11 @@ def test_built_in_roles_can_change_uniform(client):
 
 # ---------------------------------------------------------------- players
 def _join(client, token=""):
+    """On the floor as the account's first character: (socket, welcome with the account's token added)."""
     ws = client.websocket_connect("/ws")
     ws.__enter__()
-    ws.send_json({"type": "join", "token": token})
-    return ws, recv_until(ws, "welcome")
+    account, welcome = enter(ws, token)
+    return ws, {**welcome, "token": account["token"]}
 
 
 def test_a_banned_player_is_sent_off_and_kept_out(client):
@@ -135,7 +136,7 @@ def test_a_timeout_runs_out(client):
         msg = recv_until(again, "barred")
         assert msg["kind"] == "timeout" and 590 <= msg["retry_in"] <= 600
     store = client.app.state.casino.store
-    store.set_bar(pid, until=time.time() - 1)
+    store.set_bar(store.character(pid).account_id, until=time.time() - 1)
     ws, welcome = _join(client, token)
     assert welcome["player"]["id"] == pid
     ws.__exit__(None, None, None)

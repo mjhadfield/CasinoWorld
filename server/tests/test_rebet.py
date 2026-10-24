@@ -150,7 +150,7 @@ def test_npcs_get_their_bets_down_inside_a_rebet_countdown(tmp_path):
         casino.tables = {table: runner}   # the only table on the floor, so its seats fill whatever the NPCs fancy
         m = runner.machine
         mike = FakeParticipant("Mike")
-        mike.session = None
+        mike.session, mike.here = None, False
         rebet_at = None
         for _ in range(20_000):
             now[0] += 0.2

@@ -108,7 +108,7 @@ def test_existing_players_keep_their_balance_as_cash_and_get_the_starting_bank(t
     db.commit()
     db.close()
     store = Store(tmp_path / "old.sqlite")
-    p = store.player_by_token("tok")
+    p = store.characters(store.account_by_token("tok")["id"])[0]
     assert (p.balance, p.bank) == (234_000, STARTING_BANK) and reconciles(store, p.id)
     store.close()
     store = Store(tmp_path / "old.sqlite")   # and only once

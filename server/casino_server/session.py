@@ -19,7 +19,8 @@ class Session:
         except RuntimeError:
             self._loop = None
         self._loop_thread = threading.get_ident()
-        self.player: Player | None = None
+        self.account: dict | None = None  # {id, token}: set by `join`
+        self.player: Player | None = None  # the character they're playing: set by `pick_character`
         self.entity_id: str = ""
         self.table: str | None = None  # table id while seated
         self.seat: int | None = None

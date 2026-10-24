@@ -1119,12 +1119,11 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
         from casino_server.tables.slot_machine import SlotMachine, Timings
         from tests.test_machine import FakeParticipant
         from tests.test_slot_machine import FakeStore
+        from tests.conftest import enter
         cab_m = SlotMachine("demo_t", 1, Timings.instant(), variant="demo", progressives=jackpots.SlotProgressives(FakeStore()), rng=mulberry32(3))
         cab_m.sit(0, FakeParticipant("Ann", balance=100_000), 0.0)
         assert cab_m.spin(0, 100, now=0.0)[0]["kind"] == "spin"
         with c2.websocket_connect("/ws") as ws:
-            assert ws.receive_json()["type"] == "hello"
-            ws.send_json({"type": "join", "token": ""})
-            welcome = next(m for m in iter(ws.receive_json, None) if m.get("type") == "welcome")
+            welcome = enter(ws, hello=True)[1]
             assert [i["id"] for r in welcome["world"]["rooms"] for i in r["items"] if i["asset"] == "slot"][-4:] == ["slot_11", "slot_12", "slot_13", "slot_14"]
     slot_builds.install(tmp_path / "nothing")   # leave the module state as the other tests expect

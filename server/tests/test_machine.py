@@ -11,6 +11,7 @@ from conftest import RiggedDeck
 
 
 class FakeParticipant:
+    here = True   # (connected as who sat down: the runner sends their wallet)
     def __init__(self, name, balance=100_000, human=True):
         self.name, self.entity_id, self.is_human = name, f"e-{name}", human
         self._balance = balance
@@ -362,7 +363,7 @@ def test_each_seat_hears_what_the_hand_won_or_lost_it_once():
     m = machine(CODES)
     runner = TableRunner("tcp_1", casino, m)
     ann, _, _ = seat_three(m)
-    ann.session = None   # (not connected: no wallet update to send)
+    ann.here = False   # (not connected: no wallet update to send)
     m.set_bets(0, {"ante": 500, "pair_plus": 100}, 0)
     m.set_bets(2, {"ante": 1_000}, 0)
     m.set_bets(4, {"ante": 500, "jackpot": 100}, 0)

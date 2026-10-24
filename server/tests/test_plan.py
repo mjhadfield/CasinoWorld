@@ -9,7 +9,7 @@ import pytest
 from casino_server import floor, plan, table_styles
 from casino_server.casino import Casino
 from casino_server.store import Store
-from tests.conftest import CLASSIC_PLAN, recv_until
+from tests.conftest import CLASSIC_PLAN, enter, recv_until
 
 
 def lobby_only() -> dict:
@@ -275,8 +275,7 @@ def test_save_publish_and_roll_back(client, tmp_path):
     # saving over a newer draft (another tab) is refused
     assert client.put("/api/plan/draft", json={**draft, "base_rev": draft["rev"]}).status_code == 409
     with client.websocket_connect("/ws") as ws:
-        ws.receive_json()
-        ws.send_json({"type": "join", "token": ""})
+        enter(ws, hello=True)
         recv_until(ws, "entity_spawn")
         r = client.post("/api/plan/publish")
         assert r.status_code == 200 and not r.json()["restart"] and r.json()["message"] == "Published: the floor has changed."
