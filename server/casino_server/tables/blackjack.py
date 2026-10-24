@@ -78,7 +78,7 @@ class Timings:
     settle_base: float = 0.64
     settle_step: float = 0.29
     sweep_gap: float = 0.12       # between the boxes when a Dealer Blackjack sweeps them all
-    pay_gap: float = 0.32         # between the hands when a dealer bust pays everyone still in
+    pay_gap: float = 0.42         # between the hands when a dealer bust pays everyone still in
     clear: float = 2.4
     shuffle: float = 6.0
 
