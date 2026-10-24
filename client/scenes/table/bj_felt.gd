@@ -8,8 +8,8 @@ extends StyledFelt
 
 func _draw_layout(t: CasinoTable) -> void:
 	title("BLACKJACK PAYS 3 TO 2", t.title_y())
-	small("STANDS ON 17s", 69, -1.5)  # between the dealer's cards and the shoe
-	small("INSURANCE 2:1", 69, 3.5)
+	small("STANDS ON 17s", 61.5, -12.5)  # up and to the left of the shoe, clear of it
+	small("INSURANCE 2:1", 61.5, -7.5)
 	for seat in t.seat_count():
 		_draw_seat(t, seat)
 
