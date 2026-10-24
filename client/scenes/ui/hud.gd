@@ -23,12 +23,13 @@ signal cancel_choose_pressed
 ## Your name and cash were clicked: the floor opens the character select to switch.
 signal switch_pressed
 
-var _on_yes := Callable()   # what the dialog's first button does when it's asking a question (else: stand up)
+var _on_yes := Callable()   # what the Ask card's first answer does
 var mode := "walking"
 var selected_chip := 100
 var pending := 0  # your bets on the felt that haven't been taken from your balance yet
 var bar: BettingBar        # the seated controls
 var sorter: HandSorter    # the Pai Gow hand sorter, over the bottom of the table
+var asker: AskPanel       # a question with two answers (Play second box?, Stand up anyway?)
 var settings_menu: SettingsMenu
 var atm: AtmPanel         # the lobby's cash machine, while you're using it
 var prompt: BettingBar.BarButton   # walking: what E does here (Use ATM, Play), under your feet
@@ -96,9 +97,15 @@ func _ready() -> void:
 	front_door = FrontDoor.new()
 	add_child(front_door)   # over the settings panel (it's the whole screen until you're in)
 	wallet.pressed.connect(switch_pressed.emit)
+	asker = AskPanel.new()
+	add_child(asker)
+	move_child(asker, settings_menu.get_index())   # over the table's panels, under the Settings panel
+	asker.yes.connect(func():
+		if _on_yes.is_valid():
+			_on_yes.call())
 	barred = BarredScreen.new()
 	add_child(barred)   # (last: over the front door too)
-	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %ConfirmStand]:
+	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable]:
 		n.hide()
 	bar.chip_picked.connect(chip_selected.emit)
 	bar.chip_picked.connect(func(v: int): selected_chip = v)
@@ -114,19 +121,30 @@ func _ready() -> void:
 		if on:   # the rules open under the minimap: fold it out of their way
 			Settings.set_value("minimap_collapsed", true)
 		%Paytable.visible = on)
-	%CancelChooseButton.pressed.connect(cancel_choose_pressed.emit)
-	%ConfirmYes.pressed.connect(func():
-		%ConfirmStand.hide()
-		if _on_yes.is_valid():
-			_on_yes.call()
-		else:
-			stand_confirmed.emit())
-	%ConfirmNo.pressed.connect(%ConfirmStand.hide)
+	_style_popups()
 	Session.balance_changed.connect(func(_p): _refresh_balance())
 	Session.joined.connect(func(p): wallet.set_player_name(p.get("name", "")))
 	Net.connected.connect(func(): _set_status(true))
 	Net.disconnected.connect(func(): _set_status(false))
 	_set_status(Net.is_open())
+
+
+## The scene's popups in UiKit's look: the choose-a-seat bar (its Cancel added here) and the paytable.
+func _style_popups() -> void:
+	%ChooseBar.add_theme_stylebox_override("panel", UiKit.strip_style())
+	%ChooseHint.add_theme_font_override("font", UiKit.FONT)
+	%ChooseHint.add_theme_font_size_override("font_size", UiKit.TEXT_SIZE)
+	%ChooseHint.add_theme_color_override("font_color", UiKit.INK)
+	var cancel := UiKit.button("Cancel", "Esc", "normal")
+	cancel.pressed.connect(cancel_choose_pressed.emit)
+	%ChooseHint.get_parent().add_child(cancel)
+	%Paytable.add_theme_stylebox_override("panel", UiKit.card_style(Vector4(18, 14, 18, 14)))
+	for f in ["normal_font", "bold_font", "italics_font"]:
+		%Text.add_theme_font_override(f, UiKit.FONT)
+	%Text.add_theme_font_size_override("normal_font_size", 16)
+	%Text.add_theme_font_size_override("bold_font_size", 16)
+	%Text.add_theme_font_size_override("italics_font_size", 15)
+	%Text.add_theme_color_override("default_color", UiKit.INK)
 
 
 ## Top left, with your wallet to its right.
@@ -184,7 +202,7 @@ func set_mode(new_mode: String) -> void:
 		%MyHand.hide()
 		%Paytable.hide()
 		bar.close_paytable()
-		%ConfirmStand.hide()
+		asker.hide()
 		set_pending(0)
 	if mode != "walking":
 		prompt.hide()
@@ -244,24 +262,17 @@ func show_banner(text: String) -> void:
 
 ## True while a panel that takes the keyboard is open (the floor ignores game keys then).
 func is_typing() -> bool:
-	return front_door.visible or settings_menu.visible or master.menu_open() or atm.visible or barred.visible
+	return front_door.visible or settings_menu.visible or master.menu_open() or atm.visible or barred.visible or asker.visible
 
 
 func confirm_stand(text := "You're in this hand -- standing up folds it. Stand up anyway?") -> void:
-	_on_yes = Callable()
-	%ConfirmText.text = text
-	%ConfirmYes.text = "Stand up"
-	%ConfirmNo.text = "Stay"
-	%ConfirmStand.show()
+	ask(text, "Stand up", "Stay", stand_confirmed.emit)
 
 
-## A question with two answers in the same panel: `on_yes` runs if they pick the first.
+## A question with two answers on the Ask card: `on_yes` runs if they pick the first.
 func ask(text: String, yes: String, no: String, on_yes: Callable) -> void:
 	_on_yes = on_yes
-	%ConfirmText.text = text
-	%ConfirmYes.text = yes
-	%ConfirmNo.text = no
-	%ConfirmStand.show()
+	asker.ask(text, yes, no)
 
 
 # ------------------------------------------------------------------ seated

@@ -17,6 +17,8 @@ extends PanelContainer
 ## After a Face Up dealer Ace-high Pai Gow nobody sets a hand: the panel shows
 ## your seven cards with one button -- Claim bonus if they win a side bet,
 ## otherwise Fold (open_claim).
+##
+## Built from UiKit, like the HUD's other popups.
 
 const CARD_SIZE := Vector2(66, 94)
 const SLIDE_TIME := 0.22   # a card moving between the rows (or re-sorted) glides this long
@@ -35,58 +37,41 @@ var _high_row: HBoxContainer
 var _low_label: Label
 var _high_label: Label
 var _warning: Label
-var _set_button: Button
-var _fold_button: Button
-var _house_button: Button
-var _sort_button: Button
-var _claim_button: Button
+var _set_button: BettingBar.BarButton
+var _fold_button: BettingBar.BarButton
+var _house_button: BettingBar.BarButton
+var _sort_button: BettingBar.BarButton
+var _claim_button: BettingBar.BarButton
 
 
 func _ready() -> void:
 	hide()
-	mouse_filter = MOUSE_FILTER_STOP
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # smooth text and edges on the big cards
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.03, 0.02, 0.9)
-	style.border_color = Color("c9a24a")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	style.set_content_margin_all(14)
-	add_theme_stylebox_override("panel", style)
+	UiKit.make_card(self, Vector4(22, 14, 22, 16))
 	get_viewport().size_changed.connect(_place)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	add_child(box)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 18)
-	_title.add_theme_color_override("font_color", Color("ffd76a"))
-	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var box := UiKit.column(self, 6)
+	_title = UiKit.title()
 	box.add_child(_title)
 	_low_label = _row_label(box)
 	_low_row = _row(box)
 	_high_label = _row_label(box)
 	_high_row = _row(box)
-	_warning = Label.new()
-	_warning.add_theme_color_override("font_color", Color("ff7b6b"))
-	_warning.add_theme_font_size_override("font_size", 15)
+	_warning = UiKit.text("", 17, UiKit.LOSS)
 	_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_warning)
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation", 10)
-	box.add_child(buttons)
-	_sort_button = _button(buttons, "Sort  [S]")
+	var buttons := UiKit.button_row(box)
+	_sort_button = _button(buttons, "Sort", "S", "quiet")
 	_sort_button.pressed.connect(_sort_rows)
-	_house_button = _button(buttons, "House Way  [H]")
+	_house_button = _button(buttons, "House Way", "H", "quiet")
 	_house_button.pressed.connect(func(): Net.send("pg_suggest"))
-	_set_button = _button(buttons, "Set hand  [Enter]")
+	_set_button = _button(buttons, "Set hand", "Enter", "primary")
 	_set_button.pressed.connect(_submit)
-	_fold_button = _button(buttons, "Fold")
+	_fold_button = _button(buttons, "Fold", "", "fold")
 	_fold_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
 			Net.send("fold"))
-	_claim_button = _button(buttons, "Claim bonus  [Enter]")
+	_claim_button = _button(buttons, "Claim bonus", "Enter", "primary")
 	_claim_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
@@ -94,9 +79,7 @@ func _ready() -> void:
 
 
 func _row_label(parent: Control) -> Label:
-	var label := Label.new()
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", Color("f1e4c4"))
+	var label := UiKit.caption()
 	parent.add_child(label)
 	return label
 
@@ -110,12 +93,8 @@ func _row(parent: Control) -> HBoxContainer:
 	return row
 
 
-func _button(parent: Control, text: String) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(120, 44)
-	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 17)
+func _button(parent: Control, words: String, key: String, kind: String) -> BettingBar.BarButton:
+	var b := UiKit.button(words, key, kind)
 	parent.add_child(b)
 	return b
 
@@ -132,7 +111,7 @@ func open(cards: Array, face_up: bool) -> void:
 	_title.text = "Set your hand: two cards Low, five High"
 	for b in [_sort_button, _house_button, _set_button]:
 		b.visible = true
-	_fold_button.text = "Fold"
+	_fold_button.setup("Fold", "", "fold")
 	_fold_button.visible = face_up
 	_claim_button.visible = false
 	_low_row.visible = true
@@ -155,7 +134,7 @@ func open_claim(cards: Array, bonus) -> void:
 		b.visible = false
 	_claim_button.visible = bonus != null
 	_fold_button.visible = bonus == null
-	_fold_button.text = "Fold  [Enter]"
+	_fold_button.setup("Fold", "Enter", "fold")
 	_low_row.visible = false
 	_low_label.text = ("Your hand makes %s -- claim your bonus." % bonus) if bonus != null else "No bonus in your hand."
 	_high_label.text = ""
@@ -365,11 +344,10 @@ class SortCard extends Control:
 
 	func _draw() -> void:
 		if code == "":
-			draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.05))
-			draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.25), false, 1.5)
+			draw_style_box(BettingBar._box(Color(1, 1, 1, 0.03), Color(UiKit.BRASS, 0.35), 6, Vector4.ZERO), Rect2(Vector2.ZERO, size))
 			return
 		var s := size.x / Card2D.SIZE.x
 		var lift := (Vector2(0, -6) if _hover and slide == Vector2.ZERO else Vector2.ZERO) + slide
 		Card2D.paint(self, code, Transform2D(0.0, Vector2(s, s), 0.0, size / 2 + lift), look)
 		if _hover:
-			draw_rect(Rect2(lift, size), Color("ffd76a"), false, 2.0)
+			draw_style_box(BettingBar._box(Color(0, 0, 0, 0), UiKit.BRASS_HI, 6, Vector4.ZERO), Rect2(lift, size).grow(1.0))

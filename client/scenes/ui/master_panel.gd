@@ -83,7 +83,7 @@ func _label(text: String, size: int, colour: Color, font: Font = null) -> Label:
 # ------------------------------------------------------------------ the dealer's menu
 func _build_menu() -> void:
 	_menu = PanelContainer.new()
-	_menu.add_theme_stylebox_override("panel", _panel(Color(0.055, 0.047, 0.04, 0.96), Color(0.79, 0.64, 0.29, 0.6)))
+	UiKit.make_card(_menu, Vector4(16, 14, 16, 14))
 	_menu.position = Vector2(16, 64)
 	_menu.custom_minimum_size = Vector2(400, 0)
 	_menu.hide()
@@ -119,9 +119,7 @@ func _build_menu() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foot.add_child(spacer)
-	var close := Button.new()
-	close.text = "Not now  [Esc]"
-	close.focus_mode = Control.FOCUS_NONE
+	var close := UiKit.button("Not now", "Esc", "ghost")
 	close.pressed.connect(close_menu)
 	foot.add_child(close)
 	box.add_child(foot)
@@ -261,19 +259,17 @@ func _show_thumbs(table_id: String) -> void:
 # ------------------------------------------------------------------ asking you to agree
 func _build_vote() -> void:
 	_vote = PanelContainer.new()
-	_vote.add_theme_stylebox_override("panel", _panel(Color(0.08, 0.063, 0.04, 0.95), Color(0.95, 0.76, 0.31, 0.6)))
+	UiKit.make_card(_vote, Vector4(18, 10, 10, 10))
 	_vote.hide()
 	add_child(_vote)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	_vote.add_child(row)
-	_vote_text = _label("", 16, Color("ece4d2"))
+	_vote_text = UiKit.text("", 18)
+	_vote_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_vote_text)
-	for pair in [["Switch", true], ["Keep playing", false]]:
-		var b := Button.new()
-		b.text = pair[0]
-		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(110, 40)
+	for pair in [["Switch", true, "primary"], ["Keep playing", false, "normal"]]:
+		var b := UiKit.button(pair[0], "", pair[2])
 		b.pressed.connect(func():
 			hide_vote()
 			voted.emit(pair[1]))
@@ -305,8 +301,7 @@ func _tick_vote() -> void:
 # ------------------------------------------------------------------ the next game
 func _build_queued() -> void:
 	_queued = PanelContainer.new()
-	var s := _panel(Color(0.08, 0.063, 0.04, 0.92), Color(0.79, 0.64, 0.29, 0.55))
-	s.set_corner_radius_all(20)
+	var s := UiKit.strip_style(20)
 	s.content_margin_top = 4
 	s.content_margin_bottom = 4
 	_queued.add_theme_stylebox_override("panel", s)
@@ -314,13 +309,16 @@ func _build_queued() -> void:
 	add_child(_queued)
 	var row := HBoxContainer.new()
 	_queued.add_child(row)
-	_queued_text = _label("", 15, Color("ece4d2"))
+	_queued_text = UiKit.text("", 17)
+	_queued_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_queued_text)
 	var x := Button.new()
 	x.text = "✕"
 	x.flat = true
 	x.focus_mode = Control.FOCUS_NONE
 	x.tooltip_text = "Stay on this game"
+	x.add_theme_color_override("font_color", UiKit.MUTED)
+	x.add_theme_color_override("font_hover_color", UiKit.BRASS_HI)
 	x.pressed.connect(cancel_queued.emit)
 	row.add_child(x)
 
