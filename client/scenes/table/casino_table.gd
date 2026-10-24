@@ -339,8 +339,9 @@ func box_pill(seat: int) -> Dictionary:
 
 const PILL_SIZE := Vector2(30, 9)
 
+## (Drop Box sits a little lower, clear of the RESERVED sign hung on that chair.)
 func _pill_centre(seat: int) -> Vector2:
-	return chair_pos(seat) + on_screen(Vector2(0, -6))
+	return chair_pos(seat) + on_screen(Vector2(0, -2 if box_pill(seat).get("kind") == "drop" else -6))
 
 
 ## The chair whose pill is at `local` (table coordinates), or -1.
