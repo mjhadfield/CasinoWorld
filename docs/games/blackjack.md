@@ -15,7 +15,8 @@ motion, then each winner is paid in turn. Winnings stay beside their spots until
 One card at a time to every box, the dealer's up-card, a second card each, and the hole card face down. With
 an Ace showing, everyone can take **Insurance** (**I**) or decline (**N**). With an Ace or a 10 showing, the
 dealer checks the hole card for Blackjack. Once the dealer can't have Blackjack, any player Blackjack is paid
-3:2 straight away.
+3:2 straight away. A Dealer Blackjack that beats everyone (no player Blackjack to push) is swept in one quick
+go, box after box, with no settling each hand in turn.
 
 ## Your turn
 

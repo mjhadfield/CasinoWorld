@@ -126,7 +126,7 @@ up, so they're public.
 | `bust` | `seat`, `hand`, `amount` | Over 21: the dealer takes the hand's bet and cards straight away. |
 | `dealer_draw` | `card`, `label` | The dealer draws to 17 (standing on all 17s); no draws if every hand has bust. |
 | `dealer_done` | `total`, `bust` | The dealer stands or busts. A `say` follows. |
-| `settle_seat` | `seat`, `hands[]` {`hand`, `outcome`, `label`, `action`, `amount`, `payout`}, `say`, `pause`, `total_returned` | One box settled, third base back to first, hand by hand: losers swept, pushes left, winners paid beside the bet (Blackjack 3:2). The cards go to the discard rack last. |
+| `settle_seat` | `seat`, `hands[]` {`hand`, `outcome`, `label`, `action`, `amount`, `payout`}, `say`, `pause`, `total_returned` | One box settled, third base back to first, hand by hand: losers swept, pushes left, winners paid beside the bet (Blackjack 3:2). The cards go to the discard rack last. When a Dealer Blackjack beats every box, they all come at once with `sweep` (the seconds between boxes) in place of `pause`, and an empty `say`: each box's stake and cards go straight in. |
 | `shuffle` | `seconds` | After a hand in which the cut card came out: the discards and the rest of the shoe go through the shuffler. |
 | `shoe_loaded` | `shoe` | A freshly shuffled shoe with a new cut card. Betting opens. |
 

@@ -16,7 +16,9 @@ from a real 8-deck shoe that's shuffled when the cut card comes out.
               against a shared timer that ends early once all have decided.
   peek        An Ace or 10 showing: the dealer checks the hole card. A Dealer
               Blackjack is turned over and settles every box (insurance pays
-              2:1); otherwise the insurance bets are taken and play goes on.
+              2:1); with no player Blackjack to push, every box loses and the
+              lot is swept in one quick go. Otherwise the insurance bets are
+              taken and play goes on.
   naturals    Once the dealer can't have Blackjack (after the peek, or straight
               away with a 2-9 showing), every player Blackjack is paid 3:2 at
               once and its cards cleared away.
@@ -73,6 +75,7 @@ class Timings:
     settle_pause: float = 0.51
     settle_base: float = 0.64
     settle_step: float = 0.29
+    sweep_gap: float = 0.12       # between the boxes when a Dealer Blackjack sweeps them all
     clear: float = 2.4
     shuffle: float = 6.0
 
@@ -162,6 +165,7 @@ class BlackjackMachine(TableMachine):
         self.turn: tuple[int, int] | None = None  # (seat, hand index) whose decision it is
         self._turn_order: list[int] = []
         self._settle_queue: list[int] = []
+        self._sweep = False
         self._cut_announced = False
 
     @property
@@ -387,6 +391,7 @@ class BlackjackMachine(TableMachine):
                     hand.done = True
             self.phase = "settling"
             self._settle_queue = sorted(self.round, reverse=True)
+            self._sweep = not any(hand.natural for box in self.round.values() for hand in box.hands)
             self.deadline = now + self.timings.dealer_reveal + (self.timings.settle_pause if steps else 0.0)
             return events
         return events + self._pay_naturals(now)
@@ -566,7 +571,15 @@ class BlackjackMachine(TableMachine):
             self.phase = "clearing"
             self.deadline = now + self.timings.clear
             return [{"kind": "round_end"}]
-        seat = self._settle_queue.pop(0)
+        if self._sweep:  # everyone's lost to a Dealer Blackjack: no need to look at each box
+            seats, self._settle_queue = self._settle_queue, []
+            events = [self._settle_seat(seat, now, sweep=True) for seat in seats]
+            t = self.timings
+            self.deadline = now + t.sweep_gap * len(seats) + t.settle_base + t.settle_pause
+            return events
+        return [self._settle_seat(self._settle_queue.pop(0), now)]
+
+    def _settle_seat(self, seat: int, now: float, sweep: bool = False) -> dict:
         box = self.round[seat]
         box.settled = True
         total, _ = bj.hand_value(self.dealer_cards)
@@ -591,10 +604,13 @@ class BlackjackMachine(TableMachine):
         outcomes = {h["outcome"] for h in hands}
         key = "blackjack" if outcomes == {"Blackjack"} else "win" if outcomes <= {"Win", "Blackjack"} \
             else "push" if outcomes == {"Push"} else "lose" if outcomes == {"Lose"} else "mixed"
+        if sweep:  # the dealer's already announced the Blackjack
+            return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": "", "sweep": t.sweep_gap,
+                    "total_returned": returned, "_paid": [box.participant]}
         line = self.lines.say("blackjack", f"settle_{key}", name=box.participant.name,
                               hand=hands[0]["label"] if len(hands) == 1 else f"{len(hands)} hands")
-        return [{"kind": "settle_seat", "seat": seat, "hands": hands, "say": line, "pause": t.settle_pause,
-                 "total_returned": returned, "_paid": [box.participant]}]
+        return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": line, "pause": t.settle_pause,
+                "total_returned": returned, "_paid": [box.participant]}
 
     def _open_betting(self, now: float) -> list:
         self.round = {}
@@ -603,6 +619,7 @@ class BlackjackMachine(TableMachine):
         self.dealer_blackjack = False
         self.turn = None
         self._settle_queue = []
+        self._sweep = False
         return self._reopen_betting(now)
 
     # ------------------------------------------------------------------ snapshot

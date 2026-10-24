@@ -111,6 +111,27 @@ def test_insurance_pays_2_to_1_on_a_dealer_blackjack():
     assert p.balance == 100_000  # lost the 10, won the insurance
 
 
+def test_a_dealer_blackjack_that_beats_everyone_sweeps_every_box_at_once():
+    a, b, c = FakeParticipant("A"), FakeParticipant("B"), FakeParticipant("C")
+    m = machine(["9c", "8d", "7h", "Kd", "9s", "8c", "7s", "As"],
+                timings=timings(sweep_gap=0.12, settle_base=0.64, settle_pause=0.51))  # dealer K up, A down
+    events = deal(m, a, b, c)
+    sweeps = [e for e in events if e["kind"] == "settle_seat"]
+    assert [e["seat"] for e in sweeps] == [2, 1, 0] and all(e["sweep"] == 0.12 and not e["say"] for e in sweeps)
+    assert m.phase == "settling" and m.deadline == pytest.approx(3 * 0.12 + 0.64 + 0.51)
+    assert kinds(m.tick(m.deadline))[0] == "round_end"
+    assert a.balance == b.balance == c.balance == 99_000
+
+
+def test_a_player_blackjack_against_a_dealer_blackjack_settles_box_by_box():
+    a, b = FakeParticipant("A"), FakeParticipant("B")
+    m = machine(["Ah", "9d", "Kc", "Kd", "8s", "As"])  # A: Blackjack; B: 9+8; dealer K up, A down
+    events = deal(m, a, b)
+    settles = [e for e in events if e["kind"] == "settle_seat"]
+    assert [e["seat"] for e in settles] == [1, 0] and not any("sweep" in e for e in settles)
+    assert [e["hands"][0]["outcome"] for e in settles] == ["Lose", "Push"]
+
+
 def test_no_dealer_blackjack_takes_the_insurance_and_play_goes_on():
     p = FakeParticipant("Mike")
     m = machine(["10c", "Ah", "9c", "5c", "2d"])
