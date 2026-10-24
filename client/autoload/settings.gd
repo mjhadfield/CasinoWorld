@@ -32,6 +32,7 @@ const DEFAULTS := {
 	"minimap_size": "small",    # small, medium or large
 	"minimap_labels": "all",    # "all": the rooms next door name their tables too; "here": only yours
 	"minimap_zoom": 2,          # its +/- step, from its smallest view (Minimap.ZOOMS)
+	"hcf_four_colour": true,    # High Card Flush's cards in four suit colours, over the table style's
 }
 const PRESETS := {
 	"high": {"fps_cap": 60, "resolution": "sharp", "seat_glow": true, "slot_effects": "full"},

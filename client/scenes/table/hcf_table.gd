@@ -38,6 +38,24 @@ func spot_radius(spot: String) -> float:
 	return 8.0 if spot in ["ante", "raise"] else SPOT_R + 0.5
 
 
+func _ready() -> void:
+	super()
+	if not Engine.is_editor_hint():
+		Settings.changed.connect(func(key, _v):
+			if key == "hcf_four_colour" and styled():
+				_restyle_under(_dyn, card_look()))
+
+
+## A flush is easier to read with four suit colours, so this device's Settings can put them over the
+## table style's (its front stays the style's).
+func card_look() -> Dictionary:
+	if Engine.is_editor_hint() or not Settings.value("hcf_four_colour"):
+		return style()
+	var four := style().duplicate()
+	four.suits = "four"
+	return four
+
+
 func spot_shape(seat: int, spot: String) -> Dictionary:
 	if spot in ["ante", "raise"]:
 		return {"shape": "circle", "at": spot_pos(seat, spot), "r": 8.0}

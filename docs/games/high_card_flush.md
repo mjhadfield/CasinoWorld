@@ -10,6 +10,10 @@ Ante, plus the Flush, Straight Flush and £1 Jackpot side bets.
 
 Seven cards each. Your own are fanned with your flush first.
 
+The cards are in four suit colours (blue diamonds, green clubs) on the table style's front, so a flush reads at a
+glance. It's a device setting (Settings › Cards › Four-colour suits, on by default); off, they take the style's own
+suit colours. (`HcfTable.card_look()`, over `CasinoTable.card_look()`.)
+
 ## Decisions
 
 Everyone at once: **fold**, or **raise** 1x (2x with a 5-card flush, 3x with 6 or 7). Running out of time

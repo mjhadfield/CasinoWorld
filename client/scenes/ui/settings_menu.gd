@@ -69,6 +69,9 @@ func _ready() -> void:
 	_switch_row(box, "Show the minimap", "show_minimap", true, false, "Your room and the rooms next to it, top right")
 	_choice_row(box, "Size", "minimap_size", [["Small", "small"], ["Medium", "medium"], ["Large", "large"]])
 	_choice_row(box, "Table names", "minimap_labels", [["Your room", "here"], ["Every room", "all"]], "In the rooms next door too, or only yours")
+
+	_heading(box, "Cards")
+	_switch_row(box, "Four-colour suits", "hcf_four_colour", true, false, "At High Card Flush: blue diamonds, green clubs")
 	Settings.changed.connect(func(_k, _v): _refresh())
 
 	var foot := _label("Saved on this device as you change them.", 15, MUTED)

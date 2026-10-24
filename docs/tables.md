@@ -17,7 +17,8 @@ a tab for each kind of table, because they have different parts:
   the gilt, double and deco borders, the House chips and the Master Table's crest; `StyledFelt.role_colour()`), and
   the betting spots' artwork and glow colour; the Jackpot disc, the shuffler,
   shoe and discard rack; the card backs (a design, its colour, and the card's colour round it) and fronts (Classic,
-  Jumbo index, Vintage or Minimal, in red and black or four colours); the chairs' frame metal and upholstery; and
+  Jumbo index, Vintage or Minimal, in red and black or four colours; High Card Flush puts four colours over the
+  style's unless the player's turned that off in Settings); the chairs' frame metal and upholstery; and
   chips.
 - **Roulette:** the felt (with the fine grain it's always had as a fourth cloth), a border line, the rail (bare
   wood or leather all round), the printing's font, ink and accent, the red, black and zero colours (on the layout

@@ -460,6 +460,11 @@ func style() -> Dictionary:
 	return look
 
 
+## The look its cards are drawn in: its style (High Card Flush can put a four-colour deck over it).
+func card_look() -> Dictionary:
+	return style()
+
+
 ## Its chairs take its style's colours (Craps has standing spots, so none).
 func chair_colours() -> Dictionary:
 	return style().get("chairs", {})
@@ -477,16 +482,16 @@ func restyle() -> void:
 				if n is CanvasItem:
 					n.queue_redraw()
 	if styled():
-		_restyle_under(_dyn)
+		_restyle_under(_dyn, card_look())
 
 
-func _restyle_under(node: Node) -> void:
+func _restyle_under(node: Node, cards: Dictionary) -> void:
 	for n in node.get_children():
 		if n is ChipStack2D:
 			n.style = look
 		elif n is Card2D:
-			n.look = look
-		_restyle_under(n)
+			n.look = cards
+		_restyle_under(n, cards)
 
 
 # ------------------------------------------------------------------ geometry
@@ -1101,7 +1106,7 @@ func _make_stack(_seat: int) -> ChipStack2D:
 func _new_card(code: String, pos: Vector2) -> Card2D:
 	var card := Card2D.new()
 	if styled():
-		card.look = style()
+		card.look = card_look()
 	card.code = code
 	card.position = pos
 	card.rotation = 0.0
