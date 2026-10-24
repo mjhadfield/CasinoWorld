@@ -486,7 +486,7 @@ def("jackpot_screen", {
     const M = o.metal;
     p.r(0, 0, 108, 34, "#060608"); p.r(1, 1, 106, 32, M.lo); p.r(2, 2, 104, 30, "#0d0d10");
     p.r(4, 4, 100, 26, "#040405");
-    const t = "JACKPOT"; text(p, t, 54 - textW(t) / 2, 6, M.hi);   // (the game draws the live amount in `screen`)
+    const t = "PROGRESSIVE JACKPOT"; text(p, t, 54 - textW(t) / 2, 6, M.hi);   // (the game draws the live amount in `screen`)
     for (let y = 4; y < 30; y += 2) p.r(4, y, 100, 1, "rgba(0,0,0,.28)");
     p.r(2, 2, 104, 1, "rgba(255,255,255,.08)");
   },
