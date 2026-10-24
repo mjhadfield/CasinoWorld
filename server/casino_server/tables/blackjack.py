@@ -78,7 +78,7 @@ class Timings:
     settle_base: float = 0.64
     settle_step: float = 0.29
     sweep_gap: float = 0.12       # between the boxes when a Dealer Blackjack sweeps them all
-    pay_gap: float = 0.22         # between the hands when a dealer bust pays everyone still in
+    pay_gap: float = 0.32         # between the hands when a dealer bust pays everyone still in
     clear: float = 2.4
     shuffle: float = 6.0
 
@@ -577,14 +577,16 @@ class BlackjackMachine(TableMachine):
             return [{"kind": "round_end"}]
         if self._sweep:  # a Dealer Blackjack beat everyone, or the dealer bust: no need to look at each box
             seats, self._settle_queue = self._settle_queue, []
-            events = [self._settle_seat(seat, now, sweep=True) for seat in seats]
             t = self.timings
-            hands = sum(len(e["hands"]) for e in events)
-            self.deadline = now + events[0]["sweep"] * hands + t.settle_base + t.settle_pause
+            hands = sum(1 for seat in seats for h in self.round[seat].hands if not h.bust and h.outcome is None)
+            total, _ = bj.hand_value(self.dealer_cards)
+            gap = t.pay_gap if total > 21 else t.sweep_gap
+            events = [self._settle_seat(seat, now, sweep=gap) for seat in seats]
+            self.deadline = now + gap * hands + t.settle_base + t.settle_pause
             return events
         return [self._settle_seat(self._settle_queue.pop(0), now)]
 
-    def _settle_seat(self, seat: int, now: float, sweep: bool = False) -> dict:
+    def _settle_seat(self, seat: int, now: float, sweep: float | None = None) -> dict:
         box = self.round[seat]
         box.settled = True
         total, _ = bj.hand_value(self.dealer_cards)
@@ -609,9 +611,8 @@ class BlackjackMachine(TableMachine):
         outcomes = {h["outcome"] for h in hands}
         key = "blackjack" if outcomes == {"Blackjack"} else "win" if outcomes <= {"Win", "Blackjack"} \
             else "push" if outcomes == {"Push"} else "lose" if outcomes == {"Lose"} else "mixed"
-        if sweep:  # the dealer's already announced the Blackjack or the bust
-            gap = t.pay_gap if total > 21 else t.sweep_gap
-            return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": "", "sweep": gap,
+        if sweep is not None:  # the dealer's already announced the Blackjack or the bust; `sweep` is the gap per hand
+            return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": "", "sweep": sweep,
                     "total_returned": returned, "_paid": [box.participant]}
         line = self.lines.say("blackjack", f"settle_{key}", name=box.participant.name,
                               hand=hands[0]["label"] if len(hands) == 1 else f"{len(hands)} hands")

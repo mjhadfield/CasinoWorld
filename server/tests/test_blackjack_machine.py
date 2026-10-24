@@ -168,16 +168,16 @@ def test_a_dealer_bust_pays_every_hand_still_in_one_after_another():
     a, b, c = FakeParticipant("A"), FakeParticipant("B"), FakeParticipant("C")
     # A: 10+9, B: 10+5 (hits a 10, bust), C: 10+8; dealer 6 up, 10 down, draws a 10
     m = machine(["10h", "10c", "10d", "6c", "9d", "5s", "8h", "10s", "10h", "Kd"],
-                timings=timings(pay_gap=0.22, settle_base=0.64, settle_pause=0.51))
+                timings=timings(pay_gap=0.32, settle_base=0.64, settle_pause=0.51))
     deal(m, a, b, c)
     m.play_action(0, "stand", 1), m.tick(1)
     m.play_action(1, "hit", 2), m.tick(2)
     events = m.play_action(2, "stand", 4) + m.tick(4)
     assert next(e for e in events if e["kind"] == "dealer_done")["bust"]
     pays = [e for e in events if e["kind"] == "settle_seat"]
-    assert [e["seat"] for e in pays] == [2, 0] and all(e["sweep"] == 0.22 and not e["say"] for e in pays)
+    assert [e["seat"] for e in pays] == [2, 0] and all(e["sweep"] == 0.32 and not e["say"] for e in pays)
     assert all(h["action"] == "pay" for e in pays for h in e["hands"])
-    assert m.deadline == pytest.approx(4 + 2 * 0.22 + 0.64 + 0.51)
+    assert m.deadline == pytest.approx(4 + 2 * 0.32 + 0.64 + 0.51)
     assert a.balance == c.balance == 101_000 and b.balance == 99_000
 
 

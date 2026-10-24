@@ -37,7 +37,7 @@ order like any other seat. Every card's face up, so nothing waits on Box 1.
 
 Draws to 17 and stands on all 17s. Boxes are then settled from third base. A dealer bust ("Everyone's a
 winner!") needs no checking: every hand still in is paid, one after another with a short gap (`pay_gap`,
-0.22s), and there's no line per box.
+0.32s), and there's no line per box.
 
 ## NPCs
 
