@@ -3,7 +3,9 @@
 
     tools/shot.py [options] [STEP ...]
 
-It opens the game, waits until you're on the floor, then runs the steps in order. With no
+It opens the game, gets past the character select (picking the account's first character, or
+making one called Shot if it has none), waits until you're on the floor, then runs the steps in
+order. With --door it stops at the character select instead, for shots of the front door. With no
 steps it takes one shot of the floor. The game's own WebSocket is wrapped, so a step can
 wait for a real message or send one, instead of guessing coordinates and timeouts.
 
@@ -14,6 +16,7 @@ Steps:
                        until:roll:crp_1, until:wallet
     send:JSON          send a message on the game's socket: send:'{"type":"bet","spot":"ante","add":500}'
     key:NAME           press a key (Playwright names: Space, Enter, KeyP, Escape ...)
+    type:TEXT          type text (into whatever has the keyboard: a name box)
     click:X,Y          click at viewport pixels
     wait:MS            let an animation finish after an `until`
     shot:NAME[@X,Y,W,H]  save .dev/shots/NAME.png, optionally clipped to that rectangle
@@ -28,7 +31,7 @@ Example: sit at Craps, bet the Pass Line when betting opens, shoot the roll as i
 
 By default it uses this checkout's dev instance (start it with `tools/dev.sh server`), so the
 screenshot player and its bets land in .dev/data, not the live floor. The browser profile is
-kept in .dev/shot-browser, so it's the same named player every run.
+kept in .dev/shot-browser, so it's the same account (and character) every run.
 
 --cpu-slowdown N slows the page's CPU N times (a stand-in for a low-end machine), and --gpu
 draws with the real GPU instead of SwiftShader's software renderer (a stand-in for no GPU).
@@ -54,6 +57,8 @@ except ImportError:
              "then server/.venv/bin/python -m playwright install chromium")
 
 NAME = "Shot"
+LOOK = {"body": "male", "skin": "olive", "hair": ["parted", "dark_brown"], "top": ["polo", "navy"],
+        "bottom": ["pants", "charcoal"], "shoes": ["shoes", "black"]}   # the screenshot character's
 
 # Wraps the page's WebSocket before Godot opens one, and logs what the server sends.
 HOOK = """
@@ -124,6 +129,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=ROOT / ".dev/shots")
     ap.add_argument("--cpu-slowdown", type=float, default=1, help="slow the page's CPU this many times (default 1)")
     ap.add_argument("--gpu", action="store_true", help="draw with the GPU, not SwiftShader")
+    ap.add_argument("--door", action="store_true", help="stay at the character select (the steps run there)")
     args = ap.parse_args()
     url = args.url or dev_url()
     w, h = map(int, args.size.split("x"))
@@ -183,18 +189,23 @@ def main() -> None:
                       f"{godot['nodes']:.0f} nodes, {godot['video_mb']:.0f} MB textures, graphics {godot.get('graphics')}")
 
         def on_floor() -> None:
-            welcome = wait_for("welcome")["msg"]
-            if welcome.get("preview"):   # (a floor-plan preview has no body to wait for)
+            if "preview=" in url:
+                welcome = wait_for("welcome")["msg"]   # (a floor-plan preview has no body to wait for)
                 page.wait_for_timeout(1500)
                 print(f"previewing {welcome['preview']} at {url}")
                 return
-            if welcome.get("needs_name"):
-                mark = seq()
-                page.wait_for_timeout(500)  # the prompt takes keys once it's drawn
-                page.keyboard.type(NAME, delay=40)
-                page.keyboard.press("Enter")
-                wait_for("welcome", after=mark)
-            wait_for("entity_spawn")
+            account = wait_for("account")["msg"]
+            if args.door:
+                page.wait_for_timeout(1500)  # the cards drawn, their looks fetched
+                print(f"at the character select at {url} ({len(account['characters'])} characters)")
+                return
+            mark = seq()
+            if account["characters"]:
+                send({"type": "pick_character", "id": account["characters"][0]["id"]})
+            else:   # (the game goes in as a character it's just made)
+                send({"type": "create_character", "name": NAME, "look": LOOK, "difficulty": "normal"})
+            wait_for("welcome", after=mark)
+            wait_for("entity_spawn", after=mark)
             page.wait_for_timeout(1000)  # first frames with everyone drawn
             print(f"on the floor at {url} as {NAME}")
 
@@ -228,6 +239,8 @@ def main() -> None:
                     print(f"sent {arg}")
                 elif op == "key":
                     page.keyboard.press(arg)
+                elif op == "type":
+                    page.keyboard.type(arg, delay=40)
                 elif op == "click":
                     x, y = map(float, arg.split(","))
                     page.mouse.click(x, y)

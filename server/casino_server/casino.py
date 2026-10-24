@@ -263,7 +263,7 @@ class Casino:
         online = self.online_players()
         s = bank.settings(self.store)
         session.push({"type": "account", "token": session.account["token"], "max": MAX_CHARACTERS,
-                      "characters": [{"id": p.id, "name": p.name, "look": self._look_of(p), "difficulty": p.difficulty,
+                      "characters": [{"id": p.id, "name": p.name, "look": self._look_of(p), "spec": p.look, "difficulty": p.difficulty,
                                       "balance": p.balance, "bank": p.bank, "online": p.id in online}
                                      for p in self.store.characters(aid)],
                       "difficulties": {d: bank.start_bank(s, d) for d in DIFFICULTIES},

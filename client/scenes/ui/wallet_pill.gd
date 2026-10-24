@@ -2,7 +2,9 @@ class_name WalletPill
 extends HBoxContainer
 ## Top left, right of the HUD's Settings, walking or seated: whether you're online, your name, your cash in hand (less what's on the
 ## felt) with a round's result flashing beside it. (Your bank balance is at the lobby's ATM.) In the betting bar's
-## look, the same height as the Settings button beside it.
+## look, the same height as the Settings button beside it. Clicking it opens the character select (`pressed`).
+
+signal pressed
 
 var _panel: PanelContainer
 var _dot: Control
@@ -19,7 +21,13 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.custom_minimum_size.y = 40
 	_panel.add_theme_stylebox_override("panel", BettingBar._lifted(BettingBar._box(BettingBar.CORNER_BG, Color(0.79, 0.64, 0.29, 0.3), 20, Vector4(13, 0, 16, 0))))
-	_panel.mouse_filter = MOUSE_FILTER_IGNORE
+	_panel.mouse_filter = MOUSE_FILTER_STOP
+	_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_panel.tooltip_text = "Switch character"
+	_panel.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			Sfx.play("click")
+			pressed.emit())
 	add_child(_panel)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -28,6 +36,7 @@ func _ready() -> void:
 	_dot.custom_minimum_size = Vector2(10, 10)
 	_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_dot.tooltip_text = "Connecting..."
+	_dot.mouse_filter = MOUSE_FILTER_PASS   # (a click on it is the pill's)
 	_dot.draw.connect(func():
 		var c := BettingBar.WIN if _online else BettingBar.WARN
 		_dot.draw_circle(Vector2(5, 5), 6.5, Color(c, 0.25))

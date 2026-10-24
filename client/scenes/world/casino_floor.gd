@@ -84,6 +84,7 @@ var _round_start := -1    # your balance as this round's betting opened (its res
 var _staked := false      # whether you had bets in this round
 var route_line: RouteLine  # Find's way there, on the floor
 var _guide := {}           # while Find guides you: {kind, name, goal, replan}
+var _arriving := false     # off the floor to pick another character: its welcome starts you at the spawn point
 const GUIDE_ARRIVED := 24.0   # this close to where you'd stand, you're there
 const PX_PER_METRE := 32.0
 
@@ -138,7 +139,8 @@ func _ready() -> void:
 	hud.action.connect(_on_action)
 	hud.stand_pressed.connect(_request_stand)
 	hud.stand_confirmed.connect(func(): Net.send("stand"))
-	hud.name_entered.connect(Session.choose_name)
+	hud.switch_pressed.connect(func(): hud.front_door.open_switch(state == "walking"))
+	Session.character_left.connect(func(_reason, _name): _off_the_floor())
 	hud.interact_pressed.connect(_interact)
 	hud.atm.closed.connect(func():
 		if state == "walking":
@@ -1051,12 +1053,15 @@ func _on_message(msg: Dictionary) -> void:
 			else:
 				_restyle_tables()
 				_redraw_chairs()
+			if _arriving:   # a character picked (not a resync or a reconnect): in at the spawn point
+				_arriving = false
+				player.position = _fallback_point()
+				camera.global_position = player.global_position
+				camera.reset_smoothing()
 			player.avatar.look = Session.look
 			player.avatar.display_name = Session.player.get("name", "") if Session.preview == "" else "Preview"
 			if Session.preview != "":
 				hud.show_toast("Previewing the floor plan's draft: saving it on the admin page shows the changes here.", 6.0)
-			elif Session.needs_name:
-				hud.show_name_prompt(Session.player.get("name", ""))
 		"world":   # the floor plan changed (published, or the draft saved, in a preview)
 			_build_world(msg.get("world", {}))
 		"world_snapshot":
@@ -1127,6 +1132,8 @@ func _on_message(msg: Dictionary) -> void:
 			hud.atm.close_atm()
 			hud.barred.open(msg)
 		"error":
+			if hud.front_door.takes_errors():
+				return   # (the character designer shows it)
 			hud.show_toast(msg.get("message", "error"))
 			hud.atm.close_atm()   # (the server wouldn't let you use it: you weren't at it)
 			if hud.sorter.is_open():
@@ -1292,6 +1299,19 @@ func _on_resynced(msg: Dictionary) -> void:
 	my_hand = ""      # (the table's snapshot names your hand again if you're in one)
 	if hud.sorter.is_open():
 		hud.sorter.close()  # (Pai Gow reopens it if you're still setting)
+
+
+## Off the floor and back at the character select (switching, or the character was picked in another window): as a
+## dropped connection, without the toast. The next character's `welcome` puts you back at the spawn point.
+func _off_the_floor() -> void:
+	_arriving = true
+	_stop_guide()
+	hud.atm.close_atm()
+	if state == "seated" or state == "slot":
+		_leave_table()
+	for id in entities.keys():
+		entities[id].queue_free()
+	entities.clear()
 
 
 func _on_disconnected() -> void:

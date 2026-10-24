@@ -1,9 +1,10 @@
 extends CanvasLayer
-## Screen-space overlay. Top left, walking or seated: Settings, then your name and cash in hand (WalletPill); top
-## right: the minimap (Minimap, with Find and its guide under it).
+## Screen-space overlay. Top left, walking or seated: Settings, then your name and cash in hand (WalletPill: click
+## it to switch character); top right: the minimap (Minimap, with Find and its guide under it).
 ## Walking: the interact prompt under your feet (Use ATM, Play) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), the table's jackpot if it has one, Paytable and Stand up.
+## Before you're on the floor, the front door covers it all (FrontDoor: loading, the character select, the designer).
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 
 signal interact_pressed
@@ -19,7 +20,8 @@ signal action(id: String)
 signal stand_pressed
 signal stand_confirmed
 signal cancel_choose_pressed
-signal name_entered(name: String)
+## Your name and cash were clicked: the floor opens the character select to switch.
+signal switch_pressed
 
 var _on_yes := Callable()   # what the dialog's first button does when it's asking a question (else: stand up)
 var mode := "walking"
@@ -35,6 +37,7 @@ var master: MasterPanel   # a Master Table's game menu, the card asking you to a
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
 var minimap: Minimap
+var front_door: FrontDoor  # the loading screen, character select and designer: over the floor till you're on it
 var barred: BarredScreen   # banned, timed out or removed by the casino: over everything
 var _toast_tween: Tween
 var _banner_tween: Tween
@@ -90,9 +93,12 @@ func _ready() -> void:
 	_place_settings_button()
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
+	front_door = FrontDoor.new()
+	add_child(front_door)   # over the settings panel (it's the whole screen until you're in)
+	wallet.pressed.connect(switch_pressed.emit)
 	barred = BarredScreen.new()
-	add_child(barred)   # (last: over the settings panel too)
-	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %NamePrompt, %ConfirmStand]:
+	add_child(barred)   # (last: over the front door too)
+	for n in [%Toast, %Banner, %ChooseBar, %MyHand, %Paytable, %ConfirmStand]:
 		n.hide()
 	bar.chip_picked.connect(chip_selected.emit)
 	bar.chip_picked.connect(func(v: int): selected_chip = v)
@@ -116,8 +122,6 @@ func _ready() -> void:
 		else:
 			stand_confirmed.emit())
 	%ConfirmNo.pressed.connect(%ConfirmStand.hide)
-	%NameOk.pressed.connect(_submit_name)
-	%NameEdit.text_submitted.connect(func(_t): _submit_name())
 	Session.balance_changed.connect(func(_p): _refresh_balance())
 	Session.joined.connect(func(p): wallet.set_player_name(p.get("name", "")))
 	Net.connected.connect(func(): _set_status(true))
@@ -238,17 +242,9 @@ func show_banner(text: String) -> void:
 	_banner_tween.tween_callback(%Banner.hide)
 
 
-func show_name_prompt(current := "") -> void:
-	if %NamePrompt.visible:
-		return  # (a resync's welcome: keep what's being typed)
-	%NameEdit.text = "" if current.begins_with("Guest") else current
-	%NamePrompt.show()
-	%NameEdit.grab_focus()
-
-
 ## True while a panel that takes the keyboard is open (the floor ignores game keys then).
 func is_typing() -> bool:
-	return %NamePrompt.visible or settings_menu.visible or master.menu_open() or atm.visible or barred.visible
+	return front_door.visible or settings_menu.visible or master.menu_open() or atm.visible or barred.visible
 
 
 func confirm_stand(text := "You're in this hand -- standing up folds it. Stand up anyway?") -> void:
@@ -266,14 +262,6 @@ func ask(text: String, yes: String, no: String, on_yes: Callable) -> void:
 	%ConfirmYes.text = yes
 	%ConfirmNo.text = no
 	%ConfirmStand.show()
-
-
-func _submit_name() -> void:
-	var text: String = %NameEdit.text.strip_edges()
-	if text == "":
-		return
-	%NamePrompt.hide()
-	name_entered.emit(text)
 
 
 # ------------------------------------------------------------------ seated

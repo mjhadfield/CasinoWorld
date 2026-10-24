@@ -329,7 +329,9 @@ timing each step by the server's messages rather than by guesswork:
 tools/shot.py sit:crp_1 until:roll_open send:'{"type":"bet","spot":"pass","add":500}' \
     until:throw wait:1500 shot:craps@240,60,800,600
 ```
-Shots land in `.dev/shots/`. `tools/shot.py --help` lists the steps. `frames:NAME:MS` times frames instead,
+It goes in as the account's first character (making one called Shot if there's none); `--door` stays at the
+character select instead, and `type:TEXT` types into a name box. Shots land in `.dev/shots/`. `tools/shot.py
+--help` lists the steps. `frames:NAME:MS` times frames instead,
 with `--gpu` and `--cpu-slowdown N` for other machines ([docs/performance.md](docs/performance.md)).
 
 `tools/scene.py` is for designing a slot's scene in a session ([docs/slots/scenes.md](docs/slots/scenes.md)):
@@ -398,13 +400,15 @@ admin page's Slot design tab.
     the roulette wheel and the craps dice. The Master Table: `master_table` and `master_felt` (blank, the crest) and
     `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
-  - `scenes/ui/`: the HUD, its top-left `wallet_pill`, its top-right `minimap` (with Find; the route on the floor is
+  - `scenes/ui/`: the `front_door` (the loading screen, the character select and the designer, with the
+    `look_editor` ported from the admin page's NPC look designer, `look_preview` for the walking pictures and
+    `door_ui`'s controls), the HUD, its top-left `wallet_pill` (click it to switch character), its top-right `minimap` (with Find; the route on the floor is
     `scenes/world/route_line.gd`) and its seated `betting_bar` (keys: 1-5 pick a chip, Space Ready or Repeat Bet, Backspace Undo,
     Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the lobby's `atm_panel` (the cash machine), the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
     `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes, the graphics presets and the minimap's.
     The buses are declared in `client/default_bus_layout.tres`; adding them in code breaks web audio.
-  - `autoload/`: `net` (the socket), `session` (who you are, your balance), `sfx` (`Sfx.play(key)` for your own
+  - `autoload/`: `net` (the socket), `session` (your account's characters, the one you're playing, your balance), `sfx` (`Sfx.play(key)` for your own
     cues, `sfx_at(key, position)` on a table for its sounds that fade with distance, `Sfx.start_loop` and
     `stop_loop` for looping moments; each from the table's sound set), `settings`, `look_loader`, `slot_art`
     and `plan_art` (the floor plan's furniture and floor pictures, fetched at runtime).

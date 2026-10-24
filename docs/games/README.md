@@ -31,12 +31,26 @@ blackjack tables in two rows facing apart, the far row turned, with the pit boss
 NPC-only zone closing the gaps). Players sitting at a turned table see the view turn round so it's the right way
 up, and turn back when they stand.
 
+## Characters
+
+- **The front door:** the game opens on a loading screen, then the character select. A device holds up to three
+  characters, each with its own name, look, money and stats; with none yet there's just **New**. **New** opens the
+  designer: a name, a difficulty and the look (body, skin, and a style and colour for the hair, facial hair, top,
+  over the top, legs, shoes, neck, glasses and hat, or Randomise), shown walking round as you change it. Making one
+  takes you straight in at the entrance. **Edit** changes a character's name and look; **Delete** asks you to type
+  its name first, as its money and history go with it.
+- **Difficulty** sets only the starting bank (cash in hand starts at £0, as for everyone): **Easy** £5,000,
+  **Normal** £1,000, **Hard** £250 (the admin page's Settings › Bank). The ATM's rules are the same for all three.
+- **Switching:** on the floor, click your name and cash (top left) for the select again: **Play** on another
+  character walks you out and in again as them. Only on foot: seated or at a slot, stand up first. Picking a
+  character that's playing in another window takes it over, and that window goes back to its select.
+
 ## Walking and sitting
 
 - **Walking:** WASD or arrow keys, or click/tap where you want to go (a tap walks round things and through
   doorways). Click and hold to keep walking towards the pointer: the view follows you, so you can cross the whole
   floor that way, sliding along anything in the way. You see the room you're in, any joined to it by archways, and
-  the room through a door once you're in its doorway. Your name tag comes from the welcome prompt on your first visit.
+  the room through a door once you're in its doorway. Your name tag is your character's name.
 - **Taking a seat:** while you're walking, every free chair glows. Click one and you walk to its side; the
   chair swivels round to you, you sit side-on, and it turns you to the table. Or stand by a table or slot with a
   free chair and a **Play** prompt shows under your feet: press **E** (or the prompt) to sit in the nearest free chair.

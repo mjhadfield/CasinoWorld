@@ -1,20 +1,33 @@
 extends Node
-## Client-side mirror of what the server says about this player: who they
-## are, their balance, and the progressive jackpot. Display only -- the
-## server's wallet is the source of truth.
+## Client-side mirror of what the server says about this player: their account's
+## characters, the one they're playing, its balance, and the progressive jackpot.
+## Display only -- the server's wallet is the source of truth.
 ##
-## The server issues a token on first join; it's kept in user:// (IndexedDB on
-## the web build), so each device or browser stays the same player.
+## The server issues an account token on first join; it's kept in user://
+## (IndexedDB on the web build), so each device or browser stays the same account.
+## Joining gets the character select (`account`); nobody is on the floor until a
+## character is picked. After a dropped connection the same character is picked
+## again (`resume`), so a blip doesn't bounce you back to the select.
 
 signal joined(player: Dictionary)
 signal balance_changed(pence: int)
+## The character select's state arrived (or changed): characters, max_characters, difficulties, last_character.
+signal account_received
+## Off the floor and back at the select: "switch" (you left), "elsewhere" (picked in another window).
+signal character_left(reason: String, character_name: String)
 
 const SAVE_PATH := "user://session.cfg"
 
 var player := {}
 var entity_id := ""
 var look := "player_default"
-var needs_name := false
+var characters: Array = []    # [{id, name, look, difficulty, balance, bank, online}]
+var max_characters := 3
+var difficulties := {}        # easy/normal/hard -> starting bank, pence
+var last_character := -1      # id last played, or -1
+var account_ready := false    # an `account` has come on this connection
+var pending_pick := -1        # a character asked for and not yet on the floor as
+var _resume := -1             # the character to pick again after a reconnect
 ## A floor-plan preview (the admin page's Preview: the page's address ends ?preview=<room>): the draft's floor to
 ## walk round alone. The server gives it no body and no tables to play.
 var preview := ""
@@ -35,7 +48,12 @@ func _ready() -> void:
 		var p = JavaScriptBridge.eval("new URLSearchParams(location.search).get('preview') || ''")
 		preview = str(p) if p != null else ""
 	Net.message_received.connect(_on_message)
-	Net.disconnected.connect(func(): on_floor = false)
+	Net.disconnected.connect(func():
+		if on_floor:
+			_resume = int(player.get("id", -1))
+		on_floor = false
+		pending_pick = -1
+		account_ready = false)
 	Net.resynced.connect(func(_msg): _held = false)  # the payout it waited on was dropped; a fresh wallet follows
 
 
@@ -48,14 +66,32 @@ func _on_message(msg: Dictionary) -> void:
 			if preview != "":
 				join["preview"] = preview
 			Net.send("join", join)
+		"account":
+			characters = msg.get("characters", [])
+			max_characters = int(msg.get("max", 3))
+			difficulties = msg.get("difficulties", {})
+			last_character = int(msg.get("last")) if msg.get("last") != null else -1
+			account_ready = true
+			if preview == "":
+				_save_token(str(msg.get("token", "")))
+			if _resume >= 0 and not on_floor and pending_pick < 0:   # back after a dropped connection
+				pending_pick = _resume
+				_resume = -1
+				Net.send("pick_character", {"id": pending_pick, "resume": true})
+			account_received.emit()
+		"character_left":
+			on_floor = false
+			entity_id = ""
+			if str(msg.get("reason", "")) != "switch":   # (a switch's pick follows its leave)
+				pending_pick = -1
+			_resume = -1
+			character_left.emit(str(msg.get("reason", "")), str(msg.get("name", "")))
 		"welcome":
 			player = msg.get("player", {})
 			entity_id = str(msg.get("entity_id", ""))
 			look = str(msg.get("look", look))
-			needs_name = bool(msg.get("needs_name", false))
 			on_floor = true
-			if preview == "":
-				_save_token(str(msg.get("token", "")))
+			pending_pick = -1
 			joined.emit(player)
 		"wallet":
 			balance = int(msg.get("balance", 0))
@@ -78,8 +114,31 @@ func hold_balance(on: bool) -> void:
 		balance_changed.emit(shown_balance)
 
 
-func choose_name(new_name: String) -> void:
-	Net.send("set_name", {"name": new_name})
+## Onto the floor as one of your characters (from the select, or switching: leave first).
+func pick(id: int) -> void:
+	pending_pick = id
+	if on_floor:
+		Net.send("leave_character")
+	Net.send("pick_character", {"id": id})
+
+
+func create_character(character_name: String, spec: Dictionary, difficulty: String) -> void:
+	Net.send("create_character", {"name": character_name, "look": spec, "difficulty": difficulty})
+
+
+func edit_character(id: int, character_name: String, spec: Dictionary) -> void:
+	Net.send("edit_character", {"id": id, "name": character_name, "look": spec})
+
+
+func delete_character(id: int) -> void:
+	Net.send("delete_character", {"id": id})
+
+
+func character(id: int) -> Dictionary:
+	for c in characters:
+		if int(c.id) == id:
+			return c
+	return {}
 
 
 ## The jackpot right now, in pence (fractional, so a meter can roll smoothly).
