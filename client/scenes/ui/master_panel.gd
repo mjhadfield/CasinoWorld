@@ -112,6 +112,7 @@ func _build_menu() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 2)
 	scroll.add_child(list)
+	UiTheme.hug_edge(scroll, 16)
 	for i in GAMES.size():
 		list.add_child(_row(i))
 	var foot := HBoxContainer.new()

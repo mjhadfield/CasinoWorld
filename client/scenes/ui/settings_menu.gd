@@ -40,6 +40,7 @@ func _ready() -> void:
 	box.custom_minimum_size = Vector2(480, 0)
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(box)
+	UiTheme.hug_edge(_scroll, 24)
 	_box = box
 	var top := HBoxContainer.new()
 	box.add_child(top)

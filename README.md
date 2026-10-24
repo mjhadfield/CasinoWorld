@@ -407,8 +407,8 @@ admin page's Slot design tab.
     Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the lobby's `atm_panel` (the cash machine), the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
     `user://settings.cfg`): it sets the Master, Effects and Ambience bus volumes, the graphics presets and the minimap's.
-    `ui_theme` is the client-wide theme the floor merges into Godot's default theme (so it reaches the HUD's CanvasLayer too): the brass scroll bars, and the gap between a
-    ScrollContainer's rows and its bar.
+    `ui_theme` is the client-wide theme the floor merges into Godot's default theme (so it reaches the HUD's CanvasLayer too): the brass scroll bars; `UiTheme.hug_edge` moves a popup's
+    bar out into its right padding, close to the edge (the paytable, Settings, the Master Table's menu, the character designer).
     `ui_kit` (`UiKit`) is where the HUD's popups get their look: the card, its title, text and caption, its buttons (the betting bar's)
     and the dimmed backdrop. The `ask_panel` (`HUD.ask` and `HUD.confirm_stand`: Play second box?, Stand up anyway?), the Pai Gow
     `hand_sorter`, the choose-a-seat bar, the paytable and the Master Table's cards are all built from it, so a restyle starts there. Its cards are 87% opaque (the Settings panel stays at 97%).

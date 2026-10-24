@@ -158,4 +158,4 @@ theme_override_font_sizes/normal_font_size = 14
 theme_override_font_sizes/bold_font_size = 14
 theme_override_font_sizes/italics_font_size = 13
 bbcode_enabled = true
-scroll_active = false
+scroll_active = true

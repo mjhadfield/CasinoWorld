@@ -372,12 +372,13 @@ func _build_design() -> PanelContainer:
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.custom_minimum_size = Vector2(620, 480)   # (the rows, then UiTheme's gap and bar)
+	_scroll.custom_minimum_size = Vector2(620, 480)   # (the rows; UiTheme.hug_edge puts the bar out in the padding)
 	cols.add_child(_scroll)
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(right)
+	UiTheme.hug_edge(_scroll, 24)
 	right.add_child(DoorUi.heading("Name"))
 	_name_edit = DoorUi.text_box("What should everyone call you?", 16)
 	_name_edit.text_submitted.connect(func(_t): _submit())

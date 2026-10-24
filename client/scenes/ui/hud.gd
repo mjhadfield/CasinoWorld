@@ -145,6 +145,7 @@ func _style_popups() -> void:
 	%Text.add_theme_font_size_override("bold_font_size", 16)
 	%Text.add_theme_font_size_override("italics_font_size", 15)
 	%Text.add_theme_color_override("default_color", UiKit.INK)
+	UiTheme.hug_edge(%Text, 18)
 
 
 ## Top left, with your wallet to its right.
