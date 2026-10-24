@@ -456,8 +456,9 @@ func _place_chairs() -> void:
 		marker.position = from
 	to_table.place_chair_backs()
 	var gone := -1
+	var kept := mapping.map(func(x): return int(x))   # (JSON numbers are floats: `in` needs ints)
 	for seat in from_table.seat_count():
-		if not seat in mapping:
+		if not seat in kept:
 			gone = seat
 	if gone >= 0:
 		_ghost_chair = GhostChair.new()

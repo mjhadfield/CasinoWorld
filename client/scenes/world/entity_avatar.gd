@@ -128,6 +128,7 @@ func sit_at(game: FloorGame, seat: int, animate := true) -> void:
 	z_index = game.sit_z(seat)
 	name_below = true
 	if seated and position.distance_to(get_parent().to_local(game.to_global(game.chair_pos(seat)))) < 1.0:
+		game.sitters[seat] = self   # (a Master Table's new chairs start under their sitters: they move together)
 		if not Seating.busy(self):   # (a fresh snapshot of someone already sat there)
 			set_action(game.seat_pose(), game.world_dir(game.sit_facing(seat)))
 		return
