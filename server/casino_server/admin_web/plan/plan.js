@@ -904,9 +904,12 @@ function up(e) {
   }
 }
 
+/** Double-click a room to edit it: on the plan, or (editing a room) one of the dimmed rooms beside it. */
 function dbl(e) {
-  if (S.mode !== "plan") return;
-  const p = world(e), r = shownRooms().slice().reverse().find(r => G.inside(p, G.outline(r)));
+  if (S.mode !== "plan" && S.mode !== "room") return;
+  const p = world(e), cur = S.mode === "room" ? room() : null;
+  if (cur && (S.placing || G.inside(p, G.outline(cur)))) return;
+  const r = shownRooms().slice().reverse().find(r => r !== cur && G.inside(p, G.outline(r)));
   if (r) setMode("room", S.draft.rooms.indexOf(r));
 }
 
