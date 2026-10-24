@@ -450,7 +450,7 @@ static func kind_name(kind: String, t: Node = null) -> String:
 
 
 # ------------------------------------------------------------------ the map
-## The rooms on the map: your zone, and every zone one doorway on.
+## The rooms on the map: your zone, and every zone one doorway on -- less any room the plan leaves off the minimap.
 func _map_rooms() -> Dictionary:
 	var shown := {}
 	if not _rooms.has(_room_id):
@@ -465,6 +465,9 @@ func _map_rooms() -> Dictionary:
 				for id2 in _rooms:
 					if _zone_of.get(id2) == _zone_of.get(str(to)):
 						shown[id2] = true
+	for id in shown.keys():
+		if _rooms[id].data.get("map_hidden", false):
+			shown.erase(id)
 	return shown
 
 
@@ -622,7 +625,7 @@ func _draw_map() -> void:
 		var r: PlanRoom = _rooms[id]
 		for o in r.openings:
 			var to = o.get("to")
-			if to == null or shown.has(str(to)) or not _rooms.has(str(to)):
+			if to == null or shown.has(str(to)) or not _rooms.has(str(to)) or _rooms[str(to)].data.get("map_hidden", false):
 				continue
 			var seg := _door_line(r, o)
 			var mid: Vector2 = (seg[0] + seg[1]) / 2.0

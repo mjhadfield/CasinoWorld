@@ -206,6 +206,17 @@ def test_a_rooms_minimap_name_is_what_players_see_it_called():
     assert "map_name" not in room(cleaned, "lobby") and plan.world(cleaned)["rooms"][0]["name"] == "Lobby"
 
 
+def test_a_room_can_be_left_off_the_minimap():
+    p = lobby_only()
+    room(p, "lobby")["map_hidden"] = 1
+    cleaned = plan.clean(p, p)
+    assert room(cleaned, "lobby")["map_hidden"] is True and plan.world(cleaned)["rooms"][0]["map_hidden"] is True
+    # shown (the usual) isn't kept, so older plans compare the same
+    room(p, "lobby")["map_hidden"] = False
+    cleaned = plan.clean(p, p)
+    assert "map_hidden" not in room(cleaned, "lobby") and plan.world(cleaned)["rooms"][0]["map_hidden"] is False
+
+
 def lift(y=200) -> dict:
     """A lift on the lobby's left wall: the smallest room, NPCs only, its door in its right wall."""
     return {"id": "lift", "name": "Lift", "placed": True, "npc_only": True, "x": -48, "y": y, "w": 48, "h": 128,

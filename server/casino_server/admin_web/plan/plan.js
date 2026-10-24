@@ -397,7 +397,7 @@ function refreshInspector() {
     const r = S.draft.rooms[S.pick];
     if (!r) { ins.replaceChildren(el("h3", { textContent: "The floor" }), el("p", { className: "hint", textContent: `${placed().length} rooms on the floor, ${S.draft.rooms.length - placed().length} in the library. Pick one to see it.` })); return; }
     ins.replaceChildren(el("h3", { textContent: r.name }),
-      el("p", { className: "hint", textContent: `${r.w} × ${r.h}, ${r.items.length} things in it.${r.npc_only ? " NPCs only." : ""} ${r.placed ? `At ${r.x}, ${r.y} on the floor.` : "In the library (not on the floor)."}` }),
+      el("p", { className: "hint", textContent: `${r.w} × ${r.h}, ${r.items.length} things in it.${r.npc_only ? " NPCs only." : ""}${r.map_hidden ? " Not on the minimap." : ""} ${r.placed ? `At ${r.x}, ${r.y} on the floor.` : "In the library (not on the floor)."}` }),
       el("div", { className: "pl-buttons" },
         el("button", { className: "primary", textContent: "Edit room", onclick: () => setMode("room", S.pick) }),
         el("button", { textContent: r.placed ? "Take off the floor" : "Place on the floor", onclick: () => togglePlaced(S.pick) }),
@@ -424,6 +424,8 @@ function refreshInspector() {
       el("label", { className: "pl-check" }, el("input", { type: "checkbox", checked: r.placed, onchange: () => togglePlaced(S.room) }), "On the floor"),
       el("label", { className: "pl-check", title: "A lift or back room: NPCs given an arrival point here come out of its door and leave back through it. Players can't go in or see inside." },
         el("input", { type: "checkbox", checked: !!r.npc_only, onchange: e => edit(() => { if (e.target.checked) r.npc_only = true; else delete r.npc_only; }) }), "NPCs only (players can't go in)"),
+      el("label", { className: "pl-check", title: "Unticked, the minimap leaves this room out: it isn't drawn, nor what's in it, and no door tab names it. Find still knows its tables." },
+        el("input", { type: "checkbox", checked: !r.map_hidden, onchange: e => edit(() => { if (e.target.checked) delete r.map_hidden; else r.map_hidden = true; }) }), "Show on minimap"),
       el("p", { className: "hint", textContent: "Drag a wall to resize the room. Click a piece in the palette (or drag it) to put it down; R turns it, Esc stops." }));
     return;
   }
