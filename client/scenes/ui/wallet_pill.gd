@@ -20,7 +20,7 @@ func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_IGNORE
 	_panel = PanelContainer.new()
 	_panel.custom_minimum_size.y = 40
-	_panel.add_theme_stylebox_override("panel", BettingBar._lifted(BettingBar._box(BettingBar.CORNER_BG, Color(0.79, 0.64, 0.29, 0.3), 20, Vector4(13, 0, 16, 0))))
+	_panel.add_theme_stylebox_override("panel", BettingBar._lifted(BettingBar._box(BettingBar.CORNER_BG, Color(0.79, 0.64, 0.29, 0.3), 10, Vector4(13, 0, 16, 0))))
 	_panel.mouse_filter = MOUSE_FILTER_STOP
 	_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_panel.tooltip_text = "Switch character"

@@ -87,9 +87,10 @@ static func text(words := "", size := TEXT_SIZE, colour := INK) -> Label:
 	return l
 
 
-## A popup's button: the betting bar's, so they match. `kind` is a BarButton kind: "primary" (the brass one, the
-## answer most will pick), "normal", "quiet", "fold", "ghost" (a small corner-style one). `key` is the key it
-## answers to, shown in its box.
+## A popup's button: the betting bar's, so they match (every button is the one "Lip" style: a raised face on a
+## darker lip). `kind` is a BarButton kind: "primary" (the brass one, the answer most will pick), "normal", "quiet"
+## (flat, no lip), "fold" (red: losing or deleting something), "ghost" (a smaller one). `key` is the key it answers
+## to, shown in its box.
 static func button(words: String, key := "", kind := "normal", glyph := "") -> BettingBar.BarButton:
 	var b := BettingBar.BarButton.new()
 	b.setup(words, key, kind, glyph)

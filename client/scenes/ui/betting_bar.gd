@@ -544,6 +544,7 @@ class BarChip extends Button:
 ## normal, quiet, fold (red edge), done (a gold outline), tool (a small pill, Undo/Clear), ghost (the corners).
 class BarButton extends Button:
 	const WIDE := 1.4     # letter spacing on the big buttons' capitals
+	const SUNK := Color("1c1a12")   # a pushed-in face
 	var words := ""
 	var key := ""
 	var kind := "normal"
@@ -578,22 +579,32 @@ class BarButton extends Button:
 		var big := kind in ["primary", "normal", "quiet", "fold", "done"]
 		_font = FontVariation.new()
 		_font.base_font = FONT
-		_font.spacing_glyph = maxi(1, roundi(WIDE * zoom)) if big else 0
-		var radius := roundi(10 * zoom) if big else 999
-		var bg: Color = {"primary": BRASS, "normal": Color("232a2d"), "quiet": Color(0.137, 0.165, 0.176, 0.85), "fold": Color("232a2d"),
-			"done": Color(0.055, 0.047, 0.031, 0.6), "tool": Color(0.137, 0.165, 0.176, 0.85), "ghost": CORNER_BG}[kind]
-		var edge: Color = {"primary": BRASS, "normal": Color("39413f"), "quiet": Color("39413f"), "fold": Color(LOSS, 0.55),
-			"done": Color(BRASS, 0.45), "tool": Color("39413f"), "ghost": Color(1, 1, 1, 0.1)}[kind]
-		var hover_edge := Color(BRASS, 0.7) if kind != "primary" else BRASS
-		var hover_bg: Color = Color("d6b05a") if kind == "primary" else bg
-		var box := func(b: Color, e: Color) -> StyleBoxFlat:
-			var st := BettingBar._box(b, e, radius, Vector4.ZERO)
-			return BettingBar._lifted(st) if kind == "ghost" else st
-		add_theme_stylebox_override("normal", box.call(bg, edge))
-		add_theme_stylebox_override("hover", box.call(hover_bg, hover_edge))
-		add_theme_stylebox_override("pressed", box.call(hover_bg, hover_edge if kind != "ghost" else BRASS))
-		add_theme_stylebox_override("hover_pressed", box.call(hover_bg, BRASS))
-		add_theme_stylebox_override("disabled", box.call(bg, edge))
+		_font.spacing_glyph = maxi(1, roundi((WIDE if big else 1.0) * zoom))
+		var radius := _radius()
+		# "Lip" (Mike's pick from the button canvas): a face sitting on a darker lip, so it reads as something to press.
+		# Pressed, the face drops onto the lip. "done" (a decision already made) stays pushed in; "quiet" is flat.
+		var face: Color = {"primary": Color("cfa74e"), "fold": Color("3a2421"), "quiet": Color(0, 0, 0, 0), "done": SUNK}.get(kind, Color("2a3236"))
+		var edge: Color = {"primary": Color("b8933f"), "fold": Color("5a302a"), "quiet": Color(INK, 0.16), "done": Color(BRASS, 0.6)}.get(kind, Color("3a4341"))
+		var lip: Color = {"primary": Color("7d5f21"), "fold": Color("1a0e0c"), "quiet": Color(0, 0, 0, 0), "done": Color(0, 0, 0, 0)}.get(kind, Color("0e1214"))
+		var hover_face: Color = {"primary": Color("dbb662"), "fold": Color("442a26"), "quiet": Color(INK, 0.05), "done": SUNK}.get(kind, Color("313a3e"))
+		var hover_edge := Color("c9a24a") if kind == "primary" else Color(BRASS, 0.7)
+		var down_face: Color = {"primary": Color("bf9843"), "fold": Color("2e1c1a"), "quiet": Color(INK, 0.08)}.get(kind, SUNK)
+		var down_edge := Color("a8863a") if kind == "primary" else BRASS
+		var box := func(f: Color, e: Color, down: bool) -> StyleBoxFlat:
+			var st := BettingBar._box(f, e, radius, Vector4.ZERO)
+			if (down and lip.a > 0.0) or kind == "done":   # the face drops 2px onto its lip
+				st.expand_margin_top = -2.0 * zoom
+				st.expand_margin_bottom = 2.0 * zoom
+			if lip.a > 0.0:
+				st.shadow_color = lip
+				st.shadow_size = 1
+				st.shadow_offset = Vector2(0, (1.0 if down else 3.0) * zoom)
+			return st
+		add_theme_stylebox_override("normal", box.call(face, edge, false))
+		add_theme_stylebox_override("hover", box.call(hover_face, hover_edge, false))
+		add_theme_stylebox_override("pressed", box.call(down_face, down_edge, true))
+		add_theme_stylebox_override("hover_pressed", box.call(down_face, down_edge, true))
+		add_theme_stylebox_override("disabled", box.call(face, edge, false))
 		add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		_size()
 		queue_redraw()
@@ -604,8 +615,15 @@ class BarButton extends Button:
 	func _key_size() -> int:
 		return roundi(12 * zoom)
 
+	func _radius() -> int:
+		return roundi(10 * zoom)
+
+	## Pushed in: held down, switched on, or a decision already made. Its words drop with the face.
+	func _down() -> bool:
+		return kind == "done" or (kind != "quiet" and get_draw_mode() in [DRAW_PRESSED, DRAW_HOVER_PRESSED])
+
 	func _shown_words() -> String:
-		return words.to_upper() if kind in ["primary", "normal", "quiet", "fold", "done"] else words
+		return words.to_upper()
 
 	func _key_text() -> String:
 		return "BKSP" if key == "Backspace" else key.to_upper()   # (the font has no ⌫)
@@ -629,21 +647,26 @@ class BarButton extends Button:
 		update_minimum_size()
 
 	func _colour() -> Color:
-		return {"primary": Color("1b1307"), "quiet": INK, "done": BRASS_HI}.get(kind, INK)
+		return {"primary": Color("1b1307"), "fold": Color("f2a194"), "done": BRASS_HI}.get(kind, INK)
 
 	func _draw() -> void:
 		var dim := 0.4 if disabled else 1.0
 		if modulate.a != dim:
 			modulate.a = dim
+		var down := _down()
 		var col := _colour()
-		if kind == "ghost" and button_pressed:
+		if down and kind not in ["primary", "fold"]:
 			col = BRASS_HI
+		# A faint light along the top edge of a raised face.
+		var shine: Color = {"primary": Color(1, 0.94, 0.78, 0.45), "fold": Color(1, 0.78, 0.75, 0.08), "quiet": Color(0, 0, 0, 0)}.get(kind, Color(1, 1, 1, 0.07))
+		if not down and shine.a > 0.0:
+			draw_line(Vector2(_radius(), 1.5), Vector2(size.x - _radius(), 1.5), shine, 1.0)
 		var fs := _font_size()
 		var show_words := not (compact and glyph != "")
 		var tw := _font.get_string_size(_shown_words(), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if show_words else 0.0
 		var total := (17.0 if glyph != "" else 0.0) + (8.0 if glyph != "" and show_words else 0.0) + tw + (9.0 * zoom + _key_w() if show_words and _key_w() > 0 else 0.0)
 		var x := (size.x - total) / 2.0
-		var mid := size.y / 2.0
+		var mid := size.y / 2.0 + (2.0 * zoom if down else 0.0)
 		if glyph != "":
 			_draw_glyph(Vector2(x + 8.5, mid), col)
 			x += 17.0 + (8.0 if show_words else 0.0)

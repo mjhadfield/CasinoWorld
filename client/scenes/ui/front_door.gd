@@ -277,6 +277,9 @@ func _card(c: Dictionary, playing: bool) -> PanelContainer:
 			Session.pick(id)
 			_update())
 	box.add_child(play)
+	var lip_gap := Control.new()   # room for Play's lip
+	lip_gap.custom_minimum_size.y = 4
+	box.add_child(lip_gap)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
