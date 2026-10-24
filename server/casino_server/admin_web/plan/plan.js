@@ -894,6 +894,10 @@ function up(e) {
     const [a, b] = d.box, box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
     if (box[2] > 3 && box[3] > 3) {
       r.items.forEach((it, i) => { const s = G.shapes(r, it); if (s && G.covers(s).some(c => G.overlap(c, box)) && !S.sel.some(x => x.t === "item" && x.i === i)) S.sel.push({ t: "item", i }); });
+      if (S.layers.paths) r.paths.zones.forEach((z, i) => {   // a zone only when the box takes in all of it (a big one sits under everything)
+        const zx = r.x + z.x, zy = r.y + z.y;
+        if (zx >= box[0] && zy >= box[1] && zx + z.w <= box[0] + box[2] && zy + z.h <= box[1] + box[3] && !S.sel.some(x => x.t === "zone" && x.i === i)) S.sel.push({ t: "zone", i });
+      });
     }
     refresh();
     return;

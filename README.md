@@ -106,7 +106,7 @@ sections:
     R turns it (a table turns about its middle), Esc stops. Tables are drawn as the game shows them: chairs, dealers
     and Roulette's and Craps' results signs upright, the shadow falling down the screen; the inspector's Sign picks
     which end the sign stands past, and a Master Table's "Changes with" and Speed pick its change animation (Fresh
-    cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several, arrows nudge,
+    cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
     Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch (the
     cursor turns to a resize arrow over either; a picked patch's edge wins over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
