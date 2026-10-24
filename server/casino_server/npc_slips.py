@@ -67,14 +67,26 @@ def three_card_poker(hand_eval, play: bool, aggressive: bool) -> bool | None:
     return not play
 
 
+def mississippi_backs(seen) -> bool:
+    """A hand someone would push to 3x though the chart says 1x: anything before 5th Street; on 5th Street
+    (four cards seen) only a low pair, an open-ended straight draw or three high cards -- never a gutshot
+    or a couple of picture cards."""
+    if len(seen) < 4:
+        return True
+    values = [c.value for c in seen]
+    open_ended = len(set(values)) == 4 and ms._gaps(values) == 0 and ms.ACE not in values
+    return ms._low_pair(seen) or open_ended or sum(v >= 11 for v in values) >= 3
+
+
 def mississippi(seen, raise_by: int, rng) -> int | None:
-    """One step off the chart (never 3x on a hand the chart folds), and a made hand is always played right."""
+    """One step off the chart (never 3x on a hand the chart folds, or on a 5th Street hand nobody would
+    back), and a made hand is always played right."""
     if ms._made(seen):
         return None
     if raise_by == 3:
         return 1
     if raise_by == 1:
-        return rng.choice((0, 3))
+        return rng.choice((0, 3)) if mississippi_backs(seen) else 0
     return 1 if ms.points(seen) else None
 
 

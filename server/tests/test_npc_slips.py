@@ -89,6 +89,18 @@ def test_mississippi_never_folds_a_made_hand_or_jumps_to_3x():
             assert slip in (1, None)
         if slip is not None:
             assert abs(slip - right) <= 2 and slip != right
+        if slip == 3 and len(seen) == 4:
+            assert npc_slips.mississippi_backs(seen)
+
+
+def test_mississippi_backs_only_live_hands_on_5th_street():
+    gutshot = cards("9h", "10d", "Qc", "Ks")      # the chart's 1x: 6 points, an inside straight draw
+    assert ms.strategy(gutshot) == 1 and not npc_slips.mississippi_backs(gutshot)
+    assert all(npc_slips.mississippi(gutshot, 1, random.Random(s)) == 0 for s in range(20))
+    assert npc_slips.mississippi_backs(cards("4h", "4d", "Qc", "9s"))     # a low pair
+    assert npc_slips.mississippi_backs(cards("3h", "4d", "5c", "6s"))     # open-ended
+    assert npc_slips.mississippi_backs(cards("Ah", "Kd", "Jc", "3s"))     # three high cards
+    assert not npc_slips.mississippi_backs(cards("Ah", "2d", "3c", "4s"))  # a wheel draw is one-ended
 
 
 def test_holdem_never_folds_a_hidden_pair_at_the_river():

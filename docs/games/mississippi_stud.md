@@ -33,7 +33,10 @@ just ends.
 ## NPCs
 
 They think for at most 3 seconds and follow Joseph Kisenwether's strategy
-(`engines/mississippi_stud.py: strategy`); a Gambler bets 3x wherever the chart says 1x. A slip
+(`engines/mississippi_stud.py: strategy`); a Gambler bets 3x where the chart says 1x. A slip
 (`npc_slips.py`) is one step off the chart: 1x instead of 3x on a draw, fold or 3x instead of 1x, or 1x on
-a hand the chart folds. A made hand (6s or better) is always played right. A 9.6-million-hand simulation of
+a hand the chart folds. On 5th Street neither the Gambler nor a slip goes to 3x unless the hand is one
+someone would back (`mississippi_backs`: a low pair, an open-ended straight draw or three high cards), so
+a gutshot or a couple of picture cards stays at 1x (or a timid fold). A made hand (6s or better) is always
+bet 3x. A 9.6-million-hand simulation of
 the chart gives a house edge of 4.93% ± 0.32% of the Ante, in line with the published 4.91%.

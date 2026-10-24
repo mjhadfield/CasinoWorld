@@ -735,7 +735,7 @@ class NpcDirector:
 
     def _play_mississippi(self, npc: Npc, m, runner, now: float):
         """Each street, Joseph Kisenwether's strategy: bet 3x, 1x or fold (a Gambler goes 3x
-        wherever the chart says play; a Casual slips up now and then)."""
+        where the chart says 1x, bar a 5th Street hand nobody would back; a Casual slips up now and then)."""
         hand = m.round.get(npc.seat)
         if m.phase != "deciding" or hand is None or hand.participant is not npc.participant \
                 or hand.folded or hand.decided:
@@ -748,7 +748,7 @@ class NpcDirector:
             npc.decide_at = now + think * self.pace
         elif now >= npc.decide_at:
             npc.decide_at = None
-            if npc.prof.aggressive and raise_by == 1:
+            if npc.prof.aggressive and raise_by == 1 and npc_slips.mississippi_backs(seen):
                 raise_by = 3
             raise_by = self._slip(npc, raise_by, npc_slips.mississippi(seen, raise_by, self.rng))
             try:
