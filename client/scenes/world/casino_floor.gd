@@ -89,8 +89,11 @@ const GUIDE_ARRIVED := 24.0   # this close to where you'd stand, you're there
 const PX_PER_METRE := 32.0
 
 
+func _enter_tree() -> void:
+	UiTheme.install()   # (before the HUD builds its controls)
+
+
 func _ready() -> void:
-	UiTheme.install(get_tree().root)
 	slot_screen = SlotScreen.new()
 	hud.add_slot_screen(slot_screen)
 	slot_screen.stand_requested.connect(func(): Net.send("stand"))

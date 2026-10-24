@@ -1,14 +1,15 @@
 class_name UiTheme
-## The client's own theme, set on the root window so every control picks it up (the panels still style their own
-## buttons and text). So far it's the scroll bars: a slim rounded brass grabber on a faint track, no arrow buttons,
+## The client's own theme, merged into Godot's default theme so every control picks it up, including those under
+## a CanvasLayer like the HUD (a theme set on a window stops at one). The panels still style their own buttons and
+## text. So far it's the scroll bars: a slim rounded brass grabber on a faint track, no arrow buttons,
 ## and a gap between a ScrollContainer's rows and its bar.
 
 const BAR := 8   # the scroll bar's thickness
 const GAP := 10  # between a ScrollContainer's contents and its bar
 
 
-static func install(window: Window) -> void:
-	window.theme = build()
+static func install() -> void:
+	ThemeDB.get_default_theme().merge_with(build())
 
 
 static func build() -> Theme:
