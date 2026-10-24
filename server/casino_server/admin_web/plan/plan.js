@@ -472,7 +472,7 @@ function refreshInspector() {
       field("Across", num(p.x, v => { p.x = v; })), field("Down", num(p.y, v => { p.y = v; })), del);
   } else if (t === "zone") {
     const z = r.paths.zones[i];
-    ins.replaceChildren(...head("No-go zone"),
+    ins.replaceChildren(...head("No-go zone", "Drag its edges or corners to resize it (Shift for free)."),
       field("Keeps out", choose(z.kind, [["npc_block", "NPCs (players walk through)"], ["block", "Everyone"]], v => { z.kind = v; })),
       field("Across", num(z.x, v => { z.x = v; })), field("Down", num(z.y, v => { z.y = v; })),
       field("Width", num(z.w, v => { z.w = v; })), field("Height", num(z.h, v => { z.h = v; })), del);
@@ -723,25 +723,35 @@ function hitRoomEdge(r, p) {
   return null;
 }
 
+/** Which edges (or corner) of the box q (room coordinates) p is on: ["left", "top"]..., or null. */
+function boxSides(r, q, p) {
+  const tol = 6 / S.cam.s, [x, y] = p, x0 = r.x + q.x, y0 = r.y + q.y, x1 = x0 + q.w, y1 = y0 + q.h;
+  if (x < x0 - tol || x > x1 + tol || y < y0 - tol || y > y1 + tol) return null;
+  const sides = [];
+  if (Math.abs(x - x0) < tol) sides.push("left"); else if (Math.abs(x - x1) < tol) sides.push("right");
+  if (Math.abs(y - y0) < tol) sides.push("top"); else if (Math.abs(y - y1) < tol) sides.push("bottom");
+  return sides.length ? sides : null;
+}
+
 /** The floor patch edge (or corner) under p: {i, sides}, the picked patch before the others. */
 function patchEdge(r, p) {
-  const tol = 6 / S.cam.s, [x, y] = p;
   const picked = S.sel.filter(s => s.t === "patch").map(s => s.i);
   const order = [...picked, ...r.patches.map((_, i) => r.patches.length - 1 - i).filter(i => !picked.includes(i))];
   for (const i of order) {
-    const q = r.patches[i], x0 = r.x + q.x, y0 = r.y + q.y, x1 = x0 + q.w, y1 = y0 + q.h;
-    if (x < x0 - tol || x > x1 + tol || y < y0 - tol || y > y1 + tol) continue;
-    const sides = [];
-    if (Math.abs(x - x0) < tol) sides.push("left"); else if (Math.abs(x - x1) < tol) sides.push("right");
-    if (Math.abs(y - y0) < tol) sides.push("top"); else if (Math.abs(y - y1) < tol) sides.push("bottom");
-    if (sides.length) return { i, sides };
+    const sides = boxSides(r, r.patches[i], p);
+    if (sides) return { i, sides };
   }
   return null;
 }
 
-/** Something under p to drag out: a wall ({edge}) or a patch's edge ({patch}). A picked patch's edge beats a wall,
- *  a wall beats any other patch's edge; anything standing on top (an item, a point, a door, a zone) beats both. */
+/** Something under p to drag out: a wall ({edge}), a patch's edge ({patch}) or a picked zone's edge ({zone}). A picked
+ *  zone's edge beats everything; a picked patch's edge beats a wall, a wall beats any other patch's edge; anything
+ *  standing on top (an item, a point, a door, a zone) beats those. */
 function grabAt(r, p) {
+  if (S.layers.paths) for (const s of S.sel) {
+    const sides = s.t === "zone" && boxSides(r, r.paths.zones[s.i], p);
+    if (sides) return { zone: { i: s.i, sides } };
+  }
   const h = hit(p);
   if (h && h.t !== "patch") return null;
   const pe = patchEdge(r, p), wall = hitRoomEdge(r, p);
@@ -751,14 +761,14 @@ function grabAt(r, p) {
 
 const RESIZE = { left: "ew-resize", right: "ew-resize", top: "ns-resize", bottom: "ns-resize",
                  "left top": "nwse-resize", "right bottom": "nwse-resize", "right top": "nesw-resize", "left bottom": "nesw-resize" };
-const grabCursor = g => RESIZE[g.edge || g.patch.sides.join(" ")];
+const grabCursor = g => RESIZE[g.edge || (g.patch || g.zone).sides.join(" ")];
 
 /** A plain patch over `box`, with its look's defaults (as plan.py's _patch fills them in). */
 const newPatch = box => ({ ...box, texture: "plain", tint: PLAIN, shape: "rect", radius: 24,
                            pattern: { kind: "none", colour: "#000000", size: 32, opacity: 30 },
                            border: { style: "none", colour: "#c9a24a", width: 6 } });
 
-/** Drag a patch's edges to `to` (room coordinates); the opposite edges stay where they were. */
+/** Drag a patch's (or zone's) edges to `to` (room coordinates); the opposite edges stay where they were. */
 function resizePatch(q, was, sides, to, free) {
   const MIN = 8, x = snap(to[0], SNAP.item, free), y = snap(to[1], SNAP.item, free);
   if (sides.includes("left")) { q.x = Math.min(x, was.x + was.w - MIN); q.w = was.x + was.w - q.x; }
@@ -819,6 +829,12 @@ function down(e) {
   if (S.tool === "zone" || S.tool === "patch") { S.drag = { make: S.tool, from: p, box: [p, p] }; return; }
   const grab = grabAt(r, p);
   if (grab && grab.edge) { S.drag = { edge: grab.edge, snap: JSON.stringify(S.draft) }; return; }
+  if (grab && grab.zone) {
+    S.sel = [{ t: "zone", i: grab.zone.i }];
+    S.drag = { zone: grab.zone, was: { ...r.paths.zones[grab.zone.i] }, snap: JSON.stringify(S.draft) };
+    refresh();
+    return;
+  }
   if (grab) {
     S.sel = [{ t: "patch", i: grab.patch.i }];
     S.drag = { patch: grab.patch, was: { ...r.patches[grab.patch.i] }, snap: JSON.stringify(S.draft) };
@@ -857,6 +873,7 @@ function move(e) {
   const r = room();
   if (d.edge) { resize(r, d.edge, snap(d.edge === "left" || d.edge === "right" ? p[0] : p[1], SNAP.room, e.shiftKey)); d.moved = true; draw(); refreshInspector(); return; }
   if (d.patch) { resizePatch(r.patches[d.patch.i], d.was, d.patch.sides, [p[0] - r.x, p[1] - r.y], e.shiftKey); d.moved = true; draw(); refreshInspector(); return; }
+  if (d.zone) { resizePatch(r.paths.zones[d.zone.i], d.was, d.zone.sides, [p[0] - r.x, p[1] - r.y], e.shiftKey); d.moved = true; draw(); refreshInspector(); return; }
   const dx = p[0] - d.from[0], dy = p[1] - d.from[1];
   if (d.room) {
     d.room.x = snap(d.at[0] + dx, SNAP.room, e.shiftKey); d.room.y = snap(d.at[1] + dy, SNAP.room, e.shiftKey);

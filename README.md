@@ -107,7 +107,7 @@ sections:
     and Roulette's and Craps' results signs upright, the shadow falling down the screen; the inspector's Sign picks
     which end the sign stands past, and a Master Table's "Changes with" and Speed pick its change animation (Fresh
     cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
-    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch (the
+    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
     cursor turns to a resize arrow over either; a picked patch's edge wins over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
     in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or
