@@ -8,6 +8,8 @@ Builds Casino World's generated art:
   client/assets/tiles/carpet.png                the casino carpet tile (`build_art.py tiles` rebuilds just the tiles)
   client/assets/tiles/felt_grain.png            the grain drawn over the table felt
   client/assets/tiles/leather_grain.png         the fine grain on the leather padding of the dealers' rail
+  client/assets/sprites/reserved_sign.png       the wooden RESERVED sign hung on a second box's chair
+                                                (`build_art.py sign` rebuilds just the sign)
 
 Characters are composited by the server's art module (server/casino_server/art.py)
 from the Universal LPC Spritesheet Character Generator's layers, pinned to one
@@ -22,6 +24,7 @@ Add or change a look in LOOKS below and rerun:
   python3 tools/build_art.py
 """
 import json
+import math
 import random
 import sys
 from pathlib import Path
@@ -152,6 +155,54 @@ def build_leather_grain():
     img.save(OUT_TILES / "leather_grain.png")
 
 
+OUT_SIGN = ROOT / "client" / "assets" / "sprites" / "reserved_sign.png"
+
+
+def build_reserved_sign():
+    """The RESERVED sign hung on a second box's chair (client Seating.draw_reserved_sign): a dark walnut
+    board with white condensed lettering and a hole near each top corner for its twine. It's drawn
+    about 15x8 on the floor, so it's built at 11x that and mipmapped to stay crisp at every zoom."""
+    from PIL import ImageDraw, ImageFilter, ImageFont
+    rng = random.Random(7)
+    w, h = 168, 88
+    wood = Image.new("RGB", (w, h))
+    px = wood.load()
+    # the grain runs along the board: rows of a slowly wandering streak pattern, light and dark
+    streaks = [rng.uniform(-1, 1) for _ in range(h + 8)]
+    for y in range(h):
+        for x in range(w):
+            k = (streaks[y] * 0.6 + streaks[y + 3] * 0.3 + rng.gauss(0, 0.18)
+                 + 0.25 * math.sin(x / 9.0 + y * 0.7 + streaks[y + 5] * 3))
+            px[x, y] = (round(82 + 14 * k), round(52 + 9 * k), round(32 + 6 * k))
+    wood = wood.filter(ImageFilter.GaussianBlur((1.6, 0.4)))   # (smeared along the board, barely across it)
+    img = Image.new("RGBA", (w, h))
+    img.paste(wood, (0, 0))
+    d = ImageDraw.Draw(img)
+    # a darker bevel round the edge, a lighter top edge
+    for i in range(4):
+        a = 70 - i * 16
+        d.rectangle((i, i, w - 1 - i, h - 1 - i), outline=(30, 16, 8, a))
+    d.line((4, 4, w - 5, 4), fill=(150, 110, 75, 120), width=1)
+    # the lettering
+    text = "RESERVED"
+    size = 60
+    while True:   # as big as fits between the bevels
+        font = ImageFont.truetype(str(ROOT / "client" / "assets" / "fonts" / "BarlowCondensed-Bold.ttf"), size)
+        box = d.textbbox((0, 0), text, font=font)
+        if box[2] - box[0] <= w - 22:
+            break
+        size -= 1
+    tw, th = box[2] - box[0], box[3] - box[1]
+    tx, ty = (w - tw) / 2 - box[0], (h - th) / 2 - box[1] + 6
+    d.text((tx + 1, ty + 2), text, font=font, fill=(25, 12, 5, 150))
+    d.text((tx, ty), text, font=font, fill=(250, 246, 238, 255))
+    # the holes the twine goes through
+    for cx in (24, w - 25):
+        d.ellipse((cx - 5, 9, cx + 5, 19), fill=(24, 12, 6, 255), outline=(150, 112, 78, 255), width=2)
+    OUT_SIGN.parent.mkdir(parents=True, exist_ok=True)
+    img.save(OUT_SIGN)
+
+
 def main():
     OUT_CHARS.mkdir(parents=True, exist_ok=True)
     for name, spec in LOOKS.items():
@@ -165,7 +216,8 @@ def main():
     build_carpet()
     build_felt_grain()
     build_leather_grain()
-    print(f"wrote {len(LOOKS)} looks, CREDITS.md, carpet.png, felt_grain.png and leather_grain.png")
+    build_reserved_sign()
+    print(f"wrote {len(LOOKS)} looks, CREDITS.md, carpet.png, felt_grain.png, leather_grain.png and reserved_sign.png")
 
 
 if __name__ == "__main__":
@@ -174,5 +226,8 @@ if __name__ == "__main__":
         build_felt_grain()
         build_leather_grain()
         print("wrote carpet.png, felt_grain.png and leather_grain.png")
+    elif sys.argv[1:] == ["sign"]:
+        build_reserved_sign()
+        print("wrote reserved_sign.png")
     else:
         main()

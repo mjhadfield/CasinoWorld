@@ -77,8 +77,8 @@ up, and turn back when they stand.
   you make is matched on it, so you need enough to cover both; a click on its spots is a bet on yours. It's dealt,
   decided and settled as a hand of its own, with its own result floating off its chair, and the bar asks about
   "Box 1" (your own seat) and then "Box 2". Where everyone decides at once, Box 2's cards stay face down to you
-  until Box 1 has decided, and Box 1 decides first on every street. While you play it, its chair carries a
-  **RESERVED** sign everyone can see. Between hands it also shows **Drop Box** to give the seat back (the sign goes
+  until Box 1 has decided, and Box 1 decides first on every street. While you play it, a wooden
+  **RESERVED** sign hangs on its chair's back for everyone to see. Between hands it also shows **Drop Box** to give the seat back (the sign goes
   with it); the box also goes when you stand up, and when a Master Table changes game. Not at Pai Gow or Baccarat.
 
 ## Dealers

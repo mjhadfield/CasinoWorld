@@ -26,6 +26,8 @@ const METALS := {
 	"black": [Color("6a6e75"), Color("26282c"), Color("0c0d0f"), Color("4a4e55")],
 }
 const GOLD := Color("ffd56a")
+const RESERVED_SIGN := preload("res://assets/sprites/reserved_sign.png")   # (tools/build_art.py sign)
+const TWINE := Color("c9a46e")
 const WALK_SPEED := 105.0
 
 static var styles := {}   # style id -> the style, filled out (its geometry in _g, its colours in _p)
@@ -325,6 +327,52 @@ static func _back(ci, g: Dictionary, p: Dictionary, th: float, glow: bool, pulse
 
 static func _quad(ci, q: Array, c: Color) -> void:
 	ci.draw_primitive(PackedVector2Array(q), PackedColorArray([c, c, c, c]), PackedVector2Array())
+
+
+# ------------------------------------------------------------------ the RESERVED sign
+## The wooden RESERVED sign hung on a second box's chair, drawn over the rest of the chair in `ci`
+## at `at` as draw_chair() draws it: on whichever face of the back is towards us (the outside,
+## or the inside of a back turned away), bent round it, hanging from twine looped over its top.
+static func draw_reserved_sign(ci: CanvasItem, at: Vector2, turn: float, theta: float, st: Dictionary) -> void:
+	var g: Dictionary = st._g
+	var outer := sin(theta) > 0.0
+	var rb: float = g.rx - g.inset + (0.25 if outer else -g.t - 0.25)   # (just off the face)
+	var rby: float = (g.ry - g.inset * 0.45) * rb / (g.rx - g.inset)
+	var tex_size := Vector2(RESERVED_SIGN.get_size())
+	var sh := minf(8.0, g.h - 2.5)
+	var half := minf(0.88 * g.hs, sh * tex_size.x / tex_size.y / 2.0 / rb)   # half its width, as an angle round the back
+	var top: float = g.h - 2.2
+	var pt := func(a: float, up: float, r := rb) -> Vector2:
+		return Vector2(r * cos(a), g.seat_y + r / rb * rby * sin(a) - up)
+	ci.draw_set_transform(at, turn)
+	var n := 12
+	for pass_ in 2:   # its shadow on the back, then the board
+		for i in n:
+			var a1 := theta - half + 2.0 * half * i / n
+			var a2 := theta - half + 2.0 * half * (i + 1) / n
+			if (sin((a1 + a2) / 2.0) > 0.0) != outer:
+				continue   # (round the side of the back, out of sight)
+			var q := PackedVector2Array([pt.call(a1, top), pt.call(a2, top), pt.call(a2, top - sh), pt.call(a1, top - sh)])
+			if pass_ == 0:
+				for j in 4:
+					q[j] += Vector2(0.35, 0.45)
+				var dark := Color(0, 0, 0, 0.3)
+				ci.draw_primitive(q, PackedColorArray([dark, dark, dark, dark]), PackedVector2Array())
+				continue
+			var u1 := float(i) / n
+			var u2 := float(i + 1) / n
+			if outer:   # (round the outside, the angle runs right to left)
+				u1 = 1.0 - u1
+				u2 = 1.0 - u2
+			var k := -cos((a1 + a2) / 2.0) * 0.12 * (1.0 if outer else -1.0)   # lit from the left, as the back is
+			var c := Color.WHITE.lightened(k) if k > 0.0 else Color.WHITE.darkened(-k)
+			ci.draw_primitive(q, PackedColorArray([c, c, c, c]),
+				PackedVector2Array([Vector2(u1, 0), Vector2(u2, 0), Vector2(u2, 1), Vector2(u1, 1)]), RESERVED_SIGN)
+	for f in [24.0 / 168.0, 144.0 / 168.0]:   # the twine, from each hole up and out to over the back's top
+		var a: float = theta + (2.0 * f - 1.0) * half * (-1.0 if outer else 1.0)
+		var out := 0.12 * signf(a - theta)
+		ci.draw_line(pt.call(a, top - sh * 14.0 / 88.0), pt.call(a + out, g.h + 0.2, g.rx - g.inset - g.t * 0.5), TWINE, 0.4, true)
+	ci.draw_set_transform(Vector2.ZERO)
 
 
 # ------------------------------------------------------------------ craps standing spots

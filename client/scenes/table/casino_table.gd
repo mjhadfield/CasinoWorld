@@ -372,27 +372,6 @@ func _draw_box_pills(pulse: float) -> void:
 		draw_set_transform(Vector2.ZERO)
 
 
-const SIGN_SIZE := Vector2(22, 6)
-
-## A RESERVED tent card on each second box's chair, for everyone to see: nobody sits there, but the seat's taken.
-## It stands on the cushion, clear of the 2nd Box / Drop Box pill below it.
-func _draw_reserved_signs() -> void:
-	var seat_y: float = Seating.style(table_id)._g.seat_y
-	for seat in occupants:
-		if not occupants[seat].has("box_of"):
-			continue
-		var c := chair_pos(seat) + on_screen(Vector2(0, seat_y - 1))
-		var rect := Rect2(c - SIGN_SIZE / 2, SIGN_SIZE)
-		draw_rect(Rect2(rect.position + Vector2(1, SIGN_SIZE.y), Vector2(SIGN_SIZE.x - 2, 1.5)), Color(0, 0, 0, 0.35))
-		draw_rect(rect, Color(0.96, 0.93, 0.85))
-		draw_rect(rect, Color(0.55, 0.12, 0.14), false, 0.6)
-		var k := 0.1
-		draw_set_transform(c, 0.0, Vector2(k, k))
-		draw_string(Card2D.FONT, Vector2(-SIGN_SIZE.x / 2 / k, 13), "RESERVED", HORIZONTAL_ALIGNMENT_CENTER,
-			SIGN_SIZE.x / k, 36, Color(0.55, 0.12, 0.14))
-		draw_set_transform(Vector2.ZERO)
-
-
 func dealer_card_pos(index: int) -> Vector2:
 	return Vector2((index - 1) * 16.0, DEALER_Y)
 
@@ -1323,7 +1302,6 @@ func _draw() -> void:
 	if Engine.is_editor_hint():
 		return
 	_draw_spot_glows(now)
-	_draw_reserved_signs()
 	_draw_box_pills(pulse)
 	for seat in ready_seats:
 		var p := chair_pos(seat) + on_screen(Vector2(13, -12))

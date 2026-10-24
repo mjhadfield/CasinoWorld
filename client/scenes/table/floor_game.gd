@@ -200,7 +200,8 @@ func redraw_chairs() -> void:
 
 ## A seat's chair in `ci`, from its origin at `at` (ci's coordinates, which are the table's
 ## turned or not): "seat" is what's under the sitter, "back" what's over them. A free chair
-## glows while you're walking.
+## glows while you're walking; a second box's carries its RESERVED sign with its back (which, its
+## ChairBack drawing over the table, puts it in front of the whole chair).
 func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	var st := Seating.style(table_id, chair_colours())
 	var glow := offer_seats and not occupants.has(seat) and not Engine.is_editor_hint()
@@ -210,6 +211,13 @@ func draw_chair(ci: CanvasItem, seat: int, layer: String, at: Vector2) -> void:
 	at += cs.get("offset", Vector2.ZERO)
 	var theta := float(cs.get("theta", rest_theta(seat))) + turn
 	Seating.draw_chair(ci, at, -turn, theta, float(cs.get("press", 0.0)), st, layer, glow, pulse)
+	if layer == "back" and reserved(seat):
+		Seating.draw_reserved_sign(ci, at, -turn, theta, st)
+
+
+## Whether a seat's chair carries the RESERVED sign: it's someone's second box, which nobody sits in.
+func reserved(seat: int) -> bool:
+	return occupants.has(seat) and occupants[seat].has("box_of")
 
 
 ## Whether a free chair's glow takes a breath this frame: a few times a second while it's on
