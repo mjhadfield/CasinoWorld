@@ -352,16 +352,18 @@ func _build_design() -> PanelContainer:
 	cols.add_theme_constant_override("separation", 24)
 	outer.add_child(cols)
 
-	var left := VBoxContainer.new()
-	left.custom_minimum_size.x = 260
+	var left := VBoxContainer.new()   # (narrower than the previews' frames, whose sides are empty)
+	left.custom_minimum_size.x = 200
 	left.add_theme_constant_override("separation", 6)
 	cols.add_child(left)
 	_preview = LookPreview.new()
-	_preview.custom_minimum_size = Vector2(256, 256)
+	_preview.fill_height = true
+	_preview.custom_minimum_size = Vector2(200, 256)
 	left.add_child(_preview)
 	_preview_idle = LookPreview.new()
 	_preview_idle.walking = false
-	_preview_idle.custom_minimum_size = Vector2(256, 128)
+	_preview_idle.fill_height = true
+	_preview_idle.custom_minimum_size = Vector2(200, 128)
 	left.add_child(_preview_idle)
 	_preview_note = DoorUi.label("", 16, DoorUi.MUTED)
 	_preview_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -370,7 +372,7 @@ func _build_design() -> PanelContainer:
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.custom_minimum_size = Vector2(560, 480)
+	_scroll.custom_minimum_size = Vector2(620, 480)   # (the rows, then UiTheme's gap and bar)
 	cols.add_child(_scroll)
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)
