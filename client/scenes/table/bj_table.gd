@@ -680,7 +680,9 @@ func _draw_game(_now: float, pulse: float) -> void:
 			for card in hands[turn_hand].cards:
 				box = box.expand(card.position)
 			box = box.grow_individual(8.5, 11.5, 8.5, 11.5)
-			draw_rect(box, Color(1, 0.85, 0.3, 0.35 + 0.35 * pulse), false, 0.9)
+			var glow := glow_colour()   # a soft band under a crisp edge, as the spot glows
+			draw_rect(box.grow(0.8), Color(glow, 0.15 + 0.15 * pulse), false, 2.0)
+			draw_rect(box, Color(glow.lerp(Color.WHITE, 0.35), 0.5 + 0.35 * pulse), false, 0.6)
 	# Each hand's total, above its first card. Split hands are only a card apart,
 	# so theirs are short: "Soft 17" is 7/17.
 	for seat in _hands:

@@ -99,6 +99,12 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   also print from), with a breathing halo and a lit edge, in the style's `glow` colour. A
   click anywhere on a spot's shape lands on it. The designer's "Spot glow" plays the same (`drawGlow()` in render.js,
   from the shapes and primaries `tools/table_geometry.gd` writes). Roulette and Craps don't glow (`pulse_spots()`).
+- **The thinking ring** (`CasinoTable._draw_thinking_ring()`, which every card table's `_draw_game` calls for whoever
+  is deciding) is in the same `glow` colour (`glow_colour()`): a soft pool of light on the floor round the sitter
+  and a ring on a dark track that runs down with the turn's time from the top of the screen, a spark at its
+  running end. It warms to amber at half time and red in the last fifth, breathing faster then, and fades in,
+  closing in from a little wider, when a seat's turn starts (`_ring_since`). Blackjack's box round the hand being
+  played is in the glow colour too.
 - **Chairs** are drawn by `scripts/seating.gd`, under the sitter in the table's own `_draw` and over them in a
   `ChairBack`. A free chair breathes (redraws) only on screen and on its table's own frame
   (`FloorGame.breathes_now()`). Each way of drawing a chair is built once and kept in its style (`Seating.Ink`).

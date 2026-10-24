@@ -90,6 +90,10 @@ var master_revert_end := 0.0      # back to the crest at this time (local second
 var _dealer_hot := false
 var _glows := {}                  # "seat/spot" -> SpotGlow.prepare(): each spot's glow outlines, worked out once
 var _glow_since := {}             # spot -> when it started glowing (local seconds), while it glows
+var _ring_since := {}             # seat -> when its thinking ring appeared (it fades in), while it shows
+var _ring_drawn := {}             # seats whose thinking ring this _draw drew
+const RING_R := 16.0
+const RING_FADE := 0.35
 
 @onready var dealer: Avatar = $Dealer
 @onready var _felt: Node2D = $Felt
@@ -1326,7 +1330,11 @@ func _draw() -> void:
 		draw_circle(p, 3.5, Color("2e9e4f"))
 		draw_polyline(PackedVector2Array([p + on_screen(Vector2(-1.8, 0)), p + on_screen(Vector2(-0.4, 1.4)),
 			p + on_screen(Vector2(1.9, -1.4))]), Color.WHITE, 0.8)
+	_ring_drawn.clear()
 	_draw_game(now, pulse)
+	for seat in _ring_since.keys():   # a ring that's gone fades in afresh next time
+		if not _ring_drawn.has(seat):
+			_ring_since.erase(seat)
 	var countdown := _countdown_text(timer_left())
 	if countdown == "" and master_revert_end > now:   # a Master Table nobody's at: back to the crest soon
 		countdown = "MASTER TABLE IN %d" % ceili(master_revert_end - now)
@@ -1378,7 +1386,7 @@ func _draw_spot_glows(now: float) -> void:
 	for spot in _glow_since.keys():
 		if not spot in spots:
 			_glow_since.erase(spot)
-	var colour := TableStyle.colour(style(), "glow") if styled() else Color("ffdf9e")
+	var colour := glow_colour()
 	for spot in spots:
 		var key := "%d/%s" % [my_seat, spot]
 		if not _glows.has(key):
@@ -1386,11 +1394,38 @@ func _draw_spot_glows(now: float) -> void:
 		SpotGlow.draw(self, _glows[key], colour, now, _glow_since.get_or_add(spot, now))
 
 
-## A ring around a seat's chair: who's thinking, with their time running down.
-func _draw_thinking_ring(seat: int, pulse: float) -> void:
+## The colour a table lights things up in: its style's `glow` (the spot glows, the thinking ring).
+func glow_colour() -> Color:
+	return TableStyle.colour(style(), "glow") if styled() else Color("ffdf9e")
+
+
+## The light round a seat while its sitter decides: a soft pool on the floor under them (their avatar covers its
+## middle) and a ring that runs down with their time, from the top as the screen sees it, with a spark at its
+## running end. It warms from the style's glow colour to amber at half time and red near the end, breathing
+## faster then. It fades in, closing in from a little wider, when their turn starts.
+func _draw_thinking_ring(seat: int, _pulse: float) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	_ring_drawn[seat] = true
+	var t := clampf((now - float(_ring_since.get_or_add(seat, now))) / RING_FADE, 0.0, 1.0)
+	t = t * t * (3.0 - 2.0 * t)
 	var p := chair_pos(seat) + on_screen(Vector2(0, -16))
-	draw_arc(p, 15.0, 0, TAU, 40, Color(1, 0.85, 0.3, 0.3 + 0.3 * pulse), 1.6, true)
-	var left := timer_left()
-	if left > 0:   # (running down from the top as the screen sees it)
-		var top := -PI / 2 - screen_turn()
-		draw_arc(p, 17.5, top, top + TAU * left / _timer_total, 40, Color("ffd54a"), 1.2, true)
+	var r := RING_R + 4.0 * (1.0 - t)
+	var timed := timer_left() > 0
+	var left := timer_fraction() if timed else 1.0
+	var hot := clampf((0.2 - left) / 0.2, 0.0, 1.0)
+	var colour := glow_colour().lerp(BettingBar.WARN, clampf((0.5 - left) / 0.3, 0.0, 1.0)).lerp(BettingBar.LOSS, hot)
+	var breath := 0.5 + 0.5 * sin(now * TAU / (0.6 if hot > 0 else 2.4))
+	for i in 5:   # the pool: stacked discs, so it's brightest in the middle
+		draw_circle(p, r + 3.0 - i * 2.6, Color(colour, (0.03 + 0.02 * breath) * t))
+	# The track the time runs round, dark under a faint tint so it reads on felt and carpet alike.
+	draw_arc(p, r, 0, TAU, 48, Color(0, 0, 0, 0.4 * t), 2.8, true)
+	draw_arc(p, r, 0, TAU, 48, Color(colour, (0.16 + (0 if timed else 0.4 * breath)) * t), 1.2, true)
+	if not timed:
+		return
+	var top := -PI / 2 - screen_turn()
+	var end := top + TAU * left
+	draw_arc(p, r, top, end, 48, Color(colour, (0.2 + 0.14 * breath) * t), 4.4, true)   # its halo
+	draw_arc(p, r, top, end, 48, Color(colour.lerp(Color.WHITE, 0.35), 0.95 * t), 1.5, true)
+	var head := p + Vector2.from_angle(end) * r
+	draw_circle(head, 2.3, Color(colour, 0.4 * t))
+	draw_circle(head, 1.1, Color(1, 1, 1, 0.9 * t))
