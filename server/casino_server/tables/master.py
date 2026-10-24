@@ -81,9 +81,10 @@ class MasterMachine:
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None, jackpot=None, *,
                  make=None, lines=None, anim: str = DEFAULT_ANIM, speed: float = DEFAULT_SPEED,
-                 keeps=None, on_seats=None):
-        """`make(game, seats)` builds a game's machine; `keeps(participant, game)` says whether an NPC stays for
-        a new game; `on_seats(n)` hears the seat count change (the floor's seat points follow it)."""
+                 leavers=None, on_seats=None):
+        """`make(game, seats)` builds a game's machine; `leavers(participants, game)` picks which of the NPCs
+        seated get up for a new game; `on_seats(n)` hears the seat count change (the floor's seat points follow
+        it)."""
         from casino_server.dealer import DealerLines
         self.table_id = table_id
         self.timings = timings or Timings()
@@ -92,7 +93,7 @@ class MasterMachine:
         self.make = make
         self.anim = anim if anim in ANIMS else DEFAULT_ANIM
         self.speed = speed if speed in SPEEDS else DEFAULT_SPEED
-        self.keeps = keeps or (lambda participant, game: True)
+        self.leavers = leavers or (lambda participants, game: [])
         self.on_seats = on_seats or (lambda n: None)
         self.inner = None
         self._blank = [Seat() for _ in range(seats)]
@@ -284,9 +285,10 @@ class MasterMachine:
                     events.append({"kind": "bet_changed", "seat": i, "bets": {k: 0 for k in s.bets}})
         # NPCs who don't care for it get up
         if game:
+            going = {id(p) for p in self.leavers([s.participant for s in old
+                                                   if s.participant is not None and not s.participant.is_human], game)}
             for i, s in enumerate(old):
-                p = s.participant
-                if p is not None and not p.is_human and not self.keeps(p, game):
+                if s.participant is not None and id(s.participant) in going:
                     events += self._unseat(i, now, "game_change")
         n = SEATS[game] if game else 6
         occupied = [s.participant is not None for s in self.seats]

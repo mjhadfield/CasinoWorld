@@ -64,6 +64,10 @@ CRAPS_TOP_UP_AFTER = 20.0   # seconds the craps table can be short before an idl
 FALLBACK_LOOK = "player_default"
 ROULETTE_HABITS = ("numbers", "even", "dozens", "sprinkle")
 BET_LEAD = 0.6  # seconds: NPC bets go down at least this long before betting closes (the director ticks every 0.2)
+# A Master Table changing game: each NPC there who doesn't care either way gets up this often, and never more than
+# MOST_LEAVE of them -- about one at a full table (five NPCs and a person), sometimes none, sometimes two.
+LEAVE_CHANCE = 0.22
+MOST_LEAVE = 2
 HILO = {"2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 0, "8": 0, "9": 0, "10": -1, "J": -1, "Q": -1, "K": -1, "A": -1}
 
 
@@ -427,15 +431,21 @@ class NpcDirector:
         self.casino.world.restyle(npc.entity_id, look=look, name=record["name"])
 
     # ------------------------------------------------------------------ a Master Table changing game
-    def keeps_seat(self, participant, game: str) -> bool:
-        """Whether an NPC sitting at a Master Table stays for `game`: always for a favourite, otherwise half the
-        time (a Card counter only ever stays for Blackjack)."""
-        npc = getattr(participant, "npc", None)
-        if npc is None:
-            return True
-        if npc.prof.card_counter:
-            return game == bj.GAME_KEY
-        return game in npc.prof.favourite_games or self.rng.random() < 0.5
+    def leavers(self, participants: list, game: str) -> list:
+        """Which of the NPCs sitting at a Master Table get up for `game`: a Card counter always unless it's
+        Blackjack, a favourite never, anyone else LEAVE_CHANCE of the time; MOST_LEAVE at most."""
+        must, rolled = [], []
+        for p in participants:
+            npc = getattr(p, "npc", None)
+            if npc is None:
+                continue
+            if npc.prof.card_counter:
+                if game != bj.GAME_KEY:
+                    must.append(p)
+            elif game not in npc.prof.favourite_games and self.rng.random() < LEAVE_CHANCE:
+                rolled.append(p)
+        self.rng.shuffle(rolled)
+        return (must + rolled)[:MOST_LEAVE]
 
     def reseated(self, table_id: str, mapping: list):
         """A Master Table's seats were renumbered (`mapping`: for each new seat, the old seat it took over, or -1):

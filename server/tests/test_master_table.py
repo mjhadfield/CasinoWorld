@@ -155,7 +155,7 @@ def test_no_answer_is_a_yes():
 def test_npcs_dont_vote_and_those_who_dont_like_the_game_leave():
     stays = FakeParticipant("stays", human=False)
     goes = FakeParticipant("goes", human=False)
-    m = table(keeps=lambda p, game: p is stays)
+    m = table(leavers=lambda ps, game: [p for p in ps if p is not stays])
     ann = FakeParticipant("ann")
     m.sit(0, ann, 0)
     m.choose_game(0, "three_card_poker", 0)
@@ -342,6 +342,27 @@ def seated_npcs(casino):
     return [n for n in casino.npcs.npcs.values() if n.table == "mt_1" and n.state == "seated"]
 
 
+def test_about_one_npc_gets_up_at_a_change_and_never_more_than_two(tmp_path):
+    from types import SimpleNamespace
+
+    from casino_server.npc import LEAVE_CHANCE
+
+    casino, *_ = npc_master(tmp_path)
+
+    def npc(name, favourites=(), counter=False):
+        prof = SimpleNamespace(favourite_games=list(favourites), card_counter=counter)
+        return SimpleNamespace(name=name, npc=SimpleNamespace(prof=prof))
+
+    five = [npc(f"n{i}") for i in range(5)]
+    counts = [len(casino.npcs.leavers(five, "baccarat")) for _ in range(4000)]
+    assert max(counts) == 2 and min(counts) == 0
+    assert 0.9 < sum(counts) / len(counts) < 1.1, LEAVE_CHANCE
+    fan, counter = npc("fan", ["baccarat"]), npc("counter", counter=True)
+    assert all(fan not in casino.npcs.leavers([fan, counter], "baccarat") for _ in range(200))
+    assert casino.npcs.leavers([counter], "baccarat") == [counter]
+    assert casino.npcs.leavers([counter], "blackjack") == []
+
+
 def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):
     """NPCs playing at a Master Table on a fake clock while a person keeps changing its game between six seats
     and five: every NPC that thinks it's sitting there is in the seat it thinks, and none is lost."""
@@ -387,4 +408,4 @@ def test_npcs_who_stay_for_the_new_game_play_it(tmp_path):
             if n.entity_id in stayers:
                 played[game] = played.get(game, 0) + 1
                 assert n.games.get(game, 0) > rounds[n.entity_id], (game, n.name)
-    assert len(played) >= 2   # (half of them leave at a change: this seed keeps someone for most games)
+    assert len(played) >= 2   # (about one leaves at a change: most stay for most games)

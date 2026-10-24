@@ -92,13 +92,13 @@ class Casino:
                 sounds.TABLE_SETS[table_id] = (runner.machine.current if runner else "") or "casino"
 
             return {"make": lambda g, n: self._make_machine(table_id, g, n), "anim": cfg.get("anim", master.DEFAULT_ANIM),
-                    "speed": cfg.get("speed", master.DEFAULT_SPEED), "keeps": self._npc_keeps, "on_seats": on_seats}
+                    "speed": cfg.get("speed", master.DEFAULT_SPEED), "leavers": self._npc_leavers, "on_seats": on_seats}
         return {}
 
-    def _npc_keeps(self, participant, game: str) -> bool:
-        """At a Master Table changing game: whether an NPC sitting there stays for `game`."""
+    def _npc_leavers(self, participants: list, game: str) -> list:
+        """At a Master Table changing game: which of the NPCs sitting there get up for `game`."""
         npcs = getattr(self, "npcs", None)
-        return npcs.keeps_seat(participant, game) if npcs is not None else True
+        return npcs.leavers(participants, game) if npcs is not None else []
 
     # ------------------------------------------------------------------ lifecycle
     async def start(self):
