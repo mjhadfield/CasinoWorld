@@ -111,6 +111,9 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   **2ND BOX** pill, and your second box's chair **DROP BOX** between hands (`CasinoTable.box_pill()`, drawn in
   `_draw` over the chair, 6 above its origin; `box_pill_at()` is the hit test and `box_clicked` the signal the floor
   answers with its confirmation).
+- **The RESERVED sign:** a second box's chair carries a small RESERVED tent card on its cushion for everyone at the
+  table to see, from the box being taken until it's given up (`_draw_reserved_signs()`, drawn over any seat whose
+  occupant has `box_of`, above where the Drop Box pill goes).
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of
