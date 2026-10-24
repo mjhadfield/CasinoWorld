@@ -33,5 +33,7 @@ just ends.
 ## NPCs
 
 They think for at most 3 seconds and follow Joseph Kisenwether's strategy
-(`engines/mississippi_stud.py: strategy`). A 9.6-million-hand simulation gives a house edge of
-4.93% ± 0.32% of the Ante, in line with the published 4.91%.
+(`engines/mississippi_stud.py: strategy`); a Gambler bets 3x wherever the chart says 1x. A slip
+(`npc_slips.py`) is one step off the chart: 1x instead of 3x on a draw, fold or 3x instead of 1x, or 1x on
+a hand the chart folds. A made hand (6s or better) is always played right. A 9.6-million-hand simulation of
+the chart gives a house edge of 4.93% ± 0.32% of the Ante, in line with the published 4.91%.

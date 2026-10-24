@@ -36,5 +36,7 @@ Ante pays and the Raise pushes.
 
 ## NPCs
 
-They follow Mousseau's strategy (raise any 4+ flush or a 3-card 10-8-6+, always the most allowed).
+They follow Mousseau's strategy (raise any 4+ flush or a 3-card 10-8-6+, always the most allowed); a
+Gambler raises with anything. A Casual slips only on a 3-card flush 9- to Jack-high, either side of
+10-8-6 (`npc_slips.py`); a 4+ card flush is always raised.
 Simulated: 2.64% ± 0.11% (published 2.71%).

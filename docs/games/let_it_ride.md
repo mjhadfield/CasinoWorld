@@ -26,4 +26,7 @@ A pair of 10s or better pays every bet still up (v2's paytable).
 
 ## NPCs
 
-They follow the Wizard of Odds' strategy. Simulated: 3.27% ± 0.14% of one unit with v2's paytable.
+They follow the Wizard of Odds' strategy; a Gambler lets everything ride. A Casual's slip
+(`npc_slips.py`) pulls a draw the chart rides, or rides a small pair, three suited cards or an inside
+straight draw; a paying hand always rides. Simulated (the chart): 3.27% ± 0.14% of one unit with v2's
+paytable.

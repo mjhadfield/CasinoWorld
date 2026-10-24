@@ -39,4 +39,6 @@ the dealer feeds the whole rack into the shuffler.
 
 ## NPCs
 
-They play basic strategy: Q-6-4 or better.
+They play basic strategy: Q-6-4 or better; a Gambler plays everything. A Casual sometimes slips on a
+Jack- or Queen-high hand (plays one under Q-6-4, folds one over), never on a pair or better
+(`npc_slips.py`).

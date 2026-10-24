@@ -349,7 +349,7 @@ admin page's Slot design tab.
     `tables/slot_machine.py` is a cabinet; `tables/master.py` is the Master Table, which holds whichever card game's
     machine it's playing and swaps it between hands. `tables/runner.py` drives one in real time.
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
-  - `npc.py`: the NPC director; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
+  - `npc.py`: the NPC director; `npc_slips.py`: their believable mistakes; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `admin.py`: the command-line admin. `admin_web/`: the admin page.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.

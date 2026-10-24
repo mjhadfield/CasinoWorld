@@ -86,7 +86,7 @@ game result and every penny is decided on the server; the client only renders an
 - **The NPC director (`npc.py`)** brings punters in to fill the floor population. Each visit has a budget
   they're willing to lose, and they leave bust, done for the day, or ahead depending on their traits, then sit
   out a cooldown. They pick games by preference, play each game's published strategy (with style-dependent
-  mistakes and side bets, each side bet a share of their main bet that they keep for the visit), and leave
+  side bets and believable slips on close calls from `npc_slips.py`, each side bet a share of their main bet that they keep for the visit), and leave
   the seats kept for real players free (`reserved_seats`: the middle seat of a five-seater, the middle two of
   a six-seater, the second place from the left on each side at Craps). The craps table is kept to at least two NPCs. The admin page's NPC switch
   (`npcs_on`, read each tick) turns them off: they leave at their next round boundary (the same check as being

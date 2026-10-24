@@ -28,5 +28,9 @@ fold loses the Ante, Blind, Trips and Jackpot. The Jackpot is judged on your hol
 
 ## NPCs
 
-They follow the Wizard of Odds' simple strategy, including the "fewer than 21 dealer outs" river rule.
+They follow the Wizard of Odds' simple strategy, including the "fewer than 21 dealer outs" river rule;
+a Gambler gets the money in on 40% of the hands it would check or fold. Slips (`npc_slips.py`) are close
+calls only: before the flop a J/Q/K-high, a weak Ace (A-2 to A-5) or a small pair (2s-5s); on the flop a
+single pair (checking a hidden one, betting a board pair); after the river a hand with 14-27 dealer outs. A
+hidden pair or a made straight or flush is never folded.
 Simulated house edge: 2.45% ± 0.31% (published 2.43%).

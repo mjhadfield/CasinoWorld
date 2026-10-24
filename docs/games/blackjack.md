@@ -39,4 +39,15 @@ Draws to 17 and stands on all 17s. Boxes are then settled from third base.
 
 ## NPCs
 
-They play the basic strategy chart.
+They play the basic strategy chart, and a Gambler doubles any 9-11 the chart hits. Casuals and Gamblers
+(15% of the time, Grinders never) slip on a close call (`npc_slips.py`):
+
+- **Casual (timid):** stands on 12-16 against a 7-A, hits 12 against a 4-6, doesn't double (hits, or stands
+  on a soft 18 or 19), stands on a soft 17 or 18 against a 9-A, doesn't split (8s against a 10 or
+  Ace stand on 16).
+- **Gambler (reckless):** splits 10s against a 5 or 6, doubles a soft 19 against a 3-5 or a hard 8 against
+  a 5 or 6.
+
+Nobody ever hits a hard 17+, stands on 11 or less, doubles a hard 12+, splits 5s or plays Aces as anything
+but a split. Insurance (or even money): a Card counter on a true count of +3, otherwise a Casual 15% of the
+time, a Gambler 8%, a Grinder never.

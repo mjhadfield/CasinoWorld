@@ -54,7 +54,7 @@ _SESSIONS = {
                 "budget": (30_000, 150_000)},
     "casual": {"rounds": (10, 30), "mistakes": 0.15, "unit": (0.02, 0.04), "side": 1.0, "side_size": (0.05, 0.2),
                "budget": (10_000, 60_000)},
-    "gambler": {"rounds": (3, 10), "mistakes": 0.05, "unit": (0.08, 0.15), "side": 1.6, "side_size": (0.1, 0.3),
+    "gambler": {"rounds": (3, 10), "mistakes": 0.15, "unit": (0.08, 0.15), "side": 1.6, "side_size": (0.1, 0.3),
                 "budget": (20_000, 200_000)},
 }
 WHALE_BUDGET = (10, 30)       # x the archetype's budget

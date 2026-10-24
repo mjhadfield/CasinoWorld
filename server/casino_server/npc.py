@@ -14,7 +14,8 @@ profile (roster.profile: archetype and modifiers):
               Card counter at Blackjack when the count is good
   decisions   each game's strategy (Three Card Poker Q-6-4, the Blackjack chart,
               House Way, Kisenwether, the Wizard of Odds' lines, Mousseau), with
-              the odd mistake for a Casual and high-variance lines for a Gambler
+              high-variance lines for a Gambler and now and then a believable
+              slip on a close call (npc_slips.py), never anything daft
   side bets   more or less often by archetype
   Roulette    a habit by type (lucky numbers, the even chances, dozens, a sprinkle);
               chips go down one at a time, sometimes a late bet as the ball spins
@@ -40,7 +41,7 @@ import random
 import time
 from dataclasses import dataclass, field
 
-from casino_server import floor, plan, roster
+from casino_server import floor, npc_slips, plan, roster
 from casino_server.engines import baccarat as bac
 from casino_server.engines import blackjack as bj
 from casino_server.engines import craps as cr
@@ -574,8 +575,12 @@ class NpcDirector:
             return at
         return min(at, m.deadline - BET_LEAD)
 
-    def _mistake(self, npc: Npc) -> bool:
-        return self.rng.random() < npc.prof.mistakes
+    def _slip(self, npc: Npc, right, slip):
+        """The play they make: `slip` (npc_slips' believable mistake, None on a clear-cut decision) their
+        mistake chance of the time, else the right one."""
+        if slip is None or slip == right:
+            return right
+        return slip if self.rng.random() < npc.prof.mistakes else right
 
     def _play(self, npc: Npc, now: float):
         m = self.casino.tables[npc.table].machine
@@ -641,8 +646,7 @@ class NpcDirector:
                 npc.decide_at = None
                 hand = tcp.evaluate_three_card_hand(m.round[npc.seat].cards)
                 play = tcp.should_play(hand) or npc.prof.aggressive
-                if self._mistake(npc):
-                    play = not play
+                play = self._slip(npc, play, npc_slips.three_card_poker(hand, play, npc.prof.aggressive))
                 try:
                     runner.act("decide", npc.seat, play)
                 except TableError:
@@ -678,7 +682,8 @@ class NpcDirector:
         npc.decide_at = npc.decide_for = None
         try:
             if key[0] == "insurance":
-                take = (npc.prof.card_counter and self._true_count(m) >= 3) or self.rng.random() < 0.08
+                take = (npc.prof.card_counter and self._true_count(m) >= 3) \
+                    or self.rng.random() < npc_slips.INSURANCE.get(npc.prof.archetype, 0.0)
                 runner.act("insure", npc.seat, take)
                 return
             hand = box.hands[key[1]]
@@ -687,9 +692,8 @@ class NpcDirector:
             action = bj.recommend(hand.cards, m.up_card, can_double, can_split)
             if npc.prof.aggressive and action == "hit" and can_double and 9 <= hand.total <= 11:
                 action = "double"      # a Gambler doubles whenever it's anywhere near right
-            if self._mistake(npc):
-                others = [a for a in ("hit", "stand", "double" if can_double else None) if a and a != action]
-                action = self.rng.choice(others) if others else action
+            action = self._slip(npc, action, npc_slips.blackjack(hand.cards, m.up_card, action, can_double,
+                                                                  can_split, npc.prof.archetype))
             runner.act("play_action", npc.seat, action)
         except TableError:
             pass
@@ -746,8 +750,7 @@ class NpcDirector:
             npc.decide_at = None
             if npc.prof.aggressive and raise_by == 1:
                 raise_by = 3
-            if self._mistake(npc):
-                raise_by = self.rng.choice([x for x in (0, 1, 3) if x != raise_by])
+            raise_by = self._slip(npc, raise_by, npc_slips.mississippi(seen, raise_by, self.rng))
             try:
                 runner.act("play_action", npc.seat, {0: "fold", 1: "bet1", 3: "bet3"}[raise_by])
             except TableError:
@@ -777,8 +780,7 @@ class NpcDirector:
             right = uth.river_bet(hand.cards, board)
         if npc.prof.aggressive and not right and self.rng.random() < 0.4:
             right = True                # a Gambler gets the money in
-        if self._mistake(npc):
-            right = not right
+        right = self._slip(npc, right, npc_slips.holdem(stage, hand.cards, board, right))
         try:
             runner.act("play_action", npc.seat, bet if right else wait)
         except TableError:
@@ -799,8 +801,7 @@ class NpcDirector:
         seen = hand.cards + m.community[:m.revealed]
         ride = lir.ride_first(seen) if m.stage == 0 else lir.ride_second(seen)
         ride = ride or npc.prof.aggressive
-        if self._mistake(npc):
-            ride = not ride
+        ride = self._slip(npc, ride, npc_slips.let_it_ride(seen, m.stage, ride, npc.prof.aggressive))
         try:
             runner.act("play_action", npc.seat, "ride" if ride else "pull")
         except TableError:
@@ -821,8 +822,7 @@ class NpcDirector:
         times = hcf.raise_by(hand.cards)
         if npc.prof.aggressive and times == 0:
             times = 1                   # a Gambler plays on with anything
-        if self._mistake(npc):
-            times = 0 if times else 1
+        times = self._slip(npc, times, npc_slips.high_card_flush(hand.cards, times, npc.prof.aggressive))
         try:
             runner.act("play_action", npc.seat, f"raise{times}" if times else "fold")
         except TableError:
