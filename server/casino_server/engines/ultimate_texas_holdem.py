@@ -239,17 +239,17 @@ def river_bet(hole, board) -> int:
 def rules() -> dict:
     names = {FOUR_OF_A_KIND: "Four of a Kind", FULL_HOUSE: "Full House", FIVE_CARD_FLUSH: "Flush",
              FIVE_CARD_STRAIGHT: "Straight", FIVE_CARD_THREE_OF_A_KIND: "Three of a Kind"}
-    blind = [["Royal Flush", "500 to 1"], ["Straight Flush", "50 to 1"], ["Four of a Kind", "10 to 1"],
-             ["Full House", "3 to 1"], ["Flush", "3 to 2"], ["Straight", "1 to 1"], ["Any other win", "Push"]]
-    trips = [["Royal Flush", "50 to 1"], ["Straight Flush", "40 to 1"]] + \
-        [[names[r], f"{m} to 1"] for r, m in sorted(TRIPS_PAYTABLE.items(), key=lambda x: -x[1])]
-    jackpot = [["Royal Flush", "100% of the Jackpot"], ["Straight Flush", "10% of the Jackpot"]] + \
+    blind = [["Royal Flush", "500:1"], ["Straight Flush", "50:1"], ["Four of a Kind", "10:1"],
+             ["Full House", "3:1"], ["Flush", "3:2"], ["Straight", "1:1"], ["Any other win", "Push"]]
+    trips = [["Royal Flush", "50:1"], ["Straight Flush", "40:1"]] + \
+        [[names[r], f"{m}:1"] for r, m in sorted(TRIPS_PAYTABLE.items(), key=lambda x: -x[1])]
+    jackpot = [["Royal Flush", "100%"], ["Straight Flush", "10%"]] + \
         [[names[r], f"£{p // 100:,}"] for r, p in JACKPOT_FIXED.items()]
     return {"game": GAME_KEY, "title": GAME_LABEL,
             "sections": [{"title": "Blind (on a win)", "rows": blind}, {"title": "Trips", "rows": trips},
                          {"title": "Jackpot (£1, hole cards + flop)", "rows": jackpot}],
             "notes": ["Ante and an equal Blind. Before the flop: bet 4x or 3x the Ante, or check.",
                       "After the flop: bet 2x or check. After the river: bet 1x or fold.",
-                      "Dealer qualifies with a pair. Beat the dealer: Ante and Play pay 1 to 1.",
+                      "Dealer qualifies with a pair. Beat the dealer: Ante and Play pay 1:1.",
                       "Dealer doesn't qualify: the Ante pushes.",
                       "Folding loses the Ante, Blind, Trips and Jackpot."]}

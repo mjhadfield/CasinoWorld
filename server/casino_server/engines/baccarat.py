@@ -147,12 +147,12 @@ def describe(coup: Coup) -> str:
 
 def rules() -> dict:
     return {"game": GAME_KEY, "title": GAME_LABEL,
-            "sections": [{"title": "Main bets", "rows": [["Player", "1 to 1"], ["Banker", "1 to 1 less 5%"],
-                                                          ["Tie", "8 to 1"]]},
-                         {"title": "Dragon Bonus", "rows": [["Natural win", "1 to 1"], ["Win by 9", "30 to 1"],
-                                                             ["Win by 8", "10 to 1"], ["Win by 7", "6 to 1"],
-                                                             ["Win by 6", "4 to 1"], ["Win by 5", "2 to 1"],
-                                                             ["Win by 4", "1 to 1"], ["Natural tie", "Push"]]}],
+            "sections": [{"title": "Main bets", "rows": [["Player", "1:1"], ["Banker", "1:1 less 5%"],
+                                                          ["Tie", "8:1"]]},
+                         {"title": "Dragon Bonus", "rows": [["Natural win", "1:1"], ["Win by 9", "30:1"],
+                                                             ["Win by 8", "10:1"], ["Win by 7", "6:1"],
+                                                             ["Win by 6", "4:1"], ["Win by 5", "2:1"],
+                                                             ["Win by 4", "1:1"], ["Natural tie", "Push"]]}],
             "notes": ["One coup for the whole table: back the Player, the Banker, or a Tie.",
                       "Aces count 1, tens and pictures 0; a total is the last digit of the sum.",
                       "A natural 8 or 9 stands. Otherwise the Player draws on 0-5 and the Banker by the tableau.",

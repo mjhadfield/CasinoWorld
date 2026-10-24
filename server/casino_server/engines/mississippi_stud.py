@@ -255,12 +255,12 @@ def strategy(cards, raised_3x_before: bool = False) -> int:
 def rules() -> dict:
     names = {FOUR_OF_A_KIND: "Four of a Kind", FULL_HOUSE: "Full House", FIVE_CARD_FLUSH: "Flush",
              FIVE_CARD_STRAIGHT: "Straight", FIVE_CARD_THREE_OF_A_KIND: "Three of a Kind", TWO_PAIR: "Two Pair"}
-    main = [["Royal Flush", "500 to 1"], ["Straight Flush", "100 to 1"]] \
-        + [[names[r], f"{m} to 1"] for r, m in MAIN_PAYTABLE.items()] \
-        + [["Jacks or better", "1 to 1"], ["Pair of 6s-10s", "Push"]]
-    bonus = [["Mini-Royal (A-K-Q suited)", "50 to 1"], ["Straight Flush", "40 to 1"], ["Three of a Kind", "30 to 1"],
-             ["Straight", "6 to 1"], ["Flush", "3 to 1"], ["Pair", "1 to 1"]]
-    jackpot = [["Royal Flush", "100% of the Jackpot"], ["Straight Flush", "10% of the Jackpot"]] \
+    main = [["Royal Flush", "500:1"], ["Straight Flush", "100:1"]] \
+        + [[names[r], f"{m}:1"] for r, m in MAIN_PAYTABLE.items()] \
+        + [["Jacks or better", "1:1"], ["Pair of 6s-10s", "Push"]]
+    bonus = [["Mini-Royal (A-K-Q suited)", "50:1"], ["Straight Flush", "40:1"], ["Three of a Kind", "30:1"],
+             ["Straight", "6:1"], ["Flush", "3:1"], ["Pair", "1:1"]]
+    jackpot = [["Royal Flush", "100%"], ["Straight Flush", "10%"]] \
         + [[names[r], f"£{p // 100:,}"] for r, p in JACKPOT_FIXED.items()]
     return {"game": GAME_KEY, "title": GAME_LABEL,
             "sections": [{"title": "Every bet in play", "rows": main},

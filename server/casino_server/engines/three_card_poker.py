@@ -324,7 +324,7 @@ def rules() -> dict:
                 ["6 Cards Same Colour", odds(PRIME_SAME_COLOUR_6_MULTIPLIER)],
                 ["3 Cards Same Colour", odds(PRIME_SAME_COLOUR_3_MULTIPLIER)]]},
             {"title": "Jackpot (£1)", "rows": [
-                ["Royal Flush (spades)", "JACKPOT"],
+                ["Royal Flush (spades)", "100%"],
                 ["Royal Flush", f"£{JACKPOT_ROYAL_NON_SPADES_PAYOUT // 100}"],
                 ["Straight Flush", f"£{JACKPOT_STRAIGHT_FLUSH_PAYOUT // 100}"],
                 ["Three of a Kind", f"£{JACKPOT_THREE_OF_A_KIND_PAYOUT // 100}"],

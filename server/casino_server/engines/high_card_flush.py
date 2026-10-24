@@ -166,14 +166,14 @@ def raise_by(cards) -> int:
 
 def rules() -> dict:
     return {"game": GAME_KEY, "title": GAME_LABEL,
-            "sections": [{"title": "Flush", "rows": [[f"{n}-card flush", f"{m} to 1"] for n, m in FLUSH_PAYS.items()]},
-                         {"title": "Straight Flush", "rows": [[f"{n}-card straight flush", f"{m} to 1"]
+            "sections": [{"title": "Flush", "rows": [[f"{n}-card flush", f"{m}:1"] for n, m in FLUSH_PAYS.items()]},
+                         {"title": "Straight Flush", "rows": [[f"{n}-card straight flush", f"{m}:1"]
                                                               for n, m in STRAIGHT_FLUSH_PAYS.items()]},
                          {"title": "Jackpot (£1, straight flush length)",
-                          "rows": [["7 cards", "100% of the Jackpot"], ["6 cards", "50% of the Jackpot"]] +
+                          "rows": [["7 cards", "100%"], ["6 cards", "50%"]] +
                           [[f"{n} cards", f"£{p // 100:,}"] for n, p in JACKPOT_FIXED.items()]}],
             "notes": ["Seven cards each. Your hand is your longest flush; equal lengths compare high cards.",
                       "Fold, or raise 1x the Ante (2x with a 5-card flush, 3x with 6 or 7).",
-                      "Dealer qualifies with a 3-card flush, 9-high. If not: Ante pays 1 to 1, Raise pushes.",
-                      "Beat a qualifying dealer: Ante and Raise pay 1 to 1.",
+                      "Dealer qualifies with a 3-card flush, 9-high. If not: Ante pays 1:1, Raise pushes.",
+                      "Beat a qualifying dealer: Ante and Raise pay 1:1.",
                       "Flush, Straight Flush and Jackpot pay on your cards even if you fold."]}

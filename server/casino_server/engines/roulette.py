@@ -128,11 +128,11 @@ def settle(number: int, bets: dict) -> dict:
 def rules() -> dict:
     return {"game": GAME_KEY, "title": GAME_LABEL, "wheel": list(WHEEL), "red": sorted(RED),
             "la_partage": True, "min_bet": MIN_BET, "limits": {str(k): v for k, v in LIMITS.items()},
-            "sections": [{"title": "Inside bets", "rows": [["Straight up", "35 to 1"], ["Split", "17 to 1"],
-                                                            ["Street, Trio", "11 to 1"], ["Corner, First four", "8 to 1"],
-                                                            ["Six line", "5 to 1"]]},
-                         {"title": "Outside bets", "rows": [["Column, Dozen", "2 to 1"],
-                                                             ["Red/Black, Odd/Even, 1-18/19-36", "1 to 1"]]}],
+            "sections": [{"title": "Inside bets", "rows": [["Straight up", "35:1"], ["Split", "17:1"],
+                                                            ["Street, Trio", "11:1"], ["Corner, First four", "8:1"],
+                                                            ["Six line", "5:1"]]},
+                         {"title": "Outside bets", "rows": [["Column, Dozen", "2:1"],
+                                                             ["Red/Black, Odd/Even, 1-18/19-36", "1:1"]]}],
             "notes": ["Single zero. La Partage: when 0 comes up, the even-money bets lose only half.",
                       "The middle of a box is a straight up; a side, a split; a corner, a corner; the bottom edge "
                       "of the 1-4-7 row, a street (between two streets, a six line).",

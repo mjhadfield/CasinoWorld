@@ -565,7 +565,7 @@ def rules(game: str) -> dict:
     notes = [
         "53 cards: the Joker completes a Straight or Flush, or plays as an Ace.",
         "Set a 2-card Low hand and a 5-card High hand; the High hand must beat the Low hand.",
-        "Win both hands: Ante pays 1 to 1. Win one: push. Ties go to the dealer.",
+        "Win both hands: Ante pays 1:1. Win one: push. Ties go to the dealer.",
         "The dealer sets by House Way.",
     ]
     if game == FORTUNE:
@@ -575,8 +575,8 @@ def rules(game: str) -> dict:
         notes.append("A dealer Ace-high Pai Gow pushes every Ante.")
     notes.append("Envy Bonus: with £5+ on Fortune, you're paid when another player hits Four of a Kind or better.")
     sections = [
-        {"title": "Fortune", "rows": [[TIER_NAMES[t], f"{m:,} to 1"] for t, m in FORTUNE_MULTIPLIERS.items()]},
-        {"title": "Jackpot (£1)", "rows": [[TIER_NAMES[t], f"{int(share * 100)}% of the Jackpot" if share
+        {"title": "Fortune", "rows": [[TIER_NAMES[t], f"{m:,}:1"] for t, m in FORTUNE_MULTIPLIERS.items()]},
+        {"title": "Jackpot (£1)", "rows": [[TIER_NAMES[t], f"{int(share * 100)}%" if share
                                             else f"£{fixed // 100:,}"] for t, (fixed, share) in JACKPOT_TIERS.items()]},
     ]
     sections.append({"title": "Envy Bonus", "rows": [[TIER_NAMES[t], f"£{v // 100:,}"] for t, v in ENVY_BONUS.items()]})

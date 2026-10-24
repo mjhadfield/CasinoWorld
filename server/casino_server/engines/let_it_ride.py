@@ -194,12 +194,12 @@ def ride_second(cards) -> bool:
 def rules() -> dict:
     lab = TIER_LABELS
     return {"game": GAME_KEY, "title": GAME_LABEL,
-            "sections": [{"title": "Every bet still up", "rows": [[lab[t], f"{m:,} to 1"] for t, m in BASE_PAYS.items()]},
-                         {"title": "Bonus (£1)", "rows": [[lab[t], f"{m:,} to 1"] for t, m in BONUS_PAYS.items()]},
-                         {"title": "3 Card Bonus", "rows": [[("Pair" if t == "pair" else lab[t]), f"{m} to 1"]
+            "sections": [{"title": "Every bet still up", "rows": [[lab[t], f"{m:,}:1"] for t, m in BASE_PAYS.items()]},
+                         {"title": "Bonus (£1)", "rows": [[lab[t], f"{m:,}:1"] for t, m in BONUS_PAYS.items()]},
+                         {"title": "3 Card Bonus", "rows": [[("Pair" if t == "pair" else lab[t]), f"{m}:1"]
                                                            for t, m in THREE_CARD_PAYS.items()]},
-                         {"title": "Jackpot (£1)", "rows": [["Royal Flush", "100% of the Jackpot"],
-                                                           ["Straight Flush", "10% of the Jackpot"]] +
+                         {"title": "Jackpot (£1)", "rows": [["Royal Flush", "100%"],
+                                                           ["Straight Flush", "10%"]] +
                           [[lab[t], f"£{p // 100:,}"] for t, p in JACKPOT_FIXED.items()]}],
             "notes": ["Three equal bets: 1, 2 and $. You get three cards; two community cards are turned one at a time.",
                       "After your three cards you may pull back bet 1; after the first community card, bet 2.",
