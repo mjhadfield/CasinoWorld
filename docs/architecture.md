@@ -42,7 +42,9 @@ game result and every penny is decided on the server; the client only renders an
   filled from the floor plan); each client paths it on its navigation map at whatever speed arrives on time, so
   everyone sees them arrive together. A walk that comes before the map is ready (the snapshot as the page loads,
   just before the floor's bake reaches the navigation server) waits for it rather than cutting across the tables,
-  and every walk is re-pathed whenever the map changes.
+  and every walk is re-pathed whenever the map changes. The server keeps an NPC's `x, y` as where its walk set
+  off from (or where it stopped), so a snapshot mid-walk starts them that far along their path rather than at
+  the players' spawn point, and they still reach the arrival point they leave by before they're despawned.
 
 ### Tables: pure machines, driven in real time
 

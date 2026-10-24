@@ -1320,7 +1320,9 @@ func _spawn(e: Dictionary, at: String) -> void:
 	node.set_action(e.get("anim", "idle") if e.get("anim") in ["idle", "walk"] else "idle", e.get("dir", "down"))
 	entities[e.id] = node
 	if e.get("walk") != null:
-		node.walk_to(_resolve_target(e.walk.target), float(e.walk.remaining))
+		var duration := float(e.walk.get("duration", 0.0))
+		var remaining := float(e.walk.remaining)
+		node.walk_to(_resolve_target(e.walk.target), remaining, 1.0 - remaining / duration if duration > 0.0 else 0.0)
 
 
 func _resolve_target(target: String) -> Vector2:

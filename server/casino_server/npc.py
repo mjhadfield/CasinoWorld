@@ -251,7 +251,8 @@ class NpcDirector:
         self.npcs[npc.entity_id] = npc
         npc.door = self._weighted(doors)
         npc.at = floor.position(f"point:{npc.door}")
-        self.casino.world.add(Entity(npc.entity_id, "npc", npc.name, look), at=f"point:{npc.door}")
+        x, y = npc.at
+        self.casino.world.add(Entity(npc.entity_id, "npc", npc.name, look, x=x, y=y), at=f"point:{npc.door}")
         self._next_step(npc, now)
         return npc
 
@@ -283,8 +284,8 @@ class NpcDirector:
         seconds = far / (plan.NPC_SPEED * self.rng.uniform(0.85, 1.15)) if far is not None else self.rng.uniform(5.0, 9.0)
         duration = max(1.0, seconds) * self.pace
         npc.state, npc.target, npc.until = state, target, now + duration
-        npc.at = to if to is not None else npc.at
-        self.casino.world.walk(npc.entity_id, target, duration)
+        start, npc.at = npc.at, to if to is not None else npc.at
+        self.casino.world.walk(npc.entity_id, target, duration, start=start)
 
     def _next_step(self, npc: Npc, now: float):
         step = npc.plan.pop(0) if npc.plan else "leave"
@@ -467,7 +468,7 @@ class NpcDirector:
     # ------------------------------------------------------------------ per-tick behaviour
     def _step(self, npc: Npc, now: float):
         if npc.state in ("walking", "leaving") and now >= npc.until:
-            self.casino.world.arrived(npc.entity_id)
+            self.casino.world.arrived(npc.entity_id, at=npc.at)
             if npc.state == "leaving":
                 return self._despawn(npc)
             if npc.table is not None:

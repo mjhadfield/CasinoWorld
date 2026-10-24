@@ -255,3 +255,22 @@ def test_switching_npcs_off_sends_them_home_after_their_round_and_back_on_they_r
     run(60)
     assert len(arrivals) == 6
     assert all(b - a >= 1.5 for a, b in zip(arrivals, arrivals[1:]))   # one at a time
+
+
+
+def test_npcs_in_a_snapshot_are_where_they_are_not_at_the_players_spawn_point(tmp_path):
+    """A snapshot (joining, or back from a hidden tab) places each NPC where the server has them: the start of the
+    walk they're on, or where they stopped -- never left for the client to put at the players' spawn point."""
+    from casino_server import floor
+    first = {}   # each NPC's place in the first snapshot they're in
+
+    def check(casino):
+        for e in casino.world.snapshot()["entities"]:
+            if e["kind"] == "npc":
+                assert e["x"] is not None and e["y"] is not None, e
+                first.setdefault(e["id"], (e["x"], e["y"]))
+        return False
+
+    simulate(tmp_path, seconds=900, until=check)
+    arrivals = {floor.position(f"point:{k}") for k in floor.arrivals()}
+    assert first and all(at in arrivals for at in first.values())   # each came in at an arrival point

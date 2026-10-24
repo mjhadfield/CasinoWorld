@@ -21,6 +21,7 @@ var _next := 0   # the path point being walked to
 var _pending_walk := []   # [pos, duration]: a walk that came while they were still getting up
 var _goal: Variant = null   # Vector2: where this NPC walk ends (re-pathed whenever the navigation map changes)
 var _due := 0.0             # when the server expects them there (seconds, Time.get_ticks_msec)
+var _done := 0.0            # how much of the walk they'd already done when we joined it (skipped on the first path)
 var _body: CollisionShape2D
 
 
@@ -49,8 +50,9 @@ func place(pos: Vector2) -> void:
 	_goal = null
 
 
-## An NPC walk: get to `pos` in about `duration` seconds.
-func walk_to(pos: Vector2, duration: float) -> void:
+## An NPC walk: get to `pos` in about `duration` seconds. `done` (0-1): how much of it they'd walked before we saw
+## it (a snapshot mid-walk, placed at the walk's start): they start that far along the path.
+func walk_to(pos: Vector2, duration: float, done := 0.0) -> void:
 	if seated:
 		return
 	if Seating.busy(self):
@@ -59,6 +61,7 @@ func walk_to(pos: Vector2, duration: float) -> void:
 	_target_pos = null
 	_goal = pos
 	_due = _now() + duration
+	_done = clampf(done, 0.0, 1.0)
 	_plan_walk()
 
 
@@ -78,6 +81,18 @@ func _plan_walk() -> void:
 	for i in range(1, _path.size()):
 		length += _path[i - 1].distance_to(_path[i])
 	_next = 1
+	if _done > 0.0:   # the part walked before we saw it
+		var skip := length * _done
+		length -= skip
+		while _next < _path.size() and skip > 0.0:
+			var leg := _path[_next] - position
+			if leg.length() > skip:
+				position += leg.normalized() * skip
+				break
+			skip -= leg.length()
+			position = _path[_next]
+			_next += 1
+		_done = 0.0
 	_walk_speed = clampf(length / maxf(_due - _now(), 0.1), MIN_SPEED, MAX_SPEED)
 	_walking = true
 

@@ -14,7 +14,8 @@ class Entity:
     kind: str   # "player" | "npc"
     name: str
     look: str
-    x: float | None = None  # None until the first move: clients place it at the entrance
+    x: float | None = None  # a player: None until their first move (clients place them at the spawn point);
+                            # an NPC: where their current walk started, or where they are when not walking
     y: float | None = None
     dir: str = "down"
     anim: str = "idle"
@@ -25,7 +26,7 @@ class Entity:
         d = {"id": self.id, "kind": self.kind, "name": self.name, "look": self.look,
              "x": self.x, "y": self.y, "dir": self.dir, "anim": self.anim, "seat": self.seat}
         if self.walk:
-            d["walk"] = {"target": self.walk["target"],
+            d["walk"] = {"target": self.walk["target"], "duration": round(self.walk["duration"], 2),
                          "remaining": round(max(0.0, self.walk["started"] + self.walk["duration"] - now), 2)}
         return d
 
@@ -65,18 +66,23 @@ class World:
         self.casino.broadcast_all({"type": "entity_move", "id": entity_id, "x": x, "y": y,
                                    "dir": e.dir, "anim": e.anim}, exclude=source)
 
-    def walk(self, entity_id: str, target: str, duration: float):
+    def walk(self, entity_id: str, target: str, duration: float, start: tuple | None = None):
+        """`start`: where the walk sets off from, so a snapshot mid-walk starts them there (not at the spawn point)."""
         e = self.entities.get(entity_id)
         if e is None:
             return
+        if start is not None:
+            e.x, e.y = start
         e.walk = {"target": target, "duration": duration, "started": self.clock()}
         self.casino.broadcast_all({"type": "entity_walk", "id": entity_id, "target": target,
                                    "duration": round(duration, 2)})
 
-    def arrived(self, entity_id: str):
+    def arrived(self, entity_id: str, at: tuple | None = None):
         e = self.entities.get(entity_id)
         if e is not None:
             e.walk = None
+            if at is not None:
+                e.x, e.y = at
 
     def rename(self, entity_id: str, name: str):
         e = self.entities.get(entity_id)
