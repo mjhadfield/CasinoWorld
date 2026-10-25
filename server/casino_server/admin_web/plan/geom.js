@@ -4,7 +4,7 @@
 export let CAT = null;   // the catalogue (GET /api/plan/catalogue)
 export function setCatalogue(c) { CAT = c; }
 
-export const STOOLS = { down: [-10, 11, 20, 12], up: [-10, -21, 20, 12], left: [-29, -11, 20, 12], right: [9, -11, 20, 12] };
+export const STOOLS = { down: [-10, 11, 20, 12], up: [-10, -21, 20, 12], left: [-35, -11, 20, 12], right: [15, -11, 20, 12] };
 const AGENT = 9, CELL = 8;
 
 export const at = (r, x, y) => [r[0] + x, r[1] + y, r[2], r[3]];
