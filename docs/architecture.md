@@ -147,7 +147,8 @@ A Godot 4.7 project exported to the web.
   points (spawn, arrival, wander, with weights and linger times) and no-go zones. The admin page's Floor plan tab
   edits a draft (`draft.json`); publishing copies it to `live.json` (the last 20 publishes kept in `history/`).
   At startup, after the built slots, `plan.install` fills `floor.py` from the live plan's placed rooms: every table
-  and cabinet (an item's id is its table id, given by the server and never reused), the points, each seat's
+  and cabinet (an item's id is its table id, given by the server and never reused; a slot bank is one item whose
+  cabinets, `<bank id>_<n>`, are what everything past the plan sees), the points, each seat's
   standing spot and the doorways (`plan.Routes`, for how long an NPC's walk takes). A publish that only moves things
   installs at once and sends everyone `world`; one that adds or removes tables restarts the server. The checks
   (`plan.problems`: things off the floor or in each other's way, doors that don't line up, seats and points nobody

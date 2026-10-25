@@ -124,9 +124,13 @@ sections:
   - **Plan:** every room on the floor to scale. Drag rooms into place (32px steps, Shift for free); a door in one
     room's wall joins the room whose wall runs along it (shown green). The rooms list holds the library too: new,
     duplicate, place on the floor or take off it, delete. Pick where players appear (a spawn point).
-  - **Room:** one blueprint on a grid. The palette has the tables, every slot, the pit podium, standing figures
+  - **Room:** one blueprint on a grid. The palette has the tables, the slot banks, the pit podium, standing figures
     (any NPC on the roster, or a dealer) and the furniture library: click one and click the floor (or drag it in),
-    R turns it (a table turns about its middle), Esc stops. Tables are drawn as the game shows them: chairs, dealers
+    R turns it (a table turns about its middle), Esc stops. Slots go out in banks: a Single, a Pair (side by
+    side), a Bank of 4 (the pair with an end cabinet each side facing out) or a Bank of 6 (two facing us, two back
+    to back with them, an end cabinet each side). A bank's size is fixed once it's down; its inspector has a slot
+    for each cabinet, and a Single turns every way, a Pair or 4 round to face away. (Lone cabinets placed before
+    the banks still work.) Tables are drawn as the game shows them: chairs, dealers
     and Roulette's and Craps' results signs upright, the shadow falling down the screen; the inspector's Sign picks
     which end the sign stands past, and a Master Table's "Changes with" and Speed pick its change animation (Fresh
     cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
@@ -250,7 +254,7 @@ sections:
     off**, which locks the Value ladder, Features, Bonus games and Maths until **Reopen**. Looks stay editable.
   - **Build:** writes `server/slot_builds/<id>/` (the variant, its art, fonts and an IDEAS.md for anything
     needing code) and **Install** restarts the live server, which loads it: the game downloads its art, fonts and
-    sounds. Its cabinets go on the floor from the Floor tab. No client export is needed (`docs/slots/README.md`
+    sounds. Its cabinets go on the floor in slot banks on the Floor plan tab. No client export is needed (`docs/slots/README.md`
     explains the path).
   - A design is a folder under `server/slot_designs/<id>/` with a `design.json`; `slot_design.py` explains the
     layout. Variants are found from the files. A symbol's kind decides how its takes are made, and for every kind

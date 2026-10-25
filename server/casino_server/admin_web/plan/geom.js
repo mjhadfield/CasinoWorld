@@ -24,6 +24,7 @@ export function interior(room) {
 export function kindOf(asset) {
   if (asset.startsWith("table:")) return "table";
   if (asset === "slot") return "slot";
+  if (asset.startsWith("bank:")) return "bank";
   if (CAT.pieces[asset]) return "piece";
   return "furniture";
 }
@@ -34,9 +35,34 @@ export function piece(asset) {
   return null;
 }
 
-/** An item's shapes on the plan (see plan.shapes): rect, body, stands, mount, kind; null if its asset is unknown. */
+/** A slot bank's cabinets as slot items placed in the room (plan.cabinets); anything else is just itself. */
+export function cabinetsOf(item) {
+  if (kindOf(item.asset) !== "bank") return [item];
+  const bank = CAT.banks[item.asset.slice(5)];
+  if (!bank) return [];
+  const flip = item.facing === "up", turns = bank.facings.length === CAT.facings.length, slots = item.props.slots || [];
+  return bank.cabinets.map(([dx, dy, f], n) => {
+    if (flip) { dy = -dy; f = { down: "up", up: "down" }[f] || f; }
+    if (turns) f = item.facing || "down";
+    return { id: item.id ? `${item.id}_${n + 1}` : undefined, asset: "slot", x: item.x + dx, y: item.y + dy, facing: f,
+             props: { variant: slots[n] }, bank: item.id };
+  });
+}
+
+/** An item's shapes on the plan (see plan.shapes): rect, body, stands, mount, kind; null if its asset is unknown.
+ *  A slot bank's: its cabinets' shapes (parts), with rect and body round them all. */
 export function shapes(room, item) {
   const x = room.x + item.x, y = room.y + item.y, kind = kindOf(item.asset);
+  if (kind === "bank") {
+    const parts = cabinetsOf(item).map(c => shapes(room, c));
+    if (!parts.length) return null;
+    const round = rs => {
+      const x0 = Math.min(...rs.map(r => r[0])), y0 = Math.min(...rs.map(r => r[1]));
+      return [x0, y0, Math.max(...rs.map(r => r[0] + r[2])) - x0, Math.max(...rs.map(r => r[1] + r[3])) - y0];
+    };
+    return { kind, parts, rect: round(parts.map(p => p.rect)), body: round(parts.map(p => p.body)), mount: "floor",
+             stands: parts.flatMap(p => p.stands) };
+  }
   if (kind === "table") {
     const g = CAT.games[item.asset.slice(6)];
     if (!g) return null;
@@ -130,15 +156,17 @@ export function label(item) {
   const kind = kindOf(item.asset);
   if (kind === "table") return `${item.props.label || item.asset.slice(6)}${item.id ? ` (${item.id})` : ""}`;
   if (kind === "slot") return `the slot cabinet${item.id ? " " + item.id : ""}`;
+  if (kind === "bank") return `the ${((CAT.banks[item.asset.slice(5)] || {}).name || "slot bank").toLowerCase()}${item.id ? " " + item.id : ""}`;
   if (item.asset === "npc" && item.props.name) return item.props.name;
   const p = piece(item.asset);
   return `the ${(p ? p.name : item.asset).toLowerCase()}`;
 }
 
-/** What's wrong in a room (things off the floor, in each other's way, points in the wall): [{item index, message}]. */
+/** What's wrong in a room (things off the floor, in each other's way, points in the wall): [{item index, message}].
+ *  A slot bank is checked cabinet by cabinet, its problems under the bank's index. */
 export function roomProblems(room) {
   const out = [], inner = interior(room), floorThings = [];
-  room.items.forEach((item, i) => {
+  room.items.flatMap((item, i) => cabinetsOf(item).map(c => [c, i])).forEach(([item, i]) => {
     const s = shapes(room, item), name = label(item);
     if (!s) { out.push({ i, message: `${name} isn't in the library any more.` }); return; }
     if (s.mount === "wall") return;
@@ -183,7 +211,7 @@ export function npcReach(rooms) {
     mark(o.side === "top" || o.side === "bottom" ? [g[0] + 4, g[1] - 12, g[2] - 8, g[3] + 24] : [g[0] - 12, g[1] + 4, g[2] + 24, g[3] - 8], 1);
   }
   for (const r of rooms) {
-    for (const item of r.items) { const s = shapes(r, item); if (s && s.mount === "floor") bodies(s).forEach(b => mark(b, 0, -(AGENT - 4))); }
+    for (const item of r.items.flatMap(cabinetsOf)) { const s = shapes(r, item); if (s && s.mount === "floor") bodies(s).forEach(b => mark(b, 0, -(AGENT - 4))); }
     for (const z of r.paths.zones) mark([r.x + z.x, r.y + z.y, z.w, z.h], 0, -(AGENT - 4));
   }
   const starts = rooms.flatMap(r => r.paths.points.filter(p => p.kind === "arrival").map(p => [r.x + p.x, r.y + p.y]));

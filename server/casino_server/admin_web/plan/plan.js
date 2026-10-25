@@ -327,7 +327,9 @@ function palette() {
   const out = [];
   const add = (cat, name, tpl, extra = {}) => out.push({ cat, name, key: tpl.key = JSON.stringify([tpl.asset, tpl.props]), tpl, ...extra });
   for (const [g, c] of Object.entries(G.CAT.games)) add("Tables", c.name, { asset: "table:" + g, rot: 0, props: { label: c.name } }, { swatch: "#8f1d22" });
-  for (const [v, name] of Object.entries(G.CAT.slots)) add("Slots", name, { asset: "slot", facing: "down", props: { variant: v } }, { swatch: "#ffb347" });
+  const first = Object.keys(G.CAT.slots)[0];   // (a new bank starts with every cabinet on the first slot)
+  if (first) for (const [size, b] of Object.entries(G.CAT.banks))
+    add("Slot banks", b.name, { asset: "bank:" + size, facing: "down", props: { slots: b.cabinets.map(() => first) } }, { swatch: "#ffb347" });
   for (const [k, p] of Object.entries(G.CAT.pieces)) if (k !== "npc") add(p.category || "Casino", p.name, { asset: k, facing: "down", props: {} });
   add("People", "Standing figure", { asset: "npc", facing: "down", props: { look: "dealer", name: "" } }, { swatch: "#1d1d22" });
   for (const n of S.npcs) add("People", `${n.name} (${n.role.replace("_", " ")})`, { asset: "npc", facing: "down", props: { look: n.look_id, name: n.name } });
@@ -452,6 +454,10 @@ function refreshInspector() {
           v => { it.props.anim = v; })));
         rows.push(field("Speed", choose(String(it.props.speed || 1), [["0.5", "0.5×"], ["1", "1×"], ["2", "2×"]], v => { it.props.speed = +v; })));
       }
+    } else if (kind === "bank") {   // (its size is what it is: another size is another bank)
+      const b = G.CAT.banks[it.asset.slice(5)];
+      if (b.facings.length > 1) rows.push(field("Facing", choose(it.facing || "down", b.facings.map(f => [f, f]), v => { it.facing = v; })));
+      b.cabinets.forEach(([, , , name], n) => rows.push(field(name, choose(it.props.slots[n], Object.entries(G.CAT.slots), v => { it.props.slots[n] = v; }))));
     } else {
       rows.push(field("Facing", choose(it.facing || "down", G.CAT.facings.map(f => [f, f]), v => { it.facing = v; })));
     }
@@ -666,8 +672,9 @@ function turn(it) {
   if (G.kindOf(it.asset) === "table") {
     const rots = G.CAT.games[it.asset.slice(6)].rotations;
     turnTo(it, rots[(rots.indexOf(it.rot || 0) + 1) % rots.length]);
-  } else {   // (a library piece turns only to the facings it has pictures for)
-    const p = G.piece(it.asset), order = ["down", "left", "up", "right"].filter(f => !p || !p.facings || p.facings[f]);
+  } else {   // (a library piece turns only to the facings it has pictures for, a slot bank to its own)
+    const p = G.piece(it.asset), bank = G.kindOf(it.asset) === "bank" && G.CAT.banks[it.asset.slice(5)];
+    const order = ["down", "left", "up", "right"].filter(f => bank ? bank.facings.includes(f) : !p || !p.facings || p.facings[f]);
     it.facing = order[(order.indexOf(it.facing || "down") + 1) % order.length];
   }
 }

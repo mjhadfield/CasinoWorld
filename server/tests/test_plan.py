@@ -163,6 +163,64 @@ def test_slot_cabinets_may_stand_back_to_back_but_not_on_each_other():
     assert messages(p) == ["Lobby: the slot cabinet slot_1 overlaps the slot cabinet slot_2."]
 
 
+def bank(size: str, facing="down", x=512, y=360, slots=None, bid="bank_1") -> dict:
+    return {"id": bid, "asset": f"bank:{size}", "x": x, "y": y, "facing": facing,
+            "props": {"slots": slots or ["armadillo"] * int(size)}}
+
+
+def test_every_slot_bank_lays_out_cleanly_whichever_way_it_faces():
+    p = lobby_only()
+    for size, b in plan.BANKS.items():
+        for facing in b["facings"]:
+            room(p, "lobby")["items"] = [bank(size, facing)]
+            assert messages(p) == [], (size, facing)
+    cabs = plan.cabinets(bank("6"))
+    assert [c["id"] for c in cabs] == [f"bank_1_{n}" for n in range(1, 7)]
+    assert [c["facing"] for c in cabs] == ["up", "up", "down", "down", "left", "right"]
+    # a pair turned round: its players sit behind, the screens face away
+    assert [(c["x"], c["facing"]) for c in plan.cabinets(bank("2", "up"))] == [(495, "up"), (529, "up")]
+    assert plan.cabinets(bank("1", "left"))[0]["facing"] == "left"
+
+
+def test_a_slot_bank_keeps_its_size_and_one_slot_per_cabinet():
+    old = lobby_only()
+    raw = copy.deepcopy(old)
+    room(raw, "lobby")["items"] = [{"asset": "bank:4", "x": 512, "y": 360, "facing": "left", "props": {"slots": ["voyager", "startrek"]}}]
+    p = plan.clean(raw, old)
+    b = room(p, "lobby")["items"][0]
+    assert b["id"] == "bank_1" and b["facing"] == "down"   # (a 4 doesn't turn side on)
+    assert b["props"]["slots"] == ["voyager", "startrek", "voyager", "voyager"]
+    raw = copy.deepcopy(p)
+    room(raw, "lobby")["items"][0]["props"]["slots"] = ["armadillo"] * 9
+    assert len(room(plan.clean(raw, p), "lobby")["items"][0]["props"]["slots"]) == 4
+    # another size is another bank
+    room(raw, "lobby")["items"][0]["asset"] = "bank:6"
+    assert room(plan.clean(raw, p), "lobby")["items"][0]["id"] == "bank_2"
+    for bad in ({"asset": "bank:8", "x": 1, "y": 1, "props": {"slots": ["armadillo"]}}, {"asset": "bank:2", "x": 1, "y": 1, "props": {}}):
+        room(raw, "lobby")["items"] = [bad]
+        with pytest.raises(plan.PlanError):
+            plan.clean(raw, p)
+
+
+def test_a_slot_banks_cabinets_go_on_the_floor_and_to_the_client():
+    p = lobby_only()
+    room(p, "lobby")["items"] = [bank("6", slots=["armadillo", "nope", "armadillo", "armadillo", "armadillo", "armadillo"])]
+    assert messages(p) == ["Lobby: there's no slot 'nope' for bank_1_2."]
+    assert plan.problems(p)[0]["item"] == "bank_1"   # (the page picks out the bank)
+    room(p, "lobby")["items"][0]["props"]["slots"][1] = "armadillo"
+    ids = plan.install(p)
+    assert ids == [f"bank_1_{n}" for n in range(1, 7)] and floor.TABLES["bank_1_5"]["variant"] == "armadillo"
+    assert floor.SEATS["bank_1_5"] == [(512 - 58 - 38, 360 + 2 + 6)]   # (the left end's player stands to its left)
+    items = room(plan.world(p), "lobby")["items"]
+    assert [(i["asset"], i["facing"]) for i in items][:2] == [("slot", "up"), ("slot", "up")]
+    # moving a bank is a hot change; another slot in it restarts the casino
+    moved = copy.deepcopy(p)
+    room(moved, "lobby")["items"][0]["x"] += 20
+    assert not plan.PlanBoard.needs_restart(moved, p)
+    room(moved, "lobby")["items"][0]["props"]["slots"][0] = "other"
+    assert plan.PlanBoard.needs_restart(moved, p)
+
+
 def test_doors_must_join_rooms_squarely():
     p = lobby_only()
     bar = {"id": "bar", "name": "Bar", "placed": True, "x": 256, "y": -400, "w": 512, "h": 400, "floor": {"texture": "carpet", "tint": "#ffffff"},

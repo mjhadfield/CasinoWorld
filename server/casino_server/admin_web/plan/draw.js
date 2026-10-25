@@ -2,7 +2,7 @@
 // the game draws them (plan_room.gd), its doorways, and everything in it -- tables in their table styles (the Tables
 // tab's render.js), cabinets, pieces, standing figures and furniture -- plus the NPCs' points and zones.
 import { render, loadAssets, planShadow, planChair, planSpot, planDealer } from "/admin-ui/tables/render.js";
-import { CAT, shapes, kindOf, piece, gap, STOOLS } from "./geom.js";
+import { CAT, shapes, kindOf, piece, gap, STOOLS, cabinetsOf } from "./geom.js";
 
 const images = {};
 let redraw = () => {};
@@ -195,6 +195,19 @@ function cabinetLook(variant) {
   return { body: v.body || "#4a2a16", trim: v.trim || "#ffb347" };
 }
 
+/** One slot cabinet, its base point at x, y. */
+function drawCabinet(ctx, x, y, f, variant) {
+  const look = cabinetLook(variant);
+  const art = { down: [-16, -64, 32, 64], up: [-16, -64, 32, 64], left: [-12, -64, 24, 64], right: [-12, -64, 24, 64] }[f];
+  ctx.fillStyle = look.body; ctx.fillRect(x + art[0], y + art[1], art[2], art[3]);
+  ctx.strokeStyle = look.trim; ctx.lineWidth = 1.5; ctx.strokeRect(x + art[0], y + art[1], art[2], art[3]);
+  if (f === "down") { ctx.fillStyle = "#111"; ctx.fillRect(x - 12, y - 52, 24, 22); ctx.fillStyle = look.trim; ctx.fillRect(x - 12, y - 60, 24, 5); }
+  else if (f !== "up") { ctx.fillStyle = "#111"; ctx.fillRect(x + (f === "left" ? -12 : 6), y - 52, 6, 22); }
+  const st = STOOLS[f];
+  ctx.fillStyle = "#2a2320"; ctx.beginPath(); ctx.ellipse(x + st[0] + st[2] / 2, y + st[1] + st[3] / 2, 9, 6, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1; ctx.stroke();
+}
+
 /** One thing in a room, at its place. `opts`: ghost (being placed), picked, bad. */
 export function drawItem(ctx, room, item, opts = {}) {
   const s = shapes(room, item);
@@ -206,15 +219,9 @@ export function drawItem(ctx, room, item, opts = {}) {
   } else if (kind === "table") {
     drawTable(ctx, item, x, y, s);
   } else if (kind === "slot") {
-    const f = item.facing || "down", look = cabinetLook(item.props.variant);
-    const art = { down: [-16, -64, 32, 64], up: [-16, -64, 32, 64], left: [-12, -64, 24, 64], right: [-12, -64, 24, 64] }[f];
-    ctx.fillStyle = look.body; ctx.fillRect(x + art[0], y + art[1], art[2], art[3]);
-    ctx.strokeStyle = look.trim; ctx.lineWidth = 1.5; ctx.strokeRect(x + art[0], y + art[1], art[2], art[3]);
-    if (f === "down") { ctx.fillStyle = "#111"; ctx.fillRect(x - 12, y - 52, 24, 22); ctx.fillStyle = look.trim; ctx.fillRect(x - 12, y - 60, 24, 5); }
-    else if (f !== "up") { ctx.fillStyle = "#111"; ctx.fillRect(x + (f === "left" ? -12 : 6), y - 52, 6, 22); }
-    const st = STOOLS[f];
-    ctx.fillStyle = "#2a2320"; ctx.beginPath(); ctx.ellipse(x + st[0] + st[2] / 2, y + st[1] + st[3] / 2, 9, 6, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1; ctx.stroke();
+    drawCabinet(ctx, x, y, item.facing || "down", item.props.variant);
+  } else if (kind === "bank") {   // (the back row first, so the front row stands over it)
+    for (const c of cabinetsOf(item).sort((a, b) => a.y - b.y)) drawCabinet(ctx, room.x + c.x, room.y + c.y, c.facing, c.props.variant);
   } else if (item.asset === "podium") {
     ctx.fillStyle = "#3b1d0e"; ctx.fillRect(x - 15, y - 18, 30, 18);
     ctx.fillStyle = "#c9a24a"; ctx.fillRect(x - 17, y - 24, 34, 7);

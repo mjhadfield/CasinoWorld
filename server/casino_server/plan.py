@@ -33,12 +33,16 @@ one room's wall; where another room's wall runs along the same line, the opening
 An NPCs-only room is a rabbit hole: the client keeps players out of its doorways and never shows it, so NPCs given
 an arrival point in it step out of its door and leave back through it. Players can't spawn in one.
 
-An item's asset is "table:<game>" (its id is its table id: tcp_3, bj_6...), "slot" (a cabinet: props.variant; its id
-slot_<n>), a built-in piece ("podium", "npc": a figure standing there, props.look and props.name) or a piece of
+An item's asset is "table:<game>" (its id is its table id: tcp_3, bj_6...), "bank:<size>" (a slot bank of 1, 2, 4 or
+6 cabinets, BANKS: props.slots, one slot per cabinet; its id bank_<n>, its cabinets' bank_<n>_1...), "slot" (a lone
+cabinet from before the banks: props.variant; its id slot_<n>), a built-in piece ("podium", "npc": a figure standing there, props.look and props.name) or a piece of
 furniture from the asset library ("a:<id>", plan_assets.py). Ids are given by the server and never reused. Tables
 turn by `rot` (the catalogue says which turns each game takes); everything else faces one of FACINGS. A table with a
 results sign (Roulette, Craps) has props.sign, the end it stands past as the players see it (SIGN_SIDES; unset, the
 usual end: sign_side()); the sign has its own shapes beside the table's (shapes()["sign"]).
+
+A bank's size is fixed (another size is another asset, so a new id); everything past the page sees its cabinets
+(flat_items), each an ordinary slot item, so the game and the NPCs never know about banks.
 
 install() puts the live plan's placed rooms on the floor (floor.py): their tables and cabinets join floor.TABLES, and
 their points, seats and doors give the NPCs somewhere to go. Publishing changes the floor at once when only places
@@ -89,7 +93,24 @@ PREFIX = {"three_card_poker": "tcp", "blackjack": "bj", "pai_gow_fortune": "pgf"
           "mississippi_stud": "ms", "ultimate_texas_holdem": "uth", "let_it_ride": "lir", "high_card_flush": "hcf",
           "baccarat": "bac", "roulette": "rou", "craps": "crp", "master_table": "mt"}
 SLOT_PREFIX = "slot"
+BANK_PREFIX = "bank"
 ITEM_PREFIX = "i"
+
+# Slot banks ("bank:<size>"): their cabinets as (dx, dy, facing, label) from the bank's base point with the bank
+# facing down (its players nearest us), and the facings each size turns to. Facing up flips them front to back,
+# players behind; the 6 is the same both ways round. Spacing is the old Armadillo bank's: 34 apart, back to back
+# 26 apart, end cabinets 41 past the row.
+BANKS = {
+    "1": {"name": "Single", "facings": list(FACINGS), "cabinets": [(0, 0, "down", "Slot")]},
+    "2": {"name": "Pair", "facings": ["down", "up"],
+          "cabinets": [(-17, 0, "down", "Left"), (17, 0, "down", "Right")]},
+    "4": {"name": "Bank of 4", "facings": ["down", "up"],
+          "cabinets": [(-58, 0, "left", "Left end"), (-17, 0, "down", "Left"), (17, 0, "down", "Right"),
+                       (58, 0, "right", "Right end")]},
+    "6": {"name": "Bank of 6", "facings": ["down"],
+          "cabinets": [(-17, -13, "up", "Back left"), (17, -13, "up", "Back right"), (-17, 13, "down", "Front left"),
+                       (17, 13, "down", "Front right"), (-58, 2, "left", "Left end"), (58, 2, "right", "Right end")]},
+}
 
 # The walls' looks (the client and the page draw them from these): paper and its stripe, the wainscot below,
 # the brass trim, the dark edge (side and front walls) and the sign. "none" draws no walls at all, just the floor
@@ -227,6 +248,8 @@ def asset_kind(asset: str) -> str:
         return "table"
     if asset == "slot":
         return "slot"
+    if asset.startswith("bank:"):
+        return "bank"
     if asset in PIECES:
         return "piece"
     return "furniture"
@@ -279,6 +302,32 @@ def shapes(room: dict, item: dict) -> dict | None:
     rect = turned.get("rect") or p["rect"]
     body = turned.get("body") or p.get("body") or rect
     return {"kind": kind, "rect": _at(rect, x, y), "body": _at(body, x, y), "mount": p.get("mount", "floor"), "stands": []}
+
+
+def cabinets(item: dict) -> list[dict]:
+    """A slot bank's cabinets, each an ordinary slot item placed in the room (id <bank id>_<n>, "bank" its bank's
+    id); anything else is just itself."""
+    if asset_kind(item["asset"]) != "bank":
+        return [item]
+    bank = BANKS.get(item["asset"][5:])
+    if bank is None:
+        return []
+    flip = item.get("facing") == "up"
+    slots = item["props"].get("slots") or []
+    out = []
+    for n, (dx, dy, f, _) in enumerate(bank["cabinets"]):
+        if flip:
+            dy, f = -dy, {"down": "up", "up": "down"}.get(f, f)
+        if bank["facings"] == list(FACINGS):   # (a single turns every way, as a cabinet does)
+            f = item.get("facing", "down")
+        out.append({"id": f"{item['id']}_{n + 1}", "asset": "slot", "x": item["x"] + dx, "y": item["y"] + dy,
+                    "facing": f, "props": {"variant": slots[n] if n < len(slots) else None}, "bank": item["id"]})
+    return out
+
+
+def flat_items(room: dict) -> list[dict]:
+    """A room's items with each slot bank replaced by its cabinets."""
+    return [c for item in room["items"] for c in cabinets(item)]
 
 
 def sign_side(item: dict) -> str:
@@ -579,6 +628,17 @@ def _clean_item(it, room_name: str, w: float, h: float, nxt: dict, known: dict, 
                 raise PlanError(f"{room_name}: a slot cabinet needs its slot.")
             item["props"]["variant"] = props["variant"]
             prefix = SLOT_PREFIX
+        elif kind == "bank":
+            bank = BANKS.get(asset[5:])
+            if bank is None:
+                raise PlanError(f"There's no slot bank {asset!r}.")
+            if item["facing"] not in bank["facings"]:
+                item["facing"] = bank["facings"][0]
+            slots = [s for s in props.get("slots") or [] if isinstance(s, str)][:len(bank["cabinets"])]
+            if not slots:
+                raise PlanError(f"{room_name}: a slot bank needs its slots.")
+            item["props"]["slots"] = slots + [slots[0]] * (len(bank["cabinets"]) - len(slots))
+            prefix = BANK_PREFIX
         else:
             if asset == "npc":
                 item["props"] = {"look": _str(props.get("look"), 64) or "dealer", "name": _str(props.get("name"), 24)}
@@ -627,35 +687,35 @@ def _room_problems(room: dict, variants: dict) -> list[dict]:
     inner = interior(room)
     name = room["name"]
     every = []
-    for item in room["items"]:
+    for item in flat_items(room):
         s = shapes(room, item)
         label = _label(item)
         if s is None:
-            out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} isn't in the library any more."})
+            out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: {label} isn't in the library any more."})
             continue
         if item["asset"] == "slot" and item["props"].get("variant") not in variants:
-            out.append({"room": room["id"], "item": item["id"], "message": f"{name}: there's no slot {item['props'].get('variant')!r} for {item['id']}."})
+            out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: there's no slot {item['props'].get('variant')!r} for {item['id']}."})
         if s["mount"] == "wall":
             if not _contains(outline(room), s["rect"]) or s["rect"][1] + s["rect"][3] > room["y"] + wall_top(room) + 4:
-                out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} belongs on the back wall."})
+                out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: {label} belongs on the back wall."})
             continue
         if not all(_contains(inner, b) for b in _bodies(s)) or not all(_contains(outline(room), r) for r in _covers(s)):
-            out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label} is off the floor."})
+            out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: {label} is off the floor."})
             continue
         if any(not _inside(p, inner) for p in s["stands"]):
-            out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {label}'s players would stand in the wall."})
+            out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: {label}'s players would stand in the wall."})
             continue
         every.append((item, s))
     floor_things = [(i, s) for i, s in every if _solid(s)]
     for n, (item, s) in enumerate(floor_things):
         for other, s2 in floor_things[n + 1:]:
             if _clash(s, s2):
-                out.append({"room": room["id"], "item": item["id"], "message": f"{name}: {_label(item)} overlaps {_label(other)}."})
+                out.append({"room": room["id"], "item": item.get("bank", item["id"]), "message": f"{name}: {_label(item)} overlaps {_label(other)}."})
                 break
         else:
             for other, s2 in floor_things:
                 if other is not item and any(_inside(p, b) for p in s["stands"] for b in _bodies(s2)):
-                    out.append({"room": room["id"], "item": item["id"],
+                    out.append({"room": room["id"], "item": item.get("bank", item["id"]),
                                 "message": f"{name}: {_label(other)} stands where {_label(item)}'s players would."})
                     break
     for p in room["paths"]["points"]:
@@ -724,7 +784,7 @@ def _reach_problems(rooms: list, ops: dict, spawn: str | None) -> list[dict]:
                      else (g[0] - 12, g[1] + 4, g[2] + 24, g[3] - 8), 1)
     things = []
     for r in rooms:
-        for item in r["items"]:
+        for item in flat_items(r):
             s = shapes(r, item)
             if s is not None and _solid(s):
                 for b in _bodies(s):
@@ -816,7 +876,7 @@ def tables_of(plan: dict, placed_only: bool = True) -> dict:
     for room in plan["rooms"]:
         if placed_only and not room["placed"]:
             continue
-        for item in room["items"]:
+        for item in flat_items(room):
             kind = asset_kind(item["asset"])
             if kind == "table":
                 game = item["asset"][6:]
@@ -846,7 +906,7 @@ def install(plan: dict) -> list[str]:
         for p in room["paths"]["points"]:
             floor.POINTS[f"{room['id']}/{p['name']}"] = {"x": room["x"] + p["x"], "y": room["y"] + p["y"], "kind": p["kind"],
                                                          "weight": p["weight"], "linger": p["linger"], "room": room["id"]}
-        for item in room["items"]:
+        for item in flat_items(room):
             if item["id"] in tables:
                 s = shapes(room, item)
                 floor.SEATS[item["id"]] = s["stands"] if s else []
@@ -889,7 +949,7 @@ def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> 
     out_rooms = []
     for room in shown:
         items = []
-        for item in room["items"]:
+        for item in flat_items(room):
             it = copy.deepcopy(item)
             kind = asset_kind(item["asset"])
             if kind == "table":
@@ -1019,7 +1079,7 @@ class PlanBoard:
         """Publishing this would add or take away tables or cabinets (or change what they are): the casino restarts."""
         def games(p):   # (a cabinet of a slot built since the server started counts: the restart loads it)
             return {i["id"]: (i["asset"], i["props"].get("variant")) for r in p["rooms"] if r["placed"]
-                    for i in r["items"] if asset_kind(i["asset"]) in ("table", "slot")}
+                    for i in flat_items(r) if asset_kind(i["asset"]) in ("table", "slot")}
         return games(draft) != games(live_plan)
 
     def save(self, raw, base_rev=None) -> dict:
@@ -1129,7 +1189,7 @@ def catalogue(builds_dir: Path | None = None) -> dict:
     return {"games": {g: {**c, "prefix": PREFIX[g]} for g, c in CATALOGUE["games"].items()},
             "cabinet": CATALOGUE["cabinet"], "pieces": PIECES, "assets": ASSETS,
             "walls": {"top": WALL_TOP, "side": WALL_SIDE, "bottom": WALL_BOTTOM, "styles": WALL_STYLES},
-            "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS,
+            "floors": FLOORS, "slots": variant_names(builds_dir), "facings": FACINGS, "banks": BANKS,
             "slot_looks": {vid: b.get("theme", {}).get("cabinet", {}) for vid, b in slot_builds.BUILT.items()},
             "min_width": MIN_WIDTH, "min_floor": MIN_FLOOR, "point_kinds": POINT_KINDS, "zone_kinds": ZONE_KINDS, "door_kinds": DOOR_KINDS,
             "patch_shapes": PATCH_SHAPES, "patch_patterns": PATCH_PATTERNS, "patch_borders": PATCH_BORDERS,
