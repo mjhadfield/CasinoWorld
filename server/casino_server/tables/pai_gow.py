@@ -61,6 +61,7 @@ class Timings:
     settle_pause: float = 0.9
     settle_base: float = 2.3          # the hands turned over, then the Low and High marks a beat apart
     settle_step: float = 0.45
+    fold_sweep: float = 0.8      # Face Up: each folded hand swept, before anyone's turned over
     clear: float = 2.4
 
     def scaled(self, factor: float) -> "Timings":
@@ -368,7 +369,8 @@ class PaiGowMachine(TableMachine):
     def _start_settling(self, now: float) -> list:
         self.phase = "settling"
         self._work_out_bonuses()
-        self._settle_queue = sorted(self.round, reverse=True)
+        # Folded hands are swept first, straight away, then the rest settle from third base.
+        self._settle_queue = sorted(self.round, key=lambda seat: (not self.round[seat].folded, -seat))
         return self._settle_next(now)
 
     def _work_out_bonuses(self):
@@ -424,7 +426,7 @@ class PaiGowMachine(TableMachine):
         hand.participant.credit(returned, outcome)
         steps.sort(key=lambda s: s["action"] != "collect")
         t = self.timings
-        self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
+        self.deadline = now + (t.fold_sweep if mucked else t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps))
         event = {"kind": "settle_seat", "seat": seat, "outcome": outcome, "front_win": front_win, "back_win": back_win,
                  "commission": fee, "cards": [] if mucked else _codes(hand.cards),
                  "tier": pg.TIER_NAMES.get(b.tier) if b.tier else None,

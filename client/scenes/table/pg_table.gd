@@ -505,6 +505,8 @@ func _fold_pile(seat: int, d: float, instant := false) -> void:
 func _settle(ev: Dictionary, d: float) -> float:
 	phase = "settling"
 	var seat := int(ev.seat)
+	if not ev.has("front") and ev.cards.is_empty():  # a folded hand, mucked unseen
+		return _sweep_fold(ev, seat, d)
 	var pause := float(ev.get("pause", 0.9)) * d
 	if _piles.has(seat):
 		var pile: Dictionary = _piles[seat]
@@ -549,6 +551,26 @@ func _settle(ev: Dictionary, d: float) -> float:
 		jackpot_lights.erase(seat))
 	t += 0.4 * d
 	return t + pause
+
+
+## Face Up: the folded hands settle first, before anyone's turned over: the
+## bets swept together and the cards straight after, with no reveal or pause.
+func _sweep_fold(ev: Dictionary, seat: int, d: float) -> float:
+	if str(ev.get("say", "")) != "":
+		dealer.say(ev.say, 1.5)
+	for step in ev.steps:  # every bet at once (an Ace-high push leaves the Ante)
+		_settle_step(seat, step, d)
+	var t := 0.1 * d
+	_after(t).timeout.connect(func():
+		if _piles.has(seat):
+			var k := 0
+			for card in _piles[seat].all:
+				_discard(card, d, k * 0.03 * d)
+				k += 1
+			_piles.erase(seat)
+		_results.erase(seat)
+		jackpot_lights.erase(seat))
+	return t + 0.5 * d
 
 
 ## The deck goes back through the shuffler after every hand.

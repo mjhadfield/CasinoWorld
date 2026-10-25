@@ -41,7 +41,8 @@ neither collect Envy nor trigger it.
 - **Fortune Pai Gow:** a 5% commission on winning Antes.
 - **Face Up Pai Gow:** no commission. The dealer's hand is set and shown before you set yours, and you may
   **Fold**: your cards are mucked unseen and every bet on them (Ante, Fortune, Jackpot) is lost at
-  settlement. A dealer Ace-high Pai Gow pushes every Ante. Nobody sets a hand then: if your cards win a side
+  settlement. Folded hands settle first: their bets and cards are swept straight in, with no pause, before
+  the first played hand turns over. A dealer Ace-high Pai Gow pushes every Ante. Nobody sets a hand then: if your cards win a side
   bet you **Claim bonus** (**Space**), otherwise you **Fold** (**Backspace**).
 
 ## A second box
