@@ -292,7 +292,7 @@ def shapes(room: dict, item: dict) -> dict | None:
     if kind == "slot":
         at = CATALOGUE["cabinet"][item.get("facing", "down")]
         f = item.get("facing", "down")
-        stool = {"down": (-10, 11, 20, 12), "up": (-10, -21, 20, 12), "left": (-29, -2, 20, 12), "right": (9, -2, 20, 12)}[f]
+        stool = {"down": (-10, 11, 20, 12), "up": (-10, -21, 20, 12), "left": (-29, -11, 20, 12), "right": (9, -11, 20, 12)}[f]
         return {"kind": kind, "rect": _at(at["rect"], x, y), "body": _at(at["body"], x, y), "stool": _at(stool, x, y),
                 "mount": "floor", "stands": [(x + p[0], y + p[1]) for p in at["stands"]]}
     p = piece(item["asset"])
