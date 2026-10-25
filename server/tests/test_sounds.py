@@ -147,3 +147,67 @@ def test_picks_saved_before_sets_move_to_each_moments_home(tmp_path):
     assert board.resolve("blackjack", "payout") == ({"files": ["kenney-casino/chips-handle-6.ogg"], "gain_db": 0.0}, "casino")
     assert board.resolve("roulette", "ball_spin")[0]["gain_db"] == -16.5
     assert board.row("roulette", "ball_spin")["changed"]
+
+
+def test_bonus_games_have_their_own_sets_which_every_machine_plays(client, tmp_path):
+    assert sounds.shows("bonus.trail", "trail_hop") and not sounds.shows("slots", "trail_hop") and not sounds.shows(ARM, "battle_boom")
+    assert sounds.shows(ARM, "bonus_trigger") and sounds.shows(ARM, "free_spin") and not sounds.shows("bonus.trail", "click")
+    r = client.put(f"/api/sounds/{ARM}/trail_hop", json={"files": ["pops/cogitollc-pop3.ogg"], "gain_db": 0})
+    assert r.status_code == 400 and "doesn't use" in r.json()["detail"]
+    row = client.put("/api/sounds/bonus.battle/battle_boom", json={"files": ["pops/cogitollc-pop3.ogg"], "gain_db": 0}).json()
+    assert row["own"] and not row["can_inherit"]
+    manifest = client.get("/api/sounds/manifest").json()
+    assert "bonus.battle" not in manifest["sets"]           # the game finds them in Default's, at the end of every chain
+    assert manifest["sets"]["slots"]["moments"]["battle_boom"]["files"][0].startswith("/sound-files/pops/cogitollc-pop3.ogg")
+    assert "trail_hop" in manifest["sets"]["slots"]["moments"]
+
+
+def test_a_machine_follows_a_preset_and_tweaks_on_top(client, tmp_path):
+    r = client.post("/api/sound-presets", json={"name": "  Neon   Nights "})
+    key = r.json()["key"]
+    assert key == "preset.neon-nights"
+    assert client.post("/api/sound-presets", json={"name": "neon nights"}).status_code == 400   # names are unique
+    assert client.post("/api/sound-presets", json={"name": "Default"}).status_code == 400
+    # A fresh preset plays Default's; giving it a sound reaches the machines on it, except where they have their own.
+    client.put(f"/api/sounds/{key}/reel_tease", json={"files": ["pops/cogitollc-pop1.ogg"], "gain_db": 0})
+    client.put(f"/api/sounds/{key}/reel_stop", json={"files": ["pops/cogitollc-pop1.ogg"], "gain_db": 0})
+    assert client.put(f"/api/sound-machines/{ARM}", json={"preset": key}).status_code == 200
+    board = sounds.SoundBoard(tmp_path)
+    assert board.sets()[ARM]["parent"] == key and board.sets()[key]["parent"] == "slots"
+    assert board.resolve(ARM, "reel_tease")[1] == key          # the preset's
+    assert board.resolve(ARM, "reel_stop")[1] == ARM           # Armadillo's own tweak stays on top
+    assert board.resolve(ARM, "win_end")[1] == ARM and board.resolve(ARM, "jackpot_win")[1] == "slots"
+    data = client.get("/api/sounds").json()
+    sets = {s["key"]: s for s in data["sets"]}
+    assert sets[ARM]["preset"] == key and sets[key]["used_by"] == [ARM] and sets[key]["group"] == "Slot presets"
+    assert [s["key"] for s in data["sets"]].index(key) == [s["key"] for s in data["sets"]].index("slots") + 1
+    assert client.get("/api/sounds/manifest").json()["sets"][ARM]["parent"] == key
+    # Dropping the tweaks plays the preset as it is; deleting the preset puts the machine back on Default.
+    assert client.post(f"/api/sounds/{ARM}/inherit-all").status_code == 200
+    assert sounds.SoundBoard(tmp_path).resolve(ARM, "reel_stop")[1] == key
+    assert client.patch(f"/api/sound-presets/{key}", json={"name": "Neon"}).status_code == 200
+    assert client.delete(f"/api/sound-presets/{key}").json()["moved"] == ["Armadillo Goes West"]
+    board = sounds.SoundBoard(tmp_path)
+    assert board.presets == {} and board.preset_of(ARM) == "slots" and board.resolve(ARM, "reel_stop")[1] == "slots"
+
+
+def test_a_machine_can_be_saved_as_a_preset_and_sounds_the_same(client, tmp_path):
+    before = {k: sounds.SoundBoard(tmp_path).resolve(ARM, k)[0] for k in sounds.MOMENTS if sounds.shows(ARM, k)}
+    key = client.post("/api/sound-presets", json={"name": "Wild West", "from": ARM}).json()["key"]
+    board = sounds.SoundBoard(tmp_path)
+    assert board.preset_of(ARM) == key and not any(board.row(ARM, k)["own"] for k in before)
+    assert {k: board.resolve(ARM, k)[0] for k in before} == before
+    assert board.resolve(key, "win_small")[1] == key and board.resolve(key, "win_small")[0] == before["win_small"]
+    # A copy of a preset starts with its sounds, and follows nothing.
+    copy = client.post("/api/sound-presets", json={"name": "Wild West 2", "from": key}).json()["key"]
+    assert sounds.SoundBoard(tmp_path).resolve(copy, "win_small")[1] == copy
+    assert client.post("/api/sound-presets", json={"name": "X", "from": "casino"}).status_code == 400
+
+
+def test_bonus_sounds_saved_for_every_slot_machine_move_to_the_bonus_game(tmp_path):
+    (tmp_path / "sounds.json").write_text(json.dumps({"version": 9, "sets": {
+        "slots": {"trail_hop": {"files": ["pops/cogitollc-pop1.ogg"], "gain_db": -2.0}},
+        ARM: {"battle_boom": {"files": ["pops/cogitollc-pop1.ogg"], "gain_db": 0.0}}}}))
+    board = sounds.SoundBoard(tmp_path)
+    assert board.resolve("bonus.trail", "trail_hop") == ({"files": ["pops/cogitollc-pop1.ogg"], "gain_db": -2.0}, "bonus.trail")
+    assert ARM not in board.saved     # a machine's own bonus sounds are dropped

@@ -972,6 +972,16 @@ def test_sounds(board):
     assert c.put("/api/slot-design/demo/sounds/reel_stop", json={"files": [], "gain_db": 40}).status_code == 400
     assert c.delete("/api/slot-design/demo/sounds/reel_stop").status_code == 200
     assert {r["key"]: r for r in _overview(c)["sounds"]["moments"]}["reel_stop"]["own"] is None
+    assert c.put("/api/slot-design/demo/sounds/trail_hop", json={"files": [some]}).status_code == 400    # the Trail Bonus's
+    # The preset it starts from: Default until one's picked; the rows play the preset's.
+    key = c.post("/api/sound-presets", json={"name": "Neon"}).json()["key"]
+    c.put(f"/api/sounds/{key}/reel_stop", json={"files": [some], "gain_db": 0})
+    assert _overview(c)["sounds"]["preset"] == "slots" and key in [p["key"] for p in _overview(c)["sounds"]["presets"]]
+    assert c.put("/api/slot-design/demo/sound-preset", json={"preset": "casino"}).status_code == 400
+    assert c.put("/api/slot-design/demo/sound-preset", json={"preset": key}).status_code == 200
+    s = _overview(c)["sounds"]
+    rows = {r["key"]: r for r in s["moments"]}
+    assert s["preset"] == key and rows["reel_stop"]["inherited"]["from"] == key and rows["reel_stop"]["inherited"]["from_name"] == "Neon"
 
 
 # ------------------------------------------------------------------ Maths & payouts (Phase 6)

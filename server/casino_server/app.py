@@ -300,6 +300,47 @@ async def sounds_reset(request: Request):
     return {"ok": True}
 
 
+@app.post("/api/sounds/{set_key}/inherit-all")
+def sounds_inherit_all(set_key: str, request: Request):
+    """A machine (or preset) plays the set above's sounds for every moment: its preset, untweaked."""
+    _sound_call(request.app.state.sounds.inherit_all, set_key)
+    _sounds_changed(request)
+    return {"ok": True}
+
+
+@app.post("/api/sound-presets")
+async def sound_presets_create(request: Request):
+    """A new slot preset: `{name}`, or `{name, from}` to start from a preset (a copy) or a machine (its sounds move in)."""
+    body = await _json_body(request, "{name, from?}")
+    key = _sound_call(request.app.state.sounds.create_preset, body.get("name"), body.get("from"))
+    _sounds_changed(request)
+    return {"key": key}
+
+
+@app.patch("/api/sound-presets/{key}")
+async def sound_presets_rename(key: str, request: Request):
+    body = await _json_body(request, "{name}")
+    _sound_call(request.app.state.sounds.rename_preset, key, body.get("name"))
+    return {"ok": True}
+
+
+@app.delete("/api/sound-presets/{key}")
+def sound_presets_delete(key: str, request: Request):
+    """Remove a preset; the machines on it go back to Default."""
+    moved = _sound_call(request.app.state.sounds.delete_preset, key)
+    _sounds_changed(request)
+    return {"moved": moved}
+
+
+@app.put("/api/sound-machines/{machine}")
+async def sound_machine_preset(machine: str, request: Request):
+    """Which preset a slot machine follows: `{preset}` ("slots" for Default)."""
+    body = await _json_body(request, "{preset}")
+    _sound_call(request.app.state.sounds.set_machine_preset, machine, body.get("preset"))
+    _sounds_changed(request)
+    return {"ok": True}
+
+
 @app.put("/api/sound-uploads/{filename}")
 async def sounds_upload(filename: str, request: Request):
     data = await request.body()
@@ -797,6 +838,14 @@ def slot_design_font_file(design: str, name: str, request: Request):
 async def slot_design_sound(design: str, key: str, request: Request):
     body = await _json_body(request, "{files: [sound ids], gain_db}")
     _design_call(request.app.state.slot_design.set_sound, design, key, body.get("files"), body.get("gain_db", 0.0))
+    return {"ok": True}
+
+
+@app.put("/api/slot-design/{design}/sound-preset")
+async def slot_design_sound_preset(design: str, request: Request):
+    """The slot preset the slot starts on: `{preset}` ("slots" for Default)."""
+    body = await _json_body(request, "{preset}")
+    _design_call(request.app.state.slot_design.set_sound_preset, design, body.get("preset"))
     return {"ok": True}
 
 

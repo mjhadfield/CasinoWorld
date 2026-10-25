@@ -66,13 +66,19 @@ leaves), a top bar with the section's own controls, and a **Display** menu for t
 colours (Amethyst or Graphite, `theme.css` holds the tokens) and density (Compact or Comfortable). Each section is
 a module loaded the first time it opens, and the route is the hash (`#plan`, `#design/<design>/<step>`). The
 sections:
-- **Sounds:** the sound sets down the left: **Whole casino**, each table game, **Every slot machine** and each
-  machine. A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
-  own card deal and Armadillo Goes West its own reel stop while both click like everything else. Each set's
-  moments are listed by section, marked own or borrowed; **Change…** opens the library beside them (the
-  folders suited to that section first) to play, **Use** or **Add** a variant, or upload your own. **Same as …**
-  hands a moment back to the set above, **No sound** makes it silent in that set (the set above doesn't fill in),
-  and **Reset** puts it back to how it came. Moments that loop (the reels
+- **Sounds:** the sound sets down the left: **Whole casino**, each table game, the **Slot presets** (**Default**
+  and any made with **+ New preset**), each slot machine, and the **Bonus games** (Trail, Battle, Voyage,
+  Expedition). A set plays the one above's sound for any moment it doesn't set itself, so Blackjack can have its
+  own card deal and Armadillo Goes West its own reel stop while both click like everything else. A machine
+  follows a preset (its **Preset** dropdown; Default unless picked, or its design's), and its own sounds are
+  tweaks on top: **Drop tweaks…** plays the preset as it is, and **Save as preset…** turns how the machine sounds
+  into a preset it then follows, for other machines to share. A preset shows which machines follow it and can
+  be renamed, copied or deleted (its machines go back to Default). The bonus games' moments live only in their
+  own sets, which every machine with that bonus plays; the Bonuses moments (starts, free game, bonus paid) stay
+  per machine. Each set's moments are listed by section, marked own or borrowed; **Change…** opens the library
+  beside them (the folders suited to that section first) to play, **Use** or **Add** a variant, or upload your
+  own. **Inherit** hands a moment back to the set above, **Mute** makes it silent in that set (the set above
+  doesn't fill in), and **Reset** puts it back to how it came. Moments that loop (the reels
   spinning, the win meter) preview on a loop. Changes save at once and every open game picks them up within a
   second.
   - The library is `server/sound_library/`, CC0 (credits in its `LIBRARY.md`); uploads go to
@@ -239,9 +245,10 @@ sections:
     draws (mockup and `slot_screen.gd`) comes from the scene; only the wood style, the drawn dusk and the payline
     colours are fixed. An older design's frame, deck, colours and fonts became its Classic scene
     (`slot_design_scene.migrate`), the colours it never picked worked out from its edge and accent.
-  - **Sounds:** the 30 slot moments, each playing what every slot machine plays until given this slot's own
-    (from the Sounds tab's library or an upload, several at random, with a volume trim). Kept in the design until
-    Build gives the slot its sound set.
+  - **Sounds:** the slot preset it starts from (Default, or one made on the Sounds tab), then the slot moments,
+    each playing the preset's until given this slot's own (from the Sounds tab's library or an upload, several at
+    random, with a volume trim). The bonus games' sounds aren't here: they're set per bonus on the Sounds tab.
+    Kept in the design until Build gives the slot its sound set, following that preset.
   - **Maths & payouts:** the pays per tier, each reel's symbol counts and the Colossal mix. **Simulate** runs the
     shared engine (`slots_math.js`) in a Web Worker and reports the return by source, hit rate, bonus frequency,
     biggest win and volatility against the Concept's target. **Auto-tune** turns one control (low symbols or Wilds

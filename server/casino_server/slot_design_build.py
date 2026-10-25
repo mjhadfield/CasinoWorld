@@ -85,7 +85,7 @@ class BuildMixin:
                           "feature_names": features_view(d)["names"]},
                 "rules": signoff_view(d)["rules"], "cabinet": sp["cabinet"], "background": "bg" in pictures}
             data = json.loads(json.dumps(dataclasses.asdict(v)))
-            data.update(theme=theme, extras={"assets": labels, "sounds": d.data.get("sounds", {}), "design": d.id,
+            data.update(theme=theme, extras={"assets": labels, "sounds": d.data.get("sounds", {}), "sound_preset": d.data.get("sound_preset"), "design": d.id,
                                              "built_at": datetime.datetime.now().isoformat(timespec="seconds")})
             out = self.builds_dir / d.id
             tmp = self.builds_dir / f".{d.id}.building"

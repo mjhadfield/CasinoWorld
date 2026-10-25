@@ -1,5 +1,6 @@
 // Sounds: every table and slot machine plays from its own sound set, which plays the set above's sounds for any
-// moment it doesn't have its own (Whole casino, then each game; Every slot machine, then each machine).
+// moment it doesn't have its own (Whole casino, then each game; for a slot machine, Default, then the preset it
+// follows, then the machine's own tweaks). The bonus games have sets of their own, which every machine plays.
 // Three columns: the sets, the chosen set's moments one to a line, and the library for the moment being changed.
 // Changes save at once and every open game picks them up within a second.
 let H, $, el, data = null, setKey = "casino", editing = null, group = "@suggested";
@@ -15,7 +16,8 @@ export function init(h) {
   <div class="wb" style="grid-template-columns: 230px minmax(0, 1fr) 460px">
     <div class="panel"><div class="ph">Sound sets</div><div class="pb snd-sets" id="sets"></div></div>
     <div class="panel flat">
-      <div class="ph"><b id="set-title"></b><span class="hint" id="set-sub" style="text-transform:none;letter-spacing:0"></span></div>
+      <div class="ph"><b id="set-title"></b><span class="hint" id="set-sub" style="text-transform:none;letter-spacing:0"></span>
+        <span class="grow"></span><span class="controls set-tools" id="set-tools"></span></div>
       <div class="pb" id="moments"></div>
     </div>
     <div class="panel">
@@ -41,6 +43,13 @@ export function init(h) {
     .set-item .dot { background: var(--accent); }
     .set-item[aria-current="true"] { background: var(--accent-soft); color: var(--fg); box-shadow: inset 2px 0 0 var(--accent); font-weight: 600; }
     .snd-sets .reset-all { margin: 10px 8px 4px; justify-self: start; }
+    .snd-sets .new-preset { margin: 2px 8px 4px 22px; justify-self: start; height: 24px; padding: 0 8px; }
+    .snd-sets .ask, .set-tools .ask { display: flex; gap: 4px; margin: 2px 8px 4px 22px; }
+    .set-tools .ask { margin: 0; }
+    .snd-sets .ask input { min-width: 0; flex: 1; }
+    .set-tools { gap: 6px; text-transform: none; letter-spacing: 0; }
+    .set-tools button { height: 24px; padding: 0 8px; }
+    .set-tools select { height: 24px; }
     #moments .sec { position: sticky; top: 0; z-index: 1; margin: 0; padding: 0 12px; height: 28px; display: flex; align-items: center; background: var(--bg-0); border-bottom: 1px solid var(--line);
       font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--fg-faint); }
     .mrow { display: grid; grid-template-columns: 260px minmax(0, 1fr) 210px auto; align-items: center; gap: 12px; min-height: 38px; padding: 4px 12px; border-bottom: 1px solid var(--line); }
@@ -113,16 +122,19 @@ function renderSets() {
   const nav = $("#sets");
   nav.replaceChildren();
   let heading = null;
+  const endPresets = () => { if (heading === "Slot presets") nav.append(newPresetButton()); };
   for (const s of data.sets) {
-    if (s.group !== heading) { heading = s.group; if (heading) nav.append(el("h3", {textContent: heading})); }
+    if (s.group !== heading) { endPresets(); heading = s.group; if (heading) nav.append(el("h3", {textContent: heading})); }
     const own = s.moments.filter(r => r.own).length, changed = s.moments.some(r => r.changed);
     const b = el("button", {type: "button", className: "set-item" + (s.parent && s.parent !== "casino" ? " child" : "")},
       el("span", {textContent: s.name}), changed ? el("span", {className: "dot", title: "Changed here"}) : null,
       el("span", {className: "n", textContent: own + "/" + s.moments.length, title: own + " of the " + s.moments.length + " moments it uses have their own sounds here"}));
     b.setAttribute("aria-current", String(s.key === setKey));
+    if (s.preset && s.preset !== "slots") b.title = "Follows " + setName(s.preset);
     b.addEventListener("click", () => choose(s.key));
     nav.append(b);
   }
+  endPresets();
   if (data.sets.some(s => s.moments.some(r => r.changed))) {
     const all = el("button", {type: "button", className: "reset-all ghost", textContent: "Reset every set…"});
     all.addEventListener("click", () => confirmIn(all, "Reset every set", async () => {
@@ -136,6 +148,33 @@ function choose(key) {
   closePicker(true);
   renderSets(); renderMoments();
   $("#moments").scrollTop = 0;
+}
+function newPresetButton() {
+  const b = el("button", {type: "button", className: "ghost new-preset", textContent: "+ New preset", title: "A preset plays Default's sounds until you give it its own"});
+  b.addEventListener("click", () => askName(b, "Create", "", name => makePreset(name)));
+  return b;
+}
+async function makePreset(name, from) {
+  try {
+    const r = await H.api("POST", "/api/sound-presets", from ? {name, from} : {name});
+    await refresh(); choose(r.key);
+    H.status(from && from.startsWith("slots.") ? setName(from) + " now follows " + name + ", which has its sounds. Games updated."
+             : "Made " + name + (from ? ", a copy of " + setName(from) : ": it plays Default's sounds until you give it its own") + ".", "ok");
+  } catch (e) { H.status(e.message, "warn"); }
+}
+// Swap a button for "[name] [ok] [cancel]".
+function askName(btn, label, value, action) {
+  const input = el("input", {type: "text", value, placeholder: "Preset name", maxLength: 40});
+  input.setAttribute("aria-label", "Preset name");
+  const ok = el("button", {type: "button", className: "primary", textContent: label});
+  const no = el("button", {type: "button", textContent: "Cancel"});
+  const box = el("span", {className: "ask"}, input, ok, no);
+  const go = () => input.value.trim() && action(input.value.trim());
+  ok.addEventListener("click", go);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") go(); if (e.key === "Escape") { e.stopPropagation(); box.replaceWith(btn); } });
+  no.addEventListener("click", () => box.replaceWith(btn));
+  btn.replaceWith(box);
+  input.focus(); input.select();
 }
 // Swap a button for "[yes] [keep]".
 function confirmIn(btn, label, action) {
@@ -151,7 +190,9 @@ function confirmIn(btn, label, action) {
 function renderMoments() {
   const s = setOf(setKey);
   $("#set-title").textContent = s.name;
-  $("#set-sub").textContent = s.parent ? "· dashed sounds are " + setName(s.parent) + "'s" : "· every game plays these unless its own set says otherwise";
+  $("#set-sub").textContent = s.group === "Bonus games" ? "· every slot machine with this bonus plays these"
+    : s.parent ? "· dashed sounds are " + setName(s.parent) + "'s" : "· every game plays these unless its own set says otherwise";
+  renderSetTools(s);
   const rbox = $("#set-reset"); rbox.replaceChildren();
   if (s.moments.some(r => r.changed)) {
     const b = el("button", {type: "button", textContent: "Reset " + s.name + "…"});
@@ -169,6 +210,45 @@ function renderMoments() {
     box.append(el("h3", {className: "sec", textContent: sec}), ...rows.map(momentRow));
   }
   if (!box.children.length) box.append(el("p", {className: "empty", textContent: "No moments match."}));
+}
+// A machine: the preset it follows, and making one from it. A preset: who's on it, renaming, copying, deleting.
+function renderSetTools(s) {
+  const box = $("#set-tools"); box.replaceChildren();
+  const machines = keys => keys.map(setName).join(", ");
+  if (s.preset) {
+    const sel = el("select", {}, ...data.sets.filter(x => x.group === "Slot presets").map(x => el("option", {value: x.key, textContent: x.name})));
+    sel.setAttribute("aria-label", "Preset " + s.name + " follows");
+    sel.value = s.preset;
+    sel.addEventListener("change", () => mutate(H.api("PUT", "/api/sound-machines/" + encodeURIComponent(s.key), {preset: sel.value}),
+      s.name + " now follows " + setName(sel.value) + (s.moments.some(r => r.own) ? ", with its own tweaks on top." : ".")));
+    const save = el("button", {type: "button", textContent: "Save as preset…", title: "Make a preset from how " + s.name + " sounds, which it then follows"});
+    save.addEventListener("click", () => askName(save, "Save", s.name, name => makePreset(name, s.key)));
+    box.append(el("span", {className: "hint", textContent: "Preset"}), sel, save);
+    if (s.moments.some(r => r.own)) {
+      const drop = el("button", {type: "button", className: "ghost", textContent: "Drop tweaks…", title: "Play " + setName(s.preset) + "'s sounds for everything"});
+      drop.addEventListener("click", () => confirmIn(drop, "Drop every tweak", () =>
+        mutate(H.api("POST", "/api/sounds/" + encodeURIComponent(s.key) + "/inherit-all"), s.name + " plays " + setName(s.preset) + " as it is.")));
+      box.append(drop);
+    }
+  } else if (s.used_by) {
+    box.append(el("span", {className: "hint", textContent: s.used_by.length ? "Used by " + machines(s.used_by) : "No machine follows it yet"}));
+    if (s.key !== "slots") {
+      const rename = el("button", {type: "button", textContent: "Rename…"});
+      rename.addEventListener("click", () => askName(rename, "Rename", s.name, name =>
+        mutate(H.api("PATCH", "/api/sound-presets/" + encodeURIComponent(s.key), {name}), "Renamed it " + name + ".")));
+      const copy = el("button", {type: "button", textContent: "Copy…", title: "A new preset starting with this one's sounds"});
+      copy.addEventListener("click", () => askName(copy, "Copy", s.name + " copy", name => makePreset(name, s.key)));
+      const del = el("button", {type: "button", className: "ghost danger", textContent: "Delete…"});
+      del.addEventListener("click", () => confirmIn(del, "Delete " + s.name, async () => {
+        try {
+          const r = await H.api("DELETE", "/api/sound-presets/" + encodeURIComponent(s.key));
+          await refresh(); choose("slots");
+          H.status("Deleted " + s.name + "." + (r.moved.length ? " " + r.moved.join(", ") + (r.moved.length > 1 ? " follow" : " follows") + " Default now." : "") + " Games updated.", "ok");
+        } catch (e) { H.status(e.message, "warn"); }
+      }));
+      box.append(rename, copy, del);
+    }
+  }
 }
 function momentRow(r) {
   const m = data.moments[r.key], s = setOf(setKey);

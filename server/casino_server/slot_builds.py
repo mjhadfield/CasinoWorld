@@ -10,7 +10,7 @@ dev instance):
   IDEAS.md       feature or bonus ideas the design described that still need building in code
 
 install() runs in the app's lifespan, before the casino and the sound board start: it registers the variants
-(slots/variants VARIANTS) and gives each its sound set (sounds.py). A build puts no cabinets on the floor: the
+(slots/variants VARIANTS) and gives each its sound set and the preset its design chose (sounds.py). A build puts no cabinets on the floor: the
 admin page's Floor plan tab does that (plan.py). Everything install adds is removed first, so it can run again
 (tests do, with their own folder).
 """
@@ -37,6 +37,7 @@ def install(root: Path = DEFAULT_DIR) -> list[str]:
         VARIANTS.pop(vid, None)
     for s in _built["sets"]:
         sounds.FACTORY.pop(s, None)
+        sounds.MACHINE_PRESETS.pop(s, None)
     _built.update(variants=set(), sets=set())
     BUILT.clear()
     for path in sorted(root.glob("*/variant.json")) if root.is_dir() else []:
@@ -50,9 +51,12 @@ def install(root: Path = DEFAULT_DIR) -> list[str]:
             continue
         VARIANTS[v.id] = v
         _built["variants"].add(v.id)
-        if v.extras.get("sounds"):
-            sounds.FACTORY[f"slots.{v.id}"] = {k: dict(e) for k, e in v.extras["sounds"].items()}
-            _built["sets"].add(f"slots.{v.id}")
+        if v.extras.get("sounds"):   # (a bonus game's moments belong to its own set now, not a machine's)
+            sounds.FACTORY[f"slots.{v.id}"] = {k: dict(e) for k, e in v.extras["sounds"].items()
+                                               if sounds.MOMENTS.get(k, {}).get("home") in ("casino", "slots")}
+        if v.extras.get("sound_preset"):
+            sounds.MACHINE_PRESETS[f"slots.{v.id}"] = v.extras["sound_preset"]
+        _built["sets"].add(f"slots.{v.id}")
         BUILT[v.id] = {"dir": path.parent, "theme": v.theme}
     sounds.refresh_sets()
     return sorted(BUILT)

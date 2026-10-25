@@ -15,8 +15,9 @@ so every method runs under the board's lock and saves through its Design.
                  image, or "sym:<id>" to follow a symbol's chosen take
   Specs          a new feature or bonus type, described for building (Build lists them as code tasks)
   Sprites        win animations per tier group and the floor cabinet (their colours start from the scene's)
-  Sounds         the slot's own sound for any slot moment (sounds.py); the rest play "Every slot machine"'s.
-                 Kept in the design until Build makes the slot's sound set (slots.<id>).
+  Sounds         the slot preset it starts on (Default unless chosen), and the slot's own sound for any slot moment
+                 (sounds.py); the rest play the preset's. Kept in the design until Build makes the slot's sound set
+                 (slots.<id>), which follows that preset until the Sounds tab says otherwise.
   Maths          the pays and per-reel symbol counts; the browser simulates and tunes (slots_math.js in a Web
                  Worker) and freezes the strips here, where the server replays a sample of the browser's spins to
                  prove both engines agree. A freeze remembers the settings it measured, so later changes show
@@ -375,13 +376,17 @@ def machine_moments() -> dict:
 def sounds_view(d, board) -> dict:
     if board is None:
         return {"moments": []}
-    own = d.data.get("sounds", {})
+    own, sets = d.data.get("sounds", {}), board.sets()
+    preset = d.data.get("sound_preset", "slots")
+    if preset not in sets:
+        preset = "slots"   # (its preset has been deleted)
     rows = []
     for k, m in machine_moments().items():
-        inherited, src = board.resolve("slots", k)
+        inherited, src = board.resolve(preset, k)
         rows.append({"key": k, **{x: m[x] for x in ("title", "when", "section", "loop")},
-                     "inherited": {**inherited, "from": src}, "own": own.get(k)})
-    return {"moments": rows}
+                     "inherited": {**inherited, "from": src, "from_name": sets.get(src, {}).get("name")}, "own": own.get(k)})
+    return {"moments": rows, "preset": preset,
+            "presets": [{"key": p, "name": s["name"]} for p, s in sets.items() if s.get("group") == "Slot presets"]}
 
 
 def art_view(d) -> dict:
@@ -645,6 +650,17 @@ class StepsMixin:
         with self.lock:
             d = self.design(did)
             d.data.setdefault("sounds", {})[key] = {"files": list(files), "gain_db": float(gain_db)}
+            d.save()
+
+    def set_sound_preset(self, did: str, preset) -> None:
+        if self.sounds is not None and (not isinstance(preset, str) or self.sounds.sets().get(preset, {}).get("group") != "Slot presets"):
+            raise DesignError("There's no slot preset like that.")
+        with self.lock:
+            d = self.design(did)
+            if preset == "slots":
+                d.data.pop("sound_preset", None)
+            else:
+                d.data["sound_preset"] = preset
             d.save()
 
     def inherit_sound(self, did: str, key: str) -> None:

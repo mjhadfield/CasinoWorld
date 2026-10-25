@@ -8,7 +8,9 @@ extends Node
 ## win meter counting up).
 ##
 ## Sounds come in sets (server/casino_server/sounds.py): the whole casino, each
-## table game, every slot machine, and each machine. Each table plays from its
+## table game, the slot presets (Default, then any made on the admin page), and
+## each machine under the preset it follows; the bonus games' sounds arrive in
+## Default's. Each table plays from its
 ## game's set, and a set without its own sound for a moment plays the one
 ## above's (a set can also choose silence, which stops there) -- so Armadillo Goes West has its own reel stop, and its buttons
 ## click like everything else's. `focus` is the table you're at: `play()` and

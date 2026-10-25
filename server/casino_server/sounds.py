@@ -9,19 +9,27 @@ The sounds are a tree of sets, each inheriting from the one above:
 
     casino                      the whole casino: the interface, the room, cards and chips
       blackjack, roulette, ...  one per table game (floor.GAMES)
-      slots                     every slot machine
-        slots.armadillo         one per slot machine (its variant, slots/variants.py)
+      slots                     Default, the slot preset every machine starts on
+        preset.<id>             the slot presets made on the page (each plays Default's for what it doesn't set)
+          slots.armadillo       one per slot machine (its variant, slots/variants.py), under the preset it follows
+    bonus.trail, bonus.battle,  one per bonus game, standing alone: every machine whose bonus it is plays it,
+    bonus.voyage, ...           and a machine can't change them (BONUS_SETS)
 
 A moment (MOMENTS) is defined in one set, its `home`, and can be given its own sounds
 in any set below that whose game uses it: Blackjack can have its own card deal,
 Armadillo Goes West its own reel stop. A set that doesn't set a moment plays its
 parent's. Each table plays from its game's set (TABLE_SETS).
 
+A machine follows Default unless it's given a preset (on the page, or by the design that built it:
+MACHINE_PRESETS); its own sounds are tweaks on top of the preset, so changing the preset reaches
+every machine on it except where the machine has its own.
+
 FACTORY is what each set starts with. Changes made on the page go in
 <data dir>/sounds.json and win over it:
 
     {"version": 7, "sets": {"casino": {"deal": {"files": [...], "gain_db": 0.0}},
-                            "slots.armadillo": {"reel_stop": {"inherit": true}}}}
+                            "slots.armadillo": {"reel_stop": {"inherit": true}}},
+     "presets": {"preset.wild-west": "Wild West"}, "machine_presets": {"slots.armadillo": "preset.wild-west"}}
 
 `{"inherit": true}` hands a moment the factory gave a set back to its parent, and
 `"files": []` silences it there (and below, unless a set below gives it a sound). A moment
@@ -49,14 +57,23 @@ GAIN_RANGE = (-30.0, 12.0)
 
 
 # ------------------------------------------------------------------ the sets
+PRESET = "preset."     # a slot preset's set key: preset.<id>
+BONUS_SETS = {"bonus.trail": "Trail Bonus", "bonus.battle": "Battle Bonus", "bonus.voyage": "Voyage Bonus",
+              "bonus.expedition": "Expedition Bonus"}
+MACHINE_PRESETS: dict = {}   # machine set -> the preset its design chose (slot_builds.py), until the page picks one
+
+
 def _sets() -> dict:
-    """A set for every game the casino has, on the floor or not (so a table taken off the floor keeps its sounds)."""
+    """A set for every game the casino has, on the floor or not (so a table taken off the floor keeps its sounds).
+    The presets made on the page join in SoundBoard.sets()."""
     sets = {"casino": {"name": "Whole casino", "parent": None, "group": ""}}
     for game, name in floor.GAMES.items():
         sets[game] = {"name": name, "parent": "casino", "group": "Table games"}
-    sets["slots"] = {"name": "Every slot machine", "parent": "casino", "group": "Slot machines"}
+    sets["slots"] = {"name": "Default", "parent": "casino", "group": "Slot presets"}
     for vid, v in VARIANTS.items():
         sets["slots." + vid] = {"name": v.name, "parent": "slots", "group": "Slot machines"}
+    for key, name in BONUS_SETS.items():
+        sets[key] = {"name": name, "parent": None, "group": "Bonus games"}
     return sets
 
 
@@ -96,7 +113,7 @@ refresh_sets()
 
 # ------------------------------------------------------------------ the moments
 # Page order. Each: title, when it plays, its section on the page, its home set, which
-# sets below home use it (a USERS key), and whether it loops while it lasts.
+# sets below home use it (a USERS key; a slot preset uses what machines do), and whether it loops while it lasts.
 SECTIONS = ["Interface", "Room", "Cards", "Chips", "Wheel", "Dice",
             "Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Battle Bonus", "Voyage Bonus", "Expedition Bonus",
             "Jackpot Pick"]
@@ -147,32 +164,32 @@ MOMENTS = {
     "feature_wilds": _m("Random Wild shot", "Each wild shot onto the reels.", "Features", "slots", "slots"),
     "feature_upgrade": _m("Symbol Upgrade", "Symbols flipping one step up the chain.", "Features", "slots", "slots"),
     "instant_win": _m("Instant Win barrel", "The Random Prize barrel bursting.", "Features", "slots", "slots"),
-    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins (the battle, the voyage and the expedition have their own).", "Bonuses", "slots", "slots"),
+    "bonus_trigger": _m("Bonus starts", "The Trail Bonus, the Combo Free Games or the Jackpot Pick begins (the battle, the voyage and the expedition have their own, under Bonus games).", "Bonuses", "slots", "slots"),
     "free_spin": _m("Free game", "Each Combo Free Game starting.", "Bonuses", "slots", "slots"),
     "bonus_end": _m("Bonus paid", "The total of a Trail Bonus or the free games coming up.", "Bonuses", "slots", "slots"),
-    "trail_fire": _m("Pistol loaded", "The cylinder loading and spinning before the armadillo moves.", "Trail Bonus", "slots", "slots"),
-    "trail_hop": _m("Hop", "Each space the armadillo hops.", "Trail Bonus", "slots", "slots"),
-    "trail_coin": _m("Coins collected", "Coins collected on the trail (a crate's too, and the prizepot).", "Trail Bonus", "slots", "slots"),
-    "trail_special": _m("Special space", "Landing on double, spin upgrade, lightning roll, forward or back.", "Trail Bonus", "slots", "slots"),
-    "trail_heart": _m("Heart", "A heart picked up, or one saving you from a snake.", "Trail Bonus", "slots", "slots"),
-    "trail_snake": _m("Snake", "A snake strikes (the bonus ends unless a heart saves you).", "Trail Bonus", "slots", "slots"),
-    "battle_alert": _m("Red alert", "The battle bonus beginning, and its boss arriving.", "Battle Bonus", "slots", "slots"),
-    "battle_phaser": _m("Fire", "Each shot fired at an enemy ship or the boss.", "Battle Bonus", "slots", "slots"),
-    "battle_boom": _m("Explosion", "A ship destroyed, the boss hit or destroyed, or your shields failing.", "Battle Bonus", "slots", "slots"),
-    "battle_hit": _m("Shields hit", "An enemy ship cloaking and firing back.", "Battle Bonus", "slots", "slots"),
-    "battle_wave": _m("Wave cleared", "Every ship in a wave destroyed: its reward, and shields restored.", "Battle Bonus", "slots", "slots"),
-    "voyage_start": _m("Set sail", "The voyage bonus beginning.", "Voyage Bonus", "slots", "slots"),
-    "voyage_sail": _m("Sailing", "The ship sailing to the next island (and to the final one).", "Voyage Bonus", "slots", "slots"),
-    "voyage_find": _m("Found", "A prize, a key or an artefact found on an island.", "Voyage Bonus", "slots", "slots"),
-    "voyage_sink": _m("Sunk", "Skull Island sinking the ship.", "Voyage Bonus", "slots", "slots"),
-    "voyage_trade": _m("Trade", "A deal at Port Royal: something bought, or the relics sold.", "Voyage Bonus", "slots", "slots"),
-    "voyage_chest": _m("Treasure", "Each part of the legendary treasure paying out on the final island.", "Voyage Bonus", "slots", "slots"),
-    "expedition_start": _m("Course plotted", "The expedition bonus beginning, and a route chosen.", "Expedition Bonus", "slots", "slots"),
-    "expedition_warp": _m("Warp", "The ship jumping to the next sector (and to the final destination).", "Expedition Bonus", "slots", "slots"),
-    "expedition_find": _m("Found", "A planet explored: credits, a multiplier, an artefact or free games.", "Expedition Bonus", "slots", "slots"),
-    "expedition_tech": _m("Tech", "A Scanner, Shuttle or Shields found, or a Scanner sweeping a sector.", "Expedition Bonus", "slots", "slots"),
-    "expedition_hazard": _m("Hazard", "A hazard ending the expedition (or Shields absorbing it, or the shuttle lost).", "Expedition Bonus", "slots", "slots"),
-    "expedition_final": _m("Destination", "The final destination paying (or a Wormhole opening to it).", "Expedition Bonus", "slots", "slots"),
+    "trail_fire": _m("Pistol loaded", "The cylinder loading and spinning before the armadillo moves.", "Trail Bonus", "bonus.trail"),
+    "trail_hop": _m("Hop", "Each space the armadillo hops.", "Trail Bonus", "bonus.trail"),
+    "trail_coin": _m("Coins collected", "Coins collected on the trail (a crate's too, and the prizepot).", "Trail Bonus", "bonus.trail"),
+    "trail_special": _m("Special space", "Landing on double, spin upgrade, lightning roll, forward or back.", "Trail Bonus", "bonus.trail"),
+    "trail_heart": _m("Heart", "A heart picked up, or one saving you from a snake.", "Trail Bonus", "bonus.trail"),
+    "trail_snake": _m("Snake", "A snake strikes (the bonus ends unless a heart saves you).", "Trail Bonus", "bonus.trail"),
+    "battle_alert": _m("Red alert", "The battle bonus beginning, and its boss arriving.", "Battle Bonus", "bonus.battle"),
+    "battle_phaser": _m("Fire", "Each shot fired at an enemy ship or the boss.", "Battle Bonus", "bonus.battle"),
+    "battle_boom": _m("Explosion", "A ship destroyed, the boss hit or destroyed, or your shields failing.", "Battle Bonus", "bonus.battle"),
+    "battle_hit": _m("Shields hit", "An enemy ship cloaking and firing back.", "Battle Bonus", "bonus.battle"),
+    "battle_wave": _m("Wave cleared", "Every ship in a wave destroyed: its reward, and shields restored.", "Battle Bonus", "bonus.battle"),
+    "voyage_start": _m("Set sail", "The voyage bonus beginning.", "Voyage Bonus", "bonus.voyage"),
+    "voyage_sail": _m("Sailing", "The ship sailing to the next island (and to the final one).", "Voyage Bonus", "bonus.voyage"),
+    "voyage_find": _m("Found", "A prize, a key or an artefact found on an island.", "Voyage Bonus", "bonus.voyage"),
+    "voyage_sink": _m("Sunk", "Skull Island sinking the ship.", "Voyage Bonus", "bonus.voyage"),
+    "voyage_trade": _m("Trade", "A deal at Port Royal: something bought, or the relics sold.", "Voyage Bonus", "bonus.voyage"),
+    "voyage_chest": _m("Treasure", "Each part of the legendary treasure paying out on the final island.", "Voyage Bonus", "bonus.voyage"),
+    "expedition_start": _m("Course plotted", "The expedition bonus beginning, and a route chosen.", "Expedition Bonus", "bonus.expedition"),
+    "expedition_warp": _m("Warp", "The ship jumping to the next sector (and to the final destination).", "Expedition Bonus", "bonus.expedition"),
+    "expedition_find": _m("Found", "A planet explored: credits, a multiplier, an artefact or free games.", "Expedition Bonus", "bonus.expedition"),
+    "expedition_tech": _m("Tech", "A Scanner, Shuttle or Shields found, or a Scanner sweeping a sector.", "Expedition Bonus", "bonus.expedition"),
+    "expedition_hazard": _m("Hazard", "A hazard ending the expedition (or Shields absorbing it, or the shuttle lost).", "Expedition Bonus", "bonus.expedition"),
+    "expedition_final": _m("Destination", "The final destination paying (or a Wormhole opening to it).", "Expedition Bonus", "bonus.expedition"),
     "pick_reveal": _m("Coin turned", "Each coin turned over in the Jackpot Pick.", "Jackpot Pick", "slots", "slots"),
     "jackpot_win": _m("Jackpot won", "Three matching coins: a Mini, Minor, Major or Grand (and nearby, when someone else wins one).", "Jackpot Pick", "slots", "slots"),
 }
@@ -209,7 +226,7 @@ FACTORY = {
         "dice_land": _c(*[_ks + f"dice-throw-{n}.ogg" for n in (1, 2, 3)]),
         "dice_bounce": _c(*[_ks + f"die-throw-{n}.ogg" for n in (1, 2, 3, 4)], gain=-3.0),
     },
-    # Every slot machine: an electronic Vegas cabinet. A new machine starts with these.
+    # Default: an electronic Vegas cabinet. A new machine starts on it.
     "slots": {
         "spin_press": _c(_sl + "David819_668435-reels-begin.ogg", gain=-9.5),
         "reel_spin": _c(_sl + "Johnmode_860886-spin-loop.ogg", gain=-16.0),
@@ -232,29 +249,6 @@ FACTORY = {
         "bonus_trigger": _c(_sl + "IENBA_656643-reward.ogg", gain=-9.5),
         "free_spin": _c(_sl + "GameAudio_220184-win-spacey.ogg", gain=-7.5),
         "bonus_end": _c(_sl + "Kastenfrosch_162458-win.ogg", gain=-7.5),
-        "trail_fire": _c(_ks + "dice-shake-2.ogg", gain=-3.5),
-        "trail_hop": _c("pops/wubitog-pop1.ogg", gain=-0.5),
-        "trail_coin": _c(_sl + "Gerent_558991-coins.ogg", gain=2.0),
-        "trail_special": _c("kenney-digital/threeTone1.ogg", gain=-15.0),
-        "trail_heart": _c("sparkles/LilMati_462095.ogg", gain=-12.5),
-        "trail_snake": _c(_ki + "error_004.ogg", gain=-4.0),
-        "battle_alert": _c("kenney-digital/twoTone1.ogg", gain=-10.0),
-        "battle_phaser": _c("kenney-digital/phaserDown1.ogg", "kenney-digital/phaserDown3.ogg", gain=-8.0),
-        "battle_boom": _c(*[f"kenney-digital/spaceTrash{n}.ogg" for n in (1, 2, 3)], gain=-2.0),
-        "battle_hit": _c(*[f"kenney-impact/impactMetal_heavy_00{n}.ogg" for n in range(3)], gain=-6.0),
-        "battle_wave": _c("kenney-digital/powerUp3.ogg", gain=-8.0),
-        "voyage_start": _c("kenney-impact/impactBell_heavy_000.ogg", gain=-8.0),
-        "voyage_sail": _c(*[f"kenney-rpg/creak{n}.ogg" for n in (1, 2, 3)], gain=-6.0),
-        "voyage_find": _c("kenney-rpg/handleCoins.ogg", "kenney-rpg/handleCoins2.ogg", gain=-4.0),
-        "voyage_sink": _c(*[f"kenney-impact/impactWood_heavy_00{n}.ogg" for n in range(3)], gain=-2.0),
-        "voyage_trade": _c("kenney-rpg/metalLatch.ogg", gain=-6.0),
-        "voyage_chest": _c(_sl + "chennes_376807-ding.ogg", gain=-6.0),
-        "expedition_start": _c("kenney-digital/phaseJump1.ogg", gain=-8.0),
-        "expedition_warp": _c("kenney-digital/zapThreeToneUp.ogg", gain=-10.0),
-        "expedition_find": _c("kenney-digital/powerUp1.ogg", "kenney-digital/powerUp2.ogg", gain=-8.0),
-        "expedition_tech": _c("kenney-digital/threeTone2.ogg", gain=-10.0),
-        "expedition_hazard": _c("kenney-digital/spaceTrash4.ogg", "kenney-digital/spaceTrash5.ogg", gain=-3.0),
-        "expedition_final": _c(_sl + "GameAudio_220184-win-spacey.ogg", gain=-7.0),
         "pick_reveal": _c(_ki + "glass_002.ogg", gain=-1.0),
         "jackpot_win": _c(_sl + "univ_lyon3_367462-jackpot-bell.ogg", gain=-5.5),
     },
@@ -276,11 +270,41 @@ FACTORY = {
         "instant_win": _c("kenney-impact/impactWood_heavy_002.ogg", gain=-5.0),
         "bonus_trigger": _c(_w + "Dandertuts_845920-yeehaw.ogg", gain=-14.5),
         "bonus_end": _c(_w + "Lynx_5969_404059-honky-tonk.ogg", gain=-8.0),
+    },
+    # The Trail Bonus, Armadillo Goes West's: spurs, a jaw harp and a rattlesnake.
+    "bonus.trail": {
         "trail_fire": _c(_w + "jhka_139001-revolver-ratchet.ogg", gain=-1.5),
         "trail_hop": _c(_w + "wjb_88_828863-spur-step.ogg", gain=2.0),
+        "trail_coin": _c(_sl + "Gerent_558991-coins.ogg", gain=2.0),
         "trail_special": _c(_w + "CaptainSiberia_82545-jaw-harp.ogg", gain=-6.0),
         "trail_heart": _c(_w + "vacuumfan7072_505710-reed-pling.ogg", gain=2.0),
         "trail_snake": _c(_w + "logee72_559759-rattlesnake.ogg", gain=2.0),
+    },
+    # Red Alert, the wave battle.
+    "bonus.battle": {
+        "battle_alert": _c("kenney-digital/twoTone1.ogg", gain=-10.0),
+        "battle_phaser": _c("kenney-digital/phaserDown1.ogg", "kenney-digital/phaserDown3.ogg", gain=-8.0),
+        "battle_boom": _c(*[f"kenney-digital/spaceTrash{n}.ogg" for n in (1, 2, 3)], gain=-2.0),
+        "battle_hit": _c(*[f"kenney-impact/impactMetal_heavy_00{n}.ogg" for n in range(3)], gain=-6.0),
+        "battle_wave": _c("kenney-digital/powerUp3.ogg", gain=-8.0),
+    },
+    # Dead Man's Map, the island voyage.
+    "bonus.voyage": {
+        "voyage_start": _c("kenney-impact/impactBell_heavy_000.ogg", gain=-8.0),
+        "voyage_sail": _c(*[f"kenney-rpg/creak{n}.ogg" for n in (1, 2, 3)], gain=-6.0),
+        "voyage_find": _c("kenney-rpg/handleCoins.ogg", "kenney-rpg/handleCoins2.ogg", gain=-4.0),
+        "voyage_sink": _c(*[f"kenney-impact/impactWood_heavy_00{n}.ogg" for n in range(3)], gain=-2.0),
+        "voyage_trade": _c("kenney-rpg/metalLatch.ogg", gain=-6.0),
+        "voyage_chest": _c(_sl + "chennes_376807-ding.ogg", gain=-6.0),
+    },
+    # Delta Quadrant, the expedition.
+    "bonus.expedition": {
+        "expedition_start": _c("kenney-digital/phaseJump1.ogg", gain=-8.0),
+        "expedition_warp": _c("kenney-digital/zapThreeToneUp.ogg", gain=-10.0),
+        "expedition_find": _c("kenney-digital/powerUp1.ogg", "kenney-digital/powerUp2.ogg", gain=-8.0),
+        "expedition_tech": _c("kenney-digital/threeTone2.ogg", gain=-10.0),
+        "expedition_hazard": _c("kenney-digital/spaceTrash4.ogg", "kenney-digital/spaceTrash5.ogg", gain=-3.0),
+        "expedition_final": _c(_sl + "GameAudio_220184-win-spacey.ogg", gain=-7.0),
     },
 }
 
@@ -310,20 +334,24 @@ FOLDERS = {
 }
 
 
-def _ancestors(set_key: str) -> list[str]:
+def _ancestors(set_key: str, sets: dict | None = None) -> list[str]:
+    sets = SETS if sets is None else sets
     out, s = [], set_key
     while s:
         out.append(s)
-        s = SETS[s]["parent"]
+        s = sets[s]["parent"]
     return out
 
 
-def shows(set_key: str, key: str) -> bool:
-    """Whether a moment can be set in a set: its home, or a set below that whose game uses it."""
+def shows(set_key: str, key: str, sets: dict | None = None) -> bool:
+    """Whether a moment can be set in a set: its home, or a set below that whose game uses it. `sets` is a
+    board's (SoundBoard.sets(), with its presets); without it, the presets aren't known."""
+    sets = SETS if sets is None else sets
     m = MOMENTS.get(key)
-    if m is None or set_key not in SETS:
+    if m is None or set_key not in sets:
         return False
-    return set_key == m["home"] or (set_key in USERS[m["uses"]] and m["home"] in _ancestors(set_key))
+    users = USERS[m["uses"]] | ({set_key} if set_key.startswith(PRESET) and m["uses"] in ("all", "slots") else set())
+    return set_key == m["home"] or (set_key in users and m["home"] in _ancestors(set_key, sets))
 
 
 class SoundError(ValueError):
@@ -336,15 +364,24 @@ class SoundBoard:
         self.uploads_dir = data_dir / "sounds" / "uploads"
         self.path = data_dir / "sounds.json"
         self.version, self.saved = 0, {}
+        self.presets: dict = {}           # preset set key -> its name, in the order they were made
+        self.machine_presets: dict = {}   # machine set key -> the preset it follows (none: Default, or its design's)
         if self.path.exists():
             try:
                 saved = json.loads(self.path.read_text())
                 self.version = int(saved.get("version", 0))
+                self.presets = {k: str(n) for k, n in saved.get("presets", {}).items() if k.startswith(PRESET)}
+                self.machine_presets = {m: p for m, p in saved.get("machine_presets", {}).items() if p in self.presets or p == "slots"}
+                sets = self.sets()
                 if "sets" in saved:
                     for s, moments in saved["sets"].items():
                         for k, e in moments.items():
-                            if shows(s, k) and isinstance(e, dict):
+                            if not isinstance(e, dict):
+                                continue
+                            if shows(s, k, sets):
                                 self.saved.setdefault(s, {})[k] = e
+                            elif s == "slots" and k in MOMENTS and MOMENTS[k]["home"] in BONUS_SETS:
+                                self.saved.setdefault(MOMENTS[k]["home"], {})[k] = e   # bonus sounds were every machine's
                 else:  # before sets: one choice per moment, which now belongs to its home set
                     for k, e in saved.get("moments", {}).items():
                         if k in MOMENTS and isinstance(e, dict):
@@ -353,6 +390,23 @@ class SoundBoard:
                 pass
 
     # ------------------------------------------------------------- reading
+    def preset_of(self, machine: str) -> str:
+        """The preset a machine follows: the one picked on the page, else its design's, else Default."""
+        p = self.machine_presets.get(machine) or MACHINE_PRESETS.get(machine)
+        return p if p in self.presets else "slots"
+
+    def sets(self) -> dict:
+        """SETS with this board's presets (after Default) and each machine under the preset it follows."""
+        out = {}
+        for k, info in SETS.items():
+            out[k] = {**info, "parent": self.preset_of(k)} if k in _MACHINES else info
+            if k == "slots":
+                out.update({p: {"name": n, "parent": "slots", "group": "Slot presets"} for p, n in self.presets.items()})
+        return out
+
+    def shows(self, set_key: str, key: str) -> bool:
+        return shows(set_key, key, self.sets())
+
     def own(self, set_key: str, key: str) -> dict | None:
         """The set's own choice for a moment (saved, else factory), or None if it plays its parent's."""
         e = self.saved.get(set_key, {}).get(key)
@@ -368,7 +422,7 @@ class SoundBoard:
 
     def resolve(self, set_key: str, key: str) -> tuple[dict, str | None]:
         """What a moment plays in a set, and the set that decides it."""
-        for s in _ancestors(set_key):
+        for s in _ancestors(set_key, self.sets()):
             e = self.own(s, key)
             if e is not None:
                 return e, s
@@ -378,31 +432,41 @@ class SoundBoard:
         """One moment as the page shows it in a set."""
         chosen, source = self.resolve(set_key, key)
         return {"key": key, "own": source == set_key, "from": source, **chosen,
-                "changed": key in self.saved.get(set_key, {}),
+                "changed": key in self.saved.get(set_key, {}) and not set_key.startswith(PRESET),   # (a preset came empty)
                 "can_inherit": set_key != MOMENTS[key]["home"]}
 
     def manifest(self) -> dict:
         """What the game loads: each set's own moments (files as URLs, and the volume trim), each
         set's parent, and which set each table plays from. A moment a set doesn't have comes from
-        the nearest set above it that does."""
+        the nearest set above it that does. Every machine plays the bonus games' sets, so their moments go in
+        Default's ("slots"), which every machine's chain ends in."""
         def url(f):  # the file's change time on the end, so a replaced upload isn't served stale
             return f"/sound-files/{f}?v={int(self.file_path(f).stat().st_mtime)}"
-        sets = {}
-        for s, info in SETS.items():
+        sets, all_sets = {}, self.sets()
+        for s, info in all_sets.items():
             moments = {}
             for k in MOMENTS:
-                e = self.own(s, k) if shows(s, k) else None
+                e = self.own(s, k) if shows(s, k, all_sets) else None
                 if e is not None:
                     moments[k] = {"files": [url(f) for f in e["files"]], "gain_db": e["gain_db"]}
-            sets[s] = {"parent": info["parent"], "moments": moments}
+            if s in BONUS_SETS:
+                sets["slots"]["moments"].update(moments)
+            else:
+                sets[s] = {"parent": info["parent"], "moments": moments}
         return {"version": self.version, "sets": sets, "tables": TABLE_SETS}
 
     def overview(self) -> dict:
-        """Everything the admin page shows."""
+        """Everything the admin page shows. A machine's set says which preset it follows ("preset"), and Default's
+        and each preset's which machines follow it ("used_by")."""
+        sets = self.sets()
         return {
             "version": self.version, "sections": SECTIONS,
             "moments": {k: {key: m[key] for key in ("title", "when", "section", "home", "loop")} for k, m in MOMENTS.items()},
-            "sets": [{"key": s, **info, "moments": [self.row(s, k) for k in MOMENTS if shows(s, k)]} for s, info in SETS.items()],
+            "sets": [{"key": s, **info, "moments": [self.row(s, k) for k in MOMENTS if shows(s, k, sets)],
+                      **({"preset": info["parent"]} if s in _MACHINES else
+                         {"used_by": sorted(m for m in _MACHINES if self.preset_of(m) == s)}
+                         if s == "slots" or s.startswith(PRESET) else {})}
+                     for s, info in sets.items()],
             "folders": {f: {"label": label, "sections": secs} for f, (label, secs) in FOLDERS.items()},
             "library": self.library(),
         }
@@ -431,12 +495,13 @@ class SoundBoard:
 
     # ------------------------------------------------------------- changing
     def _check(self, set_key: str, key: str):
-        if set_key not in SETS:
+        sets = self.sets()
+        if set_key not in sets:
             raise SoundError(f"There's no sound set called {set_key!r}.")
         if key not in MOMENTS:
             raise SoundError(f"There's no moment called {key!r}.")
-        if not shows(set_key, key):
-            raise SoundError(f"{SETS[set_key]['name']} doesn't use {MOMENTS[key]['title']}.")
+        if not shows(set_key, key, sets):
+            raise SoundError(f"{sets[set_key]['name']} doesn't use {MOMENTS[key]['title']}.")
 
     def set_choice(self, set_key: str, key: str, files, gain_db) -> dict:
         self._check(set_key, key)
@@ -461,7 +526,7 @@ class SoundBoard:
         """Play the parent set's sounds for this moment."""
         self._check(set_key, key)
         if set_key == MOMENTS[key]["home"]:
-            raise SoundError(f"{MOMENTS[key]['title']} starts in {SETS[set_key]['name']}: there's nothing above it to use.")
+            raise SoundError(f"{MOMENTS[key]['title']} starts in {self.sets()[set_key]['name']}: there's nothing above it to use.")
         if key in FACTORY.get(set_key, {}):
             self.saved.setdefault(set_key, {})[key] = {"inherit": True}
         else:
@@ -469,12 +534,24 @@ class SoundBoard:
         self._save()
         return self.row(set_key, key)
 
+    def inherit_all(self, set_key: str):
+        """A machine or preset plays the set above's sounds for every moment (a machine: its preset's, untweaked)."""
+        if not (set_key in _MACHINES or set_key.startswith(PRESET)) or set_key not in self.sets():
+            raise SoundError("Only a slot machine or a preset can hand all its sounds to the set above.")
+        own = {k: {"inherit": True} for k in FACTORY.get(set_key, {})}
+        if own:
+            self.saved[set_key] = own
+        else:
+            self.saved.pop(set_key, None)
+        self._save()
+
     def reset(self, set_key: str | None = None, key: str | None = None):
-        """Back to how it came: one moment in one set, a whole set, or everything."""
+        """Back to how it came: one moment in one set, a whole set, or every set's sounds. The presets, and which
+        machine follows which, stay."""
         if set_key is None:
             self.saved = {}
         elif key is None:
-            if set_key not in SETS:
+            if set_key not in self.sets():
                 raise SoundError(f"There's no sound set called {set_key!r}.")
             self.saved.pop(set_key, None)
         else:
@@ -517,16 +594,78 @@ class SoundBoard:
         path = self.file_path(sound_id) if sound_id.startswith("uploads/") else None
         if path is None:
             raise SoundError("Only uploaded sounds can be deleted.")
-        in_use = [f"{MOMENTS[k]['title']} ({SETS[s]['name']})" for s in SETS for k in MOMENTS
-                  if shows(s, k) and sound_id in (self.own(s, k) or {"files": []})["files"]]
+        sets = self.sets()
+        in_use = [f"{MOMENTS[k]['title']} ({sets[s]['name']})" for s in sets for k in MOMENTS
+                  if shows(s, k, sets) and sound_id in (self.own(s, k) or {"files": []})["files"]]
         if in_use:
             raise SoundError(f"Still used for: {', '.join(in_use)}. Swap it out first.")
         path.unlink()
+
+    # ------------------------------------------------------------- presets
+    def _name(self, name, but: str | None = None) -> str:
+        name = " ".join(str(name or "").split())[:40]
+        if not name:
+            raise SoundError("Give the preset a name.")
+        taken = {n.lower() for k, n in self.presets.items() if k != but} | {"default"}
+        if name.lower() in taken:
+            raise SoundError(f"There's already a preset called {name}.")
+        return name
+
+    def create_preset(self, name, source: str | None = None) -> str:
+        """A new slot preset, playing Default's for everything until it's given its own. With `source` a preset,
+        it starts as a copy of that one's own sounds; with a machine, the machine's own sounds move into it and
+        the machine follows it (so it sounds just the same, and other machines can now share how it sounds)."""
+        name = self._name(name)
+        sets = self.sets()
+        if source is not None and not (source.startswith(PRESET) or source in _MACHINES) or source and source not in sets:
+            raise SoundError("A preset can start from another preset or a slot machine.")
+        key = PRESET + (re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "preset")
+        while key in self.presets:
+            key += "-2"
+        copied = {}
+        if source:
+            copied = {k: self.own(source, k) for k in MOMENTS if shows(source, k, sets)}
+            copied = {k: e for k, e in copied.items() if e is not None}
+        self.presets[key] = name
+        if copied:
+            self.saved[key] = copied
+        if source in _MACHINES:
+            self.machine_presets[source] = key
+            self.saved[source] = {k: {"inherit": True} for k in FACTORY.get(source, {})}
+        self._save()
+        return key
+
+    def rename_preset(self, key: str, name) -> None:
+        if key not in self.presets:
+            raise SoundError("There's no preset like that.")
+        self.presets[key] = self._name(name, but=key)
+        self._save()
+
+    def delete_preset(self, key: str) -> list[str]:
+        """Remove a preset: the machines on it go back to Default (their own tweaks stay). Returns their names."""
+        if key not in self.presets:
+            raise SoundError("There's no preset like that (and Default stays).")
+        moved = [SETS[m]["name"] for m in sorted(_MACHINES) if self.preset_of(m) == key]
+        self.machine_presets = {m: p for m, p in self.machine_presets.items() if p != key}
+        del self.presets[key]
+        self.saved.pop(key, None)
+        self._save()
+        return moved
+
+    def set_machine_preset(self, machine: str, preset: str) -> None:
+        """Which preset a machine follows. Its own sounds stay, as tweaks on top of the new one."""
+        if machine not in _MACHINES:
+            raise SoundError(f"There's no slot machine set called {machine!r}.")
+        if preset != "slots" and preset not in self.presets:
+            raise SoundError("There's no preset like that.")
+        self.machine_presets[machine] = preset
+        self._save()
 
     def _save(self):
         self.version += 1
         self.saved = {s: m for s, m in self.saved.items() if m}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"version": self.version, "sets": self.saved}, indent=1))
+        tmp.write_text(json.dumps({"version": self.version, "sets": self.saved, "presets": self.presets,
+                                   "machine_presets": self.machine_presets}, indent=1))
         tmp.replace(self.path)

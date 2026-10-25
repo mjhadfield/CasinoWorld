@@ -167,8 +167,11 @@ A Godot 4.7 project exported to the web.
   manifest and the pictures at runtime and refetches on `plan_art_changed`, so new art needs no export; a
   `Furniture` node shows a piece (and blocks walking) once its picture is in, and the floor bakes again.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
-  every slot machine, then each machine. A set without its own sound for a moment plays the one above's.
-  The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the
+  Default, then the slot presets made on the admin page, then each machine under the preset it follows. A set
+  without its own sound for a moment plays the one above's. Each bonus game (Trail, Battle, Voyage, Expedition)
+  has a set of its own that no machine can change; the manifest folds those into Default's, the end of every
+  machine's chain, so the game needs no idea of them. The presets and each machine's choice are in
+  `sounds.json` beside the picks. The server's manifest lists each set's own moments and which set each table uses; `Sfx` downloads the
   files, resolves a moment up the tree for the table it's played at (`Sfx.focus` is the one you're seated
   at), and loops a copy of a stream for `start_loop` so its one-shot uses stay one-shots.
 - **The floor (`scenes/world/casino_floor.gd`)** routes server messages to avatars and tables, and turns

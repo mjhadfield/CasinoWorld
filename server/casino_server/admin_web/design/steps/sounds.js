@@ -1,13 +1,19 @@
-// Step 8, Sounds: the slot's own sound for any slot moment; anything left alone plays what every slot machine does
-// (the Sounds tab's "Every slot machine" set). Picks are kept in the design; Build gives the slot its sound set.
+// Step 8, Sounds: the slot preset the slot starts on (the Sounds tab's Default, or one made there), and the slot's own
+// sound for any slot moment; anything left alone plays the preset's. The bonus games' sounds are set on the Sounds
+// tab, not per slot. Picks are kept in the design; Build gives the slot its sound set, following that preset.
 // The library is the Sounds tab's (the CC0 collection plus uploads).
 let C, lib = null, openKey = null, query = "";
 
 export async function render(ctx, body) {
   C = ctx;
   const {el} = C;
-  body.append(el("p", {className: "lead", textContent: "Each moment plays what every slot machine plays, until you give it this slot's own. Several sounds on one moment play at random. Changes here reach the game when the slot is built."}),
+  body.append(el("p", {className: "lead", textContent: "Pick a preset to start from: each moment plays the preset's sound until you give it this slot's own. Several sounds on one moment play at random. The bonus games' sounds are on the Sounds tab. Changes here reach the game when the slot is built."}),
+    el("label", {className: "controls snd-preset"}, el("span", {className: "hint", textContent: "Starts from preset"}), el("select", {id: "snd-preset", ariaLabel: "Sound preset"})),
     el("div", {className: "snd-list"}, el("p", {className: "hint", textContent: "Loading the sound library…"})));
+  document.getElementById("snd-preset").addEventListener("change", async e => {
+    try { await C.api("PUT", `/api/slot-design/${C.did}/sound-preset`, {preset: e.target.value}); await C.refresh(); }
+    catch (err) { C.status(err.message, "warn"); }
+  });
   if (!lib) lib = await C.api("GET", "/api/sounds");
   draw();
 }
@@ -33,6 +39,8 @@ function draw() {
   const {el} = C, rows = C.data.sounds.moments;
   const root = document.querySelector(".snd-list");
   if (!root) return;
+  const sel = document.getElementById("snd-preset");
+  if (sel) { sel.replaceChildren(...C.data.sounds.presets.map(p => el("option", {value: p.key, textContent: p.name}))); sel.value = C.data.sounds.preset; }
   const sections = [...new Set(rows.map(r => r.section))];
   root.replaceChildren(...sections.map(sec => el("div", {className: "pane"}, el("h3", {className: "sec", textContent: sec}),
     el("div", {className: "mrows"}, ...rows.filter(r => r.section === sec).map(r => row(r))))));
@@ -47,12 +55,12 @@ function row(r) {
       onclick: () => setFiles(r.key, own.files.filter(f => f !== id), own.gain_db)}) : null);
   const box = el("div", {className: "mrow" + (own ? "" : " inherited") + (openKey === r.key ? " editing" : "")},
     el("div", {className: "mt"}, el("b", {textContent: r.title}), r.loop ? el("span", {className: "tag", textContent: "loops"}) : null,
-      el("span", {className: "tag " + (own ? "gold" : ""), textContent: own ? "this slot's" : "every slot machine's"})),
+      el("span", {className: "tag " + (own ? "gold" : ""), textContent: own ? "this slot's" : (r.inherited.from_name || "the preset") + "'s"})),
     el("p", {className: "when", textContent: r.when}),
     el("div", {className: "chosen"}, ...(files.length ? files.map(f => chip(f, !!own)) : [el("span", {className: "hint", textContent: "silent"})])),
     el("div", {className: "acts"}, el("div", {className: "btns"},
       el("button", {type: "button", textContent: openKey === r.key ? "Done" : "Change…", onclick: () => { openKey = openKey === r.key ? null : r.key; draw(); }}),
-      own ? el("button", {type: "button", textContent: "Same as every slot", onclick: () => setFiles(r.key, null)}) : null,
+      own ? el("button", {type: "button", textContent: "Same as the preset", onclick: () => setFiles(r.key, null)}) : null,
       own ? el("button", {type: "button", textContent: "No sound", onclick: () => setFiles(r.key, [], own.gain_db)}) : null)));
   if (openKey === r.key) box.append(picker(r));
   return box;
