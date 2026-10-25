@@ -65,6 +65,8 @@ var _heading_for := {}  # {table, seat} while walking over to a stool you clicke
 var _heading_atm: Furniture = null   # the ATM you clicked from afar, while you walk over
 var _atm_near: Furniture = null      # the ATM you're standing at (offered by the prompt)
 var _play_near := {}                 # else the free chair you're standing by: {table, seat} (Play, on the prompt)
+var _kick_near := {}                 # else an NPC's chair you're standing by: {table, seat} (Take seat, on the prompt)
+var _kick_wait := {}                 # {table, seat} while you wait for the NPC you asked to get up (kick_waiting)
 var active_table: CasinoTable = null
 var active_slot: SlotCabinet = null   # the cabinet you're sitting at (state "slot")
 var _slot_waiting := false   # sat at a cabinet, its game not open yet (the sit-down, then the camera, come first)
@@ -391,6 +393,7 @@ func _process(delta: float) -> void:
 	for e in entities.values():
 		e.visible = _seen(e.position)
 	_check_heading()
+	_check_kick_wait()
 	_offer_interaction()
 	_update_cursor()
 	if state == "seated" and active_table:
@@ -746,10 +749,11 @@ const ATM_REACH := 24.0   # this close to the spot in front of an ATM, it's offe
 
 
 ## What E does where you're standing, offered on the HUD's prompt under your feet: the ATM you're at, else the
-## nearest free chair you're by (Play).
+## nearest free chair you're by (Play), else the nearest NPC's chair (Take seat: ask them to move).
 func _offer_interaction() -> void:
 	var atm: Furniture = null
 	var play := {}
+	var kick := {}
 	if state == "walking" and not hud.atm.visible and player.controls_enabled:
 		var best_d := ATM_REACH
 		for f in get_tree().get_nodes_in_group("interactables"):
@@ -766,13 +770,27 @@ func _offer_interaction() -> void:
 				if d < best_d:
 					play = {"table": t, "seat": seat}
 					best_d = d
-	if atm != _atm_near or play != _play_near:
+		best_d = PLAY_REACH
+		for t in tables.values() if atm == null and play.is_empty() and _kick_wait.is_empty() else []:
+			if not t.offer_seats or not t.is_visible_in_tree():
+				continue
+			for seat in t.occupants:
+				if t.occupants[seat].get("human", true):
+					continue
+				var d := player.global_position.distance_to(t.to_global(t.chair_pos(seat)))
+				if d < best_d:
+					kick = {"table": t, "seat": seat}
+					best_d = d
+	if atm != _atm_near or play != _play_near or kick != _kick_near:
 		_atm_near = atm
 		_play_near = play
+		_kick_near = kick
 		if atm:
 			hud.show_prompt("Use ATM")
 		elif not play.is_empty():
 			hud.show_prompt("Play")
+		elif not kick.is_empty():
+			hud.show_prompt("Take seat")
 		else:
 			hud.hide_prompt()
 	if hud.prompt.visible:
@@ -785,6 +803,33 @@ func _interact() -> void:
 		_open_atm()
 	elif not _play_near.is_empty():
 		_take_seat(_play_near.table, _play_near.seat)
+	elif not _kick_near.is_empty():
+		_ask_kick(_kick_near.table, _kick_near.seat)
+
+
+## Take seat: check they mean it, then ask the NPC sitting there to move. They get up now and you sit down
+## (`seated`), or they finish what they're in first (`kick_waiting`).
+func _ask_kick(t: FloorGame, seat: int) -> void:
+	if not Net.is_open():
+		hud.show_toast("Not connected to the casino")
+		return
+	hud.ask("Are you sure? Kicking someone out of their seat is kind of rude you know.", "Yes", "No", func():
+		if state == "walking" and t.occupants.has(seat) and not t.occupants[seat].get("human", true):
+			Net.send("kick", {"table": t.table_id, "seat": seat}))
+
+
+## Waiting for an NPC to give up their seat: walk away from it and the wait's over (they keep it).
+func _check_kick_wait() -> void:
+	if _kick_wait.is_empty():
+		return
+	var t: FloorGame = _kick_wait.table
+	if state != "walking" or not is_instance_valid(t):
+		_kick_wait = {}
+		return
+	if player.global_position.distance_to(t.to_global(t.chair_pos(_kick_wait.seat))) > SIT_REACH:
+		Net.send("kick_cancel")
+		hud.show_toast("You walked away, so %s keeps the seat" % _kick_wait.name)
+		_kick_wait = {}
 
 
 func _open_atm() -> void:
@@ -1212,7 +1257,13 @@ func _on_message(msg: Dictionary) -> void:
 		"slot_jackpots":
 			SlotScreen.set_meters(msg.get("meters", {}), msg.get("rates"))
 		"seated":
+			_kick_wait = {}
 			_sat_down(msg)
+		"kick_waiting":   # the NPC you asked is in a hand: they move once it's settled, if you're still here
+			var t = tables.get(msg.table)
+			if t != null:
+				_kick_wait = {"table": t, "seat": int(msg.seat), "name": str(msg.name)}
+				hud.show_toast("%s will give you the seat once their bets are settled" % msg.name, 4.0)
 		"seating":   # the admin page changed the seating styles
 			Seating.configure(msg.get("seating", {}))
 			for t in tables.values():

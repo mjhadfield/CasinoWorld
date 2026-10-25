@@ -274,3 +274,95 @@ def test_npcs_in_a_snapshot_are_where_they_are_not_at_the_players_spawn_point(tm
     simulate(tmp_path, seconds=900, until=check)
     arrivals = {floor.position(f"point:{k}") for k in floor.arrivals()}
     assert first and all(at in arrivals for at in first.values())   # each came in at an arrival point
+
+
+def _player_on_floor(casino, name="Kicker"):
+    from casino_server.session import Session
+    session = Session()
+    session.account = casino.store.create_account()
+    session.player = casino.store.create_player(name)
+    session.entity_id = "p-kicker"
+    casino.sessions.add(session)
+    return session
+
+
+def _sent(session) -> list:
+    out = []
+    while not session.queue.empty():
+        out.append(session.queue.get_nowait())
+    return out
+
+
+def _npc_seated_at_cards(casino, in_hand: bool):
+    """(npc, table, seat) for an NPC sitting at a card table, in a hand (or between hands), else None."""
+    for npc in casino.npcs.npcs.values():
+        if npc.state == "seated" and not npc.kicked_by:
+            m = casino.tables[npc.table].machine
+            if m.game not in ("roulette", "craps", "slot") and len(m.seats) > 1 and \
+                    (m.phase not in m.BETTING_PHASES) == in_hand and (not in_hand or npc.seat in m.round):
+                return npc, npc.table, npc.seat
+    return None
+
+
+def _run(casino, now, seconds, until=None):
+    end = now[0] + seconds
+    while now[0] < end:
+        now[0] += 0.25
+        casino.npcs.tick(now[0])
+        for runner in casino.tables.values():
+            runner.publish(runner.machine.tick(now[0]))
+        if until and until():
+            return True
+    return False
+
+
+def _kick_casino(tmp_path, seed=7):
+    now = [1_000_000.0]
+    store = Store(tmp_path / "kick.sqlite")
+    casino = Casino(store, npc_population=6, rng=random.Random(seed), clock=lambda: now[0], wall=lambda: now[0])
+    return casino, now
+
+
+def test_a_kicked_npc_between_hands_gets_up_at_once_and_the_player_sits_down(tmp_path):
+    casino, now = _kick_casino(tmp_path)
+    assert _run(casino, now, 600, lambda: _npc_seated_at_cards(casino, in_hand=False))
+    npc, table, seat = _npc_seated_at_cards(casino, in_hand=False)
+    me = _player_on_floor(casino)
+    casino.handle(me, {"type": "kick", "table": table, "seat": seat})
+    assert (me.table, me.seat) == (table, seat) and me.kick is None
+    assert any(m["type"] == "seated" and m["seat"] == seat for m in _sent(me))
+    assert npc.table != table and npc.snubbed == table and npc.kicked_by is None
+    _run(casino, now, 120)
+    assert npc.table != table   # off to another table (or home), never back to this one
+
+
+def test_a_kicked_npc_in_a_hand_finishes_it_then_the_seat_goes_to_the_player(tmp_path):
+    casino, now = _kick_casino(tmp_path)
+    assert _run(casino, now, 600, lambda: _npc_seated_at_cards(casino, in_hand=True))
+    npc, table, seat = _npc_seated_at_cards(casino, in_hand=True)
+    m = casino.tables[table].machine
+    me, other = _player_on_floor(casino), _player_on_floor(casino, "Second")
+    casino.handle(me, {"type": "kick", "table": table, "seat": seat})
+    assert [x for x in _sent(me) if x["type"] == "kick_waiting"][0]["name"] == npc.name
+    assert m.seats[seat].participant is npc.participant and me.table is None
+    casino.handle(other, {"type": "kick", "table": table, "seat": seat})
+    assert any(x["type"] == "error" and "already asked" in x["message"] for x in _sent(other))
+    stood_in = []
+    original = m.stand
+    m.stand = lambda s, now, reason="": stood_in.append(m.phase) or original(s, now, reason)
+    assert _run(casino, now, 120, lambda: me.table is not None)
+    assert (me.table, me.seat) == (table, seat) and stood_in == ["betting"]   # up once the hand was settled
+
+
+def test_walking_away_from_a_kick_leaves_the_npc_where_they_are(tmp_path):
+    casino, now = _kick_casino(tmp_path)
+    assert _run(casino, now, 600, lambda: _npc_seated_at_cards(casino, in_hand=True))
+    npc, table, seat = _npc_seated_at_cards(casino, in_hand=True)
+    me = _player_on_floor(casino)
+    casino.handle(me, {"type": "kick", "table": table, "seat": seat})
+    casino.handle(me, {"type": "kick_cancel"})
+    m = casino.tables[table].machine
+    _run(casino, now, 60, lambda: m.phase == "betting")
+    _run(casino, now, 2)
+    assert me.table is None and npc.kicked_by is None
+    assert m.seats[seat].participant is npc.participant or npc.ended   # (unless their visit was over anyway)

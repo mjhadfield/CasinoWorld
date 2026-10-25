@@ -226,7 +226,7 @@ class Casino:
         if session.player is None:
             return session.error("Pick a character first.")
         handler = {
-            "move": self._move, "sit": self._sit, "stand": self._stand_msg,
+            "move": self._move, "sit": self._sit, "stand": self._stand_msg, "kick": self._kick, "kick_cancel": self._kick_cancel,
             "bet": self._table_action, "clear_bets": self._table_action, "rebet": self._table_action, "auto_rebet": self._table_action,
             "ready": self._table_action, "decide": self._table_action, "insure": self._table_action,
             "act": self._table_action, "set_hand": self._table_action, "fold": self._table_action, "claim": self._table_action,
@@ -482,6 +482,7 @@ class Casino:
         self.world.move(session.entity_id, x, y, str(msg.get("dir", "")), str(msg.get("anim", "")), source=session)
 
     def _sit(self, session: Session, msg: dict):
+        session.kick = None   # (sitting anywhere ends a wait for an NPC's seat)
         runner = self.tables.get(msg.get("table"))
         if runner is None:
             return session.error(f"Unknown table: {msg.get('table')}")
@@ -499,6 +500,37 @@ class Casino:
         session.table, session.seat = runner.table_id, seat
         session.push({"type": "seated", "table": runner.table_id, "seat": seat, "rules": runner.machine.rules()})
         session.push(runner.snapshot_for(session))
+
+    def _kick(self, session: Session, msg: dict):
+        """Ask the NPC in a seat to give it up (the client has asked if they're sure). They get up now, and the
+        seat's yours (`seated`), or after the hand they're in (`kick_waiting`, then `seated`)."""
+        runner = self.tables.get(msg.get("table"))
+        if runner is None:
+            return session.error(f"Unknown table: {msg.get('table')}")
+        if session.table is not None:
+            return session.error("You're already sitting at a table.")
+        try:
+            seat = int(msg.get("seat"))
+        except (TypeError, ValueError):
+            return session.error("Pick a seat.")
+        if not 0 <= seat < len(runner.machine.seats):
+            return session.error("There's no such seat.")
+        who = runner.machine.seats[seat].participant
+        try:
+            free = self.npcs.kick(runner.table_id, seat, session, self.npcs.clock())
+        except TableError as e:
+            return session.error(str(e))
+        if not free:
+            session.push({"type": "kick_waiting", "table": runner.table_id, "seat": seat, "name": who.name})
+
+    def _kick_cancel(self, session: Session, msg: dict):
+        session.kick = None
+
+    def seat_kicker(self, session: Session, table_id: str, seat: int):
+        """The NPC a player asked for their seat has got up: the player sits down in it."""
+        session.kick = None
+        if session in self.sessions and session.player is not None and session.table is None:
+            self._sit(session, {"table": table_id, "seat": seat})
 
     def _stand_msg(self, session: Session, msg: dict):
         if session.table is not None:

@@ -31,7 +31,9 @@ in, stand up and leave. Switched back on, they arrive one at a time again.
 
 NPCs leave a table's reserved_seats free, so a real player can always sit down:
 the middle seat of a five-seater, the middle two of a six-seater, and at Craps the
-second place from the left on each side of the stickman. The craps table tries to keep MIN_CRAPS_NPCS
+second place from the left on each side of the stickman. A player can also ask an NPC for their seat (kick): they
+get up at once if nothing of theirs is riding, else once it's settled, and the seat goes straight to the player.
+Most go and find another table; now and then one calls it a day. The craps table tries to keep MIN_CRAPS_NPCS
 NPCs at it (within the floor population): it's everyone's first choice while it's
 short, and if it stays short an idle NPC is sent over. Dealers are rostered too
 (dealers.py).
@@ -69,6 +71,7 @@ BET_LEAD = 0.6  # seconds: NPC bets go down at least this long before betting cl
 # MOST_LEAVE of them -- about one at a full table (five NPCs and a person), sometimes none, sometimes two.
 LEAVE_CHANCE = 0.22
 MOST_LEAVE = 2
+KICKED_GO_HOME = 0.25   # asked for their seat, this often an NPC calls it a day instead of finding another table
 HILO = {"2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 0, "8": 0, "9": 0, "10": -1, "J": -1, "Q": -1, "K": -1, "A": -1}
 
 
@@ -107,6 +110,8 @@ class Npc:
     decide_at: float | None = None
     decide_for: tuple | None = None  # the Blackjack decision decide_at belongs to
     seat_attempts: int = 0
+    kicked_by: object = None         # the player's Session waiting for their seat (kick)
+    snubbed: str | None = None       # the table they were asked to leave: not that one again this visit
     participant: NpcParticipant | None = None
     habit: str = ""                  # Roulette: how they like to bet
     favourites: tuple = ()           # ...and their numbers
@@ -320,7 +325,8 @@ class NpcDirector:
 
     def _head_for_seat(self, npc: Npc, now: float, only: str | None = None) -> bool:
         claimed = {(n.table, n.seat) for n in self.npcs.values() if n.state == "walking" and n.table}
-        tables = [(t, r) for t, r in self.casino.tables.items() if only is None or t == only]
+        tables = [(t, r) for t, r in self.casino.tables.items()
+                  if t == only or (only is None and t != npc.snubbed)]
         self.rng.shuffle(tables)
         prof = npc.prof
 
@@ -431,6 +437,51 @@ class NpcDirector:
         npc.look, npc.name = look, record["name"]
         self.casino.world.restyle(npc.entity_id, look=look, name=record["name"])
 
+    # ------------------------------------------------------------------ a player wants their seat
+    def kick(self, table_id: str, seat: int, session, now: float) -> bool:
+        """A player by an NPC's chair asked for it. True: the NPC got up now, nothing of theirs being riding, and the
+        player has the seat. False: they get up once it's settled, and the seat goes to the player then if they're
+        still waiting for it (_leave_table)."""
+        runner = self.casino.tables[table_id]
+        m = runner.machine
+        npc = getattr(m.seats[seat].participant, "npc", None)
+        if npc is None or self.npcs.get(npc.entity_id) is not npc or npc.state != "seated":
+            raise TableError("Only an NPC can be asked to move.")
+        if self._kicker(npc) not in (None, session):
+            raise TableError(f"Someone's already asked {npc.name} for that seat.")
+        npc.kicked_by, session.kick = session, npc.entity_id
+        free = self._nothing_riding(npc, m)
+        if getattr(m, "DEALER", True):
+            line = m.lines.say("kick", "now" if free else "later", name=npc.name)
+            if line:
+                runner.publish(say(line))
+        if free:
+            if m.game != slots.GAME_KEY:
+                npc.in_round = False   # (their bets hadn't been taken)
+            self._leave_table(npc, now, "kicked")
+        return free
+
+    def _kicker(self, npc: Npc):
+        """The player waiting for this NPC's seat, if they still are (not sat down, gone, or given up on it)."""
+        s = npc.kicked_by
+        if s is not None and (s.kick != npc.entity_id or s.table is not None or s not in self.casino.sessions):
+            s = npc.kicked_by = None
+        return s
+
+    @staticmethod
+    def _craps_free(m, seat: int) -> bool:
+        """Nothing of theirs stuck on the craps table: no point on, no contract or Don't Come bets out."""
+        mine = m.seats[seat].bets
+        return m.point is None and not m.contract_bets(seat) and not any(mine.get(f"dcome_{n}") for n in cr.NUMBERS)
+
+    def _nothing_riding(self, npc: Npc, m) -> bool:
+        """Whether they can get up now without leaving a bet behind (bets still on the felt come back)."""
+        if m.game == slots.GAME_KEY:
+            return m.phase == "idle" and not m.pending
+        if m.game == cr.GAME_KEY:
+            return m.phase == "betting" and self._craps_free(m, npc.seat)
+        return m.phase in m.BETTING_PHASES
+
     # ------------------------------------------------------------------ a Master Table changing game
     def leavers(self, participants: list, game: str) -> list:
         """Which of the NPCs sitting at a Master Table get up for `game`: a Card counter always unless it's
@@ -507,17 +558,30 @@ class NpcDirector:
                 runner.publish(say(line))
 
     def _leave_table(self, npc: Npc, now: float, reason: str | None = None):
+        """Get up, for `reason` (None: to sit somewhere else). A player waiting for the seat (kick) takes it now."""
         runner = self.casino.tables[npc.table]
         if runner.machine.seats[npc.seat].participant is npc.participant:
             runner.act("stand", npc.seat)
+        kicker, table, seat = self._kicker(npc), npc.table, npc.seat
+        npc.kicked_by = None
         npc.table = npc.seat = None
         npc.bet_at = npc.decide_at = None
         npc.chips = None
-        if reason:
+        if reason == "kicked":
+            npc.snubbed = table
+            if self.rng.random() < KICKED_GO_HOME:
+                self.end_visit(npc, reason)
+                npc.plan = ["leave"]
+            else:
+                npc.seat_attempts = 0
+                npc.plan.insert(0, "play")
+        elif reason:
             npc.ended = reason
             self.end_visit(npc, reason)
             if reason == "bust":
                 npc.plan = ["leave"]   # nothing left to do here
+        if kicker is not None:
+            self.casino.seat_kicker(kicker, table, seat)
         self._next_step(npc, now)
 
     def _round_over(self, npc: Npc, game: str):
@@ -544,6 +608,8 @@ class NpcDirector:
             return "hit_and_run"
         if npc.rounds >= p.rounds:
             return "done"
+        if self._kicker(npc) is not None:
+            return "kicked"
         return None
 
     def _unit(self, npc: Npc, m=None) -> int:
@@ -872,8 +938,7 @@ class NpcDirector:
         if npc.chips is None:   # a new betting window
             self._craps_roll_over(npc, m)
             mine = m.seats[seat].bets
-            free_to_go = m.point is None and not m.contract_bets(seat) and \
-                not any(mine.get(f"dcome_{n}") for n in cr.NUMBERS)
+            free_to_go = self._craps_free(m, seat)
             reason = self._time_to_go(npc)
             if reason and free_to_go:
                 return self._leave_table(npc, now, reason)

@@ -90,7 +90,9 @@ game result and every penny is decided on the server; the client only renders an
   out a cooldown. They pick games by preference, play each game's published strategy (with style-dependent
   side bets and believable slips on close calls from `npc_slips.py`, each side bet a share of their main bet that they keep for the visit), and leave
   the seats kept for real players free (`reserved_seats`: the middle seat of a five-seater, the middle two of
-  a six-seater, the second place from the left on each side at Craps). The craps table is kept to at least two NPCs. The admin page's NPC switch
+  a six-seater, the second place from the left on each side at Craps). A player can ask one for their seat
+  (`kick`): they get up at once if nothing's riding, else at their next round boundary (`_time_to_go` says
+  `kicked` while `Session.kick` still names them), and `_leave_table` sits the player straight down. The craps table is kept to at least two NPCs. The admin page's NPC switch
   (`npcs_on`, read each tick) turns them off: they leave at their next round boundary (the same check as being
   done for the day) with no cooldown, and come back one at a time when it's turned on.
 - **Dealers (`dealers.py`)** come from the same roster and work staggered shifts, relieved only between

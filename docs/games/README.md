@@ -120,6 +120,14 @@ seat kept for real players (the middle seat at a five-seat table, the middle two
 place from the left on each side of the craps table, and the last two free slot cabinets in a bank), so a real
 player can always sit down. Their budgets, styles and traits are on the admin page (README › Admin page).
 
+A player can also take an NPC's seat: standing by their chair, the prompt says **Take seat**, and after an
+"Are you sure? Kicking someone out of their seat is kind of rude you know." Yes/No, the dealer asks them to move.
+With nothing of theirs riding (betting still open, or at Craps no point and nothing stuck on the table; a slot
+between spins) they get up at once and you sit down. Otherwise they finish what's in play and get up at their next
+round boundary, and the seat goes straight to you, if you're still standing by it: walk away and they keep it.
+Most go and find another table (never that one again this visit); a quarter call it a day (`kicked` in their
+visit log).
+
 ## Money
 
 Each device is remembered as its own player and starts with £1,000. If you go broke, **Top up** appears

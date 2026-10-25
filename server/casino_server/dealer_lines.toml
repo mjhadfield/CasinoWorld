@@ -145,6 +145,12 @@ roll = ["{call}.", "{call}, no decision.", "{call} -- the point is {point}."]
 new_shooter = ["New shooter: {name}. Coming out!", "{name} has the dice. Coming out!", "Dice to {name}. Coming out."]
 takes_dice = ["{name} takes the dice. The point is {point}.", "Dice to {name} -- the point is still {point}."]
 
+# A player asks an NPC for their seat: {name} is the NPC's. `now` when they get up at once, `later` when they're
+# in the hand (or have craps bets out) and move once it's settled.
+[kick]
+now = ["Sorry, {name} -- this seat's been asked for.", "{name}, would you mind moving along? Thanks.", "Ah -- {name}, someone'd like this seat."]
+later = ["{name} will move along once their bets are settled.", "Once this one's done, {name}.", "After this one, {name}'ll make room."]
+
 # A VIP sits down: the dealer knows them.
 [vip]
 greet = ["Welcome back, {name}.", "Good to see you, {name}.", "{name}! Your usual?", "Evening, {name}. Good luck."]

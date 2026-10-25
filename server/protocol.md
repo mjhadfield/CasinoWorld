@@ -40,6 +40,8 @@ casino's goings-on, and everything else it sends is ignored.
 | `leave_character` | | Off the floor and back to the character select (standing you up first). A hand you're in plays out for that character. The reply is `character_left` {`reason`: `switch`} and `account`. |
 | `move` | `x`, `y`, `dir`, `anim` | Your avatar's position on the floor, sent about 10 times a second while moving. It's ignored while you're seated. |
 | `sit` | `table`, `seat` | Sit at a seat (0–5; seat 0 is first base, the dealer's left). |
+| `kick` | `table`, `seat` | Ask the NPC in that seat to give it up (the client asks if you're sure first). With nothing of theirs riding they get up now and you're `seated`; otherwise `kick_waiting`, and you're `seated` once they're up. Sitting anywhere, or `kick_cancel`, ends the wait (they keep the seat). |
+| `kick_cancel` | | You walked away from the seat you're waiting for. |
 | `stand` | | Stand up. At Three Card Poker, standing before you've acted on a hand folds it; at Blackjack it stands every hand you still have to play (they're settled as normal). |
 | `bet` | `spot`, plus `add` or `amount` | Change a bet while betting is open, or at any time if you're not in the hand being played: those bets are queued for the next hand (not at Roulette). `add` is relative, so rapid clicks don't race the echo; `amount` is absolute. `spot` is `ante`, `pair_plus`, `prime` or `jackpot` at Three Card Poker, and `bet`, `super_pairs`, `twenty_one_plus_three`, `top_three` or `jackpot` at Blackjack (the jackpot bet is exactly £1 or 0; Top 3 needs a 21+3 bet). |
 | `clear_bets` / `rebet` | | Remove all your bets, or repeat last hand's bets. A rebet in the betting window cuts the countdown to 3 seconds (a quiet `betting_timer`) unless it's due sooner; NPCs at the table bet before it runs out. Queued for the next hand, it cuts that hand's countdown the same way. |
@@ -81,6 +83,7 @@ casino's goings-on, and everything else it sends is ignored.
 | `entity_walk` | `id`, `target`, `duration` | An NPC heads for `point:<name>` or `seat:<table>:<n>`. The client paths them there in `duration` seconds. |
 | `entity_update` | `id`, `name`?, `look`? | Someone renamed, or an NPC was restyled on the admin page (a `look` id starting `x_` is a server-built sheet at `/looks/<id>.png`). |
 | `entity_despawn` | `id` | Someone left. |
+| `kick_waiting` | `table`, `seat`, `name` | The NPC you asked (`kick`) is in a hand, or has craps bets out: they get up once it's settled, and you sit straight down if you haven't sat elsewhere or sent `kick_cancel`. |
 | `seated` | `table`, `seat`, `rules` | You sat down. `rules` holds the paytable, `chips`, `min_ante` and `seats`. A `table_state` follows. |
 | `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on join, and when you sit. |
 | `table_event` | `table`, `event` | Something happened at a table. Every joined player gets every table's events (see below). |

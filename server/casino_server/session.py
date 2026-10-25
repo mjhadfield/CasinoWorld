@@ -26,6 +26,7 @@ class Session:
         self.seat: int | None = None
         self.away = False  # tab hidden: nothing is sent until the client asks to `resync`
         self.preview: str | None = None  # a floor-plan preview (the room it shows): no body, no tables, not "joined"
+        self.kick: str | None = None  # the NPC (entity id) they asked to give up a seat, while they wait for it
 
     def push(self, msg: dict):
         if self._loop and threading.get_ident() != self._loop_thread:   # (an admin request in the threadpool)
