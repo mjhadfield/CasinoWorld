@@ -317,6 +317,7 @@ func _build_queued() -> void:
 	x.text = "✕"
 	x.flat = true
 	x.focus_mode = Control.FOCUS_NONE
+	x.add_theme_font_override("font", UiKit.FONT)   # Godot's default font has no ✕ (it drew a hex box)
 	x.tooltip_text = "Stay on this game"
 	x.add_theme_color_override("font_color", UiKit.MUTED)
 	x.add_theme_color_override("font_hover_color", UiKit.BRASS_HI)
