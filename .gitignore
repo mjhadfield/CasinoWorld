@@ -27,3 +27,10 @@ server/slot_designs/*/chars/
 # Worktrees Claude Code creates inside the repo, and per-machine Claude settings.
 .claude/worktrees/
 .claude/settings.local.json
+
+# Local OpenAI onboarding and external review.
+/AGENTS.md
+/docs/openai-review-2026-10-25.md
+/docs/home-hosting-security-plan-2026-10-25.md
+/docs/github-pages-demo-plan-2026-10-25.md
+/docs/cloud-hosting-plan-2026-10-25.md

@@ -24,8 +24,8 @@ const TRIM_HI := Color("ffe0a3")
 ## words. Empty: Armadillo Goes West's, exactly as signed off.
 var look := {}
 # The stool, from the cabinet's base centre (y is the base line), by facing.
-const STOOL_AT := {"down": Vector2(0, 17), "up": Vector2(0, -15), "left": Vector2(-30, -5), "right": Vector2(30, -5)}
-const STAND_AT := {"down": Vector2(0, 36), "up": Vector2(0, -34), "left": Vector2(-49, -1), "right": Vector2(49, -1)}
+const STOOL_AT := {"down": Vector2(0, 17), "up": Vector2(0, -15), "left": Vector2(-28, -5), "right": Vector2(28, -5)}
+const STAND_AT := {"down": Vector2(0, 36), "up": Vector2(0, -34), "left": Vector2(-44, -1), "right": Vector2(44, -1)}
 const SIT_FACING := {"down": "up", "up": "down", "left": "right", "right": "left"}
 
 var grid: Array = []            # the last spin's symbols (cell = reel * 4 + row)

@@ -1,6 +1,6 @@
 // Player stats: the game-by-game figures behind the Players table. Pick a player on the left (or Everyone, every
 // player added together) to see what they've staked and got back at each game. #stats/<player id> opens one.
-let H, data = null, pick = "all";
+let H, data = null, pick = "all", whoSort = {key: "wagered", dir: -1}, gameSort = {key: "wagered", dir: -1};
 
 export function init(h) {
   H = h;
@@ -36,11 +36,25 @@ function everyone() {   // every player's games added together
   return {id: "all", name: "Everyone", games, wagered: sum("wagered"), returned: sum("returned"), net: sum("net"), bets: sum("bets")};
 }
 
+// Click a heading to sort by it; click again to flip. Names start A→Z, figures biggest first.
+function head(cols, sort, set) {
+  return H.el("thead", {}, H.el("tr", {}, ...cols.map(([label, k, c]) => {
+    const th = H.el("th", {className: "sort " + (c || ""), textContent: label});
+    if (sort.key === k) th.setAttribute("aria-sort", sort.dir > 0 ? "ascending" : "descending");
+    th.addEventListener("click", () => { set(sort.key === k ? {key: k, dir: -sort.dir} : {key: k, dir: k === "name" ? 1 : -1}); draw(); });
+    return th;
+  })));
+}
+const by = (sort, val) => (a, b) => {
+  const x = val(a, sort.key), y = val(b, sort.key);
+  return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1) - (y ?? -1)) * sort.dir;
+};
+
 function draw() {
   if (!data) return;
   const {el, money, signed} = H;
   const cls = n => n > 0 ? "pos" : n < 0 ? "neg" : "";
-  const all = everyone(), people = [...data.players].sort((a, b) => b.wagered - a.wagered);
+  const all = everyone(), people = [...data.players].sort(by(whoSort, (p, k) => k === "games" ? Object.keys(p.games).length : p[k]));
   const chosen = pick === "all" ? all : data.players.find(p => p.id === pick) || all;
   const row = p => {
     const tr = el("tr", {className: "click" + (chosen === p ? " sel" : ""), tabIndex: 0},
@@ -52,11 +66,12 @@ function draw() {
     return tr;
   };
   H.view.querySelector("#stats-who").replaceChildren(el("table", {},
-    el("thead", {}, el("tr", {}, ...[["Player"], ["Staked", "num"], ["Net", "num"], ["Games", "num"]].map(([t, c]) => el("th", {className: c || "", textContent: t})))),
+    head([["Player", "name"], ["Staked", "wagered", "num"], ["Net", "net", "num"], ["Games", "games", "num"]], whoSort, s => whoSort = s),
     el("tbody", {}, row(all), ...people.map(row))));
 
   const pct = s => s.wagered ? (s.returned / s.wagered * 100).toFixed(1) + "%" : "—";
-  const games = Object.entries(chosen.games).sort((a, b) => b[1].wagered - a[1].wagered);
+  const games = Object.entries(chosen.games).sort(by(gameSort, ([g, s], k) =>
+    k === "name" ? data.games[g] || g : k === "pct" ? (s.wagered ? s.returned / s.wagered : null) : s[k]));
   const line = (label, s, bold) => el("tr", {},
     el("td", {}, bold ? el("b", {textContent: label}) : label), el("td", {className: "num", textContent: money(s.wagered)}),
     el("td", {className: "num", textContent: money(s.returned)}), el("td", {className: "num " + cls(s.net), textContent: signed(s.net)}),
@@ -65,7 +80,8 @@ function draw() {
     el("div", {className: "ph"}, el("b", {textContent: chosen.name}), el("span", {className: "hint", textContent: chosen.id === "all" ? "every player, game by game" : "game by game"})),
     el("div", {className: "pb"}, games.length
       ? el("table", {},
-          el("thead", {}, el("tr", {}, ...[["Game"], ["Staked", "num"], ["Returned", "num"], ["Net", "num"], ["Bets", "num"], ["Returned %", "num"]].map(([t, c]) => el("th", {className: c || "", textContent: t})))),
+          head([["Game", "name"], ["Staked", "wagered", "num"], ["Returned", "returned", "num"], ["Net", "net", "num"], ["Bets", "bets", "num"],
+            ["Returned %", "pct", "num"]], gameSort, s => gameSort = s),
           el("tbody", {}, ...games.map(([g, s]) => line(data.games[g] || g, s)), line("All games", chosen, true)))
       : el("p", {className: "empty", textContent: "No bets yet."})));
 }
