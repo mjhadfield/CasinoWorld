@@ -28,6 +28,7 @@ var _high: Array = []     # the rest
 var _order: Array = []    # the seven in their dealt order (for the 1-7 keys)
 var _face_up := false
 var look := {}            # the table's style, for the cards' fronts (Card2D.paint)
+var under := Callable()   # the screen y of the dealer's cards' bottom edge (the table's dealer_cards_bottom)
 var _sent := false
 var _claim_mode := false
 var _bonus = null         # claim mode: the side-bet hand you can claim, or null
@@ -148,15 +149,21 @@ func close() -> void:
 	hide()
 
 
-## Centred over the bottom of the screen, just above the seated bar.
+## Centred, its top just under the dealer's cards (`under`) so their whole hand
+## shows; without them, over the bottom of the screen just above the seated bar.
 func _place() -> void:
 	if not visible:
 		return
 	reset_size()
 	var screen := get_viewport().get_visible_rect().size
-	var hud := get_parent()   # (over the bottom of the table, clear of the betting bar)
-	var bar_h: float = screen.y - hud.bar.bar_top if hud and "bar" in hud and hud.bar.bar_top > 0 else 170.0
-	position = Vector2((screen.x - size.x) / 2, screen.y - size.y - bar_h - 6)
+	var y: float
+	if under.is_valid():
+		y = minf(under.call() + 4.0, screen.y - size.y - 6)   # (a short window: up over the cards rather than off the bottom)
+	else:
+		var hud := get_parent()   # (over the bottom of the table, clear of the betting bar)
+		var bar_h: float = screen.y - hud.bar.bar_top if hud and "bar" in hud and hud.bar.bar_top > 0 else 170.0
+		y = screen.y - size.y - bar_h - 6
+	position = Vector2((screen.x - size.x) / 2, maxf(6.0, y))
 
 
 ## The server turned the hand down (it shouldn't happen -- Set is only offered

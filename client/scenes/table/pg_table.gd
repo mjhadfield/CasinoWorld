@@ -141,6 +141,11 @@ func dealer_pile_pos() -> Vector2:
 	return Vector2(0, DEALER_Y)
 
 
+## The bottom edge of the dealer's cards, in screen pixels: the sorter's top sits just under it.
+func dealer_cards_bottom() -> float:
+	return (_dyn.get_global_transform_with_canvas() * Vector2(0, DEALER_Y + Card2D.SIZE.y / 2)).y
+
+
 ## The dealer's seven in a row, as they're turned over and sorted...
 func _dealer_row_pos(k: int) -> Vector2:
 	return Vector2(-32 + k * 9.0, DEALER_Y)

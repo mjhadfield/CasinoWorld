@@ -15,7 +15,7 @@ reveal or the set.
 
 ## Setting your hand
 
-You pick your cards up into the **sorter**, a panel over the bottom of the table. They arrive in no
+You pick your cards up into the **sorter**, a panel over the bottom of the table whose top sits just under the dealer's cards, so their whole hand stays in view. They arrive in no
 particular order; **Sort** (**S**) puts them in order. Tap a card (or press **1**–**7**) to move it between
 your 2-card **Low** hand and your 5-card **High** hand; it glides across, and the other cards shuffle along to
 make room. The panel names both hands and warns you about a foul (the High hand must beat the Low).
