@@ -41,6 +41,9 @@ turn by `rot` (the catalogue says which turns each game takes); everything else 
 results sign (Roulette, Craps) has props.sign, the end it stands past as the players see it (SIGN_SIDES; unset, the
 usual end: sign_side()); the sign has its own shapes beside the table's (shapes()["sign"]).
 
+Items, patches, points and zones can carry "group" (an id like g3, unique within the room): the page picks and moves
+a group as one. The game ignores it.
+
 A bank's size is fixed (another size is another asset, so a new id); everything past the page sees its cabinets
 (flat_items), each an ordinary slot item, so the game and the NPCs never know about banks.
 
@@ -521,6 +524,14 @@ def _patch(p: dict, w: float, h: float) -> dict:
                        "width": _num(bor.get("width", 6), "A patch's border width", 1, 64)}}
 
 
+def _grouped(raw: dict, out: dict) -> dict:
+    """`out` with raw's group kept, when it has a well-formed one (the page picks a group as one)."""
+    g = raw.get("group")
+    if isinstance(g, str) and ID_RE.match(g):
+        out["group"] = g
+    return out
+
+
 def clean(raw, old: dict) -> dict:
     """The page's plan, checked for shape and given ids (new rooms, doors and items come without them; ids already
     given stay with their thing). Raises PlanError for anything malformed; problems with where things are come from
@@ -563,7 +574,7 @@ def clean(raw, old: dict) -> dict:
         for p in rr.get("patches") or []:
             if not isinstance(p, dict):
                 raise PlanError(f"{name}: a floor patch must be an object.")
-            room["patches"].append(_patch(p, w, h))
+            room["patches"].append(_grouped(p, _patch(p, w, h)))
         door_ids = set()
         for d in rr.get("doors") or []:
             if not isinstance(d, dict) or d.get("side") not in SIDES or d.get("kind") not in DOOR_KINDS:
@@ -576,7 +587,7 @@ def clean(raw, old: dict) -> dict:
             room["doors"].append({"id": did, "side": d["side"], "at": _num(d.get("at"), f"{name}: a door's place", 0, length),
                                   "width": _num(d.get("width"), f"{name}: a door's width", *DOOR_WIDTH), "kind": d["kind"]})
         for it in rr.get("items") or []:
-            room["items"].append(_clean_item(it, name, w, h, nxt, known_items, item_ids))
+            room["items"].append(_grouped(it, _clean_item(it, name, w, h, nxt, known_items, item_ids)))
         paths = rr.get("paths") if isinstance(rr.get("paths"), dict) else {}
         names = set()
         for p in paths.get("points") or []:
@@ -587,16 +598,16 @@ def clean(raw, old: dict) -> dict:
             while pname in names:
                 pname, n = f"{base}_{n}", n + 1
             names.add(pname)
-            room["paths"]["points"].append({"name": pname, "x": _num(p.get("x"), "A point's place", 0, w),
+            room["paths"]["points"].append(_grouped(p, {"name": pname, "x": _num(p.get("x"), "A point's place", 0, w),
                                             "y": _num(p.get("y"), "A point's place", 0, h), "kind": p["kind"],
                                             "weight": _num(p.get("weight", 1), "A point's weight", 0, 100),
-                                            "linger": _num(p.get("linger", 0), "A point's linger", 0, 600)})
+                                            "linger": _num(p.get("linger", 0), "A point's linger", 0, 600)}))
         for z in paths.get("zones") or []:
             if not isinstance(z, dict) or z.get("kind") not in ZONE_KINDS:
                 raise PlanError(f"{name}: a zone needs a kind ({', '.join(ZONE_KINDS)}).")
-            room["paths"]["zones"].append({"x": _num(z.get("x"), "A zone's place", 0, w), "y": _num(z.get("y"), "A zone's place", 0, h),
+            room["paths"]["zones"].append(_grouped(z, {"x": _num(z.get("x"), "A zone's place", 0, w), "y": _num(z.get("y"), "A zone's place", 0, h),
                                            "w": _num(z.get("w"), "A zone's size", 2, w), "h": _num(z.get("h"), "A zone's size", 2, h),
-                                           "kind": z["kind"]})
+                                           "kind": z["kind"]}))
         rooms.append(room)
     spawn = raw.get("spawn") if isinstance(raw.get("spawn"), str) else old.get("spawn", "")
     return {"rev": old.get("rev", 0), "next": nxt, "spawn": spawn, "rooms": rooms}

@@ -102,6 +102,19 @@ def test_floor_patches_keep_their_look_and_fall_back_to_plain():
         plan.clean(raw, lobby_only())
 
 
+def test_groups_are_kept_and_a_bad_one_dropped():
+    raw = lobby_only()
+    r = raw["rooms"][0]
+    r["patches"] = [{"x": 0, "y": 0, "w": 64, "h": 64, "group": "g1"}, {"x": 0, "y": 0, "w": 64, "h": 64, "group": "Not ok!"}]
+    r["items"] = [{"asset": "podium", "x": 300, "y": 300, "group": "g1"}]
+    r["paths"]["points"] = [{"name": "wander", "x": 200, "y": 300, "kind": "wander", "group": "g2"}]
+    r["paths"]["zones"] = [{"x": 10, "y": 10, "w": 20, "h": 20, "kind": "block", "group": 7}]
+    out = plan.clean(raw, lobby_only())["rooms"][0]
+    assert out["patches"][0]["group"] == "g1" and "group" not in out["patches"][1]
+    assert out["items"][0]["group"] == "g1" and out["paths"]["points"][0]["group"] == "g2"
+    assert "group" not in out["paths"]["zones"][0]
+
+
 def test_malformed_plans_are_refused():
     old = lobby_only()
     for bad in ({}, {"rooms": [{"name": "x", "w": 10, "h": 10}]}, {"rooms": [{"name": "x", "w": 800, "h": 600, "doors": [{"side": "up"}]}]},

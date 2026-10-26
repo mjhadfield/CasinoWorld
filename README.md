@@ -142,7 +142,8 @@ sections:
     £10,000; unset, £5–£500 and £1–£50; a change goes live with the next Publish, bets already down standing), and
     a Master Table's "Changes with" and Speed pick its change animation (Fresh
     cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
-    Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
+    Ctrl+D (or the inspector's Duplicate) duplicates what's picked 32px down and right, Ctrl+C / Ctrl+V copy and paste it (centred on the pointer), Delete removes; doors aren't copied. Group (Ctrl+G, Ctrl+Shift+G to
+    ungroup) ties things together: clicking or box-picking any of them picks them all, so they move as one and can't be nudged apart by accident, with a dashed box round the group; Ctrl+click picks one thing on its own (its inspector has Leave the group). Copies of a group are a new group. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
     cursor turns to a resize arrow over any of them; a picked zone's edge wins over anything, a picked patch's over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
     in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or

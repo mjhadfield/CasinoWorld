@@ -4,9 +4,9 @@
 //            which spawn point players appear at; the library of blueprints down the side (new, duplicate, place on
 //            the floor or take off it, delete).
 //   Room     one blueprint close up on a grid: drag things in from the palette (tables, slots, pieces, people,
-//            furniture), move, turn (R), duplicate (Ctrl+D), copy and paste, delete; drag the walls to resize the
-//            room; doors and archways, floor patches, the NPCs' points and no-go zones; the inspector for whatever's
-//            picked.
+//            furniture), move, turn (R), duplicate (Ctrl+D), copy and paste, group (Ctrl+G: clicking any of them
+//            picks them all, Ctrl+click one on its own), delete; drag the walls to resize the room; doors and
+//            archways, floor patches, the NPCs' points and no-go zones; the inspector for whatever's picked.
 //   Assets   the furniture library (assets.js).
 //
 // Every change is saved to the draft a moment later (undo and redo work across it); Preview opens the game on the
@@ -444,14 +444,26 @@ function refreshInspector() {
     return;
   }
   if (S.sel.length > 1) {
-    ins.replaceChildren(el("h3", { textContent: `${S.sel.length} picked` }),
-      el("p", { className: "hint", textContent: "Drag to move them together; arrows nudge; Ctrl+C / Ctrl+V; R turns each." }),
-      el("button", { className: "danger", textContent: "Delete them", onclick: removeSelected }));
+    const groups = new Set(S.sel.map(s => objOf(r, s).group).filter(Boolean));
+    const loose = S.sel.filter(s => GROUPABLE.includes(s.t) && !objOf(r, s).group).length;
+    const one = groups.size === 1 && !loose;
+    ins.replaceChildren(el("h3", { textContent: one ? `A group of ${S.sel.length}` : `${S.sel.length} picked` }),
+      el("p", { className: "hint", textContent: "Drag to move them together; arrows nudge; Ctrl+C / Ctrl+V; R turns each. "
+        + (groups.size ? "Clicking anything in a group picks all of it; Ctrl+click picks one thing on its own." : "Group them to pick and move them as one.") }),
+      el("div", { className: "pl-buttons" },
+        el("button", { textContent: "Group", title: "Ctrl+G: clicking any of them then picks them all", onclick: groupSelected,
+                       disabled: one || loose + groups.size < 2 }),
+        groups.size ? el("button", { textContent: "Ungroup", title: "Ctrl+Shift+G", onclick: ungroupSelected }) : null,
+        el("button", { textContent: "Duplicate", title: "Ctrl+D (doors stay put)", onclick: duplicateSelected }),
+        el("button", { className: "danger", textContent: "Delete them", onclick: removeSelected })));
     return;
   }
   const { t, i } = S.sel[0];
   const head = (h, sub) => [el("h3", { textContent: h }), sub ? el("p", { className: "hint", textContent: sub }) : null];
-  const del = el("button", { className: "danger", textContent: "Delete", onclick: removeSelected });
+  const del = el("div", { className: "pl-buttons" },
+    objOf(r, S.sel[0]).group ? el("button", { textContent: "Leave the group", title: "It's in a group (Ctrl+click picked it on its own): take it out", onclick: ungroupSelected }) : null,
+    t !== "door" ? el("button", { textContent: "Duplicate", title: "Ctrl+D", onclick: duplicateSelected }) : null,
+    el("button", { className: "danger", textContent: "Delete", onclick: removeSelected }));
   if (t === "item") {
     const it = r.items[i], kind = G.kindOf(it.asset), rows = [];
     rows.push(field("Across", num(it.x, v => { it.x = v; })), field("Down", num(it.y, v => { it.y = v; })));
@@ -610,6 +622,11 @@ function draw() {
   if (cur) {
     S.sel.filter(s => s.t === "door").forEach(s => { const d = cur.doors[s.i]; if (d) outlineRect(G.gap(cur, d), "#ffd36b"); });
     S.sel.filter(s => s.t === "patch").forEach(s => { const p = cur.patches[s.i]; if (p) outlineRect([cur.x + p.x, cur.y + p.y, p.w, p.h], "#ffd36b"); });
+    for (const g of new Set(S.sel.map(s => objOf(cur, s)?.group).filter(Boolean))) {   // a group picked: a dashed box round all of it
+      const rs = members(cur, g).flatMap(m => boundsOf(cur, m));
+      const x0 = Math.min(...rs.map(q => q[0])), y0 = Math.min(...rs.map(q => q[1]));
+      if (rs.length) outlineRect(G.grow([x0, y0, Math.max(...rs.map(q => q[0] + q[2])) - x0, Math.max(...rs.map(q => q[1] + q[3])) - y0], 10 / S.cam.s), "#ffd36b", 1.5, [8, 5]);
+    }
     if (S.placing && S.mouse && G.inside(S.mouse, G.outline(cur))) drawItem(ctx, cur, ghost(), { ghost: true });
   }
   // the plan: doorways that meet, rooms' names, the one picked
@@ -710,10 +727,92 @@ function removeSelected() {
   const r = room();
   if (!r || !S.sel.length) return;
   edit(() => {
-    const lists = { item: r.items, point: r.paths.points, zone: r.paths.zones, door: r.doors, patch: r.patches };
+    const lists = listsOf(r);
     for (const s of S.sel.slice().sort((a, b) => b.i - a.i)) lists[s.t].splice(s.i, 1);
     S.sel = [];   // before edit() refreshes: the inspector would otherwise look up what's just gone
+    tidyGroups(r);
   });
+}
+
+function duplicateSelected() {
+  const r = room();
+  if (r && S.sel.length) putDown(r, copyPicked(r), null);
+}
+
+/** The picked things (not doors: they belong to their wall), copied without their ids: [{t, o}]. */
+function copyPicked(r) {
+  return S.sel.filter(s => s.t !== "door").map(s => { const o = JSON.parse(JSON.stringify(objOf(r, s))); delete o.id; return { t: s.t, o }; });
+}
+
+/** Put copies down in room r with their middle at `at` (room coordinates), or 32 down and right of where they were
+ *  copied from; each group they were in becomes a new group of the copies. They're picked after. */
+function putDown(r, clip, at) {
+  if (!clip.length) return;
+  const cx = clip.reduce((a, c) => a + c.o.x, 0) / clip.length, cy = clip.reduce((a, c) => a + c.o.y, 0) / clip.length;
+  const dx = at ? snap(at[0] - cx, SNAP.item) : 32, dy = at ? snap(at[1] - cy, SNAP.item) : 32;   // (one step for all: they keep their spacing)
+  edit(() => {
+    const lists = listsOf(r), next = groupMaker(r), fresh = {};
+    S.sel = clip.map(({ t, o }) => {
+      const c = { ...JSON.parse(JSON.stringify(o)), x: o.x + dx, y: o.y + dy };
+      if (c.group) c.group = fresh[c.group] ||= next();
+      lists[t].push(c);
+      return { t, i: lists[t].length - 1 };
+    });
+  });
+}
+
+// ---------------------------------------------------------------- groups: things picked and moved as one
+const GROUPABLE = ["item", "point", "zone", "patch"];   // (not doors: they slide along their wall)
+const listsOf = r => ({ item: r.items, point: r.paths.points, zone: r.paths.zones, door: r.doors, patch: r.patches });
+
+/** Everything in group g: [{t, i}]. */
+function members(r, g) {
+  const lists = listsOf(r);
+  return GROUPABLE.flatMap(t => lists[t].flatMap((o, i) => o.group === g ? [{ t, i }] : []));
+}
+
+/** sel, with the rest of every group anything in it is in. */
+function withGroups(r, sel) {
+  const out = sel.slice();
+  for (const g of new Set(sel.map(s => objOf(r, s).group).filter(Boolean)))
+    for (const m of members(r, g)) if (!out.some(s => s.t === m.t && s.i === m.i)) out.push(m);
+  return out;
+}
+
+/** Hands out group ids the room hasn't used: g1, g2... */
+function groupMaker(r) {
+  const lists = listsOf(r);
+  let n = Math.max(0, ...GROUPABLE.flatMap(t => lists[t].map(o => +((/^g(\d+)$/.exec(o.group || "") || [])[1] || 0)))) + 1;
+  return () => "g" + n++;
+}
+
+/** A group down to one thing isn't one any more. */
+function tidyGroups(r) {
+  const lists = listsOf(r), count = {};
+  GROUPABLE.forEach(t => lists[t].forEach(o => { if (o.group) count[o.group] = (count[o.group] || 0) + 1; }));
+  GROUPABLE.forEach(t => lists[t].forEach(o => { if (o.group && count[o.group] < 2) delete o.group; }));
+}
+
+function groupSelected() {
+  const r = room(), sel = S.sel.filter(s => GROUPABLE.includes(s.t));
+  if (!r || sel.length < 2) return;
+  edit(() => { const g = groupMaker(r)(); sel.forEach(s => { objOf(r, s).group = g; }); tidyGroups(r); });
+  status(`Grouped ${sel.length}: clicking any of them picks them all (Ctrl+click one on its own).`, "ok");
+}
+
+/** Ungroup what's picked (one thing Ctrl+clicked out of its group just leaves it). */
+function ungroupSelected() {
+  const r = room();
+  if (!r || !S.sel.some(s => objOf(r, s).group)) return;
+  edit(() => { S.sel.forEach(s => { delete objOf(r, s).group; }); tidyGroups(r); });
+}
+
+/** Where a thing is on the plan, for the box round its group. */
+function boundsOf(r, s) {
+  const o = objOf(r, s);
+  if (s.t === "item") { const sh = G.shapes(r, o); return sh ? G.covers(sh) : []; }
+  if (s.t === "point") return [[r.x + o.x - 10, r.y + o.y - 10, 20, 20]];
+  return [[r.x + o.x, r.y + o.y, o.w, o.h]];
 }
 
 /** Resize a room by moving one wall to `to` (plan coordinates): what's inside stays where it is on the plan. */
@@ -811,7 +910,7 @@ function hit(p) {
   return null;
 }
 
-function objOf(r, s) { return { item: r.items, point: r.paths.points, zone: r.paths.zones, door: r.doors, patch: r.patches }[s.t][s.i]; }
+function objOf(r, s) { return listsOf(r)[s.t][s.i]; }
 
 function down(e) {
   canvas.focus();
@@ -863,9 +962,10 @@ function down(e) {
   }
   const h = hit(p);
   if (!h) { if (!e.shiftKey) S.sel = []; S.drag = { box: [p, p] }; refresh(); return; }
-  const already = S.sel.some(s => s.t === h.t && s.i === h.i);
-  if (e.shiftKey) S.sel = already ? S.sel.filter(s => !(s.t === h.t && s.i === h.i)) : [...S.sel, h];
-  else if (!already) S.sel = [h];
+  const one = e.ctrlKey || e.metaKey, unit = one ? [h] : withGroups(r, [h]);   // (its whole group; Ctrl+click: just it)
+  const already = S.sel.some(s => s.t === h.t && s.i === h.i), inUnit = s => unit.some(u => u.t === s.t && u.i === s.i);
+  if (e.shiftKey) S.sel = already ? S.sel.filter(s => !inUnit(s)) : [...S.sel.filter(s => !inUnit(s)), ...unit];
+  else if (!already || one) S.sel = unit;
   S.drag = { move: S.sel.map(s => [s, { ...objOf(r, s) }]), from: p, snap: JSON.stringify(S.draft) };
   refresh();
 }
@@ -935,6 +1035,7 @@ function up(e) {
         const zx = r.x + z.x, zy = r.y + z.y;
         if (zx >= box[0] && zy >= box[1] && zx + z.w <= box[0] + box[2] && zy + z.h <= box[1] + box[3] && !S.sel.some(x => x.t === "zone" && x.i === i)) S.sel.push({ t: "zone", i });
       });
+      S.sel = withGroups(r, S.sel);
     }
     refresh();
     return;
@@ -981,23 +1082,11 @@ function key(e) {
     return;
   }
   if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelected(); return; }
-  if (ctrl && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "d")) {
-    e.preventDefault();
-    S.clip = S.sel.filter(s => s.t === "item").map(s => { const it = JSON.parse(JSON.stringify(r.items[s.i])); delete it.id; return it; });
-    if (e.key.toLowerCase() === "c") { status(`Copied ${S.clip.length}.`, "ok"); return; }
-  }
-  if (ctrl && (e.key.toLowerCase() === "v" || e.key.toLowerCase() === "d") && S.clip && S.clip.length) {
-    e.preventDefault();
-    const off = e.key.toLowerCase() === "d" ? 32 : 0, mx = S.mouse && !off ? S.mouse[0] - r.x : null, my = S.mouse && !off ? S.mouse[1] - r.y : null;
-    const cx = S.clip.reduce((a, it) => a + it.x, 0) / S.clip.length, cy = S.clip.reduce((a, it) => a + it.y, 0) / S.clip.length;
-    edit(() => {
-      const start = r.items.length;
-      S.clip.forEach(it => r.items.push({ ...JSON.parse(JSON.stringify(it)),
-        x: snap(mx === null ? it.x + off : it.x - cx + mx, SNAP.item), y: snap(my === null ? it.y + off : it.y - cy + my, SNAP.item) }));
-      S.sel = S.clip.map((_, k) => ({ t: "item", i: start + k }));
-    });
-    return;
-  }
+  const k = e.key.toLowerCase();
+  if (ctrl && k === "c") { e.preventDefault(); S.clip = copyPicked(r); status(`Copied ${S.clip.length}.`, "ok"); return; }
+  if (ctrl && k === "d") { e.preventDefault(); duplicateSelected(); return; }
+  if (ctrl && k === "v" && S.clip && S.clip.length) { e.preventDefault(); putDown(r, S.clip, S.mouse && [S.mouse[0] - r.x, S.mouse[1] - r.y]); return; }
+  if (ctrl && k === "g") { e.preventDefault(); if (e.shiftKey) ungroupSelected(); else groupSelected(); return; }
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
   if (arrows && S.sel.length) {
     e.preventDefault();
