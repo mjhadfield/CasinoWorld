@@ -101,6 +101,7 @@ var _glows := {}                  # "seat/spot" -> SpotGlow.prepare(): each spot
 var _glow_since := {}             # spot -> when it started glowing (local seconds), while it glows
 var _ring_since := {}             # seat -> when its thinking ring appeared (it fades in), while it shows
 var _ring_drawn := {}             # seats whose thinking ring this _draw drew
+var _box_ring := false            # the local player's second box wants a ring this _draw (after their own seat's)
 const RING_R := 16.0
 const RING_FADE := 0.35
 
@@ -1344,7 +1345,10 @@ func _draw() -> void:
 		draw_polyline(PackedVector2Array([p + on_screen(Vector2(-1.8, 0)), p + on_screen(Vector2(-0.4, 1.4)),
 			p + on_screen(Vector2(1.9, -1.4))]), Color.WHITE, 0.8)
 	_ring_drawn.clear()
+	_box_ring = false
 	_draw_game(now, pulse)
+	if _box_ring and not _ring_drawn.has(my_seat):   # one ring at a time: Box 2's once Box 1's has gone
+		_draw_thinking_ring(my_box, pulse)
 	for seat in _ring_since.keys():   # a ring that's gone fades in afresh next time
 		if not _ring_drawn.has(seat):
 			_ring_since.erase(seat)
@@ -1415,8 +1419,12 @@ func glow_colour() -> Color:
 ## The light round a seat while its sitter decides: a soft pool on the floor under them (their avatar covers its
 ## middle) and a ring that runs down with their time, from the top as the screen sees it, with a spark at its
 ## running end. It warms from the style's glow colour to amber at half time and red near the end, breathing
-## faster then. It fades in, closing in from a little wider, when their turn starts.
+## faster then. It fades in, closing in from a little wider, when their turn starts. The local player's second box
+## waits for its ring until their own seat's has gone (_draw draws it after the game's).
 func _draw_thinking_ring(seat: int, _pulse: float) -> void:
+	if seat == my_box and seat >= 0 and not _box_ring:
+		_box_ring = true
+		return
 	var now := Time.get_ticks_msec() / 1000.0
 	_ring_drawn[seat] = true
 	var t := clampf((now - float(_ring_since.get_or_add(seat, now))) / RING_FADE, 0.0, 1.0)
