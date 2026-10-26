@@ -932,7 +932,24 @@ function limitsSign(ctx, D, at, rows, design) {
   };
   const wood = (x, y, w, h, r, pick) => { ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.clip(); const k = woodTex(D, pick);
     ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / SIGN_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
-  const range = r => `${pounds(r[1])} – ${pounds(r[2])}`;
+  // The figures in columns, both rows alike: the minimums right-aligned to the dashes, the maximums left-aligned from
+  // them and ending by `right`, all at one size (`size0`, or smaller if the widest figures need more than `room`).
+  const figures = (family, size0, right, room) => {
+    const w = (s, sz) => { ctx.font = `${sz}px "${family}"`; return ctx.measureText(s).width; };
+    const widths = sz => { const wn = Math.max(...rows.map(r => w(pounds(r[1]), sz))), wx = Math.max(...rows.map(r => w(pounds(r[2]), sz)));
+      const wd = w("–", sz), g = sz * 0.3; return { wn, wx, wd, g, total: wn + wx + wd + 2 * g }; };
+    let size = size0, m = widths(size);
+    if (m.total > room) { size = Math.floor(size0 * room / m.total * 10) / 10; m = widths(size); }
+    const dash = right - m.wx - m.g - m.wd / 2, minR = dash - m.wd / 2 - m.g;
+    return {
+      draw: (r, y, colour, opts = {}) => {
+        word(pounds(r[1]), minR, y, size, colour, family, { ...opts, align: "right" });
+        word("–", dash, y, size, colour, family, opts);
+        word(pounds(r[2]), dash + m.wd / 2 + m.g, y, size, colour, family, { ...opts, align: "left" });
+      },
+      minLeft: r => minR - w(pounds(r[1]), size),
+    };
+  };
   for (const [rx, ry, a] of [[W * 0.48, 9, 0.16], [W * 0.43, 7, 0.2], [W * 0.375, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(M, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
   const ROW_Y = [33, 51];
   const fit = pad => [(W - 2 * pad) * 0.42, (W - 2 * pad) * 0.52];   // the most a row's label and its amounts may take
@@ -945,9 +962,10 @@ function limitsSign(ctx, D, at, rows, design) {
     box(5, 5, W - 10, 15, 2, band);
     word("TABLE LIMITS", M, 12.8, 9, lum(band) > 0.3 ? "#15171b" : "#ffffff", "TS Montserrat", { spacing: 2.5 });
     line(10, 42, W - 10, 42, "rgba(255,255,255,.13)", 0.8);
+    const F = figures("TS Montserrat", 16, W - 10, fit(10)[1]);
     rows.forEach((r, i) => {
       word(r[0], 10, ROW_Y[i], 9.5, "rgba(255,255,255,.66)", "TS Montserrat", { align: "left", spacing: 0.8, max: fit(10)[0] });
-      word(range(r), W - 10, ROW_Y[i], 16, "#ffffff", "TS Montserrat", { align: "right", max: fit(10)[1] });
+      F.draw(r, ROW_Y[i], "#ffffff");
     });
     ctx.beginPath(); path(ctx, [[W - 64, 1], [W - 24, 1], [W - 74, 67], [W - 114, 67]]); ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
   } else if (design === "digital") {   // a black limit display on a post, lit in the table's LED colour
@@ -992,12 +1010,13 @@ function limitsSign(ctx, D, at, rows, design) {
       const cx = M + sd * (tw / 2 + 8);
       for (let k = -2; k <= 2; k++) { const a = k * 0.32; line(cx, 17, cx + sd * Math.cos(a) * 5, 17 + Math.sin(a) * 5, rgba(gilt, 0.8), 0.7); }
     }
+    const F = figures(font, 14, W - 16, fit(16)[1]);
     rows.forEach((r, i) => {
       const y = ROW_Y[i] + 1;
       const lw = word(r[0], 16, y, 9.5, colourOf(D, r[3]), font, { align: "left", spacing: 0.8, max: fit(16)[0] });
-      const aw = word(range(r), W - 16, y, 14, ink, font, { align: "right", max: fit(16)[1] });
+      F.draw(r, y, ink);
       ctx.fillStyle = rgba(ink, 0.4);
-      for (let x = 16 + lw + 4; x < W - 16 - aw - 4; x += 3.2) { ctx.beginPath(); ctx.arc(x, y + 2.5, 0.55, 0, Math.PI * 2); ctx.fill(); }
+      for (let x = 16 + lw + 4; x < F.minLeft(r) - 4; x += 3.2) { ctx.beginPath(); ctx.arc(x, y + 2.5, 0.55, 0, Math.PI * 2); ctx.fill(); }
     });
   } else {   // plaque: engraved brushed brass on a wooden easel
     wood(M - 26, 56, 52, 18, 3, "match"); line(M - 24, 57, M + 24, 57, "rgba(255,255,255,.14)", 1);
@@ -1013,9 +1032,10 @@ function limitsSign(ctx, D, at, rows, design) {
     const ink = "#33230a", lift = "rgba(255,243,206,.55)";
     word("TABLE LIMITS", M, 15, 9, ink, "TS Cinzel", { spacing: 3, engrave: lift });
     line(M - 46, 22.5, M + 46, 22.5, "rgba(51,35,10,.5)", 0.7); line(M - 46, 23.3, M + 46, 23.3, "rgba(255,243,206,.4)", 0.5);
+    const F = figures("TS Cinzel", 14, W - 13, fit(13)[1]);
     rows.forEach((r, i) => {
       word(r[0], 13, ROW_Y[i] + 1, 9.5, ink, "TS Cinzel", { align: "left", spacing: 0.8, max: fit(13)[0], engrave: lift });
-      word(range(r), W - 13, ROW_Y[i] + 1, 14, ink, "TS Cinzel", { align: "right", max: fit(13)[1], engrave: lift });
+      F.draw(r, ROW_Y[i] + 1, ink, { engrave: lift });
     });
   }
   ctx.restore();

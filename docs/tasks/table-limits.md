@@ -17,6 +17,9 @@ The four designs are `plaque` (brass plaque), `tent` (acrylic tent), `digital` a
 jackpot sign's scale and height but narrower: 154 mock units across (28 table units to its 40). Mike asked for it
 narrower at the same height, not scaled down. The rows read MAIN BETS and SIDE BETS on every game (Mike: not every game
 has an Ante); the Floor plan rows are "Main bets" and "Side bets", and refusals say "main bets".
+The figures sit in columns on every design (`figures()` in the mockup's limitsSign): the minimums right-aligned to
+the dashes, the maximums left-aligned from them, one size for both rows, shrunk only if the widest need it; Digital
+has its MIN/MAX columns.
 
 ## Files
 `server/casino_server/plan.py`, `tables/base.py` (+ the card tables' `PRIMARY_SPOTS`), `casino.py`, `npc.py`,
