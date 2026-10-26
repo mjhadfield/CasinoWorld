@@ -13,7 +13,8 @@ Plan: `~/.claude/plans/minimum-maximum-bets-per-table-nifty-pine.md`.
 
 Mockup: https://claude.ai/artifact/4eKprTKuiJ6ivpSd8LXuFW, source `docs/limits_sign/mockup/` (a copy of
 `admin_web/tables/render.js` with `limitsSign()` added, plus the House and preset designs in `styles.json`).
-The four designs are `plaque` (brass plaque), `tent` (acrylic tent), `digital` and `deco` (deco frame).
+The four designs are `plaque` (brass plaque), `tent` (acrylic tent), `digital` and `deco` (deco frame). Drawn in the
+jackpot sign's 220-unit mock space but scaled to 32 table units (the jackpot sign is 40): Mike asked for it smaller.
 
 ## Files
 `server/casino_server/plan.py`, `tables/base.py` (+ the card tables' `PRIMARY_SPOTS`), `casino.py`, `npc.py`,

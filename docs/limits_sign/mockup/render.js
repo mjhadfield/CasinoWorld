@@ -912,12 +912,13 @@ function jackpotSign(ctx, D, at, on, lit) {
 // The table limits sign (LimitsSign.gd): the jackpot sign's partner at the other end of the dealer's ledge, top
 // right as the players see it, showing the table's minimum and maximum bets. `rows` is [[label, min, max, role]]
 // (pence; role "primary" or "side"). Drawn in the jackpot sign's units (220 across, the shadow's foot at `at`),
-// scaled to 40 table units. Its design is the style's `limitsSign`.
+// but scaled to 32 table units, a little smaller than the jackpot sign. Its design is the style's `limitsSign`.
 export const LIMITS_SIGNS = { plaque: "Brass plaque", tent: "Acrylic tent", digital: "Digital", deco: "Deco frame" };
+const LIMITS_K = 32 / 220;
 const pounds = p => "£" + Math.round(p / 100).toLocaleString("en-GB");
 function limitsSign(ctx, D, at, rows, design) {
   design = design || D.limitsSign || "plaque";
-  ctx.save(); ctx.translate(at[0], at[1]); ctx.scale(SIGN_K, SIGN_K); ctx.translate(-110, -80);
+  ctx.save(); ctx.translate(at[0], at[1]); ctx.scale(LIMITS_K, LIMITS_K); ctx.translate(-110, -80);
   const box = (x, y, w, h, r, fill) => { ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); };
   const line = (x1, y1, x2, y2, colour, w) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = colour; ctx.lineWidth = w; ctx.stroke(); };
   const word = (s, x, y, size, colour, family, opts = {}) => {
@@ -929,7 +930,7 @@ function limitsSign(ctx, D, at, rows, design) {
     ctx.fillStyle = colour; ctx.fillText(s, x, y); ctx.restore(); return w;
   };
   const wood = (x, y, w, h, r, pick) => { ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.clip(); const k = woodTex(D, pick);
-    ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / SIGN_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
+    ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / LIMITS_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
   const range = r => `${pounds(r[1])} – ${pounds(r[2])}`;
   for (const [rx, ry, a] of [[104, 9, 0.16], [94, 7, 0.2], [82, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(110, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
   const ROW_Y = [33, 51];
@@ -1019,15 +1020,15 @@ function limitsSign(ctx, D, at, rows, design) {
 /** One limits sign on its own, `design` in style `D`, standing on a strip of the style's felt with the rail behind
  *  it (how it stands on the table), filling `canvas`. */
 export function drawLimitsSign(canvas, D, rows, design) {
-  const rect = [-24, -17.5, 48, 20], cssW = canvas.clientWidth || 440, dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
+  const rect = [-19.2, -14, 38.4, 16], cssW = canvas.clientWidth || 440, dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
   canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(rect[3] * k * dpr);
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
   ctx.fillStyle = D.felt.colour; ctx.fillRect(rect[0], rect[1], rect[2], rect[3]);
   const cloth = { velvet: ["velvet", 240, 0.85], weave: ["weave", 16, 0.7], grain: ["grain", 40, 0.25] }[D.felt.texture];
   if (cloth) { ctx.globalAlpha = cloth[2]; ctx.fillStyle = pat(ctx, cloth[0], cloth[1]); ctx.fillRect(rect[0], rect[1], rect[2], rect[3]); ctx.globalAlpha = 1; }
-  ctx.fillStyle = pat(ctx, woodTex(D, "match"), 30); ctx.fillRect(rect[0], rect[1], rect[2], 6);
-  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(rect[0], rect[1] + 6, rect[2], 0.6);
+  ctx.fillStyle = pat(ctx, woodTex(D, "match"), 30); ctx.fillRect(rect[0], rect[1], rect[2], 4.8);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(rect[0], rect[1] + 4.8, rect[2], 0.5);
   limitsSign(ctx, D, [0, 0], rows, design);
 }
 
