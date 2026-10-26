@@ -399,6 +399,17 @@ room, keeping its tables' ids and whether it's placed. A contact sheet goes to `
 library that Armadillo's saved picks (`<data dir>/slot_art.json`) come from. New slot art is designed on the
 admin page's Slot design tab.
 
+`server/.venv/bin/python tools/build_nocturne_floor.py [--install] [--data DIR] [--server URL]` prepares
+**Casino Floor — Nocturne**, a separate modern casino blueprint inspired by the Modern lobby and the Dark Modern
+master table. It has one raised master table, Roulette, Craps, two six-machine slot banks, a cocktail bar and a
+cashier lounge. Its original 2× furniture is in `tools/nocturne_floor/pieces.js`; material scans and credits are
+shared with `tools/vegas_floor/textures/`. The build validates overlaps and player/NPC reachability on a scratch
+copy, then writes art and the blueprint to `.dev/nocturne/`. `--install` merges its assets into the selected data
+dir, refreshes the running server's library without a restart, and saves the **unplaced** room through the draft
+API. It never publishes or places it. It preserves the source Casino Floor, all other rooms and existing table
+styles; Nocturne's Roulette and Craps have their own coordinated teal-and-brass style. This build expects the
+existing Modern/Vegas assets, the Casino Floor source blueprint and the Dark Modern card style in that instance.
+
 ## Code map
 - **server/casino_server/**
   - `app.py`: the FastAPI app; `casino.py`: sessions and message routing; `world.py`: everyone on the floor.
@@ -457,5 +468,6 @@ admin page's Slot design tab.
   `build_plan_assets.py` (the floor plan's built-in furniture from LPC packs), `build_modern_pieces.py` and
   `modern_pieces/` (the Modern lobby's furniture, drawn in code and installed as uploads), `build_vegas_floor.py`
   and `vegas_floor/` (the Vegas floor blueprint, its finer furniture and floors, and its textures),
+  `build_nocturne_floor.py` and `nocturne_floor/` (the unplaced Nocturne blueprint and original furniture),
   `build_table_tiles.py` (the table styles' wood, leather and felt tiles from Poly Haven, for the game and the
   designer), `table_geometry.gd` (the card tables' layout for the designer: rerun it if a table's layout changes).
