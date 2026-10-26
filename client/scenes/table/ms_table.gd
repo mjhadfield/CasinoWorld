@@ -280,7 +280,7 @@ func _street_bet(ev: Dictionary, d: float) -> float:
 	var seat := int(ev.seat)
 	decided_seats[seat] = true
 	if int(ev.times) > 0:
-		_add_stack_from(seat, STREETS[int(ev.street)], int(ev.amount), chair_pos(seat), d)
+		_add_stack_from(seat, STREETS[int(ev.street)], int(ev.amount), chip_home(seat), d)
 		return 0.1 * d
 	live_seats.erase(seat)
 	if is_mine(seat):

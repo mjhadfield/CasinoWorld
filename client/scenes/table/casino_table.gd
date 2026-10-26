@@ -814,7 +814,7 @@ func _animate(speed: float, ev: Dictionary) -> float:
 			return 0.0
 		"stood", "box_dropped":   # (a second box goes back like an empty seat; its chips to its player)
 			var seat := int(ev.seat)
-			var home := chair_pos(int(ev.of)) if ev.kind == "box_dropped" else chair_pos(seat)
+			var home := chip_home(int(ev.of)) if ev.kind == "box_dropped" else chip_home(seat)
 			occupants.erase(seat)
 			ready_seats.erase(seat)
 			auto_rebet_seats.erase(seat)
@@ -843,7 +843,7 @@ func _animate(speed: float, ev: Dictionary) -> float:
 		"queued_dropped":  # bets put down during the last hand that can't be covered now: back they come
 			var dropped := int(ev.seat)
 			for spot in _chips_for(dropped).keys():
-				_take_stack(dropped, spot, chair_pos(dropped), d)
+				_take_stack(dropped, spot, chip_home(dropped), d)
 			return 0.0
 		"betting_timer":
 			_start_timer(float(ev.seconds), ev.get("quiet", false))
@@ -973,10 +973,10 @@ func _return_chips(d: float) -> float:
 		mine_back = mine_back or _chips_for(seat).size() > 0 or _payouts.get(seat, []).size() > 0
 	for seat in _seat_chips.keys():
 		for spot in _seat_chips[seat].keys():
-			_take_stack(seat, spot, chair_pos(seat), d)
+			_take_stack(seat, spot, chip_home(seat), d)
 	for seat in _payouts.keys():
 		for stack in _payouts[seat]:
-			_fly_and_free(stack, chair_pos(seat), 0.4 * d)
+			_fly_and_free(stack, chip_home(seat), 0.4 * d)
 	_payouts.clear()
 	if mine_back:
 		_after(0.45 * d).timeout.connect(func():
@@ -1101,7 +1101,7 @@ func _show_queued(seat: int, bets: Dictionary, d: float) -> void:
 		if new == old:
 			continue
 		if new <= 0:
-			_fly_and_free(chips[spot], chair_pos(seat), 0.25 * d)
+			_fly_and_free(chips[spot], chip_home(seat), 0.25 * d)
 			chips.erase(spot)
 			continue
 		if not chips.has(spot):
@@ -1110,7 +1110,7 @@ func _show_queued(seat: int, bets: Dictionary, d: float) -> void:
 			_dyn.add_child(stack)
 			chips[spot] = stack
 			if d > 0.0:
-				stack.position = chair_pos(seat)
+				stack.position = chip_home(seat)
 				_tween().tween_property(stack, "position", spot_pos(seat, spot), 0.28 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			else:
 				stack.position = spot_pos(seat, spot)
@@ -1232,7 +1232,7 @@ func _show_bets(seat: int, bets: Dictionary, d: float) -> void:
 		var old := _landed(seat, spot) + _in_flight(seat, spot)
 		if new > old:
 			sfx_at("bet", to_global(spot_pos(seat, spot)))
-			_add_stack_from(seat, spot, new - old, chair_pos(seat), d)
+			_add_stack_from(seat, spot, new - old, chip_home(seat), d)
 		elif new < old:
 			var flying := mini(_in_flight(seat, spot), new)
 			_set_flying(seat, spot, flying)
@@ -1241,7 +1241,7 @@ func _show_bets(seat: int, bets: Dictionary, d: float) -> void:
 			back.amount = old - new
 			back.position = spot_pos(seat, spot)
 			_dyn.add_child(back)
-			_fly_and_free(back, chair_pos(seat), 0.25 * d)
+			_fly_and_free(back, chip_home(seat), 0.25 * d)
 
 
 ## No more bets: the dealer presses the button (the Jackpot lights go solid red)

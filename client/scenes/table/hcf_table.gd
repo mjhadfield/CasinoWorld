@@ -338,7 +338,7 @@ func _action(ev: Dictionary, d: float) -> float:
 	decided_seats[seat] = true
 	var times := int(ev.times)
 	if times > 0:
-		_add_stack_from(seat, "raise", int(ev.amount), chair_pos(seat), d)
+		_add_stack_from(seat, "raise", int(ev.amount), chip_home(seat), d)
 	elif is_mine(seat):
 		_show_hand(seat, "")
 	var cards: Array = _cards_for(seat).duplicate()

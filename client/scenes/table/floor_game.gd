@@ -85,6 +85,12 @@ func chair_pos(seat: int) -> Vector2:
 	return seat_pos(seat) + chair_tuck()
 
 
+## Where a sitter's chips come from and go back to: their head as the screen shows it (where
+## their hair is), not chair_pos() at their feet, where the seated name tag sits.
+func chip_home(seat: int) -> Vector2:
+	return chair_pos(seat) + on_screen(Vector2(0, -44))
+
+
 ## How far the chairs are drawn in from their seats, in the table's frame (see CasinoTable).
 func chair_tuck() -> Vector2:
 	return Vector2.ZERO

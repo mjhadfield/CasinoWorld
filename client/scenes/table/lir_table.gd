@@ -188,7 +188,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			var seat := int(ev.seat)
 			decided_seats[seat] = true
 			if not ev.ride:  # pulled back: the chips go straight back to the player
-				_take_stack(seat, str(ev.spot), chair_pos(seat), d)
+				_take_stack(seat, str(ev.spot), chip_home(seat), d)
 			return 0.1 * d
 		"community":
 			return _community(ev, d)

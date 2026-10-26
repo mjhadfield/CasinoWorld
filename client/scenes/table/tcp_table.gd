@@ -284,7 +284,7 @@ func _decision(ev: Dictionary, d: float) -> float:
 		_after((0.12 + k * 0.05) * d).timeout.connect(cards[k].set.bind("code", "??"))
 	if ev.play:  # the Play bet goes on top of the cards
 		_after(0.4 * d).timeout.connect(
-			_add_stack_from.bind(seat, "play", int(ev.amount), chair_pos(seat), d))
+			_add_stack_from.bind(seat, "play", int(ev.amount), chip_home(seat), d))
 	return 0.1 * d
 
 
@@ -337,7 +337,7 @@ func _settle(ev: Dictionary, d: float) -> float:
 		_after((0.32 + k * 0.05) * d).timeout.connect(cards[k].flip_to.bind(ev.cards[k], 0.28 * d))
 	var steps: Array = ev.steps
 	if ev.get("outcome") == "dealer_no_qualify":
-		_take_stack(seat, "play", chair_pos(seat), d)
+		_take_stack(seat, "play", chip_home(seat), d)
 		steps = steps.filter(func(x): return x.spot != "play")
 	var t := 0.65 * d
 	if str(ev.get("say", "")) != "":

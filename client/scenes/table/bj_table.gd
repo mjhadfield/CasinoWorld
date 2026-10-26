@@ -360,7 +360,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			var seat := int(ev.seat)
 			insurance_seats.erase(seat)
 			if ev.take:
-				_add_stack_from(seat, "insurance", int(ev.amount), chair_pos(seat), d)
+				_add_stack_from(seat, "insurance", int(ev.amount), chip_home(seat), d)
 			return 0.1 * d
 		"peek":
 			return _peek(d)
@@ -537,7 +537,7 @@ func _action(ev: Dictionary, d: float) -> float:
 			hand.cards.append(card)
 			_relayout(seat, d, card)  # a long hand closes up so it stays on the felt
 		"double":
-			_add_stack_from(seat, hand.dkey, int(ev.amount), chair_pos(seat), d, _double_pos(seat, idx, n))
+			_add_stack_from(seat, hand.dkey, int(ev.amount), chip_home(seat), d, _double_pos(seat, idx, n))
 			var count: int = hand.cards.size() + 1
 			var card := _deal_card(ev.card, card_pos(seat, idx, n, count - 1, count) + Vector2(2, 1), 0.3 * d, d, true, PI / 2)
 			hand.cards.append(card)
@@ -547,7 +547,7 @@ func _action(ev: Dictionary, d: float) -> float:
 			b.cards.append(hand.cards.pop_back())
 			hands.insert(idx + 1, b)
 			n = hands.size()
-			_add_stack_from(seat, b.key, int(ev.amount), chair_pos(seat), d, _bet_pos(seat, idx + 1, n))
+			_add_stack_from(seat, b.key, int(ev.amount), chip_home(seat), d, _bet_pos(seat, idx + 1, n))
 			_relayout(seat, d)
 			hand.cards.append(_deal_card(ev.hands[0][1], card_pos(seat, idx, n, 1, 2), 0.35 * d, d))
 			b.cards.append(_deal_card(ev.hands[1][1], card_pos(seat, idx + 1, n, 1, 2), 0.65 * d, d))

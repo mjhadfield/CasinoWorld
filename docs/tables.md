@@ -115,6 +115,9 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   Each chair blocks walking: a circle round its base on the table's `Chairs` body (`Seating.body_radius()`, a little
   inside the drawn base so you can still step in beside a chair between two at a slot bank), kept at `chair_pos()`
   by `place_chair_backs()`.
+- **Where chips come from and go back to:** a sitter's bets fly out from, and their returns and winnings fly back
+  to, `FloorGame.chip_home()`: their head as the screen shows it (44 above `chair_pos()`, wherever the table's
+  turned), not their feet, where the seated name tag sits.
 - **The 2nd Box pill:** while you're sat at a table that offers a second box, a free chair beside you carries a small
   **2ND BOX** pill, and your second box's chair **DROP BOX** between hands (`CasinoTable.box_pill()`, drawn in
   `_draw` over the chair, 6 above its origin; `box_pill_at()` is the hit test and `box_clicked` the signal the floor

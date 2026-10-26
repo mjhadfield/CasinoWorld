@@ -303,7 +303,7 @@ static func vig_up_front(bets: Dictionary) -> int:
 
 ## A seat hands the dealer a lay bet's vig: a chip from the player, past the bet, into the rack.
 func _vig_to_rack(seat: int, spot: String, amount: int, d: float) -> void:
-	var chip := _vig_stack(seat, amount, chair_pos(seat))
+	var chip := _vig_stack(seat, amount, chip_home(seat))
 	var tw := _tween()
 	tw.tween_property(chip, "position", payout_pos(seat, spot), 0.3 * d).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(0.25 * d)
@@ -939,7 +939,7 @@ func _note_event(ev: Dictionary) -> void:
 			var seat := int(ev.seat)
 			if phase != "betting":
 				for spot in _chips_for(seat).keys():
-					_take_stack(seat, spot, chair_pos(seat), 1.0)
+					_take_stack(seat, spot, chip_home(seat), 1.0)
 			working.erase(seat)
 			want_dice.erase(seat)
 			_bet_size.erase(seat)
@@ -951,7 +951,7 @@ func _note_event(ev: Dictionary) -> void:
 					_locked[spot] = mini(int(_locked[spot]), int(ev.bets.get(spot, 0)))
 			if int(ev.get("vig_back", 0)) > 0:   # a lay bet's come down: the dealer hands its vig back
 				var seat := int(ev.seat)
-				_fly_and_free(_vig_stack(seat, int(ev.vig_back), tray_pos()), chair_pos(seat), 0.45)
+				_fly_and_free(_vig_stack(seat, int(ev.vig_back), tray_pos()), chip_home(seat), 0.45)
 
 
 func _animate_game(ev: Dictionary, d: float) -> float:
@@ -1058,10 +1058,10 @@ func _roll_result(ev: Dictionary, d: float) -> float:
 			var seat := int(key)
 			for st in steps[key]:
 				if (st.kind == "win" and not st.stays) or st.kind == "return":
-					_take_stack(seat, st.spot, chair_pos(seat), d)
+					_take_stack(seat, st.spot, chip_home(seat), d)
 		for seat in _payouts.keys():
 			for stack in _payouts[seat]:
-				_fly_and_free(stack, chair_pos(seat), 0.4 * d)
+				_fly_and_free(stack, chip_home(seat), 0.4 * d)
 		_payouts.clear())
 	if back:
 		t += T_BACK * d

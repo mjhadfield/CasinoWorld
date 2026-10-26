@@ -303,7 +303,7 @@ func _action(ev: Dictionary, d: float) -> float:
 	match str(ev.action):
 		"bet4", "bet3", "bet2", "bet1":
 			waiting_seats.erase(seat)
-			_add_stack_from(seat, "play", int(ev.amount), chair_pos(seat), d)
+			_add_stack_from(seat, "play", int(ev.amount), chip_home(seat), d)
 		"fold":
 			waiting_seats.erase(seat)
 			live_seats.erase(seat)
