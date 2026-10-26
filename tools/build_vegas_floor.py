@@ -18,7 +18,8 @@ The Vegas floor: a modern Las Vegas casino floor as a floor plan blueprint, with
 --data is where the art goes (default: the live server/data); restart that server afterwards so its library picks the
 art up. --server is the server whose draft gets the room (default: the live one on 8660); running it again replaces the
 room in the draft, keeping its tables' ids. --place puts it on the plan (for a dev instance), else it lands in the
-library. A contact sheet of the art goes to .dev/vegas_contact.png.
+library; either way it goes where it meets the Modern lobby's door. A contact sheet of the art goes to
+.dev/vegas_contact.png.
 """
 import argparse
 import asyncio
@@ -257,9 +258,12 @@ def staff_looks(data_dir: Path) -> dict:
 
 
 def room(looks: dict) -> dict:
-    """The blueprint. The room is 1280×976; you come in through a door in the bottom wall at its middle (x 640),
-    so put it with that over the door below it (above the Modern lobby: x -336, y -976)."""
-    W, H = 1280, 976
+    """The blueprint. The room is 1312×992, both multiples of the Floor plan's 32 px room grid; you come in through a
+    doorway in the bottom wall at its middle (x 656), so it goes with that over the door below it: above the Modern
+    lobby (x 0, y -64, its door at 304) that's x -352, y -1056, on the grid and flush with the lobby's top wall. The
+    lobby's door opens through both walls, so the room needs no door of its own."""
+    W, H = 1312, 992
+    PAD = 16   # what's placed below is laid out on a 1280-wide floor, PAD in from each side wall
     items = []
 
     def put(asset, x, y, facing="down", **props):
@@ -273,7 +277,7 @@ def room(looks: dict) -> dict:
     for x, y in ((300, 596), (980, 586)):
         put("a:vegas_glow_warm", x, y)
     put("a:vegas_glow_warm", 196, 250)
-    for x, y in ((1010, 330), (640, 740), (640, 930), (176, 870), (1104, 870), (420, 880), (860, 880)):
+    for x, y in ((1010, 330), (640, 740), (640, 946), (176, 870), (1104, 870), (420, 880), (860, 880)):
         put("a:vegas_glow_spot", x, y)
 
     # The stage: the Master Table on its raised deck, glass all round but the steps, a palm in each back corner.
@@ -338,11 +342,11 @@ def room(looks: dict) -> dict:
     put("a:vegas_pylon_slots", 734, 792)
 
     # The way in: columns either side of the door, the chip tower where the aisles cross, palms in the corners.
-    put("a:vegas_led_column", 546, 954)
-    put("a:vegas_led_column", 734, 954)
+    put("a:vegas_led_column", 546, 970)
+    put("a:vegas_led_column", 734, 970)
     put("a:vegas_chip_sculpture", 640, 744)
-    put("a:vegas_planter_palm", 42, 950)
-    put("a:vegas_planter_palm", 1238, 950)
+    put("a:vegas_planter_palm", 42, 966)
+    put("a:vegas_planter_palm", 1238, 966)
 
     gold = {"style": "inlay", "colour": "#c9a24a", "width": 4}
     walk = {"texture": "vegas_marble_white", "tint": "#ffffff", "shape": "rect", "radius": 0,
@@ -356,13 +360,13 @@ def room(looks: dict) -> dict:
         {**walk, "x": 752, "y": 470, "w": 492, "h": 236, "texture": "vegas_pit_carpet", "shape": "rounded", "radius": 28, "border": {"style": "double", "colour": "#c9a24a", "width": 6}},
         # marble walkways: the apron in front of the stage, the way in from the door, the cross aisle
         {**walk, "x": 352, "y": 412, "w": 576, "h": 52},
-        {**walk, "x": 560, "y": 456, "w": 160, "h": 520},
+        {**walk, "x": 560, "y": 456, "w": 160, "h": 536},
         {**walk, "x": 16, "y": 712, "w": 1248, "h": 56},
         # the black marble medallion under the chip tower
         {**walk, "x": 584, "y": 700, "w": 112, "h": 80, "texture": "vegas_marble_black", "shape": "oval", "border": {"style": "double", "colour": "#d9b56a", "width": 5}},
     ]
     points = [
-        {"name": "floor_spawn", "x": 640, "y": 920, "kind": "spawn", "weight": 1, "linger": 0},
+        {"name": "floor_spawn", "x": 640, "y": 936, "kind": "spawn", "weight": 1, "linger": 0},
         {"name": "bar", "x": 196, "y": 228, "kind": "wander", "weight": 3, "linger": 40},
         {"name": "high_tops", "x": 160, "y": 372, "kind": "wander", "weight": 2, "linger": 30},
         {"name": "lounge", "x": 1010, "y": 420, "kind": "wander", "weight": 2, "linger": 30},
@@ -378,8 +382,17 @@ def room(looks: dict) -> dict:
         {"x": 960, "y": 70, "w": 280, "h": 58, "kind": "block"},    # behind the cage
         {"x": 400, "y": 70, "w": 480, "h": 26, "kind": "block"},    # behind the stage
     ]
+    for thing in items + points:
+        thing["x"] += PAD
+    for area in patches + zones:   # (one that ran to a side wall still does)
+        left, right = area["x"] <= 8, area["x"] + area["w"] >= 1272
+        area["x"] += PAD
+        if left:
+            area["w"], area["x"] = area["w"] + area["x"] - 8, 8
+        if right:
+            area["w"] = W - 8 - area["x"]
     return {"id": ROOM_ID, "name": "Casino Floor (Vegas)", "map_name": "Casino Floor", "placed": False,
-            "x": -336, "y": -976, "w": W, "h": H,
+            "x": -352, "y": -1056, "w": W, "h": H,
             "floor": {"texture": "vegas_carpet", "tint": "#ffffff"}, "patches": patches,
             "walls": {"style": "bronze", "sign": "", "sign_at": W / 2}, "doors": [], "items": items,
             "paths": {"points": points, "zones": zones}}
@@ -394,7 +407,7 @@ def _call(server: str, method: str, path: str, body=None):
 
 def send_room(server: str, looks: dict, place: bool) -> dict:
     """Put the room in the server's draft (replacing an earlier one, its items keeping their ids where the asset is
-    the same, so the tables keep their styles)."""
+    the same, so the tables keep their styles, and staying placed or not; it goes back over the lobby's door)."""
     def call(method, path, body=None):
         return _call(server, method, path, body)
     view = call("GET", "/api/plan")
@@ -402,7 +415,7 @@ def send_room(server: str, looks: dict, place: bool) -> dict:
     new = room(looks)
     old = next((r for r in draft["rooms"] if r["id"] == ROOM_ID), None)
     if old:
-        new["placed"], new["x"], new["y"] = old["placed"], old["x"], old["y"]
+        new["placed"] = old["placed"]
         for it, was in zip(new["items"], old["items"]):
             if it["asset"] == was["asset"]:
                 it["id"] = was["id"]

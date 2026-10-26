@@ -170,10 +170,10 @@ sections:
     it (in its own `colour`): the jackpot boards show the progressive jackpot.
   - The first run puts just the lobby on the floor (the spawn, with a door top centre) and keeps the old
     hand-built floor and pit in the library as "Classic floor" and "Classic pit" (also git tag `classic-floor`).
-  - "Casino Floor (Vegas)" (`vegas_floor`) is a blueprint in the library: a modern Vegas floor (1280×976) with the
-    Master Table on a raised stage, Roulette and Craps in their pits, four slot banks, the Amber Bar, the cashier
-    and a lounge, its tables in the Dark Modern styles. Its way in is a door in the bottom wall's middle, so it goes
-    with that over the Modern lobby's top door (x -336, y -976, where it's saved).
+  - "Casino Floor (Vegas)" (`vegas_floor`) is a modern Vegas floor (1312×992) with the Master Table on a raised
+    stage, Roulette and Craps in their pits, four slot banks, the Amber Bar, the cashier and a lounge, its tables in
+    the Dark Modern styles. Its way in is the bottom wall's middle, so it goes over the Modern lobby's top door: with
+    the lobby at x 0, y -64, that's x -352, y -1056 (on the 32 px room grid; the lobby's door opens through both).
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
@@ -389,10 +389,10 @@ afterwards. Running it again brings back pieces deleted on the admin page. A con
 [--place]` builds the Vegas floor: its furniture (`tools/vegas_floor/pieces.js`, painted on canvas at scale 2 with
 real materials) and floors (marble and walnut cut from the ambientCG CC0 scans in `tools/vegas_floor/textures/`, the
 carpets drawn over a real carpet's fibre) go into a data dir's library as uploads (default the live `server/data`;
-restart that server afterwards), then the room goes into a running server's draft (default the live one) as a
-blueprint, or on the plan with `--place`, and its tables get the Dark Modern styles (Roulette's and Craps' made if
-missing; a table that already has a style keeps it). Running it again replaces the room, keeping its tables' ids. A
-contact sheet goes to `.dev/vegas_contact.png`.
+restart that server afterwards), then the room goes into a running server's draft (default the live one) over the
+Modern lobby's door, as a blueprint or, with `--place`, on the plan, and its tables get the Dark Modern styles
+(Roulette's and Craps' made if missing; a table that already has a style keeps it). Running it again replaces the
+room, keeping its tables' ids and whether it's placed. A contact sheet goes to `.dev/vegas_contact.png`.
 
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
 library that Armadillo's saved picks (`<data dir>/slot_art.json`) come from. New slot art is designed on the
