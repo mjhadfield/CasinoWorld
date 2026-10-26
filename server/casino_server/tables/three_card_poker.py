@@ -111,6 +111,7 @@ class ThreeCardPokerMachine(TableMachine):
     label = tcp.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
     FLAT_SPOTS = {"jackpot": tcp.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance to cover that plus a matching Play bet."

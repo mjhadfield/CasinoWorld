@@ -4,7 +4,7 @@ The rules are ported from v2's `games/three_card_poker/logic.py`.
 
 ## Bets
 
-Pair Plus, Ante, Prime, and the £1 Jackpot.
+Pair Plus, Ante, Prime, and the £1 Jackpot. The Ante is the main bet for the table's limits; Pair Plus and Prime are side bets.
 
 ## The deal
 

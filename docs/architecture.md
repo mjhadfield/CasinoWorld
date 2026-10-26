@@ -126,6 +126,12 @@ games share one progressive jackpot (`jackpot.py`), worked out from elapsed time
 background task. Every card table shows it on its own jackpot sign (docs/tables.md); after a win, the new amount
 names the table it was won at, so only that table's sign celebrates. The slots have their own Mini/Minor/Major/Grand meters (`slots/jackpots.py`).
 
+Each card table has limits on its main and side bets: set per table on the floor plan (`plan.py`, item
+`props.limits`, else `DEFAULT_LIMITS` in `tables/base.py`), carried in `floor.TABLES` to the table's machine
+(`TableMachine.limits`, refreshed on a publish by `Casino.broadcast_world`; a Master Table hands them to each game
+it becomes) and in the world message to the client's limits sign. The machine refuses a bet over a maximum and
+Ready under a minimum, and hands back a bet still short when betting closes (`_hand_back_short`).
+
 ## The client: one world, a camera, an animation queue per table
 
 A Godot 4.7 project exported to the web.

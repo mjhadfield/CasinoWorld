@@ -138,7 +138,9 @@ sections:
     for each cabinet, and a Single turns every way, a Pair or 4 round to face away. (Lone cabinets placed before
     the banks still work.) Tables are drawn as the game shows them: chairs, dealers
     and Roulette's and Craps' results signs upright, the shadow falling down the screen; the inspector's Sign picks
-    which end the sign stands past, and a Master Table's "Changes with" and Speed pick its change animation (Fresh
+    which end the sign stands past, a card table's Main bets and Side bets rows set its limits (whole pounds, £1 to
+    £10,000; unset, £5–£500 and £1–£50; a change goes live with the next Publish, bets already down standing), and
+    a Master Table's "Changes with" and Speed pick its change animation (Fresh
     cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
     Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste, Delete removes. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
     cursor turns to a resize arrow over any of them; a picked zone's edge wins over anything, a picked patch's over a wall it sits on). Tools: Door
@@ -280,7 +282,7 @@ sections:
   where the game puts every spot and card, and "Spot glow" to watch seat 2's spots glow as they do when you sit
   down (the main bet, then the side bets once it's down); the parts are the felt, border line, rail (wood, leather armrest or
   leather all round, the bead), the chip tray (a well in the dealer's ledge, or sunk in), the printing, betting
-  spots (and their glow colour), Jackpot disc, jackpot sign (six designs), shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
+  spots (and their glow colour), Jackpot disc, jackpot sign (six designs), limits sign (four designs), shuffler, shoe, discard rack, card backs and fronts, chairs and chips. Roulette: the felt,
   border, rail, printing, number colours, float, wheel and chairs. Craps: the felt, rail, printing (ink, gold and red), rubber walls,
   chip rack and dice. Save a style, then place it: every table uses its kind's default (House) unless Placement
   gives it another. Saving restyles the floor straight away. Each kind's presets are built in (Save as new to

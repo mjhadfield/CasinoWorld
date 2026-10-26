@@ -85,6 +85,7 @@ class MississippiStudMachine(TableMachine):
     label = ms.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
     FLAT_SPOTS = {"jackpot": ms.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance: you need ten times your Ante (to bet 3x on every street), plus side bets."

@@ -54,6 +54,8 @@ export const backColour = D => D.backColour || BACK_MAIN[D.back] || BACK_MAIN.ch
 const BACK_COLOURS = [["Charcoal", "#34373c"], ["Red", "#8e1a22"], ["Garnet", "#4d1616"], ["Burgundy", "#5a1322"], ["Black", "#141414"],
   ["Emerald", "#145238"], ["Navy", "#14284a"], ["Royal blue", "#1a3f93"], ["Plum", "#4a1d47"]];
 const CARD_COLOURS = [["White", "#f4f2ec"], ["Ivory", "#efe4c8"], ["Silver", "#cfd3d6"], ["Gold", "#d9b453"], ["Black", "#1c1c1e"]];
+// The limits sign's designs (table_styles.LIMITS_SIGNS; limitsSign() below draws them).
+export const LIMITS_SIGNS = { plaque: "Brass plaque", tent: "Acrylic tent", digital: "Digital", deco: "Deco frame" };
 export const FRONTS = { classic: "Classic (today)", jumbo: "Jumbo index", vintage: "Vintage", minimal: "Minimal" };
 // The chairs' frame metals (Seating.METALS) and upholstery.
 export const FRAMES = [["brass", "Brass (today)"], ["gold", "Gold"], ["chrome", "Chrome"], ["gunmetal", "Gunmetal"], ["copper", "Copper"], ["black", "Black"]];
@@ -91,6 +93,8 @@ export const SLOTS = [
   { id: "jackpotSign", label: "Jackpot sign", keys: ["jackpotSign"], hint: "by the dealer; off where there's no Jackpot", ctl: [
     { key: "jackpotSign", type: "seg", options: [["twin", "Shuffler twin"], ["brass", "Brass marquee"], ["led", "Pit LED"], ["screen", "Floor screen"],
       ["flap", "Split-flap"], ["neon", "Neon"]], label: "Jackpot lit shows its light blinking blue, as a Jackpot bet does (the twin, LED and screen have one). The twin takes the shuffler's housing; the split-flap, the rail's wood." }] },
+  { id: "limitsSign", label: "Limits sign", keys: ["limitsSign"], hint: "the jackpot sign's partner; each table's limits are set on the Floor plan", ctl: [
+    { key: "limitsSign", type: "seg", options: Object.entries(LIMITS_SIGNS), label: "The brass plaque and deco frame stand on an easel in the rail's wood; the tent takes the printing's trim colour, the deco its felt and lettering; the digital display lights in the LED colour." }] },
   { id: "equip", label: "Shuffler, shoe, rack", keys: ["shuffler", "shufflerTint", "shufflerWood", "shoe", "shoeTint", "shoeWood", "rack", "rackTint", "rackWood"], ctl: [
     { key: "shuffler", type: "seg", options: [["gunmetal", "Brushed metal (today)"], ["black", "Gloss with LED"], ["brass", "Wood & brass"]], label: "Shuffler" },
     { key: "shufflerTint", type: "swatch", options: HOUSINGS, custom: true, label: "Shuffler housing colour (metal and gloss)" },
@@ -909,6 +913,138 @@ function jackpotSign(ctx, D, at, on, lit) {
   ctx.restore();
 }
 
+// The table limits sign (LimitsSign.gd): the jackpot sign's partner at the other end of the dealer's ledge (its mirror,
+// CasinoTable.LIMITS_SIGN), top right as the players see it, showing the table's minimum and maximum bets. `rows` is [[label, min, max, role]]
+// (pence; role "primary" or "side"). Drawn at the jackpot sign's scale and height (its units, the shadow's foot at
+// `at`), but narrower: LW across (28 table units to the jackpot sign's 40). Its design is the style's `limitsSign`.
+const LW = 154;
+const pounds = p => "£" + Math.round(p / 100).toLocaleString("en-GB");
+function limitsSign(ctx, D, at, rows, design) {
+  design = design || D.limitsSign || "plaque";
+  const W = LW, M = W / 2;
+  ctx.save(); ctx.translate(at[0], at[1]); ctx.scale(SIGN_K, SIGN_K); ctx.translate(-M, -80);
+  const box = (x, y, w, h, r, fill) => { ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); };
+  const line = (x1, y1, x2, y2, colour, w) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = colour; ctx.lineWidth = w; ctx.stroke(); };
+  const word = (s, x, y, size, colour, family, opts = {}) => {
+    ctx.save(); ctx.font = `${size}px "${family}"`; if (opts.spacing) ctx.letterSpacing = opts.spacing + "px";
+    let w = ctx.measureText(s).width; if (opts.max && w > opts.max) { ctx.font = `${Math.floor(size * opts.max / w)}px "${family}"`; w = ctx.measureText(s).width; }
+    ctx.textBaseline = "middle"; ctx.textAlign = opts.align || "center";
+    if (opts.glow) { ctx.shadowColor = opts.glow; ctx.shadowBlur = opts.blur || 6; }
+    if (opts.engrave) { ctx.fillStyle = opts.engrave; ctx.fillText(s, x, y + 0.9); }
+    ctx.fillStyle = colour; ctx.fillText(s, x, y); ctx.restore(); return w;
+  };
+  const wood = (x, y, w, h, r, pick) => { ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.clip(); const k = woodTex(D, pick);
+    ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / SIGN_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
+  // The figures in columns, both rows alike: the minimums right-aligned to the dashes, the maximums left-aligned from
+  // them and ending by `right`, all at one size (`size0`, or smaller if the widest figures need more than `room`).
+  const figures = (family, size0, right, room) => {
+    const w = (s, sz) => { ctx.font = `${sz}px "${family}"`; return ctx.measureText(s).width; };
+    const widths = sz => { const wn = Math.max(...rows.map(r => w(pounds(r[1]), sz))), wx = Math.max(...rows.map(r => w(pounds(r[2]), sz)));
+      const wd = w("–", sz), g = sz * 0.3; return { wn, wx, wd, g, total: wn + wx + wd + 2 * g }; };
+    let size = size0, m = widths(size);
+    if (m.total > room) { size = Math.floor(size0 * room / m.total * 10) / 10; m = widths(size); }
+    const dash = right - m.wx - m.g - m.wd / 2, minR = dash - m.wd / 2 - m.g;
+    return {
+      draw: (r, y, colour, opts = {}) => {
+        word(pounds(r[1]), minR, y, size, colour, family, { ...opts, align: "right" });
+        word("–", dash, y, size, colour, family, opts);
+        word(pounds(r[2]), dash + m.wd / 2 + m.g, y, size, colour, family, { ...opts, align: "left" });
+      },
+      minLeft: r => minR - w(pounds(r[1]), size),
+    };
+  };
+  for (const [rx, ry, a] of [[W * 0.48, 9, 0.16], [W * 0.43, 7, 0.2], [W * 0.375, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(M, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
+  const ROW_Y = [33, 51];
+  const fit = pad => [(W - 2 * pad) * 0.42, (W - 2 * pad) * 0.52];   // the most a row's label and its amounts may take
+
+  if (design === "tent") {   // smoked acrylic, printed white, a band of the printing's trim colour along the top
+    box(M - 40, 58, 80, 14, 2.5, "rgba(190,215,232,.22)"); line(M - 38, 59, M + 38, 59, "rgba(255,255,255,.35)", 1);
+    box(0, 0, W, 68, 4, "rgba(14,16,20,.9)");
+    ctx.beginPath(); rrect(ctx, 0.6, 0.6, W - 1.2, 66.8, 4); ctx.strokeStyle = "rgba(215,232,244,.38)"; ctx.lineWidth = 1.2; ctx.stroke();
+    const band = colourOf(D, "accent");
+    box(5, 5, W - 10, 15, 2, band);
+    word("TABLE LIMITS", M, 12.8, 9, lum(band) > 0.3 ? "#15171b" : "#ffffff", "TS Montserrat", { spacing: 2.5 });
+    line(10, 42, W - 10, 42, "rgba(255,255,255,.13)", 0.8);
+    const F = figures("TS Montserrat", 16, W - 10, fit(10)[1]);
+    rows.forEach((r, i) => {
+      word(r[0], 10, ROW_Y[i], 9.5, "rgba(255,255,255,.66)", "TS Montserrat", { align: "left", spacing: 0.8, max: fit(10)[0] });
+      F.draw(r, ROW_Y[i], "#ffffff");
+    });
+    ctx.beginPath(); path(ctx, [[W - 64, 1], [W - 24, 1], [W - 74, 67], [W - 114, 67]]); ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
+  } else if (design === "digital") {   // a black limit display on a post, lit in the table's LED colour
+    box(M - 10, 54, 20, 14, 1.5, "#2a2c31"); line(M - 8, 55, M - 8, 67, "rgba(255,255,255,.12)", 1);
+    box(M - 32, 64, 64, 8, 3.5, "#1b1c20"); line(M - 28, 65, M + 28, 65, "rgba(255,255,255,.1)", 1);
+    box(0, 0, W, 68, 6, "#25272c"); box(1, 1, W - 2, 66, 5, "#0d0e11"); line(6, 2.5, W - 6, 2.5, "#2c2e34", 3);
+    box(7, 7, W - 14, 52, 2.5, "#020304");
+    const L = ledOf(D), dim = rgba(L, 0.62), hot = lighten(L, 0.55), xMin = W - 50, xMax = W - 10;
+    word("TABLE LIMITS", 12, 15, 9.5, dim, "TS Barlow", { align: "left", spacing: 1.5, max: xMin - 36 - 12 });
+    word("MIN", xMin, 15, 9.5, dim, "TS Barlow", { align: "right", spacing: 2 });
+    word("MAX", xMax, 15, 9.5, dim, "TS Barlow", { align: "right", spacing: 2 });
+    line(11, 22, W - 11, 22, rgba(L, 0.22), 0.8);
+    ctx.font = '21px "TS VT323"';   // every figure the same size: the biggest that lets the widest fit its column
+    const vs = Math.min(21, Math.floor(21 * 34 / Math.max(...rows.flatMap(r => [r[1], r[2]].map(p => ctx.measureText(pounds(p)).width)))));
+    rows.forEach((r, i) => {
+      const y = ROW_Y[i] + 1;
+      word(r[0], 12, y, 13, L, "TS Barlow", { align: "left", spacing: 0.8, max: xMin - 36 - 16, glow: rgba(L, 0.6), blur: 4 });
+      word(pounds(r[1]), xMin, y + 0.5, vs, hot, "TS VT323", { align: "right", glow: rgba(L, 0.8) });
+      word(pounds(r[2]), xMax, y + 0.5, vs, hot, "TS VT323", { align: "right", glow: rgba(L, 0.8) });
+    });
+    ctx.fillStyle = "rgba(0,0,0,.28)";
+    for (let y = 8; y < 59; y += 2) ctx.fillRect(7, y, W - 14, 0.6);
+    ctx.beginPath(); path(ctx, [[9, 7], [56, 7], [40, 59], [9, 59]]); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(M, 63.5, 3, 0, Math.PI * 2); ctx.fillStyle = rgba(L, 0.25); ctx.fill();
+    ctx.beginPath(); ctx.arc(M, 63.5, 1.5, 0, Math.PI * 2); ctx.fillStyle = L; ctx.fill();
+  } else if (design === "deco") {   // a gilt deco frame round a panel of the felt, printed like the layout
+    wood(M - 26, 56, 52, 18, 3, "match");
+    const gilt = colourOf(D, "accent"), g = ctx.createLinearGradient(0, 0, 0, 68);
+    g.addColorStop(0, lighten(gilt, 0.4)); g.addColorStop(0.5, gilt); g.addColorStop(1, darken(gilt, 0.35));
+    box(0, 0, W, 68, 2, g);
+    box(3.5, 3.5, W - 7, 61, 1, darken(D.felt.colour, 0.12));
+    const v = ctx.createRadialGradient(M, 34, 16, M, 34, W * 0.57); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.35)");
+    box(3.5, 3.5, W - 7, 61, 1, v);
+    const c = 7, n = 5, x0 = 8, y0 = 8, x1 = W - 8, y1 = 60;   // the inner line, its corners stepped in
+    ctx.beginPath(); ctx.moveTo(x0 + c, y0); ctx.lineTo(x1 - c, y0); ctx.lineTo(x1 - c, y0 + n); ctx.lineTo(x1, y0 + n);
+    ctx.lineTo(x1, y1 - n); ctx.lineTo(x1 - c, y1 - n); ctx.lineTo(x1 - c, y1); ctx.lineTo(x0 + c, y1); ctx.lineTo(x0 + c, y1 - n);
+    ctx.lineTo(x0, y1 - n); ctx.lineTo(x0, y0 + n); ctx.lineTo(x0 + c, y0 + n); ctx.closePath();
+    ctx.strokeStyle = rgba(gilt, 0.85); ctx.lineWidth = 0.9; ctx.stroke();
+    const font = FONTS[D.print.font][0], ink = colourOf(D, "ink");
+    const tw = word("TABLE LIMITS", M, 17, 9, ink, font, { spacing: 2.5 });
+    for (const sd of [-1, 1]) {   // a small fan of rays either side of the title
+      const cx = M + sd * (tw / 2 + 8);
+      for (let k = -2; k <= 2; k++) { const a = k * 0.32; line(cx, 17, cx + sd * Math.cos(a) * 5, 17 + Math.sin(a) * 5, rgba(gilt, 0.8), 0.7); }
+    }
+    const F = figures(font, 14, W - 16, fit(16)[1]);
+    rows.forEach((r, i) => {
+      const y = ROW_Y[i] + 1;
+      const lw = word(r[0], 16, y, 9.5, colourOf(D, r[3]), font, { align: "left", spacing: 0.8, max: fit(16)[0] });
+      F.draw(r, y, ink);
+      ctx.fillStyle = rgba(ink, 0.4);
+      for (let x = 16 + lw + 4; x < F.minLeft(r) - 4; x += 3.2) { ctx.beginPath(); ctx.arc(x, y + 2.5, 0.55, 0, Math.PI * 2); ctx.fill(); }
+    });
+  } else {   // plaque: engraved brushed brass on a wooden easel
+    wood(M - 26, 56, 52, 18, 3, "match"); line(M - 24, 57, M + 24, 57, "rgba(255,255,255,.14)", 1);
+    box(0, 0, W, 68, 5, "#5e4318");
+    const g = ctx.createLinearGradient(0, 0, 0, 68);
+    g.addColorStop(0, "#f4dc98"); g.addColorStop(0.45, "#d2a748"); g.addColorStop(0.8, "#b48a33"); g.addColorStop(1, "#e2bf68");
+    box(1.4, 1.4, W - 2.8, 65.2, 4, g);
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    for (let y = 3; y < 66; y += 1.6) ctx.fillRect(2, y, W - 4, 0.5);
+    ctx.beginPath(); rrect(ctx, 6.5, 6.5, W - 13, 55, 2.5); ctx.strokeStyle = "rgba(94,67,24,.55)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); rrect(ctx, 7.3, 7.3, W - 13, 55, 2.5); ctx.strokeStyle = "rgba(255,244,210,.35)"; ctx.lineWidth = 0.6; ctx.stroke();
+    for (const [x, y] of [[3.8, 3.8], [W - 3.8, 3.8], [3.8, 64.2], [W - 3.8, 64.2]]) { ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fillStyle = "#7a5a22"; ctx.fill(); line(x - 1, y + 1, x + 1, y - 1, "#3b2a0e", 0.5); }
+    const ink = "#33230a", lift = "rgba(255,243,206,.55)";
+    word("TABLE LIMITS", M, 15, 9, ink, "TS Cinzel", { spacing: 3, engrave: lift });
+    line(M - 46, 22.5, M + 46, 22.5, "rgba(51,35,10,.5)", 0.7); line(M - 46, 23.3, M + 46, 23.3, "rgba(255,243,206,.4)", 0.5);
+    const F = figures("TS Cinzel", 14, W - 13, fit(13)[1]);
+    rows.forEach((r, i) => {
+      word(r[0], 13, ROW_Y[i] + 1, 9.5, ink, "TS Cinzel", { align: "left", spacing: 0.8, max: fit(13)[0], engrave: lift });
+      F.draw(r, ROW_Y[i] + 1, ink, { engrave: lift });
+    });
+  }
+  ctx.restore();
+}
+const SAMPLE_LIMITS = [["MAIN BETS", 500, 50000, "primary"], ["SIDE BETS", 100, 5000, "side"]];   // (the defaults)
+
 function shuffler(ctx, D, at) {
   const [x, y] = at, kind = D.shuffler, bw = 24, bh = 18;
   ctx.save(); ctx.translate(x, y);
@@ -1389,6 +1525,7 @@ export function render(canvas, D, game, rect, opts = {}) {
   if (T.shoe) shoe(ctx, D, T.shoe);
   if (T.shuffler) shuffler(ctx, D, T.shuffler);
   if (T.sign) jackpotSign(ctx, D, T.sign, T.sign_on, opts.lit);
+  if (T.sign) limitsSign(ctx, D, [-T.sign[0], T.sign[1]], opts.limits || SAMPLE_LIMITS);
   T.chairs.forEach(c => chair(ctx, c, D));
   if (opts.fixed) drawFixed(ctx, T);
 }

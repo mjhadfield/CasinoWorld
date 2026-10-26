@@ -5,7 +5,7 @@ Five seats, spread out for room.
 ## Bets
 
 Three equal bets, 1, 2 and £ (a chip on any one sets all three). Side bets: the £1 Bonus, the 3 Card Bonus
-and the £1 Jackpot.
+and the £1 Jackpot. The three bets are main bets for the table's limits; the 3 Card Bonus is a side bet.
 
 ## The deal
 

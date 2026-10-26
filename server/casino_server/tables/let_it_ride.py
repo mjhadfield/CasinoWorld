@@ -71,6 +71,8 @@ class LetItRideMachine(TableMachine):
     label = lir.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
+    PRIMARY_SPOTS = ("bet1", "bet2", "ante")
     FLAT_SPOTS = {"bonus": lir.BONUS_BET, "jackpot": lir.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need the three main bets alongside them."
     CANT_COVER = "Not enough balance for three equal bets plus side bets."

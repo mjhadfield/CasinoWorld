@@ -1,7 +1,8 @@
 extends SceneTree
 # Table layout audit: for every table scene, checks the shuffler/shoe/discard rack sit inside the felt's
-# cream border, the dealer's cards clear the chip tray, the jackpot sign stands clear of them all, and lists one seat's rows (side bets, main bets,
-# cards) with the gap above each and the gap from the cards to the front border. Table-local units.
+# cream border, the dealer's cards clear the chip tray, the jackpot and limits signs stand clear of them all, and
+# lists one seat's rows (side bets, main bets, cards) with the gap above each and the gap from the cards to the front
+# border. Table-local units.
 # Roulette (LAYOUT_ONLY=rou) has its own check: the wheel, float, chip hole, title and layout sit inside the
 # felt (clear of the bay and the rail), and the results sign stands clear of the table.
 #   cd client && godot --headless --path . -s ../tools/layout_audit.gd      (LAYOUT_ONLY=uth for one table)
@@ -79,6 +80,14 @@ func _initialize() -> void:
 			print("    clear of dealer cards: %s (y gap %.1f)" % [not sr.intersects(d), d.position.y - sr.end.y])
 			for name in eq:
 				print("    clear of %s: %s" % [name, not sr.intersects(eq[name])])
+		var ls = t.limits_sign
+		if ls:   # (its partner at the other end of the ledge)
+			var lr: Rect2 = ls.drawn_rect()
+			print("  limits sign    ", fmt(lr), "  stands inside border: %s  x gap to tray %.1f" % [
+				inside(border, ls.footprint()), lr.position.x - tray.end.x])
+			print("    clear of dealer cards: %s (y gap %.1f)" % [not lr.intersects(d), d.position.y - lr.end.y])
+			for name in eq:
+				print("    clear of %s: %s" % [name, not lr.intersects(eq[name])])
 		# One seat's column (the middle seat)
 		var seat: int = t.seat_count() / 2
 		var rows := []

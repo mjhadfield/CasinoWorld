@@ -109,6 +109,7 @@ These are listed in the order a round produces them.
 | `seated` / `stood` | `seat`, `entity`, `name`, `human` / `reason` | Someone sat down or got up. The `reason` for standing can be `inactive` (sat out 3 hands) or `left`. |
 | `bet_changed` | `seat`, `bets`, `queued`? | A seat's chips changed during betting. With `queued: true`, they're for the next hand, put down during this one. At `betting_open` the queued bets go on as ordinary `bet_changed` events, and the countdown starts. |
 | `queued_dropped` | `seat`, `reason` | Bets queued during the last hand that couldn't go on (for example, the balance no longer covers them). |
+| `bet_under_min` | `seat`, `spots`, `main`, `text` | Betting closed with bets under the card table's minimum (its limits: `world` items' `limits`). They go back, not played: with `main` true the seat's main bet was short, so all its bets go back and it sits the hand out; otherwise just the short side bets (`spots`). `text` is what to tell the player. A `bet_changed` with what's left follows. A bet over a maximum never gets this far: the `bet` is refused ("The table maximum on main bets is £500."), as is Ready with a bet under its minimum. |
 | `betting_timer` | `seconds`, `quiet`? | The first bet went down, and betting closes in this many seconds (sooner once every human is Ready). `quiet: true` after a rebet: no countdown ticks. Craps: a real player's bet went down with under 5 seconds before the dice go out, and the countdown's back to `seconds`. |
 | `auto_rebet` | `seat`, `on`, `reason`? | A seat's Auto rebet was ticked or unticked. `reason` says why it went off by itself: `timeout`, or the rebet's error (such as the balance not covering it). Seat entries in snapshots carry `auto_rebet` too. |
 | `ready` | `seat` | That seat locked in. |
@@ -388,7 +389,8 @@ top-left corner.
   wall), `width`, `kind` (`door` | `archway`), `to` (the room beyond, or null for a shut outside door), `door`,
   `owner`}.
 - `items`: {`id`, `asset`, `x`, `y`, `rot` (tables) or `facing`, `props`}. A table (`table:<game>`, its id the
-  table id) also has `game`, `name`, `seats`; a slot cabinet (`slot`) `name` and `cabinet` (its look: `body`,
+  table id) also has `game`, `name`, `seats`, and a card table (not Roulette or Craps) `limits` {`main`, `side`},
+  each [min, max] in pence (its own, or the defaults: £5–£500 and £1–£50); a slot cabinet (`slot`) `name` and `cabinet` (its look: `body`,
   `trim`, `title`, `lines`; empty for Armadillo); built-in pieces are `podium` and `npc` (props `look`, `name`).
 - `points`: {`name`, `x`, `y`, `kind` (`spawn` | `arrival` | `wander`), `weight`, `linger`}. NPC walks go to
   `point:<room>/<name>`.

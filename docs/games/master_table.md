@@ -3,7 +3,8 @@
 One table that becomes any of the card games sharing the swept-bay table: Three Card Poker, Blackjack, both Pai
 Gows, Mississippi Stud, Ultimate Texas Hold'em, Let It Ride, High Card Flush and Baccarat. It never becomes Roulette
 or Craps. Mike signed it off on the mockup (https://claude.ai/artifact/GPAjSj5NTbXaN58X5hFzMN,
-`docs/master_table/mockup/`). It's placed on the Floor plan tab like any table, as "Master Table".
+`docs/master_table/mockup/`). It's placed on the Floor plan tab like any table, as "Master Table". Its table
+limits (set on the Floor plan) go with it to whichever game it plays, and its limits sign shows them while blank too.
 
 ## Blank
 

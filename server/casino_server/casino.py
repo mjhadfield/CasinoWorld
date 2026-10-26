@@ -76,7 +76,10 @@ class Casino:
         if self._speed is not None:
             game_timings = sys.modules[machine_class.__module__].Timings().scaled(self._speed)
         extra = {"deck_factory": self._deck_factory} if self._deck_factory and game != master.GAME_KEY else {}
-        return machine_class(table_id, seats, game_timings, self.jackpot, **extra, **self._machine_extras(table_id, game, cfg or {}))
+        machine = machine_class(table_id, seats, game_timings, self.jackpot, **extra, **self._machine_extras(table_id, game, cfg or {}))
+        if cfg and "limits" in cfg:   # (a card table's, from the floor plan; a Master Table hands them to each game)
+            machine.limits = {k: tuple(v) for k, v in cfg["limits"].items()}
+        return machine
 
     def _machine_extras(self, table_id: str, game: str, cfg: dict) -> dict:
         """What a machine needs beyond the common arguments (a slot cabinet: its variant and the shared
@@ -153,8 +156,10 @@ class Casino:
     def broadcast_world(self):
         """The live floor plan changed (a publish that needed no restart): everyone rebuilds the floor."""
         for table_id, runner in self.tables.items():   # a Master Table's options, and its seat points where it stands now
+            cfg = floor.TABLES.get(table_id, {})
+            if "limits" in cfg:   # (each card table's limits: bets already down stand)
+                runner.machine.limits = {k: tuple(v) for k, v in cfg["limits"].items()}
             if isinstance(runner.machine, master.MasterMachine) and table_id in floor.TABLES:
-                cfg = floor.TABLES[table_id]
                 runner.machine.anim, runner.machine.speed = cfg.get("anim", master.DEFAULT_ANIM), cfg.get("speed", master.DEFAULT_SPEED)
                 runner.machine.on_seats(len(runner.machine.seats))
         self.broadcast_all({"type": "world", "world": plan.world(plan.live())})

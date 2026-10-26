@@ -47,6 +47,9 @@ const DEALER_Y := -106.5  # dealer's cards: clear of the chip tray, level with t
 const TITLE_Y := -88.0
 const JACKPOT_Y := -78.0
 const JACKPOT_SIGN := Vector2(-64, -119.5)   # the jackpot sign's foot: between the rail and the dealer's cards, left of the ledge
+const LIMITS_SIGN := Vector2(64, -119.5)     # the limits sign's: its mirror, right of the ledge
+## A card table's limits when the floor plan sends none (the server's tables/base.py DEFAULT_LIMITS), in pence.
+const DEFAULT_LIMITS := {"main": [500, 50000], "side": [100, 5000]}
 const SPOT_R := 7.5       # circle spots: a chip (radius 6) plus a sliver of felt
 const SEAT_GAP := 49.0
 const CHAIR_Y := 40.0
@@ -59,6 +62,12 @@ var game := ""
 ## Which end its results sign stands past, as the players see it: "left", "right", or "" (the
 ## usual end: _stand_sign()). Only Roulette and Craps have one; the floor plan sets it.
 @export var sign_side := ""
+## Its limits from the floor plan: {"main": [min, max], "side": [min, max]} in pence (the limits sign shows them).
+var limits := DEFAULT_LIMITS:
+	set(v):
+		limits = v
+		if limits_sign:
+			limits_sign.queue_redraw()
 
 var ready_seats := {}
 var auto_rebet_seats := {}  # seats with Auto rebet ticked (their spots don't glow: the bets go down by themselves)
@@ -101,6 +110,7 @@ const RING_FADE := 0.35
 @onready var shuffler: CardShuffler = get_node_or_null("Felt/Machines/Shuffler")   # card games only
 @onready var discard_rack: DiscardRack = get_node_or_null("Felt/Fixtures/DiscardRack")
 var jackpot_sign: JackpotSign   # card games only: built in _ready()
+var limits_sign: LimitsSign     # ...and its partner at the other end of the ledge
 
 
 func _init() -> void:
@@ -121,6 +131,9 @@ func _ready() -> void:
 		jackpot_sign = JackpotSign.new()
 		jackpot_sign.position = JACKPOT_SIGN
 		machines.add_child(jackpot_sign)
+		limits_sign = LimitsSign.new()
+		limits_sign.position = LIMITS_SIGN
+		machines.add_child(limits_sign)
 	_build_collision()
 
 

@@ -28,15 +28,16 @@ has its MIN/MAX columns.
 `tools/table_geometry.gd`, `tools/layout_audit.gd`, tests and docs.
 
 ## Done when
-- [ ] Mike signs off the mockup (designs, place, Floor plan fields, how the limits play)
-- [ ] Server: limits on the plan, checked on bets, handed back under the minimum, NPCs fit them
-- [ ] Table style `limitsSign` + the designer's control; the client's LimitsSign on every card table
-- [ ] Layout audit: the sign clear of everything on all 10 layouts
-- [ ] `tools/dev.sh test` passes; docs updated
+- [x] Mike signs off the mockup (2026-10-26: House gets the brass plaque; the rules as listed on the mockup)
+- [x] Server: limits on the plan, checked on bets, handed back under the minimum, NPCs fit them
+- [x] Table style `limitsSign` + the designer's control; the client's LimitsSign on every card table
+- [x] Layout audit: the sign clear of everything on all 10 layouts
+- [x] `tools/dev.sh test` passes (bar test_plan's slot bank seat test, failing before this); docs updated
 
 ## Handoff
-- **State:** mockup published, waiting for Mike's sign-off. Nothing in the game changed yet.
-- **Changed:** `docs/limits_sign/mockup/` and this file.
-- **Checked:** the mockup renders with no console errors (one Playwright look).
-- **Questions for Mike:** which design House uses (the mockup pairs House with the brass plaque); anything to change in
-  the designs or the rules listed on the mockup.
+- **State:** built and live (2026-10-26). Limits are stored on a table only once set on the Floor plan; unset
+  tables use `DEFAULT_LIMITS`. The tests play under conftest's `OPEN_LIMITS` (£1 to £10,000);
+  `tests/test_table_limits.py` sets real ones.
+- **Checked:** test_table_limits + the full suite, the layout audit, one shot.py look at Three Card Poker (the
+  brass plaque, figures in columns).
+- **Questions for Mike:** none.

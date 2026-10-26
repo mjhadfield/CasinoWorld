@@ -2,13 +2,14 @@ class_name TableStyle
 ## How each table looks: the table styles from the server (server/casino_server/table_styles.py, sent in
 ## the welcome and in `table_styles` when the admin page's Tables tab changes them). There are three kinds,
 ## each with its own styles and default (House): "cards" (felt, rail, chip tray, printing, betting spots,
-## Jackpot disc, shuffler, shoe, discard rack, card backs, chips), "roulette" (felt, rail, printing, number
-## colours, float, wheel) and "craps" (felt, rail, printing, rubber, chip rack, dice). A table uses its kind's
-## default unless the server gives it another (CasinoTable.style_kind()). Where anything sits never depends on
-## the style.
+## Jackpot disc and sign, limits sign, shuffler, shoe, discard rack, card backs, chips), "roulette" (felt, rail,
+## printing, number colours, float, wheel) and "craps" (felt, rail, printing, rubber, chip rack, dice). A table
+## uses its kind's default unless the server gives it another (CasinoTable.style_kind()). Where anything sits
+## never depends on the style.
 ##
 ## The pieces that draw it: StyledFelt (the table and its printing, Roulette's and Craps' too), ChipFace
-## (chips), Card2D.draw_back, CardShuffler, CardShoe, DiscardRack, the Jackpot lights, RouletteWheel and CrapsDice.
+## (chips), Card2D.draw_back, CardShuffler, CardShoe, DiscardRack, the Jackpot lights, JackpotSign, LimitsSign,
+## RouletteWheel and CrapsDice.
 
 ## House, as the server has it (table_styles.HOUSE): what a table shows before the welcome, and in the editor.
 const HOUSE := {
@@ -22,7 +23,7 @@ const HOUSE := {
 	"spots": "deco", "glow": "#ffdf9e",
 	"print": {"font": "cinzel", "ink": "#f1e4c4", "primary": "#f1e4c4", "side": "#c9a24a", "accent": "#c9a24a"},
 	"back": "lattice", "backColour": "#8e1a22", "cardColour": "#f4f2ec", "front": "classic", "suits": "two",
-	"jackpot": "led", "jackpotRim": "thin", "chips": "clay",
+	"jackpot": "led", "jackpotRim": "thin", "jackpotSign": "brass", "limitsSign": "plaque", "chips": "clay",
 	"chairs": {"frame": "brass", "upholstery": "#2a2320"},
 }
 ## Roulette's and Craps' House (table_styles.ROULETTE_HOUSE, CRAPS_HOUSE): how they looked before they took styles.

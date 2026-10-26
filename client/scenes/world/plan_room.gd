@@ -116,6 +116,8 @@ func _place(item: Dictionary) -> void:
 		if game == "pai_gow_face_up":
 			t.face_up = true
 		t.sign_side = str(item.get("props", {}).get("sign", ""))
+		if item.has("limits"):   # (a card table's, filled in by the server)
+			t.limits = item.limits
 		t.is_master = game == "master_table"
 		t.position = at
 		t.rotation = deg_to_rad(float(item.get("rot", 0)))

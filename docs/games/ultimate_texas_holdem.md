@@ -3,7 +3,8 @@
 ## Bets
 
 Ante, with an equal Blind placed automatically. Trips and the £1 Jackpot are optional. You need six Antes to
-play a hand (Ante, Blind and a 4x Play).
+play a hand (Ante, Blind and a 4x Play). The Ante and Blind are main bets for the table's limits; Trips is a
+side bet.
 
 ## The deal
 

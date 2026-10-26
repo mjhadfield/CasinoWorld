@@ -76,6 +76,15 @@ up, and turn back when they stand.
 - **Sit out** is a switch beside Auto rebet: while it's on you're Ready with no bets each time betting opens, so
   you sit the hands out. Putting a chip down, Repeat Bet or ticking Auto rebet turns it off. (Not at Roulette,
   which spins anyway, or Craps.)
+- **Table limits:** every card table (not Roulette or Craps) has a minimum and maximum for its **main bets** and
+  for its **side bets**, set per table on the Floor plan (by default £5 to £500, and £1 to £50), and shows them on
+  its limits sign, top right of the dealer's ledge. A chip that would take a bet over its maximum doesn't go down
+  ("The table maximum on main bets is £500."). Under the minimum is fine while you build the bet up from smaller
+  chips, but Ready is refused while a bet is short, and when betting closes a short bet is handed back and not
+  played: a short main bet takes the whole hand back, so you sit it out. Play, Raise and doubles aren't limited
+  (the Ante sets them), and flat bets (the £1 Jackpot, Let It Ride's £1 Bonus) stay exact. A Repeat Bet or Auto
+  rebet that no longer fits the limits is refused (Auto rebet goes off and says why). Each game's file says which
+  of its bets are main bets.
 - **The £1 Jackpot** spot (at most tables) is a clear plastic disc with a light under it. The light flashes
   while your bet is on it. When betting closes the dealer locks the Jackpot bets in: the lights go solid red
   and the chips are lifted off, leaving the light glowing until you're settled. One progressive jackpot is
@@ -118,7 +127,9 @@ NPCs come in at the floor plan's arrival points, wander between its wander point
 as long as each says), sit for a while, and leave the way they came. Nobody comes in while there's no free seat. Each game's file says how they play it. They never take a
 seat kept for real players (the middle seat at a five-seat table, the middle two at a six-seater, the second
 place from the left on each side of the craps table, and the last two free slot cabinets in a bank), so a real
-player can always sit down. Their budgets, styles and traits are on the admin page (README › Admin page).
+player can always sit down. Their budgets, styles and traits are on the admin page (README › Admin page). At a card table they bet within its limits (up to its
+minimum, down to its maximum), and they don't sit where they couldn't cover the minimum three times; one who
+can't cover it any more gets up and looks for a cheaper table.
 
 A player can also take an NPC's seat: standing by their chair, the prompt says **Take seat**, and after an
 "Are you sure? Kicking someone out of their seat is kind of rude you know." Yes/No, the dealer asks them to move.

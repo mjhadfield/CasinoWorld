@@ -99,6 +99,7 @@ class HighCardFlushMachine(TableMachine):
     label = hcf.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
     FLAT_SPOTS = {"jackpot": hcf.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance: you need four times your Ante (to raise 3x), plus side bets."

@@ -114,6 +114,7 @@ class PaiGowMachine(TableMachine):
     game = pg.FORTUNE
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
     FLAT_SPOTS = {"jackpot": pg.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance for that."

@@ -62,6 +62,7 @@ from pathlib import Path
 from casino_server import floor, slot_builds, sounds
 from casino_server.slots.variants import VARIANTS
 from casino_server.tables import master
+from casino_server.tables.base import DEFAULT_LIMITS, LIMIT_NAMES
 
 CATALOGUE = json.loads((Path(__file__).resolve().parent / "plan_catalogue.json").read_text())
 CLASSIC = json.loads((Path(__file__).resolve().parent / "plan_classic.json").read_text())
@@ -71,6 +72,9 @@ MIN_WIDTH, MIN_FLOOR, MAX_SIZE = 48, 48, (8000, 8000)   # (the smallest: one fig
 SIDES = ("top", "bottom", "left", "right")
 FACINGS = ("down", "up", "left", "right")
 SIGN_SIDES = ("right", "left")   # which end of a table its results sign stands past, as its players see it
+LIMITED_GAMES = ("three_card_poker", "blackjack", "pai_gow_fortune", "pai_gow_face_up", "mississippi_stud",
+                 "ultimate_texas_holdem", "let_it_ride", "high_card_flush", "baccarat", "master_table")   # (the card tables)
+LIMIT_TOP = 1_000_000   # £10,000: the most a table limit can be (pence)
 DOOR_KINDS = ("door", "archway")
 DOOR_WIDTH = (40, 600)
 POINT_KINDS = ("spawn", "arrival", "wander")
@@ -598,6 +602,30 @@ def clean(raw, old: dict) -> dict:
     return {"rev": old.get("rev", 0), "next": nxt, "spawn": spawn, "rooms": rooms}
 
 
+def _clean_limits(raw, name: str) -> dict:
+    """A card table's limits, {"main": [min, max], "side": [min, max]} in pence: whole pounds from £1 to £10,000, each
+    minimum no more than its maximum. What isn't given takes the default (DEFAULT_LIMITS)."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = {}
+    for kind, default in DEFAULT_LIMITS.items():
+        pair = raw.get(kind)
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            out[kind] = list(default)
+            continue
+        low, high = (_num(v, f"{name}'s {LIMIT_NAMES[kind]} limit", 100, LIMIT_TOP) for v in pair)
+        if low % 100 or high % 100:
+            raise PlanError(f"{name}: table limits are whole pounds.")
+        if low > high:
+            raise PlanError(f"{name}: the {LIMIT_NAMES[kind]} minimum is more than the maximum.")
+        out[kind] = [int(low), int(high)]
+    return out
+
+
+def limits_of(item: dict) -> dict:
+    """A placed card table's limits (its own, or the defaults for one saved before tables had them)."""
+    return _clean_limits(item["props"].get("limits"), item["props"].get("label") or item["asset"])
+
+
 def _clean_item(it, room_name: str, w: float, h: float, nxt: dict, known: dict, taken: set) -> dict:
     if not isinstance(it, dict) or not isinstance(it.get("asset"), str) or len(it["asset"]) > 64:
         raise PlanError(f"{room_name}: each thing placed needs its asset.")
@@ -616,6 +644,8 @@ def _clean_item(it, room_name: str, w: float, h: float, nxt: dict, known: dict, 
         item["props"]["label"] = _str(props.get("label"), 32) or CATALOGUE["games"][game]["name"]
         if "sign" in CATALOGUE["games"][game]["at"]["0"] and props.get("sign") in SIGN_SIDES:
             item["props"]["sign"] = props["sign"]
+        if game in LIMITED_GAMES and props.get("limits") is not None:   # (none: the defaults, limits_of())
+            item["props"]["limits"] = _clean_limits(props["limits"], item["props"]["label"])
         if game == master.GAME_KEY:   # how it changes game: its animation, and how fast
             item["props"]["anim"] = props.get("anim") if props.get("anim") in master.ANIMS else master.DEFAULT_ANIM
             speed = props.get("speed")
@@ -883,6 +913,8 @@ def tables_of(plan: dict, placed_only: bool = True) -> dict:
                 if game in CATALOGUE["games"]:
                     out[item["id"]] = {"game": game, "name": item["props"].get("label") or CATALOGUE["games"][game]["name"],
                                        "seats": CATALOGUE["games"][game]["seats"], "room": room["id"]}
+                    if game in LIMITED_GAMES:
+                        out[item["id"]]["limits"] = limits_of(item)
                     if game == master.GAME_KEY:   # (and the seat points of both its tables: six seats and five)
                         out[item["id"]].update(anim=item["props"].get("anim", master.DEFAULT_ANIM),
                                                speed=item["props"].get("speed", master.DEFAULT_SPEED),
@@ -958,6 +990,8 @@ def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> 
                 if cat is None:
                     continue
                 it.update(game=game, name=item["props"].get("label") or cat["name"], seats=cat["seats"])
+                if game in LIMITED_GAMES:
+                    it["limits"] = limits_of(item)
             elif kind == "slot":
                 v = item["props"].get("variant")
                 if v not in VARIANTS:

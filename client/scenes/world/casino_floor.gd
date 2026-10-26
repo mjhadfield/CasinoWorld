@@ -1427,6 +1427,9 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 					hud.show_toast("Auto rebet is off -- you ran out of time.", 4.0)
 				elif why != "":
 					hud.show_toast("Auto rebet is off: %s" % why, 4.0)
+		"bet_under_min":   # betting closed with a bet under the table minimum: it came back (the bet_changed after it)
+			if mine and int(ev.seat) == my_seat:
+				hud.show_toast(str(ev.get("text", "")), 4.0)
 		"queued_dropped":
 			if mine and int(ev.seat) == my_seat:
 				_placed.clear()
@@ -1524,6 +1527,7 @@ func _master_node(old: CasinoTable, game: String, bare := false) -> CasinoTable:
 	t.master_game = game
 	t.game = "master_table"
 	t.game_label = MasterPanel.name_of(game) if game != "" else old.game_label if old is MasterTable else "Master Table"
+	t.limits = old.limits
 	if game == "pai_gow_face_up":
 		t.set("face_up", true)
 	t.position = old.position

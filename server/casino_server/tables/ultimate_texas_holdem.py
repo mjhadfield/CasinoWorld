@@ -88,6 +88,8 @@ class UltimateTexasHoldemMachine(TableMachine):
     label = uth.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "ante"
+    LIMITED = True
+    PRIMARY_SPOTS = ("ante", "blind")
     FLAT_SPOTS = {"jackpot": uth.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance: you need six times your Ante (Ante, Blind and a 4x Play), plus side bets."

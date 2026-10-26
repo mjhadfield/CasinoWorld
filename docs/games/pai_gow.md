@@ -5,7 +5,7 @@
 ## Bets
 
 The Ante, plus the Fortune and £1 Jackpot side bets. They pay off your seven cards whatever happens to the
-Ante.
+Ante. The Ante is the main bet for the table's limits; Fortune is a side bet.
 
 ## The deal
 

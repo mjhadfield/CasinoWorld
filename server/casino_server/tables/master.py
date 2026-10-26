@@ -16,7 +16,7 @@ Seats: `seats` is the inner machine's, or the blank table's six. A blank table o
 """
 from dataclasses import dataclass
 
-from casino_server.tables.base import CHIPS, Seat, TableError, say
+from casino_server.tables.base import CHIPS, DEFAULT_LIMITS, Seat, TableError, say
 
 GAME_KEY = "master_table"
 GAME_LABEL = "Master Table"
@@ -96,6 +96,7 @@ class MasterMachine:
         self.leavers = leavers or (lambda participants, game: [])
         self.on_seats = on_seats or (lambda n: None)
         self.inner = None
+        self._limits = DEFAULT_LIMITS   # the floor plan's, passed on to each game it becomes
         self._blank = [Seat() for _ in range(seats)]
         self.vote = None          # {game, by, votes: {seat: True|None}, until}
         self.queued = None        # a game agreed on, waiting for the hand to end ("" = back to the crest)
@@ -153,6 +154,16 @@ class MasterMachine:
         if self.inner is not None and self.changing_until is None and self.inner.next_deadline is not None:
             due.append(self.inner.next_deadline)
         return min(due) if due else None
+
+    @property
+    def limits(self) -> dict:
+        return self._limits
+
+    @limits.setter
+    def limits(self, value: dict):
+        self._limits = value
+        if self.inner is not None:
+            self.inner.limits = value
 
     def seat_of(self, participant) -> int | None:
         return next((i for i, s in enumerate(self.seats) if s.participant is participant and s.box_of is None), None)
@@ -299,6 +310,7 @@ class MasterMachine:
         movers = [(new, self.seats[j]) for new, j in enumerate(mapping) if j >= 0 and self.seats[j].participant]
         if game:
             self.inner = self.make(game, n)
+            self.inner.limits = self._limits
             for new, s in movers:
                 self.inner.seats[new] = self.inner._empty_seat(s.participant)
         else:

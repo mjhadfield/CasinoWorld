@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from casino_server import plan
 from casino_server.app import app
 from casino_server.engines.cards import Card, Deck
+from casino_server.tables import base
 
 # The floor the tests play on: the classic floor and the Blackjack pit (plan_classic.json, placed), with the casino's
 # first slot bank -- ten Armadillo Goes West cabinets, slot_1..slot_10, four facing up, four down and one at each end
@@ -22,10 +23,17 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: a long simulation (minutes); skipped unless --all")
 
 
+# The card tables' limits the tests play under: £1 to the most a plan allows, so a test about a game can bet what it
+# likes. test_table_limits.py sets real limits on its tables.
+OPEN_LIMITS = {"main": (100, plan.LIMIT_TOP), "side": (100, plan.LIMIT_TOP)}
+
+
 @pytest.fixture(autouse=True)
-def classic_plan(tmp_path):
+def classic_plan(tmp_path, monkeypatch):
     """Every test's scratch data dir has the classic plan published, and the floor has it (the app's lifespan loads
-    it again from CASINO_DATA_DIR)."""
+    it again from CASINO_DATA_DIR). Its card tables, and any made without the plan, take OPEN_LIMITS."""
+    monkeypatch.setattr(base, "DEFAULT_LIMITS", OPEN_LIMITS)
+    monkeypatch.setattr(plan, "DEFAULT_LIMITS", OPEN_LIMITS)
     for name in ("live.json", "draft.json"):
         plan._write(plan.plan_dir(tmp_path) / name, CLASSIC_PLAN)
     plan.install(CLASSIC_PLAN)

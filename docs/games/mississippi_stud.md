@@ -3,7 +3,7 @@
 ## Bets
 
 The Ante, plus the 3 Card Bonus and the £1 Jackpot. You need ten times your Ante to sit a hand, enough to bet
-3x on every street.
+3x on every street. The Ante is the main bet for the table's limits; the 3 Card Bonus is a side bet.
 
 ## The deal
 

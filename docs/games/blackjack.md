@@ -8,7 +8,8 @@ the rest of the shoe go through the shuffler and a fresh shoe goes in.
 
 The Blackjack circle, plus the side bets from v2: Super Pairs, 21+3, Top 3 (with a 21+3 bet) and the £1
 Jackpot. Side bets settle straight after the deal: a box's losing side bets are swept together in one quick
-motion, then each winner is paid in turn. Winnings stay beside their spots until the hand is over.
+motion, then each winner is paid in turn. Winnings stay beside their spots until the hand is over. The circle is
+the main bet for the table's limits; Super Pairs, 21+3 and Top 3 are side bets.
 
 ## The deal
 

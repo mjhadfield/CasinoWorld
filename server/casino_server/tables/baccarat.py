@@ -66,6 +66,8 @@ class BaccaratMachine(TableMachine):
     label = bac.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "player"
+    LIMITED = True
+    PRIMARY_SPOTS = ("player", "banker")
     NEEDS_MAIN = "Dragon bets need a Player, Banker or Tie bet alongside them."
     CANT_COVER = "Not enough balance for that."
 

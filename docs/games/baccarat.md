@@ -4,7 +4,8 @@ Punto Banco.
 
 ## Bets
 
-Player, Banker or Tie, plus the Player Dragon and Banker Dragon bonuses. There are no decisions.
+Player, Banker or Tie, plus the Player Dragon and Banker Dragon bonuses. There are no decisions. Player and
+Banker are main bets for the table's limits; Tie and the Dragons are side bets.
 
 ## The coup
 

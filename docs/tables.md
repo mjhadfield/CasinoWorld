@@ -139,6 +139,18 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   scaled to 40), redrawing only on screen when what it shows changes or while it animates. The designer draws it
   too (`jackpotSign()` in render.js, its place from `geometry.json`'s `sign`), and "Jackpot lit" shows its light
   blue, as a bet does.
+- **The limits sign** (`scenes/table/limits_sign.gd`, `LimitsSign`) is the jackpot sign's partner at the other end
+  of the ledge, top right as the players see it (`CasinoTable.LIMITS_SIGN`, the jackpot sign's mirror): clear of
+  every game's shuffler, shoe and rack (the layout audit checks it). It shows the table's limits
+  (`CasinoTable.limits`, from the floor plan's world item, `DEFAULT_LIMITS` until then) as TABLE LIMITS over
+  MAIN BETS and SIDE BETS rows on every game, the figures in columns (minimums right-aligned to the dashes,
+  maximums left-aligned from them, one size for both rows). It's as tall as the jackpot sign and drawn at its
+  scale but narrower: 154 of its 220 mock units, 28 table units across. Its design is the style's `limitsSign`:
+  `plaque` (engraved brass on an easel in the rail's wood), `tent` (smoked acrylic with a band of the printing's
+  accent), `digital` (a black display lit in the style's `led`, MIN and MAX columns) or `deco` (a gilt frame in the
+  accent round a panel of the felt, in the printing's font, ink and primary/side colours, dotted leaders). It
+  doesn't animate: it redraws when the limits or the style change. The designer draws it too (`limitsSign()` in
+  render.js, at the mirror of `sign`), from the signed-off mockup in `docs/limits_sign/mockup/`.
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of
@@ -153,7 +165,8 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
 
 Every card table follows the same alignment rules:
 - **Equipment:** the shuffler (or shoe) and discard rack sit inside the felt's cream border, level with the
-  dealer's cards. The jackpot sign stands above them on the left, between the rail and the dealer's cards.
+  dealer's cards. The jackpot sign stands above them on the left, between the rail and the dealer's cards, and the
+  limits sign mirrors it on the right.
 - **Dealer's cards:** they sit clear of the chip tray, as a separate thing on the felt (`DEALER_Y` -106.5, about 6
   units below the tray; the audit prints the gap).
 - **Player cards:** their bottom edge sits 2 units inside the front border.

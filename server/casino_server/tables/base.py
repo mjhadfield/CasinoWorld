@@ -23,6 +23,9 @@ from casino_server.participants import BoxParticipant
 CHIPS = [100, 500, 2_500, 10_000, 50_000]  # Casino v2's £1/£5/£25/£100/£500
 INACTIVE_ROUNDS = 3  # a human who sits out this many dealt rounds in a row is stood up...
 INACTIVE_MAX_FREE = 1  # ...but only once the table has this many open seats or fewer
+# A card table's limits (pence) when the floor plan sets none: its main bets, and its side bets (plan.py).
+DEFAULT_LIMITS = {"main": (500, 50_000), "side": (100, 5_000)}
+LIMIT_NAMES = {"main": "main bets", "side": "side bets"}
 
 
 class TableError(Exception):
@@ -43,6 +46,10 @@ class Seat:
     box_of: int | None = None    # this seat is a second box: the seat of the player playing it
 
 
+def pounds(pence: int) -> str:
+    return f"£{pence // 100:,}"
+
+
 def say(text: str) -> list:
     """A dealer line as an event list (empty if there's nothing to say)."""
     return [{"kind": "say", "text": text}] if text else []
@@ -61,6 +68,9 @@ class TableMachine:
     SECOND_BOX = False              # a player can play the free seat beside them too, with matching bets
     HIDE_BOX = True                 # ...whose cards they only see once their own hand is decided (not Blackjack)
     CANT_COVER_BOTH = "Not enough balance to match that on your second box."
+    LIMITED = False                 # a card table: its main and side bets keep within `limits` (not Roulette or Craps)
+    PRIMARY_SPOTS: tuple = ()       # the main bets the limits' "main" covers (just MAIN_SPOT when empty); the rest,
+                                    # bar FLAT_SPOTS, are side bets
 
     def __init__(self, table_id: str, seats: int, timings, jackpot, lines):
         self.table_id = table_id
@@ -73,6 +83,7 @@ class TableMachine:
         self.betting_opened_at = 0.0
         self.round_start: dict = {}   # seat -> (participant, their balance -- a second box: its flow -- before this hand)
         self._shown_boxes: set = set()  # second boxes in this hand whose cards their player has been shown
+        self.limits = DEFAULT_LIMITS  # {"main": (min, max), "side": (min, max)}: the floor plan's, set by the casino
 
     def _empty_seat(self, participant=None) -> Seat:
         return Seat(participant=participant, bets=dict.fromkeys(self.SPOTS, 0))
@@ -264,6 +275,25 @@ class TableMachine:
             events.append({"kind": "box_revealed", "seat": box, "of": main, "_private": {box: self._box_private(box)}})
         return events
 
+    # ------------------------------------------------------------------ the table's limits
+    def limit_of(self, spot: str) -> tuple[str, int, int] | None:
+        """("main" or "side", min, max) for a spot the table's limits cover; None for a flat bet or at a table
+        without limits. Follow-up bets (Play, Raise, doubles) aren't spots, so they're never limited."""
+        if not self.LIMITED or spot in self.FLAT_SPOTS:
+            return None
+        kind = "main" if spot in (self.PRIMARY_SPOTS or (self.MAIN_SPOT,)) else "side"
+        return (kind, *self.limits[kind])
+
+    def _short(self, bets: dict) -> list[str]:
+        """The spots with a bet down under the table minimum."""
+        return [spot for spot, amount in bets.items() if amount > 0 and (lim := self.limit_of(spot)) and amount < lim[1]]
+
+    def _limit_error(self, spot: str, which: str) -> TableError:
+        kind, low, high = self.limit_of(spot)
+        if which == "max":
+            return TableError(f"The table maximum on {LIMIT_NAMES[kind]} is {pounds(high)}.")
+        return TableError(f"The table minimum on {LIMIT_NAMES[kind]} is {pounds(low)}.")
+
     # ------------------------------------------------------------------ betting
     def max_cost(self, bets: dict) -> int:
         """The most these bets could cost this round (Three Card Poker adds a Play bet)."""
@@ -337,6 +367,9 @@ class TableMachine:
         for spot, flat in self.FLAT_SPOTS.items():
             if new[spot] not in (0, flat):
                 raise TableError(f"The {spot.replace('_', ' ').title()} bet is exactly £{flat // 100}.")
+        for spot, amount in new.items():   # (under the minimum is fine while the bet's built up: see ready())
+            if (lim := self.limit_of(spot)) and amount > lim[2]:
+                raise self._limit_error(spot, "max")
         self._validate_bets(new)
         boxes = 2 if s.box is not None else 1
         if self.max_cost(new) * boxes > s.participant.balance:
@@ -368,6 +401,8 @@ class TableMachine:
         s, queued = self._bet_slot(seat)
         if not s.last_bets:
             raise TableError("No previous bets to repeat.")
+        if short := self._short(s.last_bets):   # (the limits went up since)
+            raise self._limit_error(short[0], "min")
         events = self.set_bets(seat, s.last_bets, now)
         if queued:
             s.queued_rebet = True
@@ -421,6 +456,8 @@ class TableMachine:
         s = self._betting_seat(seat)
         if any(s.bets.values()) and not self._has_main(s.bets):
             raise TableError(self.NEEDS_MAIN)
+        if short := self._short(s.bets):
+            raise self._limit_error(short[0], "min")
         s.ready = True
         return [{"kind": "ready", "seat": seat}] + self._mirror(seat) + self._maybe_close_early(now)
 
@@ -454,6 +491,7 @@ class TableMachine:
             if s.participant is None:
                 continue
             before = befores[i]
+            events += self._hand_back_short(i, s)
             if not self._has_main(s.bets) or not s.participant.debit(self.upfront(s.bets), "upfront"):
                 if any(s.bets.values()):  # side bets without a main bet go back
                     events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(dict.fromkeys(self.SPOTS, 0))})
@@ -474,6 +512,25 @@ class TableMachine:
         for i, bets in playing.items():
             self.seats[i].last_bets = dict(bets)
         return events, playing
+
+    def _hand_back_short(self, i: int, s: Seat) -> list:
+        """Betting's closing: bets under the table minimum go back. A short main bet takes the seat's whole hand back
+        (they sit it out); a short side bet just goes back itself."""
+        short = self._short(s.bets)
+        if not short:
+            return []
+        main = next((sp for sp in short if self.limit_of(sp)[0] == "main"), None)
+        spot = main or short[0]
+        low = pounds(self.limit_of(spot)[1])
+        if main:
+            s.bets = dict.fromkeys(self.SPOTS, 0)
+            text = f"Under the {low} table minimum: your bets went back and you sit this hand out."
+        else:
+            for sp in short:
+                s.bets[sp] = 0
+            text = f"Under the {low} side bet minimum: that went back."
+        return [{"kind": "bet_under_min", "seat": i, "spots": short, "main": main is not None, "text": text},
+                {"kind": "bet_changed", "seat": i, "bets": self._bets_view(dict(s.bets))}]
 
     def _reopen_betting(self, now: float) -> list:
         self.phase = "betting"

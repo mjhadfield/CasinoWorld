@@ -4,7 +4,7 @@ Five seats, spread out for room.
 
 ## Bets
 
-Ante, plus the Flush, Straight Flush and £1 Jackpot side bets.
+Ante, plus the Flush, Straight Flush and £1 Jackpot side bets. The Ante is the main bet for the table's limits.
 
 ## The deal
 

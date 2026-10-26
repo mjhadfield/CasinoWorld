@@ -59,9 +59,10 @@ from casino_server.slots import base as slot_base
 from casino_server.slots.bonuses import expedition_auto, voyage_options
 from casino_server.slots.outcome import presentation_seconds
 from casino_server.tables import slot_machine as slots
-from casino_server.tables.base import TableError, say
+from casino_server.tables.base import DEFAULT_LIMITS, TableError, say
 from casino_server.world import Entity
 
+MIN_HANDS = 3          # NPCs sit at a card table only if they can cover its minimum this many times
 MIN_CRAPS_NPCS = 2
 CRAPS_TOP_UP_AFTER = 20.0   # seconds the craps table can be short before an idle NPC is sent over
 FALLBACK_LOOK = "player_default"
@@ -82,6 +83,11 @@ def reserved_seats(game: str, n: int) -> set[int]:
     if game == cr.GAME_KEY:
         return {n // 2 - 2, n - 2}
     return {n // 2} if n % 2 else {n // 2 - 1, n // 2}
+
+
+def _table_min(m) -> int:
+    """A card table's main-bet minimum (0 at a table without limits: Roulette, Craps, a slot)."""
+    return m.limits["main"][0] if getattr(m, "LIMITED", False) else 0
 
 
 def _open_seats(machine) -> list[int]:
@@ -360,6 +366,8 @@ class NpcDirector:
                         return True
                 continue
             for table_id, runner in options:
+                if _table_min(runner.machine) * MIN_HANDS > npc.bankroll:   # (a card table they can't afford)
+                    continue
                 free = [s for s in _open_seats(runner.machine) if (table_id, s) not in claimed]
                 if free:
                     npc.table, npc.seat = table_id, self.rng.choice(free)
@@ -679,6 +687,11 @@ class NpcDirector:
                     return self._leave_table(npc, now, "npcs_off")
                 bets = self._choose_bets(npc, m.game, m)
                 if bets is None:
+                    if npc.bankroll >= 100:   # they can't cover this table's minimum: somewhere cheaper
+                        npc.snubbed = npc.table
+                        npc.seat_attempts = 0
+                        npc.plan.insert(0, "play")
+                        return self._leave_table(npc, now)
                     return self._leave_table(npc, now, "bust")
                 try:
                     npc.round_start = npc.bankroll
@@ -1153,24 +1166,29 @@ class NpcDirector:
     # ------------------------------------------------------------------ choosing bets
     def _choose_bets(self, npc: Npc, game: str = tcp.GAME_KEY, m=None) -> dict | None:
         """This round's bets at a card table: the main bet at their unit (dropping to what
-        they can afford, side bets first), side bets by appetite. None: they can't afford £1."""
-        unit = self._unit(npc, m)
-        tries = [u for u in sorted({unit, roster.nice_unit(unit / 2), 500, 100}, reverse=True) if u <= unit]
+        they can afford, side bets first), side bets by appetite, all within the table's limits (up to the
+        minimum, down to the maximum). None: they can't afford the minimum."""
+        limits = getattr(m, "limits", None) or DEFAULT_LIMITS
+        low, high = limits["main"]
+        unit = max(low, min(self._unit(npc, m), high))
+        tries = [u for u in sorted({unit, roster.nice_unit(unit / 2), 500, 100, low}, reverse=True) if low <= u <= unit]
         for u in tries:
             for with_sides in (True, False):
-                bets, need = self._bets_for(npc, game, u, with_sides)
+                bets, need = self._bets_for(npc, game, u, with_sides, limits["side"])
                 if need <= npc.bankroll:
                     return bets
         return None
 
-    def _bets_for(self, npc: Npc, game: str, u: int, with_sides: bool) -> tuple[dict, int]:
-        """(bets, what they could cost in all) at one unit."""
+    def _bets_for(self, npc: Npc, game: str, u: int, with_sides: bool,
+                  sides: tuple = DEFAULT_LIMITS["side"]) -> tuple[dict, int]:
+        """(bets, what they could cost in all) at one unit, side bets within `sides` (min, max)."""
         r = self.rng
 
         def side(base: float) -> int:   # their share of the main bet, a few pounds at least, never more than it
             if not with_sides or not self._side(npc, base):
                 return 0
-            return min(u, roster.nice_unit(max(u * npc.prof.side_share * r.uniform(0.8, 1.25), r.choice([100, 200, 500]))))
+            v = min(u, roster.nice_unit(max(u * npc.prof.side_share * r.uniform(0.8, 1.25), r.choice([100, 200, 500]))))
+            return 0 if v < sides[0] else min(v, sides[1])   # (less than the minimum: they leave it)
 
         def flat(bet: int, base: float) -> int:
             return bet if with_sides and self._side(npc, base) else 0

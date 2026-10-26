@@ -151,6 +151,7 @@ class BlackjackMachine(TableMachine):
     label = bj.GAME_LABEL
     SPOTS = SPOTS
     MAIN_SPOT = "bet"
+    LIMITED = True
     FLAT_SPOTS = {"jackpot": bj.JACKPOT_BET}
     NEEDS_MAIN = "Side bets need a Blackjack bet alongside them."
     CANT_COVER = "Not enough balance for that."

@@ -375,6 +375,18 @@ function text(value, set, max = 40) { return el("input", { value, maxLength: max
 function choose(value, options, set) {
   return el("select", { onchange: e => edit(() => set(e.target.value)) }, ...options.map(([v, t]) => el("option", { value: v, textContent: t, selected: v === value })));
 }
+// A card table's limits (plan.py's _clean_limits): main and side bets, each a minimum and maximum in whole pounds.
+// A table with none set shows the defaults; changing either row stores both.
+const DEFAULT_LIMITS = { main: [500, 50000], side: [100, 5000] };
+function limitRows(it) {
+  const lim = () => it.props.limits || DEFAULT_LIMITS;
+  const pounds = (kind, i) => el("input", { type: "number", min: 1, max: 10000, step: 1, value: lim()[kind][i] / 100,
+    onchange: e => { const v = Math.round(+e.target.value); if (!(v >= 1)) return;
+      edit(() => { const next = JSON.parse(JSON.stringify(lim())); next[kind][i] = v * 100; it.props.limits = next; }); } });
+  const pair = kind => el("span", { className: "pl-pair" }, el("span", { textContent: "£" }), pounds(kind, 0),
+    el("span", { textContent: "to £" }), pounds(kind, 1));
+  return [field("Main bets", pair("main")), field("Side bets", pair("side"))];
+}
 function colour(value, set) { return el("input", { type: "color", value, onchange: e => edit(() => set(e.target.value)) }); }
 /** A texture's tint (multiplied in, so white is none): the colour, and None to take it off. */
 function tint(value, set) {
@@ -449,6 +461,7 @@ function refreshInspector() {
       if (rots.length > 1) rows.push(field("Turned", choose(String(it.rot || 0), rots.map(d => [String(d), d ? `${d}°` : "Upright"]), v => { turnTo(it, +v); })));
       if (G.CAT.games[it.asset.slice(6)].at["0"].sign)
         rows.push(field("Sign", choose(G.signSide(it), ["right", "left"].map(side => [side, signEnd(it, side)]), v => { it.props.sign = v; })));
+      if (!["table:roulette", "table:craps"].includes(it.asset)) rows.push(...limitRows(it));
       if (it.asset === "table:master_table") {   // how it changes from one game to another (tables/master.py)
         rows.push(field("Changes with", choose(it.props.anim || "cloth", [["cloth", "Fresh cloth"], ["sweep", "Dealer's sweep"], ["dust", "Gold dust"]],
           v => { it.props.anim = v; })));
@@ -1028,6 +1041,8 @@ const CSS = `
   .pl-palette img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated; }
   .pl-swatch { width: 18px; height: 18px; border-radius: 4px; flex: none; }
   .pl-tint { display: flex; gap: 6px; align-items: center; }
+  .pl-pair { display: flex; gap: 4px; align-items: center; }
+  .pl-pair input { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
   .pl-tint input { flex: 1; min-width: 0; }
   .pl-field { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 6px; align-items: center; font-size: var(--fs-s); color: var(--fg-muted); }
   .pl-field input, .pl-field select { width: 100%; min-width: 0; }

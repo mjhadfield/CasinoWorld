@@ -125,6 +125,7 @@ func _settled() -> CasinoTable:
 	t.is_master = true
 	t.master_game = to_table.master_game
 	t.game_label = to_table.game_label
+	t.limits = to_table.limits
 	if "face_up" in to_table:
 		t.set("face_up", to_table.get("face_up"))
 	return t
@@ -145,8 +146,9 @@ func _ghost(t: CasinoTable) -> void:
 	var lights := t.get_node_or_null("Felt/Lights") as CanvasItem
 	if lights:
 		lights.visible = false
-	if t.jackpot_sign:   # (the new table's stands in the same place, on or off for its game)
+	if t.jackpot_sign:   # (the new table's stand in the same places, the jackpot sign on or off for its game)
 		t.jackpot_sign.visible = false
+		t.limits_sign.visible = false
 	t.remove_from_group("navigation_obstacles")
 	t.remove_from_group("tables")
 	for n in t.find_children("*", "CollisionPolygon2D", true, false) + t.find_children("*", "CollisionShape2D", true, false):
