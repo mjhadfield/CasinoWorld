@@ -7,6 +7,10 @@
 //            furniture), move, turn (R), duplicate (Ctrl+D), copy and paste, group (Ctrl+G: clicking any of them
 //            picks them all, Ctrl+click one on its own), delete; drag the walls to resize the room; doors and
 //            archways, floor patches, the NPCs' points and no-go zones; the inspector for whatever's picked.
+//            Layers: clicks pick what's drawn on top; Alt+click picks the next thing down, right-click lists all
+//            that's there. Floor patches, rugs and wall pieces stack in their lists' order (Ctrl+] / Ctrl+[, the
+//            Layers list down the side); standing things go by depth, as the game draws them. Lock keeps the canvas
+//            from picking a thing; Hide takes it out of the view while you work (not saved).
 //   Assets   the furniture library (assets.js).
 //
 // Every change is saved to the draft a moment later (undo and redo work across it); Preview opens the game on the
@@ -35,9 +39,12 @@ const S = {
   layers: { paths: true, reach: false, grid: savedGrid() },
   undo: [], redo: [], history: [], timer: null, edits: 0, saving: false, error: "",
   cam: { x: 0, y: 0, s: 0.5 }, mouse: null, drag: null, clip: null, search: "", tab: "Tables",
+  hover: null,                      // {t, i}: what a click would pick, or a row pointed at in Layers or the menu
+  side: savedSide(),                // the room's side panel: "pieces" (the palette) or "layers"
 };
 const SNAP = { item: 8, room: 32 };
 function savedGrid() { try { return localStorage.getItem("plan.grid") === "1"; } catch { return false; } }
+function savedSide() { try { return localStorage.getItem("plan.side") === "layers" ? "layers" : "pieces"; } catch { return "pieces"; } }
 let app, canvas, ctx, reach = null;
 
 export async function load() {
@@ -100,9 +107,10 @@ async function save() {
   const sent = S.edits;
   refreshBar();
   try {
-    const view = await api("PUT", "/api/plan/draft", { ...S.draft, base_rev: S.rev });
+    const body = JSON.parse(JSON.stringify(S.draft, (k, v) => k === "_hidden" ? undefined : v));   // (hiding is the page's)
+    const view = await api("PUT", "/api/plan/draft", { ...body, base_rev: S.rev });
     take(view, false);
-    if (S.edits === sent) S.draft = view.draft;   // nothing changed meanwhile: the server's copy, with its ids
+    if (S.edits === sent) { keepHidden(S.draft, view.draft); S.draft = view.draft; }   // nothing changed meanwhile: the server's copy, with its ids
     else adoptIds(view.draft);
     S.error = "";
   } catch (e) {
@@ -113,13 +121,28 @@ async function save() {
   refresh();
 }
 
-/** The ids the server gave things saved while more edits came in (by place in the lists: nothing reorders them). */
+/** The ids the server gave things saved while more edits came in. An item takes the id of the server's item in
+ *  its place in the list, or (restacking moves them) of one of its asset where it stands, never one in use. */
 function adoptIds(server) {
   S.draft.rooms.forEach((r, i) => {
     const sr = server.rooms[i];
     if (!sr) return;
     if (!r.id) r.id = sr.id;
-    for (const k of ["items", "doors"]) r[k].forEach((x, j) => { if (!x.id && sr[k][j] && (k === "doors" || sr[k][j].asset === x.asset)) x.id = sr[k][j].id; });
+    const used = new Set(r.items.map(x => x.id).filter(Boolean)), free = y => y && y.id && !used.has(y.id);
+    r.items.forEach((x, j) => {
+      if (x.id) return;
+      const y = [sr.items[j]].find(y => free(y) && y.asset === x.asset) || sr.items.find(y => free(y) && y.asset === x.asset && y.x === x.x && y.y === x.y);
+      if (y) { x.id = y.id; used.add(y.id); }
+    });
+    r.doors.forEach((x, j) => { if (!x.id && sr.doors[j]) x.id = sr.doors[j].id; });
+  });
+}
+
+/** What's hidden in the page's draft, hidden in the server's copy of it too (the lists are in the same order). */
+function keepHidden(from, to) {
+  from.rooms.forEach((r, i) => {
+    const t = to.rooms[i];
+    if (t) for (const k of GROUPABLE) listsOf(r)[k].forEach((o, j) => { const o2 = listsOf(t)[k][j]; if (o._hidden && o2) o2._hidden = true; });
   });
 }
 
@@ -145,7 +168,8 @@ function build() {
   canvas.addEventListener("pointercancel", up);
   canvas.addEventListener("wheel", wheel, { passive: false });
   canvas.addEventListener("dblclick", dbl);
-  canvas.addEventListener("contextmenu", e => { e.preventDefault(); S.placing = null; S.tool = "select"; refresh(); });
+  canvas.addEventListener("pointerleave", () => { if (S.hover && !S.drag) { S.hover = null; draw(); } });
+  canvas.addEventListener("contextmenu", e => { e.preventDefault(); if (S.placing || S.tool !== "select") { S.placing = null; S.tool = "select"; refresh(); } });
   canvas.addEventListener("dragover", e => e.preventDefault());
   canvas.addEventListener("drop", e => {
     e.preventDefault();
@@ -168,9 +192,11 @@ const room = () => S.draft.rooms[S.room];
 const placed = () => S.draft.rooms.filter(r => r.placed);
 
 function setMode(mode, roomIndex = S.room) {
+  closeMenu();
   S.mode = mode;
   S.room = roomIndex;
   S.sel = [];
+  S.hover = null;
   S.placing = null;
   S.tool = "select";
   $(".pl-main").hidden = mode === "assets";
@@ -306,11 +332,23 @@ function refreshSide() {
       el("p", { className: "hint", textContent: "Drag a room to move it; doorways that meet show green. Double-click a room to edit it." }));
     return;
   }
+  const scroller = side.closest(".pb") || side, scrolled = scroller.scrollTop;   // (it's built afresh: keep its place)
+  const sideTab = (id, text) => el("button", { className: S.side === id ? "on" : "", textContent: text, onclick: () => {
+    S.side = id; try { localStorage.setItem("plan.side", id); } catch {} refreshSide(); } });
+  const tabsBar = el("div", { className: "seg pl-sidetabs" }, sideTab("pieces", "Pieces"), sideTab("layers", "Layers"));
+  if (S.side === "layers") {
+    side.replaceChildren(tabsBar, ...layersList(room()));
+    scroller.scrollTop = scrolled;
+    const key = JSON.stringify(S.sel), row = side.querySelector(".pl-layer-row.on");
+    if (row && key !== S.listedSel) row.scrollIntoView({ block: "nearest" });   // (a new pick shows in the list)
+    S.listedSel = key;
+    return;
+  }
   // the palette
   const entries = palette(), tabs = [...new Set(entries.map(e => e.cat))];
   if (!tabs.includes(S.tab)) S.tab = tabs[0];
   const q = S.search.toLowerCase(), shown = entries.filter(e => q ? e.name.toLowerCase().includes(q) : e.cat === S.tab);
-  side.replaceChildren(
+  side.replaceChildren(tabsBar,
     el("input", { type: "search", placeholder: "Search pieces", value: S.search, oninput: e => { S.search = e.target.value; refreshSide(); $("#pl-side input").focus(); } }),
     el("div", { className: "pl-cats" }, ...tabs.map(t => el("button", { className: t === S.tab && !q ? "on" : "", textContent: t, onclick: () => { S.tab = t; S.search = ""; refreshSide(); } }))),
     el("div", { className: "pl-palette" }, ...shown.map(e => {
@@ -345,6 +383,7 @@ function refreshTools() {
   const layer = (k, text) => el("label", { className: "pl-check" }, el("input", { type: "checkbox", checked: S.layers[k], onchange: e => {
     S.layers[k] = e.target.checked;
     if (k === "grid") try { localStorage.setItem("plan.grid", e.target.checked ? "1" : "0"); } catch {}
+    if (k === "paths") refreshSide();   // (the Layers list shows points and zones only with them)
     draw();
   } }), text);
   const zoom = (f, text) => el("button", { textContent: text, onclick: () => { const c = center(); zoomAt(c, f); } });
@@ -362,6 +401,8 @@ function refreshTools() {
     S.tool === "point" ? el("select", { onchange: e => { S.pointKind = e.target.value; } }, ...G.CAT.point_kinds.map(k => el("option", { value: k, textContent: k, selected: k === S.pointKind }))) : null,
     S.tool === "zone" ? el("select", { onchange: e => { S.zoneKind = e.target.value; } }, ...G.CAT.zone_kinds.map(k => el("option", { value: k, textContent: k === "npc_block" ? "NPCs keep out" : "Everyone keeps out", selected: k === S.zoneKind }))) : null,
     el("span", { className: "pl-grow" }),
+    hiddenCount(room()) ? el("button", { className: "pl-hidden", textContent: `${hiddenCount(room())} hidden · Show all`, title: "Hidden here while you work (they're still in the game)",
+                                     onclick: () => { GROUPABLE.forEach(k => listsOf(room())[k].forEach(o => { delete o._hidden; })); refresh(); } }) : null,
     layer("grid", "Show grid"), layer("paths", "Points & zones"), layer("reach", "Where NPCs can walk"),
     zoom(1.25, "+"), zoom(0.8, "−"), el("button", { textContent: "Fit", onclick: () => { fitRoom(); draw(); } })].filter(Boolean));
 }
@@ -455,7 +496,9 @@ function refreshInspector() {
                        disabled: one || loose + groups.size < 2 }),
         groups.size ? el("button", { textContent: "Ungroup", title: "Ctrl+Shift+G", onclick: ungroupSelected }) : null,
         el("button", { textContent: "Duplicate", title: "Ctrl+D (doors stay put)", onclick: duplicateSelected }),
-        el("button", { className: "danger", textContent: "Delete them", onclick: removeSelected })));
+        ...flagButtons(r),
+        el("button", { className: "danger", textContent: "Delete them", onclick: removeSelected })),
+      ...[layerRow(r)].filter(Boolean));
     return;
   }
   const { t, i } = S.sel[0];
@@ -463,7 +506,9 @@ function refreshInspector() {
   const del = el("div", { className: "pl-buttons" },
     objOf(r, S.sel[0]).group ? el("button", { textContent: "Leave the group", title: "It's in a group (Ctrl+click picked it on its own): take it out", onclick: ungroupSelected }) : null,
     t !== "door" ? el("button", { textContent: "Duplicate", title: "Ctrl+D", onclick: duplicateSelected }) : null,
+    ...flagButtons(r),
     el("button", { className: "danger", textContent: "Delete", onclick: removeSelected }));
+  const tail = [layerRow(r), del].filter(Boolean);   // (under each inspector's fields)
   if (t === "item") {
     const it = r.items[i], kind = G.kindOf(it.asset), rows = [];
     rows.push(field("Across", num(it.x, v => { it.x = v; })), field("Down", num(it.y, v => { it.y = v; })));
@@ -492,7 +537,7 @@ function refreshInspector() {
         it.props.look = v; const n = S.npcs.find(n => n.look_id === v); if (n && !it.props.name) it.props.name = n.name; })));
       rows.push(field("Name", text(it.props.name, v => { it.props.name = v; }, 24)));
     }
-    ins.replaceChildren(...head(G.label(it), it.id ? `id ${it.id}` : "new: saved in a moment"), ...rows, del);
+    ins.replaceChildren(...head(G.label(it), it.id ? `id ${it.id}` : "new: saved in a moment"), ...rows, ...tail);
   } else if (t === "point") {
     const p = r.paths.points[i];
     ins.replaceChildren(...head("Point " + p.name, { spawn: "Players appear here.", arrival: "NPCs come in (and leave) here.", wander: "NPCs wander here between games." }[p.kind]),
@@ -500,19 +545,19 @@ function refreshInspector() {
       field("Kind", choose(p.kind, G.CAT.point_kinds.map(k => [k, k]), v => { p.kind = v; })),
       field("Weight", num(p.weight, v => { p.weight = v; }, { min: 0, max: 100, step: 0.5 })),
       field("Linger (s)", num(p.linger, v => { p.linger = v; }, { min: 0, max: 600 })),
-      field("Across", num(p.x, v => { p.x = v; })), field("Down", num(p.y, v => { p.y = v; })), del);
+      field("Across", num(p.x, v => { p.x = v; })), field("Down", num(p.y, v => { p.y = v; })), ...tail);
   } else if (t === "zone") {
     const z = r.paths.zones[i];
     ins.replaceChildren(...head("No-go zone", "Drag its edges or corners to resize it (Shift for free)."),
       field("Keeps out", choose(z.kind, [["npc_block", "NPCs (players walk through)"], ["block", "Everyone"]], v => { z.kind = v; })),
       field("Across", num(z.x, v => { z.x = v; })), field("Down", num(z.y, v => { z.y = v; })),
-      field("Width", num(z.w, v => { z.w = v; })), field("Height", num(z.h, v => { z.h = v; })), del);
+      field("Width", num(z.w, v => { z.w = v; })), field("Height", num(z.h, v => { z.h = v; })), ...tail);
   } else if (t === "door") {
     const d = r.doors[i];
     ins.replaceChildren(...head(d.kind === "door" ? "Door" : "Archway", `In the ${d.side} wall. It joins the room whose wall meets it there; with none, it stays shut.`),
       field("Kind", choose(d.kind, [["door", "Door (shut till someone's by)"], ["archway", "Archway (open)"]], v => { d.kind = v; })),
       field("Width", num(d.width, v => { d.width = v; }, { min: 40, max: 600, step: 8 })),
-      field("Along", num(d.at, v => { d.at = v; })), del);
+      field("Along", num(d.at, v => { d.at = v; })), ...tail);
   } else if (t === "patch") {
     const p = r.patches[i];
     for (const [k, v] of Object.entries(newPatch({}))) if (p[k] === undefined) p[k] = structuredClone(v);   // (made before patches had a look)
@@ -532,7 +577,7 @@ function refreshInspector() {
         field("Border colour", colour(bor.colour, v => { bor.colour = v; })),
         field("Border width", num(bor.width, v => { bor.width = v; }, { min: 1, max: 64 }))]),
       field("Across", num(p.x, v => { p.x = v; })), field("Down", num(p.y, v => { p.y = v; })),
-      field("Width", num(p.w, v => { p.w = v; })), field("Height", num(p.h, v => { p.h = v; })), del);
+      field("Width", num(p.w, v => { p.w = v; })), field("Height", num(p.h, v => { p.h = v; })), ...tail);
   }
 }
 
@@ -614,14 +659,15 @@ function draw() {
   if (S.layers.reach) { reach = reach || G.npcReach(placed()); drawReach(ctx, reach); }
   for (const r of rooms) {
     const bad = r === cur ? new Set(G.roomProblems(r).map(p => p.i)) : new Set();
-    // As the game layers them: rugs and other flat pieces on the floor (in the order placed), then what hangs on the
-    // wall, then everything standing, nearest last.
-    const layer = it => ({ flat: 0, wall: 1 }[(G.piece(it.asset) || {}).mount] ?? 2);
-    const order = r.items.map((it, i) => [i, it]).sort((a, b) => layer(a[1]) - layer(b[1]) || (layer(a[1]) ? a[1].y - b[1].y : a[0] - b[0]));
-    for (const [i, it] of order) drawItem(ctx, r, it, { picked: r === cur && S.sel.some(s => s.t === "item" && s.i === i), bad: bad.has(i) });
+    for (const i of stack(r).reverse()) {   // (bottom first: as the game layers them)
+      const it = r.items[i];
+      if (!it._hidden) drawItem(ctx, r, it, { picked: r === cur && S.sel.some(s => s.t === "item" && s.i === i), bad: bad.has(i) });
+    }
     if (r === cur && S.layers.paths) drawPaths(ctx, r, { point: pickedIndex("point"), zone: pickedIndex("zone") });
   }
   if (cur && S.layers.grid) overlayGrid(cur);
+  if (cur && S.hover && objOf(cur, S.hover) && !S.sel.some(s => s.t === S.hover.t && s.i === S.hover.i))   // what a click would pick
+    for (const q of boundsOf(cur, S.hover)) outlineRect(G.grow(q, 2 / S.cam.s), "#7fe3ff", 1.5, [3, 3]);
   if (cur) {
     S.sel.filter(s => s.t === "door").forEach(s => { const d = cur.doors[s.i]; if (d) outlineRect(G.gap(cur, d), "#ffd36b"); });
     S.sel.filter(s => s.t === "patch").forEach(s => { const p = cur.patches[s.i]; if (p) outlineRect([cur.x + p.x, cur.y + p.y, p.w, p.h], "#ffd36b"); });
@@ -810,12 +856,250 @@ function ungroupSelected() {
   edit(() => { S.sel.forEach(s => { delete objOf(r, s).group; }); tidyGroups(r); });
 }
 
-/** Where a thing is on the plan, for the box round its group. */
-function boundsOf(r, s) {
-  const o = objOf(r, s);
-  if (s.t === "item") { const sh = G.shapes(r, o); return sh ? G.covers(sh) : []; }
-  if (s.t === "point") return [[r.x + o.x - 10, r.y + o.y - 10, 20, 20]];
+/** Where a thing is on the plan, for the box round its group: rects. */
+function boundsOf(r, s) { return rectsOf(r, s.t, objOf(r, s)); }
+function rectsOf(r, t, o) {
+  if (t === "item") { const sh = G.shapes(r, o); return sh ? G.covers(sh) : []; }
+  if (t === "point") return [[r.x + o.x - 10, r.y + o.y - 10, 20, 20]];
+  if (t === "door") return [G.gap(r, o)];
   return [[r.x + o.x, r.y + o.y, o.w, o.h]];
+}
+
+// ---------------------------------------------------------------- layers: what's on top, and arranging the stacks
+// The game draws a room's floor patches in their list's order, then rugs and other flat pieces in the items' order,
+// then wall pieces in the items' order, then everything standing by depth, nearest last (plan_room.gd). The first
+// three can be restacked; standing things can't (move one down the room to bring it in front).
+
+/** How an item stacks: "flat" (rugs, on the floor), "wall" (hung on it) or "stand" (by depth). */
+const layerOf = it => ({ flat: "flat", wall: "wall" }[(G.piece(it.asset) || {}).mount] || "stand");
+
+/** The room's items, top first: standing ones nearest first, then wall pieces, then rugs, last in the list first. */
+function stack(r) {
+  const rank = { stand: 0, wall: 1, flat: 2 };
+  return r.items.map((it, i) => [i, it, layerOf(it)])
+    .sort((a, b) => rank[a[2]] - rank[b[2]] || (a[2] === "stand" ? b[1].y - a[1].y : 0) || b[0] - a[0]).map(([i]) => i);
+}
+
+/** The stack a picked thing can be rearranged in: "patch", "flat", "wall", or null (standing, a point, a zone, a door). */
+function stackOf(r, s) {
+  if (s.t === "patch") return "patch";
+  return s.t === "item" && layerOf(r.items[s.i]) !== "stand" ? layerOf(r.items[s.i]) : null;
+}
+/** Stack k's things, bottom first. */
+const stackList = (r, k) => k === "patch" ? r.patches.slice() : r.items.filter(it => layerOf(it) === k);
+/** Put stack k in the order `objs` (bottom first); everything else keeps its place in its list. */
+function setStack(r, k, objs) {
+  if (k === "patch") { r.patches.splice(0, r.patches.length, ...objs); return; }
+  let n = 0;
+  r.items.forEach((it, i) => { if (layerOf(it) === k) r.items[i] = objs[n++]; });
+}
+/** Run fn (which moves things round their lists), keeping the same things picked. */
+function keepPicks(r, fn) {
+  const picked = S.sel.map(s => [s.t, objOf(r, s)]);
+  fn();
+  S.sel = picked.map(([t, o]) => ({ t, i: listsOf(r)[t].indexOf(o) })).filter(s => s.i >= 0);
+  S.hover = null;
+}
+
+const LAYER_CMDS = [["front", "Bring to front", "Ctrl+Shift+]", "⤒"], ["forward", "Bring forward", "Ctrl+]", "↑"],
+                    ["backward", "Send backward", "Ctrl+[", "↓"], ["back", "Send to back", "Ctrl+Shift+[", "⤓"]];
+
+/** Move what's picked up or down its stack (each in its own). Forward and backward go past the next thing that
+ *  overlaps it, skipping those that don't (moving past them would change nothing you can see). */
+function restack(dir) {
+  const r = room();
+  if (!r) return;
+  const kinds = [...new Set(S.sel.map(s => stackOf(r, s)).filter(Boolean))];
+  if (!kinds.length) {
+    if (S.sel.length) status("Standing things are drawn by depth, as in the game: move one down the room to bring it in front.", "ok");
+    return;
+  }
+  const picked = new Set(S.sel.map(s => objOf(r, s)));
+  const touch = (t, a, b) => rectsOf(r, t, a).some(x => rectsOf(r, t, b).some(y => G.overlap(x, y)));
+  const next = kinds.map(k => {
+    const t = k === "patch" ? "patch" : "item", list = stackList(r, k), was = list.slice();
+    if (dir === "front" || dir === "back") {
+      const mine = list.filter(o => picked.has(o)), rest = list.filter(o => !picked.has(o));
+      list.splice(0, list.length, ...(dir === "front" ? [...rest, ...mine] : [...mine, ...rest]));
+    } else {
+      const up = dir === "forward", order = list.filter(o => picked.has(o));
+      if (up) order.reverse();   // (the one nearest where they're going first, so they don't jump each other)
+      for (const o of order) {
+        const j = list.indexOf(o);
+        for (let n = j + (up ? 1 : -1); n >= 0 && n < list.length; n += up ? 1 : -1)
+          if (!picked.has(list[n]) && touch(t, o, list[n])) { list.splice(j, 1); list.splice(n, 0, o); break; }
+      }
+    }
+    return [k, list, list.some((o, n) => o !== was[n])];
+  });
+  if (!next.some(x => x[2])) {
+    status({ front: "Already at the front.", back: "Already at the back.", forward: "Already in front of everything it overlaps.",
+             backward: "Already behind everything it overlaps." }[dir], "ok");
+    return;
+  }
+  edit(() => keepPicks(r, () => next.forEach(([k, list]) => setStack(r, k, list))));
+}
+
+/** Move `o` in stack k to just above (or below) `target`: a row dragged in the Layers list. */
+function moveInStack(r, k, o, target, above) {
+  const list = stackList(r, k).filter(x => x !== o), n = list.indexOf(target);
+  if (n < 0) return;
+  list.splice(above ? n + 1 : n, 0, o);   // (bottom first: above is after)
+  if (list.every((x, j) => x === stackList(r, k)[j])) return;
+  edit(() => keepPicks(r, () => setStack(r, k, list)));
+}
+
+/** The inspector's Layer row: the four moves, or why a standing thing has none. */
+function layerRow(r) {
+  if (S.sel.some(s => stackOf(r, s)))
+    return field("Layer", el("span", { className: "pl-layer" }, ...LAYER_CMDS.map(([dir, text, keys, glyph]) =>
+      el("button", { className: "sq", textContent: glyph, title: `${text} (${keys})`, onclick: () => restack(dir) }))));
+  if (S.sel.some(s => s.t === "item")) return el("p", { className: "hint", textContent: "Drawn by depth, as in the game: move it down the room to bring it in front." });
+  return null;
+}
+
+/** Lock and Hide for what's picked (not doors). */
+function flagButtons(r) {
+  const objs = S.sel.filter(s => s.t !== "door").map(s => objOf(r, s));
+  if (!objs.length) return [];
+  const locked = objs.every(o => o.locked), hidden = objs.every(o => o._hidden);
+  return [el("button", { textContent: locked ? "Unlock" : "Lock", onclick: () => setLocked(objs, !locked),
+                         title: "Locked, the canvas doesn't pick or drag it (clicks go through to what's under it); pick it in Layers" }),
+          el("button", { textContent: hidden ? "Show" : "Hide", onclick: () => setHidden(objs, !hidden),
+                         title: "Hide it here while you work (it's still in the game; it's back when the page reloads)" })];
+}
+function setLocked(objs, on) { edit(() => objs.forEach(o => { if (on) o.locked = true; else delete o.locked; })); }
+function setHidden(objs, on) { objs.forEach(o => { if (on) o._hidden = true; else delete o._hidden; }); S.hover = null; refresh(); }
+const hiddenCount = r => r ? GROUPABLE.reduce((n, k) => n + listsOf(r)[k].filter(o => o._hidden).length, 0) : 0;
+
+/** A thing's name in Layers and the menu. */
+function describe(r, s) {
+  const o = objOf(r, s);
+  if (s.t === "item") { const t = G.label(o).replace(/^the /, ""); return t[0].toUpperCase() + t.slice(1); }
+  if (s.t === "patch") return `Patch ${s.i + 1} · ${(G.CAT.floors[o.texture] || {}).name || o.texture}`;
+  if (s.t === "zone") return `Zone ${s.i + 1} · ${o.kind === "block" ? "everyone keeps out" : "NPCs keep out"}`;
+  if (s.t === "point") return `Point ${o.name} (${o.kind})`;
+  return `${o.kind === "door" ? "Door" : "Archway"} in the ${o.side} wall`;
+}
+
+/** Centre the view on a thing (double-click its row). */
+function centreOn(r, s) {
+  const rs = boundsOf(r, s);
+  if (!rs.length) return;
+  const x0 = Math.min(...rs.map(q => q[0])), y0 = Math.min(...rs.map(q => q[1]));
+  const cx = (x0 + Math.max(...rs.map(q => q[0] + q[2]))) / 2, cy = (y0 + Math.max(...rs.map(q => q[1] + q[3]))) / 2;
+  S.cam.x = cx - canvas.clientWidth / 2 / S.cam.s; S.cam.y = cy - canvas.clientHeight / 2 / S.cam.s;
+  draw();
+}
+
+/** Pick s from a list (Layers): as a click on the canvas would, Shift adding and Ctrl taking it out of its group. */
+function pickFromList(r, s, e) {
+  const unit = e.ctrlKey || e.metaKey ? [s] : withGroups(r, [s]), inUnit = x => unit.some(u => u.t === x.t && u.i === x.i);
+  const already = S.sel.some(x => x.t === s.t && x.i === s.i);
+  S.sel = e.shiftKey ? (already ? S.sel.filter(x => !inUnit(x)) : [...S.sel.filter(x => !inUnit(x)), ...unit]) : unit;
+  refresh();
+}
+
+/** The Layers list: everything in the room, top of the stack first, in sections. Rugs, wall pieces and patches
+ *  drag up and down their sections to restack. */
+function layersList(r) {
+  if (!r) return [];
+  const rev = n => [...Array(n).keys()].reverse(), paths = S.layers.paths, byLayer = k => stack(r).filter(i => layerOf(r.items[i]) === k);
+  const sections = [
+    ["Doors", "", null, rev(r.doors.length).map(i => ({ t: "door", i }))],
+    ["Points", "", null, paths ? rev(r.paths.points.length).map(i => ({ t: "point", i })) : []],
+    ["Standing", "by depth: nearest in front", null, byLayer("stand").map(i => ({ t: "item", i }))],
+    ["On the wall", "drag to restack", "wall", byLayer("wall").map(i => ({ t: "item", i }))],
+    ["On the floor", "rugs: drag to restack", "flat", byLayer("flat").map(i => ({ t: "item", i }))],
+    ["No-go zones", "", null, paths ? rev(r.paths.zones.length).map(i => ({ t: "zone", i })) : []],
+    ["Floor patches", "drag to restack", "patch", rev(r.patches.length).map(i => ({ t: "patch", i }))]];
+  const out = [];
+  for (const [title, hint, k, rows] of sections) {
+    if (!rows.length) continue;
+    out.push(el("h3", {}, title, hint ? el("span", { className: "pl-h3-hint", textContent: " · " + hint }) : null));
+    out.push(el("div", { className: "pl-layers" }, ...rows.map(s => layerRowEl(r, s, k))));
+  }
+  if (!out.length) out.push(el("p", { className: "hint", textContent: "Nothing in this room yet." }));
+  else out.push(el("p", { className: "hint", textContent: "Click to pick (Shift adds, Ctrl picks one out of a group), double-click to find it. On the canvas, Alt+click picks what's under what's picked; right-click lists everything there." }));
+  return out;
+}
+
+const ICONS = {
+  eye: '<path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>',
+  shut: '<path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 13.5l11-11"/>',
+  lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>',
+  open: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 014.8-1"/>',
+};
+function icon(name) {
+  const s = el("span", { className: "pl-ico" });
+  s.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+  return s;
+}
+
+function layerRowEl(r, s, k) {
+  const o = objOf(r, s), on = S.sel.some(x => x.t === s.t && x.i === s.i);
+  const row = el("div", { className: "pl-layer-row" + (on ? " on" : "") + (o._hidden ? " off" : ""), draggable: !!k,
+    onpointerenter: () => { S.hover = s; draw(); }, onpointerleave: () => { S.hover = null; draw(); } },
+    k ? el("span", { className: "pl-grip", textContent: "⋮⋮", title: "Drag to restack" }) : null,
+    el("button", { className: "pl-layer-name", textContent: describe(r, s), title: describe(r, s),
+                   onclick: e => pickFromList(r, s, e), ondblclick: () => centreOn(r, s) }),
+    o.group ? el("span", { className: "pl-tag", textContent: o.group, title: "In group " + o.group }) : null,
+    s.t !== "door" ? el("button", { className: "pl-flag" + (o._hidden ? " set" : ""), title: o._hidden ? "Show it" : "Hide it here while you work",
+                                    onclick: () => setHidden([o], !o._hidden) }, icon(o._hidden ? "shut" : "eye")) : null,
+    s.t !== "door" ? el("button", { className: "pl-flag" + (o.locked ? " set" : ""), title: o.locked ? "Unlock it" : "Lock it: the canvas won't pick or drag it",
+                                    onclick: () => setLocked([o], !o.locked) }, icon(o.locked ? "lock" : "open")) : null);
+  if (!k) return row;
+  row.addEventListener("dragstart", e => { S.rowDrag = { k, o }; e.dataTransfer.setData("application/x-plan-layer", "1"); e.dataTransfer.effectAllowed = "move"; });
+  row.addEventListener("dragend", () => { S.rowDrag = null; });
+  row.addEventListener("dragover", e => {
+    if (!S.rowDrag || S.rowDrag.k !== k || S.rowDrag.o === o) return;
+    e.preventDefault();
+    const above = e.clientY - row.getBoundingClientRect().top < row.offsetHeight / 2;   // (over the top half: above it)
+    row.classList.toggle("drop-above", above); row.classList.toggle("drop-below", !above);
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drop-above", "drop-below"));
+  row.addEventListener("drop", e => {
+    e.preventDefault();
+    const d = S.rowDrag, above = row.classList.contains("drop-above");
+    row.classList.remove("drop-above", "drop-below");
+    S.rowDrag = null;
+    if (d && d.k === k) moveInStack(r, k, d.o, o, above);
+  });
+  return row;
+}
+
+// ---------------------------------------------------------------- the right-click menu: everything under the pointer
+function closeMenu() { const m = document.getElementById("pl-menu"); if (m) m.remove(); }
+
+function openMenu(e, p) {
+  closeMenu();
+  const r = room();
+  if (!r) return;
+  const all = hitAll(p, { locked: true });   // (locked things too: picking one here is on purpose)
+  const isPicked = h => S.sel.some(s => s.t === h.t && s.i === h.i);
+  const top = hitAll(p)[0];   // (the moves are for what's picked there, or else what's on top)
+  if (top && !all.some(isPicked)) { S.sel = withGroups(r, [top]); refresh(); }
+  const canStack = S.sel.some(s => stackOf(r, s));
+  const menu = el("div", { className: "pl-menu", id: "pl-menu", oncontextmenu: ev => ev.preventDefault() },
+    el("div", { className: "pl-menu-head", textContent: all.length ? "Here, top first" : "Nothing here" }),
+    ...all.map(h => el("button", { className: "pl-menu-row" + (isPicked(h) ? " on" : ""),
+        onclick: () => { closeMenu(); S.sel = [h]; refresh(); },
+        onpointerenter: () => { S.hover = h; draw(); }, onpointerleave: () => { S.hover = null; draw(); } },
+      el("span", { className: "pl-menu-tick", textContent: isPicked(h) ? "✓" : "" }), el("span", { textContent: describe(r, h) }),
+      objOf(r, h).locked ? icon("lock") : null)),
+    canStack ? el("div", { className: "pl-menu-sep" }) : null,
+    ...(canStack ? LAYER_CMDS.map(([dir, text, keys, glyph]) => el("button", { className: "pl-menu-row", onclick: () => { closeMenu(); restack(dir); } },
+      el("span", { className: "pl-menu-tick", textContent: glyph }), el("span", { textContent: text }), el("kbd", { textContent: keys }))) : []));
+  const stage = canvas.parentElement, b = stage.getBoundingClientRect();
+  stage.append(menu);
+  menu.style.left = Math.max(4, Math.min(e.clientX - b.left, b.width - menu.offsetWidth - 4)) + "px";
+  menu.style.top = Math.max(4, Math.min(e.clientY - b.top, b.height - menu.offsetHeight - 4)) + "px";
+  const away = ev => {   // (a press anywhere else closes it; once it's gone, by whatever way, this goes too)
+    if (document.getElementById("pl-menu") === menu && menu.contains(ev.target)) return;
+    if (document.getElementById("pl-menu") === menu) closeMenu();
+    document.removeEventListener("pointerdown", away, true);
+  };
+  setTimeout(() => document.addEventListener("pointerdown", away, true));
 }
 
 /** Resize a room by moving one wall to `to` (plan coordinates): what's inside stays where it is on the plan. */
@@ -860,6 +1144,7 @@ function patchEdge(r, p) {
   const picked = S.sel.filter(s => s.t === "patch").map(s => s.i);
   const order = [...picked, ...r.patches.map((_, i) => r.patches.length - 1 - i).filter(i => !picked.includes(i))];
   for (const i of order) {
+    if (r.patches[i].locked || r.patches[i]._hidden) continue;
     const sides = boxSides(r, r.patches[i], p);
     if (sides) return { i, sides };
   }
@@ -871,7 +1156,7 @@ function patchEdge(r, p) {
  *  standing on top (an item, a point, a door, a zone) beats those. */
 function grabAt(r, p) {
   if (S.layers.paths) for (const s of S.sel) {
-    const sides = s.t === "zone" && boxSides(r, r.paths.zones[s.i], p);
+    const z = s.t === "zone" && r.paths.zones[s.i], sides = z && !z.locked && !z._hidden && boxSides(r, z, p);
     if (sides) return { zone: { i: s.i, sides } };
   }
   const h = hit(p);
@@ -899,18 +1184,29 @@ function resizePatch(q, was, sides, to, free) {
   if (sides.includes("bottom")) q.h = Math.max(MIN, y - was.y);
 }
 
-function hit(p) {
+/** Everything under p, top first, as it's drawn: doors, points, the items (stack()), zones, patches. Hidden things
+ *  aren't there, nor locked ones unless opts.locked. */
+function hitAll(p, opts = {}) {
   const r = room();
-  if (!r) return null;
-  for (let i = r.doors.length - 1; i >= 0; i--) if (G.inside(p, G.grow(G.gap(r, r.doors[i]), 6 / S.cam.s))) return { t: "door", i };
+  if (!r) return [];
+  const out = [], ok = o => !o._hidden && (opts.locked || !o.locked);
+  for (let i = r.doors.length - 1; i >= 0; i--) if (G.inside(p, G.grow(G.gap(r, r.doors[i]), 6 / S.cam.s))) out.push({ t: "door", i });
   if (S.layers.paths) {
-    for (let i = r.paths.points.length - 1; i >= 0; i--) { const q = r.paths.points[i]; if (Math.hypot(p[0] - r.x - q.x, p[1] - r.y - q.y) < 14) return { t: "point", i }; }
+    for (let i = r.paths.points.length - 1; i >= 0; i--) { const q = r.paths.points[i]; if (ok(q) && Math.hypot(p[0] - r.x - q.x, p[1] - r.y - q.y) < 14) out.push({ t: "point", i }); }
   }
-  const order = r.items.map((it, i) => [i, it]).sort((a, b) => b[1].y - a[1].y);
-  for (const [i, it] of order) { const s = G.shapes(r, it); if (s && G.covers(s).some(c => G.inside(p, c))) return { t: "item", i }; }
-  if (S.layers.paths) for (let i = r.paths.zones.length - 1; i >= 0; i--) { const z = r.paths.zones[i]; if (G.inside(p, [r.x + z.x, r.y + z.y, z.w, z.h])) return { t: "zone", i }; }
-  for (let i = r.patches.length - 1; i >= 0; i--) { const q = r.patches[i]; if (G.inside(p, [r.x + q.x, r.y + q.y, q.w, q.h])) return { t: "patch", i }; }
-  return null;
+  for (const i of stack(r)) { const it = r.items[i], s = ok(it) && G.shapes(r, it); if (s && G.covers(s).some(c => G.inside(p, c))) out.push({ t: "item", i }); }
+  if (S.layers.paths) for (let i = r.paths.zones.length - 1; i >= 0; i--) { const z = r.paths.zones[i]; if (ok(z) && G.inside(p, [r.x + z.x, r.y + z.y, z.w, z.h])) out.push({ t: "zone", i }); }
+  for (let i = r.patches.length - 1; i >= 0; i--) { const q = r.patches[i]; if (ok(q) && G.inside(p, [r.x + q.x, r.y + q.y, q.w, q.h])) out.push({ t: "patch", i }); }
+  return out;
+}
+const hit = p => hitAll(p)[0] || null;
+
+/** What Alt+click at p picks: the next thing down from the lowest of those picked there, round to the top again. */
+function hitBelow(p) {
+  const all = hitAll(p);
+  if (!all.length) return null;
+  const at = all.findLastIndex(h => S.sel.some(s => s.t === h.t && s.i === h.i));
+  return all[(at + 1) % all.length];
 }
 
 function objOf(r, s) { return listsOf(r)[s.t][s.i]; }
@@ -920,7 +1216,11 @@ function down(e) {
   canvas.setPointerCapture(e.pointerId);
   const p = world(e);
   S.mouse = p; S.free = e.shiftKey;
-  if (e.button === 1 || e.button === 2 || S.space) { S.drag = { pan: [e.clientX, e.clientY, S.cam.x, S.cam.y] }; return; }
+  closeMenu();
+  if (e.button === 1 || e.button === 2 || S.space) {   // (a right-click that doesn't pan opens the menu, once it's let go)
+    S.drag = { pan: [e.clientX, e.clientY, S.cam.x, S.cam.y], menu: e.button === 2 && !S.space && S.mode === "room" && !S.placing && S.tool === "select" };
+    return;
+  }
   if (S.mode === "plan") {
     const rs = shownRooms().slice().reverse(), i = rs.findIndex(r => G.inside(p, G.outline(r)));
     if (i < 0) { S.pick = -1; S.drag = { pan: [e.clientX, e.clientY, S.cam.x, S.cam.y] }; refresh(); return; }
@@ -949,6 +1249,16 @@ function down(e) {
     return;
   }
   if (S.tool === "zone" || S.tool === "patch") { S.drag = { make: S.tool, from: p, box: [p, p] }; return; }
+  if (e.altKey) {   // the next thing down under the pointer (it can be dragged from there)
+    e.preventDefault();
+    const h = hitBelow(p);
+    if (!h) return;
+    S.sel = e.shiftKey ? [...S.sel.filter(s => s.t !== h.t || s.i !== h.i), h] : [h];
+    status(`Picked ${describe(r, h)}${hitAll(p).length > 1 ? ": Alt+click again for what's under it" : ""}.`, "ok");
+    S.drag = { move: S.sel.filter(s => !objOf(r, s).locked).map(s => [s, { ...objOf(r, s) }]), from: p, snap: JSON.stringify(S.draft) };
+    refresh();
+    return;
+  }
   const grab = grabAt(r, p);
   if (grab && grab.edge) { S.drag = { edge: grab.edge, snap: JSON.stringify(S.draft) }; return; }
   if (grab && grab.zone) {
@@ -969,7 +1279,7 @@ function down(e) {
   const already = S.sel.some(s => s.t === h.t && s.i === h.i), inUnit = s => unit.some(u => u.t === s.t && u.i === s.i);
   if (e.shiftKey) S.sel = already ? S.sel.filter(s => !inUnit(s)) : [...S.sel.filter(s => !inUnit(s)), ...unit];
   else if (!already || one) S.sel = unit;
-  S.drag = { move: S.sel.map(s => [s, { ...objOf(r, s) }]), from: p, snap: JSON.stringify(S.draft) };
+  S.drag = { move: S.sel.filter(s => !objOf(r, s).locked).map(s => [s, { ...objOf(r, s) }]), from: p, snap: JSON.stringify(S.draft) };   // (locked: stays put)
   refresh();
 }
 
@@ -987,11 +1297,16 @@ function move(e) {
     if (S.mode === "room" && room() && !S.placing) {
       const g = S.tool === "select" && grabAt(room(), p);
       canvas.style.cursor = g ? grabCursor(g) : S.tool === "select" ? "default" : "crosshair";
+      const h = S.tool === "select" && !g ? (e.altKey ? hitBelow(p) : hit(p)) : null;   // (outlined: what a click would pick)
+      if (JSON.stringify(h) !== JSON.stringify(S.hover) && !document.getElementById("pl-menu")) { S.hover = h; draw(); }
     }
     if (S.placing) draw();
     return;
   }
-  if (d.pan) { S.cam.x = d.pan[2] - (e.clientX - d.pan[0]) / S.cam.s; S.cam.y = d.pan[3] - (e.clientY - d.pan[1]) / S.cam.s; draw(); return; }
+  if (d.pan) {
+    if (Math.hypot(e.clientX - d.pan[0], e.clientY - d.pan[1]) > 4) d.menu = false;   // (it's a pan)
+    S.cam.x = d.pan[2] - (e.clientX - d.pan[0]) / S.cam.s; S.cam.y = d.pan[3] - (e.clientY - d.pan[1]) / S.cam.s; draw(); return;
+  }
   if (d.box) { d.box[1] = p; draw(); return; }
   const r = room();
   if (d.edge) { resize(r, d.edge, snap(d.edge === "left" || d.edge === "right" ? p[0] : p[1], SNAP.room, e.shiftKey)); d.moved = true; draw(); refreshInspector(); return; }
@@ -1002,7 +1317,7 @@ function move(e) {
     d.room.x = snap(d.at[0] + dx, SNAP.room, e.shiftKey); d.room.y = snap(d.at[1] + dy, SNAP.room, e.shiftKey);
     d.moved = true; draw(); return;
   }
-  if (d.move) {
+  if (d.move && d.move.length) {
     for (const [s, was] of d.move) {
       const o = objOf(r, s);
       if (s.t === "door") {
@@ -1018,6 +1333,7 @@ function up(e) {
   const d = S.drag;
   S.drag = null;
   if (!d) return;
+  if (d.menu) { openMenu(e, world(e)); return; }
   const r = room();
   if (d.make) {
     const [a, b] = d.box, x = Math.min(a[0], b[0]) - r.x, y = Math.min(a[1], b[1]) - r.y, w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
@@ -1033,10 +1349,11 @@ function up(e) {
   if (d.box && r) {
     const [a, b] = d.box, box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
     if (box[2] > 3 && box[3] > 3) {
-      r.items.forEach((it, i) => { const s = G.shapes(r, it); if (s && G.covers(s).some(c => G.overlap(c, box)) && !S.sel.some(x => x.t === "item" && x.i === i)) S.sel.push({ t: "item", i }); });
+      const free = o => !o.locked && !o._hidden;   // (locked and hidden things aren't box-picked)
+      r.items.forEach((it, i) => { const s = free(it) && G.shapes(r, it); if (s && G.covers(s).some(c => G.overlap(c, box)) && !S.sel.some(x => x.t === "item" && x.i === i)) S.sel.push({ t: "item", i }); });
       if (S.layers.paths) r.paths.zones.forEach((z, i) => {   // a zone only when the box takes in all of it (a big one sits under everything)
         const zx = r.x + z.x, zy = r.y + z.y;
-        if (zx >= box[0] && zy >= box[1] && zx + z.w <= box[0] + box[2] && zy + z.h <= box[1] + box[3] && !S.sel.some(x => x.t === "zone" && x.i === i)) S.sel.push({ t: "zone", i });
+        if (free(z) && zx >= box[0] && zy >= box[1] && zx + z.w <= box[0] + box[2] && zy + z.h <= box[1] + box[3] && !S.sel.some(x => x.t === "zone" && x.i === i)) S.sel.push({ t: "zone", i });
       });
       S.sel = withGroups(r, S.sel);
     }
@@ -1062,6 +1379,7 @@ function dbl(e) {
 export const ZOOM_STEP = { min: 2, max: 25, default: 8 };
 function wheel(e) {
   e.preventDefault();
+  closeMenu();
   const b = canvas.getBoundingClientRect(), pc = +remember.get("zoom_step");
   const f = 1 + (pc >= ZOOM_STEP.min && pc <= ZOOM_STEP.max ? pc : ZOOM_STEP.default) / 100;
   zoomAt({ x: e.clientX - b.left, y: e.clientY - b.top }, e.deltaY < 0 ? f : 1 / f);
@@ -1076,6 +1394,12 @@ function key(e) {
   if (ctrl && e.key.toLowerCase() === "z") { e.preventDefault(); undo(!e.shiftKey); return; }
   if (ctrl && e.key.toLowerCase() === "y") { e.preventDefault(); undo(false); return; }
   if (S.mode !== "room" || !r) return;
+  if (e.key === "Escape" && document.getElementById("pl-menu")) { closeMenu(); return; }
+  if (ctrl && (e.code === "BracketRight" || e.code === "BracketLeft")) {   // (by key, not character: Shift changes it)
+    e.preventDefault();
+    restack(e.code === "BracketRight" ? (e.shiftKey ? "front" : "forward") : (e.shiftKey ? "back" : "backward"));
+    return;
+  }
   if (e.key === "Escape") { S.placing = null; S.tool = "select"; S.sel = []; refresh(); return; }
   if (e.key === "r" || e.key === "R") {
     e.preventDefault();
@@ -1144,6 +1468,37 @@ const CSS = `
   .pl-problems summary { padding: 6px 10px; color: var(--caution); }
   .pl-problems ul { margin: 0; padding: 0 10px 10px 28px; display: grid; gap: 3px; }
   .pl-problems button.link { color: var(--fg-muted); text-align: left; white-space: normal; }
+  .pl-sidetabs { justify-self: start; }
+  .pl-h3-hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--fg-faint); }
+  .pl-layers { display: grid; gap: 1px; }
+  .pl-layer-row { display: flex; align-items: center; gap: 2px; padding: 0 2px 0 4px; border-radius: var(--radius); }
+  .pl-layer-row:hover { background: var(--bg-2); }
+  .pl-layer-row.on { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+  .pl-layer-row.off .pl-layer-name { opacity: .45; font-style: italic; }
+  .pl-layer-row.drop-above { box-shadow: inset 0 2px 0 var(--accent); }
+  .pl-layer-row.drop-below { box-shadow: inset 0 -2px 0 var(--accent); }
+  .pl-grip { cursor: grab; color: var(--fg-faint); font-size: 10px; letter-spacing: -2px; padding-right: 2px; }
+  .pl-layer-name { flex: 1; min-width: 0; justify-content: flex-start; height: 26px; border: 0; background: none; padding: 0 2px; overflow: hidden; text-overflow: ellipsis; }
+  .pl-layer-name:hover { background: none; }
+  .pl-tag { font-size: 10px; color: var(--fg-muted); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; }
+  .pl-flag { width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--fg-muted); opacity: .3; }
+  .pl-flag:hover { background: var(--bg-3); }
+  .pl-layer-row:hover .pl-flag { opacity: .75; }
+  .pl-flag.set, .pl-layer-row:hover .pl-flag.set { opacity: 1; color: var(--accent-strong); }
+  .pl-ico { display: inline-flex; }
+  .pl-layer { display: flex; gap: 4px; }
+  .pl-layer button { font-size: 15px; }
+  .pl-hidden { color: var(--caution); }
+  .pl-menu { position: absolute; z-index: 5; min-width: 230px; max-width: 340px; max-height: 70%; overflow: auto; padding: 4px; display: grid;
+    border-radius: 8px; background: var(--bg-3); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
+  .pl-menu-head { padding: 4px 8px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--fg-muted); }
+  .pl-menu-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 6px; justify-content: stretch; text-align: left; height: 28px; padding: 0 8px; border: 0; background: none; }
+  .pl-menu-row span { overflow: hidden; text-overflow: ellipsis; }
+  .pl-menu-row:hover { background: var(--bg-2); }
+  .pl-menu-row.on { color: var(--accent-strong); }
+  .pl-menu-row kbd { font: inherit; font-size: var(--fs-xs); color: var(--fg-muted); }
+  .pl-menu-tick { text-align: center; }
+  .pl-menu-sep { height: 1px; margin: 4px 0; background: var(--line); }
   .pl-assets { height: 100%; }
   .pl-asset-main { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 400px; }
   .pl-asset-main > .panel { display: block; overflow: auto; padding: var(--pad); }

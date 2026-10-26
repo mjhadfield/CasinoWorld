@@ -2,8 +2,9 @@ class_name Furniture
 extends Node2D
 ## A piece of furniture or decor from the asset library (the floor plan's "a:<id>" items): its picture for the way
 ## it faces (PlanArt), standing on its base point so it Y-sorts with the people, and a body where it blocks walking.
-## Rugs lie flat under everyone; wall pieces hang on the back wall. It shows (and blocks) once its picture has
-## downloaded, and changes whenever the library does. A piece with a screen (the jackpot board) gets a PlanScreen.
+## Rugs lie flat under everyone; wall pieces hang on the back wall (both in the order placed: PlanRoom._layer). It
+## shows (and blocks) once its picture has downloaded, and changes whenever the library does. A piece with a screen
+## (the jackpot board) gets a PlanScreen.
 ## A piece you can use (its asset's `interact`: "atm", the lobby's cash machine) is in group "interactables"; the
 ## floor offers it when you stand in front of it (stand_spot) or click it (hit).
 

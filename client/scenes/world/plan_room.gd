@@ -45,6 +45,8 @@ var points := {}            # "room/name" -> {"at": Vector2 on the plan, "kind"}
 var games: Array[FloorGame] = []   # its tables and cabinets (the floor registers them)
 var openings: Array = []
 var npc_only := false
+var _rugs: Node2D           # (rugs and wall pieces, in the items' order: _layer)
+var _wall_pieces: Node2D
 
 
 ## Make the room from its data (`world`: the rest of the welcome's world, for the wall sizes and styles).
@@ -89,6 +91,8 @@ func build(room: Dictionary, world: Dictionary) -> void:
 			add_child(d)
 		if npc_only and o.get("to") != null:
 			_bar_players(_gap(o))
+	_rugs = _layer("Rugs")
+	_wall_pieces = _layer("WallPieces")
 	for item in room.get("items", []):
 		_place(item)
 	_build_zones(room.get("zones", []))
@@ -160,7 +164,22 @@ func _place(item: Dictionary) -> void:
 		var f := Furniture.new()
 		if f.setup(item):
 			f.position = at
-			add_child(f)
+			match str(item.get("mount", "")):   # (rugs and wall pieces stack in the plan's order; the rest Y-sort)
+				"flat":
+					_rugs.add_child(f)
+				"wall":
+					_wall_pieces.add_child(f)
+				_:
+					add_child(f)
+
+
+## A layer for pieces drawn in the order they're placed, not by depth (each sets its own z: rugs under everyone,
+## wall pieces over the wall).
+func _layer(layer_name: String) -> Node2D:
+	var n := Node2D.new()
+	n.name = layer_name
+	add_child(n)
+	return n
 
 
 ## No-go zones: NPC-only ones on collision layer 2 (only the navigation bake sees them; players walk through, as

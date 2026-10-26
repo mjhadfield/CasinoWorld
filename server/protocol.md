@@ -391,7 +391,10 @@ top-left corner.
 - `items`: {`id`, `asset`, `x`, `y`, `rot` (tables) or `facing`, `props`}. A table (`table:<game>`, its id the
   table id) also has `game`, `name`, `seats`, and a card table (not Roulette or Craps) `limits` {`main`, `side`},
   each [min, max] in pence (its own, or the defaults: £5–£500 and £1–£50); a slot cabinet (`slot`) `name` and `cabinet` (its look: `body`,
-  `trim`, `title`, `lines`; empty for Armadillo); built-in pieces are `podium` and `npc` (props `look`, `name`).
+  `trim`, `title`, `lines`; empty for Armadillo); built-in pieces are `podium` and `npc` (props `look`, `name`). A
+  library piece (`a:<id>`) that lies flat (a rug) or hangs on the wall has `mount` (`flat` | `wall`): those are
+  drawn in the order they come, the last on top, where everything else in the room is drawn by depth. Items may
+  carry `group` and `locked`, which only the admin page uses.
 - `points`: {`name`, `x`, `y`, `kind` (`spawn` | `arrival` | `wander`), `weight`, `linger`}. NPC walks go to
   `point:<room>/<name>`.
 - `zones`: {`x`, `y`, `w`, `h`, `kind`}: `block` keeps everyone out, `npc_block` only NPCs (their paths).

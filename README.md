@@ -143,7 +143,17 @@ sections:
     a Master Table's "Changes with" and Speed pick its change animation (Fresh
     cloth, Dealer's sweep or Gold dust; 0.5×, 1× or 2×). Drag to move (8px steps, Shift for free), drag a box to pick several (the things it touches, and the zones wholly inside it while paths are shown), arrows nudge,
     Ctrl+D (or the inspector's Duplicate) duplicates what's picked 32px down and right, Ctrl+C / Ctrl+V copy and paste it (centred on the pointer), Delete removes; doors aren't copied. Group (Ctrl+G, Ctrl+Shift+G to
-    ungroup) ties things together: clicking or box-picking any of them picks them all, so they move as one and can't be nudged apart by accident, with a dashed box round the group; Ctrl+click picks one thing on its own (its inspector has Leave the group). Copies of a group are a new group. Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
+    ungroup) ties things together: clicking or box-picking any of them picks them all, so they move as one and can't be nudged apart by accident, with a dashed box round the group; Ctrl+click picks one thing on its own (its inspector has Leave the group). Copies of a group are a new group.
+    Layers: a click picks what's drawn on top (a cyan outline shows what it will pick); Alt+click picks the next
+    thing down under the pointer, round to the top again, and right-click (without dragging) lists everything
+    there, top first, to pick from, with the layer moves. Floor patches, rugs and wall pieces stack in their
+    lists' order, which the game follows: Ctrl+] / Ctrl+[ bring forward or send back (past the next thing that
+    overlaps), with Shift to the front or back, also in the inspector's Layer row; standing things go by depth, as
+    in the game (move one down the room to bring it in front). The side panel's Layers tab lists everything in the
+    room in sections, top first: click a row to pick (Shift, Ctrl as on the canvas), double-click to find it, drag
+    rugs, wall pieces and patches to restack, and each row's eye hides it here while you work (not saved; "N hidden
+    · Show all" brings them back) and its lock keeps the canvas from picking or dragging it (saved; clicks go
+    through to what's under it). Drag a wall to resize the room, or a floor patch's edge or corner to resize the patch, or a picked zone's to resize the zone (the
     cursor turns to a resize arrow over any of them; a picked zone's edge wins over anything, a picked patch's over a wall it sits on). Tools: Door
     (click a wall: a door, shut until someone's by, or an archway), Point (spawn: players appear; arrival: NPCs come
     in and leave; wander: NPCs visit between games, with a weight and a linger time), Zone (NPCs keep out, or

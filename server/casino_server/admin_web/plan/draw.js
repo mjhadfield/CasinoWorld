@@ -151,7 +151,7 @@ export function drawRoom(ctx, room, ops, opts = {}) {
   ctx.save();
   if (opts.dim) ctx.globalAlpha = 0.45;
   paint(ctx, [x, y, w, h], room.floor.texture, room.floor.tint);
-  for (const p of room.patches) drawPatch(ctx, x + p.x, y + p.y, p);
+  for (const p of room.patches) if (!p._hidden) drawPatch(ctx, x + p.x, y + p.y, p);   // (_hidden: hidden on the plan for now)
   const bare = room.walls.style === "none";   // no walls drawn: just the floor, and its doors
   const thin = room.walls.back === "thin";   // the back wall just a border, like the sides
   if (!bare) {
@@ -330,6 +330,7 @@ const POINT_COLOURS = { spawn: "#5ad1ff", arrival: "#8cff8c", wander: "#ffd36b" 
 export function drawPaths(ctx, room, picked = {}) {
   ctx.save();
   room.paths.zones.forEach((z, i) => {
+    if (z._hidden) return;
     const r = [room.x + z.x, room.y + z.y, z.w, z.h];
     ctx.fillStyle = z.kind === "block" ? "rgba(255,90,72,.28)" : "rgba(255,160,60,.25)";
     ctx.fillRect(...r);
@@ -337,6 +338,7 @@ export function drawPaths(ctx, room, picked = {}) {
     ctx.lineWidth = picked.zone === i ? 2 : 1; ctx.setLineDash([5, 3]); ctx.strokeRect(...r); ctx.setLineDash([]);
   });
   room.paths.points.forEach((p, i) => {
+    if (p._hidden) return;
     const px = room.x + p.x, py = room.y + p.y, c = POINT_COLOURS[p.kind] || "#fff";
     ctx.fillStyle = c; ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.arc(px, py, 12, 0, 7); ctx.fill();
     ctx.globalAlpha = 1; ctx.strokeStyle = picked.point === i ? "#fff" : c; ctx.lineWidth = picked.point === i ? 3 : 2;

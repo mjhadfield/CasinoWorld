@@ -115,6 +115,16 @@ def test_groups_are_kept_and_a_bad_one_dropped():
     assert "group" not in out["paths"]["zones"][0]
 
 
+def test_locks_are_kept_and_junk_dropped():
+    raw = lobby_only()
+    r = raw["rooms"][0]
+    r["patches"] = [{"x": 0, "y": 0, "w": 64, "h": 64, "locked": True}, {"x": 0, "y": 0, "w": 64, "h": 64, "locked": "yes"}]
+    r["items"] = [{"asset": "podium", "x": 300, "y": 300, "locked": True, "group": "g1", "_hidden": True}]
+    out = plan.clean(raw, lobby_only())["rooms"][0]
+    assert out["patches"][0]["locked"] is True and "locked" not in out["patches"][1]
+    assert out["items"][0]["locked"] is True and out["items"][0]["group"] == "g1" and "_hidden" not in out["items"][0]
+
+
 def test_malformed_plans_are_refused():
     old = lobby_only()
     for bad in ({}, {"rooms": [{"name": "x", "w": 10, "h": 10}]}, {"rooms": [{"name": "x", "w": 800, "h": 600, "doors": [{"side": "up"}]}]},
