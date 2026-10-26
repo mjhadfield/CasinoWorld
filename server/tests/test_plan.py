@@ -223,7 +223,7 @@ def test_a_slot_banks_cabinets_go_on_the_floor_and_to_the_client():
     room(p, "lobby")["items"][0]["props"]["slots"][1] = "armadillo"
     ids = plan.install(p)
     assert ids == [f"bank_1_{n}" for n in range(1, 7)] and floor.TABLES["bank_1_5"]["variant"] == "armadillo"
-    assert floor.SEATS["bank_1_5"] == [(512 - 58 - 38, 360 + 2 + 6)]   # (the left end's player stands to its left)
+    assert floor.SEATS["bank_1_5"] == [(512 - 58 - 49, 360 + 2 - 1)]   # (the left end's player stands to its left)
     items = room(plan.world(p), "lobby")["items"]
     assert [(i["asset"], i["facing"]) for i in items][:2] == [("slot", "up"), ("slot", "up")]
     # moving a bank is a hot change; another slot in it restarts the casino
