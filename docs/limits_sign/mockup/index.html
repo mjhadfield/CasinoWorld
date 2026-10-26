@@ -1,0 +1,275 @@
+<title>Table Limits Sign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one column of review sections (the four signs, the sign on a real table, the Floor plan fields, the rules),
+   with the style and game pickers in a sticky bar so every picture follows them. One dark look on purpose, like the
+   other Casino World mockups: the casino floor at night. The tables are drawn by the game's own renderer. */
+:root {
+  --ground: #0d1012;
+  --panel: #14181a;
+  --raised: #1c2124;
+  --line: #2b3133;
+  --brass: #c9a24a;
+  --brass-hi: #ecd396;
+  --ink: #ece4d2;
+  --muted: #9ba39e;
+  --bad: #ef7a6b;
+  --plan-bg: #121119;
+  --plan-ctl: #0b0a10;
+  --plan-line: #3a3550;
+  --plan-ink: #ebe8f4;
+  --plan-muted: #9b95ad;
+  --plan-accent: #b896ff;
+  --display: "TS Cinzel", "Cinzel", Georgia, serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --cond: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { padding-block: 22px 14px; }
+header.top h1 { margin: 0; font: 600 26px/1.15 var(--display); letter-spacing: .08em; color: var(--brass-hi); text-wrap: balance; }
+header.top p { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-block: 1px solid var(--line); }
+.bar .wrap { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding-block: 10px; }
+.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pick > span { font: 600 12px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; cursor: pointer; font: 600 14px var(--cond); letter-spacing: .03em; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--ink); background: var(--raised); }
+.seg button[aria-pressed="true"] { background: rgba(201, 162, 74, .16); color: var(--brass-hi); }
+
+main { display: grid; gap: 34px; padding-block: 26px 48px; }
+section h2 { margin: 0 0 4px; font: 600 18px var(--display); letter-spacing: .1em; color: var(--brass-hi); text-wrap: balance; }
+section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72ch; }
+
+.designs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.design { display: grid; gap: 10px; align-content: start; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-align: left; }
+.design:hover { border-color: rgba(201, 162, 74, .45); }
+.design[aria-pressed="true"] { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass) inset; }
+.design canvas { width: 100%; display: block; border-radius: 6px; }
+.design .name { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.design h3 { margin: 0; font: 700 19px var(--cond); letter-spacing: .04em; }
+.design .pair { font: 600 12px var(--cond); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.design p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.stagehead { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-bottom: 10px; }
+.stage { background: #1d1a17; border: 1px solid var(--line); border-radius: 10px; overflow: auto; }
+.stage canvas { display: block; width: 100%; }
+.stage.actual canvas { width: auto; margin: 0 auto; }
+.note { margin: 8px 0 0; color: var(--muted); font-size: 13.5px; }
+
+.planrow { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.plan { background: var(--plan-bg); border: 1px solid var(--plan-line); border-radius: 6px; padding: 12px; display: grid; gap: 8px;
+  font: 13px "Segoe UI", system-ui, sans-serif; color: var(--plan-ink); }
+.plan h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.plan .hint { margin: 0; color: var(--plan-muted); font-size: 12px; }
+.pl-field { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; }
+.pl-field > span { color: var(--plan-muted); font-size: 12px; }
+.plan input, .plan select { height: 28px; min-width: 0; width: 100%; background: var(--plan-ctl); border: 1px solid var(--plan-line); border-radius: 6px; padding: 0 8px; color: var(--plan-ink); }
+.plan .pair2 { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: center; }
+.plan .pair2 i { font-style: normal; color: var(--plan-muted); }
+.plan .money { position: relative; }
+.plan .money::before { content: "£"; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--plan-muted); }
+.plan .money input { padding-left: 18px; font-variant-numeric: tabular-nums; }
+.plan .sub { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--plan-line); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--plan-accent); }
+.plan .err { margin: 0; color: var(--bad); font-size: 12px; }
+.plan input[aria-invalid="true"] { border-color: var(--bad); }
+
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-width: 74ch; }
+.rules li { padding-left: 16px; position: relative; }
+.rules li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; transform: rotate(45deg); background: var(--brass); }
+.rules b { color: var(--ink); font-weight: 600; }
+.rules span { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .designs { grid-template-columns: minmax(0, 1fr); }
+  .planrow { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top wrap">
+  <h1>Table Limits Sign</h1>
+  <p>A second sign on every card table, standing at the other end of the dealer's ledge from the progressive jackpot.
+    It shows the table's limits for the main bet and the side bets, which are set per table on the Floor plan.
+    Pick a style and a game below and every picture follows.</p>
+</header>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="pick"><span>Style</span><div class="seg" id="styles"></div></div>
+    <div class="pick"><span>Game</span><div class="seg" id="games"></div></div>
+  </div>
+</div>
+
+<main>
+  <section id="designs">
+    <div class="wrap">
+      <h2>The four designs</h2>
+      <p class="lead">All four ship. Each table style picks one, beside its jackpot sign, in the Tables designer. They're drawn in
+        the style's own colours, wood and lettering, at the jackpot sign's size. Click one to see it on the table below.</p>
+      <div class="designs" id="cards"></div>
+    </div>
+  </section>
+
+  <section id="table">
+    <div class="wrap">
+      <h2>On the table</h2>
+      <p class="lead">Top right as the players see it, mirroring the jackpot sign: above the shuffler (or Blackjack's shoe),
+        between the rail and the dealer's cards. Its face rises in front of the rail, as the jackpot sign's does.</p>
+      <div class="stagehead">
+        <div class="pick"><span>Sign</span><div class="seg" id="tdesigns"></div></div>
+        <div class="pick"><span>View</span><div class="seg" id="views"></div></div>
+        <div class="pick"><span>Size</span><div class="seg" id="sizes"></div></div>
+      </div>
+      <div class="stage" id="stage"><canvas id="cv" aria-label="The card table with both signs"></canvas></div>
+      <p class="note" id="sizenote"></p>
+    </div>
+  </section>
+
+  <section id="floorplan">
+    <div class="wrap">
+      <h2>Setting the limits</h2>
+      <p class="lead">On the Floor plan, a card table's panel gets two new rows. The numbers here drive every sign on this page,
+        so try a few. Tables with nothing set use the defaults: £5 to £500 on the main bet, £1 to £50 on side bets.</p>
+      <div class="planrow">
+        <form class="plan" id="plan" novalidate>
+          <h3 id="plan-title">Three Card Poker</h3>
+          <p class="hint">id t3</p>
+          <label class="pl-field"><span>Across</span><input id="pl-x" type="number" value="512"></label>
+          <label class="pl-field"><span>Down</span><input id="pl-y" type="number" value="384"></label>
+          <label class="pl-field"><span>Name</span><input id="pl-name" value="Three Card Poker" maxlength="32"></label>
+          <div class="sub">Table limits</div>
+          <div class="pl-field"><span id="pl-main-label">Ante</span>
+            <div class="pair2"><span class="money"><input id="main-min" type="number" min="1" step="1" aria-label="Main bet minimum, pounds"></span><i>to</i>
+              <span class="money"><input id="main-max" type="number" min="1" step="1" aria-label="Main bet maximum, pounds"></span></div></div>
+          <div class="pl-field"><span>Side bets</span>
+            <div class="pair2"><span class="money"><input id="side-min" type="number" min="1" step="1" aria-label="Side bet minimum, pounds"></span><i>to</i>
+              <span class="money"><input id="side-max" type="number" min="1" step="1" aria-label="Side bet maximum, pounds"></span></div></div>
+          <p class="err" id="plan-err" hidden></p>
+          <p class="hint">Whole pounds, £1 to £10,000. The Jackpot bet stays £1 whatever these say.</p>
+        </form>
+        <ul class="rules">
+          <li><b>Over the maximum is refused at the chip.</b> <span>The chip doesn't go down and the toast says
+            "The table maximum on the Ante is £500."</span></li>
+          <li><b>Under the minimum is allowed while you build the bet</b> <span>(you build a £5 Ante from £1 chips), but Ready is
+            refused while one is short, and when betting closes a short bet is handed back and not played. If that's the main
+            bet, you sit the hand out.</span></li>
+          <li><b>Play, Raise and doubles aren't limited.</b> <span>They're set by the Ante. Flat bets (the £1 Jackpot,
+            Let It Ride's £1 Bonus) stay exact.</span></li>
+          <li><b>Main bet</b> <span>is the Ante (Blackjack's Bet; Let It Ride's three bets; Hold'em's Ante and Blind; Baccarat's
+            Player and Banker). <b>Side bets</b> are the rest, Baccarat's Tie included.</span></li>
+          <li><b>Changing limits mid-session</b> <span>leaves bets already down alone. A Rebet that no longer fits is refused,
+            and Auto rebet turns itself off and says why.</span></li>
+          <li><b>NPCs fit the table:</b> <span>they bet within the limits, and won't sit where they can't afford the minimum
+            for a few hands (they get up if they drop below it).</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { loadAssets, render, drawLimitsSign, LIMITS_SIGNS, VIEWS } from "./render.js";
+
+const GAMES = [["tcp", "Three Card", "ANTE"], ["bj", "Blackjack", "BET"], ["uth", "Hold'em", "ANTE"], ["lir", "Let It Ride", "BETS"],
+  ["bac", "Baccarat", "PLAYER · BANKER"], ["mt", "Master (blank)", "MAIN BETS"]];
+const GAME_NAMES = { tcp: "Three Card Poker", bj: "Blackjack", uth: "Ultimate Texas Hold'em", lir: "Let It Ride", bac: "Baccarat", mt: "Master Table" };
+const PAIR = { house: "plaque", grand: "plaque", monte: "tent", deco: "deco", vegas: "digital" };
+const ABOUT = {
+  plaque: ["Engraved brushed brass, screwed to a little easel in the rail's wood. Goes with the brass marquee jackpot sign.", "House · Grand Mahogany"],
+  tent: ["Smoked acrylic tent card printed in white, with a band of the layout's trim colour across the top. The one you'd see on most real tables.", "Monte Carlo"],
+  digital: ["A black limit display on a post, lit in the table's LED colour, with MIN and MAX columns. Goes with the floor screen and pit LED.", "Modern Vegas"],
+  deco: ["A gilt frame with stepped corners round a panel of the table's own felt, printed in the layout's lettering and colours, with dotted leaders.", "Midnight Deco"],
+};
+const VIEW_KEYS = [["bay", "Bay close-up"], ["seated", "Seated"], ["table", "Whole table"]];
+const PX_PER_UNIT = 3.85;   // the game's seated view: about 332 table units across a 1280-pixel window
+
+const S = { style: "house", game: "tcp", design: "plaque", view: "bay", actual: false,
+  limits: { main: [500, 50000], side: [100, 5000] } };
+let STYLES = {};
+
+function seg(host, items, current, pick) {
+  host.replaceChildren(...items.map(([k, label]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", String(k === current));
+    b.addEventListener("click", () => pick(k)); return b;
+  }));
+}
+const D = () => ({ ...STYLES[S.style].design, limitsSign: S.design });
+const rows = () => { const g = GAMES.find(x => x[0] === S.game); return [[g[2], ...S.limits.main, "primary"], ["SIDE BETS", ...S.limits.side, "side"]]; };
+
+function drawCards() {
+  const host = document.getElementById("cards");
+  if (!host.children.length) for (const k of Object.keys(LIMITS_SIGNS)) {
+    const card = document.createElement("button"); card.type = "button"; card.className = "design"; card.dataset.k = k;
+    card.innerHTML = `<canvas aria-hidden="true"></canvas><div class="name"><h3></h3><span class="pair"></span></div><p></p>`;
+    card.querySelector("h3").textContent = LIMITS_SIGNS[k];
+    card.querySelector(".pair").textContent = "Preset: " + ABOUT[k][1];
+    card.querySelector("p").textContent = ABOUT[k][0];
+    card.addEventListener("click", () => { S.design = k; drawAll(); document.getElementById("table").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    host.append(card);
+  }
+  for (const card of host.children) {
+    card.setAttribute("aria-pressed", String(card.dataset.k === S.design));
+    drawLimitsSign(card.querySelector("canvas"), { ...D(), limitsSign: card.dataset.k }, rows(), card.dataset.k);
+  }
+}
+
+function drawTable() {
+  const stage = document.getElementById("stage"), cv = document.getElementById("cv"), rect = VIEWS[S.view][1];
+  stage.classList.toggle("actual", S.actual);
+  cv.style.width = S.actual ? Math.round(rect[2] * PX_PER_UNIT) + "px" : "";
+  render(cv, D(), S.game, rect, { limits: rows(), limitsSign: S.design });
+  document.getElementById("sizenote").textContent = S.actual
+    ? "Game size: about as big as it is on a 1280-pixel-wide window, seated."
+    : "Fitted to the page. Switch to Game size to judge whether it reads at play size.";
+}
+
+function drawBars() {
+  seg(document.getElementById("styles"), Object.entries(STYLES).map(([k, v]) => [k, v.name]), S.style, k => { S.style = k; S.design = PAIR[k]; drawAll(); });
+  seg(document.getElementById("games"), GAMES.map(g => [g[0], g[1]]), S.game, k => { S.game = k; drawAll(); });
+  seg(document.getElementById("tdesigns"), Object.entries(LIMITS_SIGNS), S.design, k => { S.design = k; drawAll(); });
+  seg(document.getElementById("views"), VIEW_KEYS, S.view, k => { S.view = k; drawAll(); });
+  seg(document.getElementById("sizes"), [["fit", "Fit"], ["actual", "Game size"]], S.actual ? "actual" : "fit", k => { S.actual = k === "actual"; drawAll(); });
+  const g = GAMES.find(x => x[0] === S.game);
+  document.getElementById("plan-title").textContent = GAME_NAMES[S.game];
+  document.getElementById("pl-name").value = GAME_NAMES[S.game];
+  document.getElementById("pl-main-label").textContent = g[2] === "MAIN BETS" ? "Main bets" : g[2][0] + g[2].slice(1).toLowerCase().replace("· b", "· B");
+}
+function drawAll() { drawBars(); drawCards(); drawTable(); }
+
+// The Floor plan fields: whole pounds, £1-£10,000, min no more than max (the server's checks, plan.py)
+const F = { "main-min": ["main", 0], "main-max": ["main", 1], "side-min": ["side", 0], "side-max": ["side", 1] };
+for (const [id, [k, i]] of Object.entries(F)) {
+  const el = document.getElementById(id); el.value = S.limits[k][i] / 100;
+  el.addEventListener("input", () => {
+    const v = {}; let err = "";
+    for (const [fid, [fk, fi]] of Object.entries(F)) {
+      const f = document.getElementById(fid), n = Number(f.value), bad = !Number.isInteger(n) || n < 1 || n > 10000;
+      f.setAttribute("aria-invalid", String(bad)); (v[fk] ||= [])[fi] = n * 100;
+      if (bad && !err) err = "Limits are whole pounds from £1 to £10,000.";
+    }
+    for (const [fk, name] of [["main", "main bet"], ["side", "side bets"]])
+      if (!err && v[fk][0] > v[fk][1]) err = `The ${name}' minimum is more than its maximum.`.replace("bet'", "bet's");
+    const out = document.getElementById("plan-err"); out.hidden = !err; out.textContent = err;
+    if (!err) { S.limits = v; drawCards(); drawTable(); }
+  });
+}
+document.getElementById("plan").addEventListener("submit", e => e.preventDefault());
+
+STYLES = await fetch("styles.json").then(r => r.json());
+await loadAssets("./");
+drawAll();
+let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { drawCards(); drawTable(); }, 120); });
+</script>

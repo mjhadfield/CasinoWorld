@@ -1,0 +1,267 @@
+{
+ "house": {
+  "name": "House",
+  "design": {
+   "felt": {
+    "colour": "#93141f",
+    "texture": "weave",
+    "vignette": 0.95
+   },
+   "border": "led",
+   "led": "#ffd28a",
+   "rail": {
+    "wood": "rosewood",
+    "armrest": "all",
+    "leather": "#1b1a1a",
+    "bead": "gold"
+   },
+   "tray": {
+    "mode": "ledge",
+    "finish": "wood"
+   },
+   "shuffler": "black",
+   "shufflerTint": "#cfccc4",
+   "shufflerWood": "match",
+   "shoe": "wood",
+   "shoeTint": "#141416",
+   "shoeWood": "match",
+   "rack": "wood",
+   "rackTint": "#12305e",
+   "rackWood": "match",
+   "spots": "deco",
+   "glow": "#ffdf9e",
+   "print": {
+    "font": "cinzel",
+    "ink": "#f1e4c4",
+    "primary": "#f1e4c4",
+    "side": "#c9a24a",
+    "accent": "#c9a24a"
+   },
+   "back": "lattice",
+   "backColour": "#8e1a22",
+   "cardColour": "#f4f2ec",
+   "front": "classic",
+   "suits": "two",
+   "jackpot": "led",
+   "jackpotRim": "thin",
+   "jackpotSign": "brass",
+   "chips": "clay",
+   "chairs": {
+    "frame": "brass",
+    "upholstery": "#2a2320"
+   }
+  }
+ },
+ "grand": {
+  "name": "Grand Mahogany",
+  "design": {
+   "felt": {
+    "colour": "#93141f",
+    "texture": "weave",
+    "vignette": 0.55
+   },
+   "border": "gilt",
+   "led": "#ffd28a",
+   "rail": {
+    "wood": "mahogany",
+    "armrest": "none",
+    "leather": "#1b1a1a",
+    "bead": "brass"
+   },
+   "tray": {
+    "mode": "ledge",
+    "finish": "wood"
+   },
+   "shuffler": "brass",
+   "shufflerTint": "#3a3e44",
+   "shufflerWood": "match",
+   "shoe": "acrylic",
+   "shoeTint": "#6b0f19",
+   "shoeWood": "match",
+   "rack": "clear",
+   "rackTint": "#1e2328",
+   "rackWood": "match",
+   "spots": "printed",
+   "glow": "#ffdf9e",
+   "print": {
+    "font": "cinzel",
+    "ink": "#f1e4c4",
+    "accent": "#c9a24a",
+    "side": "#c9a24a",
+    "primary": "#f1e4c4"
+   },
+   "back": "charcoal",
+   "cardColour": "#f4f2ec",
+   "front": "classic",
+   "suits": "two",
+   "jackpot": "gold",
+   "jackpotRim": "standard",
+   "jackpotSign": "brass",
+   "chips": "clay",
+   "chairs": {
+    "frame": "brass",
+    "upholstery": "#2a2320"
+   },
+   "backColour": "#34373c"
+  }
+ },
+ "monte": {
+  "name": "Monte Carlo",
+  "design": {
+   "felt": {
+    "colour": "#0f5b3f",
+    "texture": "velvet",
+    "vignette": 0.6
+   },
+   "border": "double",
+   "led": "#ffd28a",
+   "rail": {
+    "wood": "walnut",
+    "armrest": "player",
+    "leather": "#1b1a1a",
+    "bead": "gold"
+   },
+   "tray": {
+    "mode": "ledge",
+    "finish": "lid"
+   },
+   "shuffler": "gunmetal",
+   "shufflerTint": "#3a3e44",
+   "shufflerWood": "match",
+   "shoe": "acrylic",
+   "shoeTint": "#141416",
+   "shoeWood": "match",
+   "rack": "smoked",
+   "rackTint": "#1e2328",
+   "rackWood": "match",
+   "spots": "foil",
+   "glow": "#f0c75e",
+   "print": {
+    "font": "cormorant",
+    "ink": "#e8d3a0",
+    "accent": "#e0b84e",
+    "side": "#e0b84e",
+    "primary": "#e8d3a0"
+   },
+   "back": "monogram",
+   "cardColour": "#f4f2ec",
+   "front": "classic",
+   "suits": "two",
+   "jackpot": "gold",
+   "jackpotRim": "standard",
+   "jackpotSign": "flap",
+   "chips": "ceramic",
+   "chairs": {
+    "frame": "brass",
+    "upholstery": "#2a2320"
+   },
+   "backColour": "#5a1322"
+  }
+ },
+ "deco": {
+  "name": "Midnight Deco",
+  "design": {
+   "felt": {
+    "colour": "#14284a",
+    "texture": "weave",
+    "vignette": 0.5
+   },
+   "border": "deco",
+   "led": "#ffd28a",
+   "rail": {
+    "wood": "rosewood",
+    "armrest": "none",
+    "leather": "#1a2234",
+    "bead": "gold"
+   },
+   "tray": {
+    "mode": "ledge",
+    "finish": "wood"
+   },
+   "shuffler": "brass",
+   "shufflerTint": "#3a3e44",
+   "shufflerWood": "match",
+   "shoe": "wood",
+   "shoeTint": "#6b0f19",
+   "shoeWood": "match",
+   "rack": "wood",
+   "rackTint": "#1e2328",
+   "rackWood": "match",
+   "spots": "deco",
+   "glow": "#ffdf9e",
+   "print": {
+    "font": "josefin",
+    "ink": "#e8d3a0",
+    "accent": "#e0b84e",
+    "side": "#e0b84e",
+    "primary": "#e8d3a0"
+   },
+   "back": "sunburst",
+   "cardColour": "#f4f2ec",
+   "front": "classic",
+   "suits": "two",
+   "jackpot": "gold",
+   "jackpotRim": "standard",
+   "jackpotSign": "neon",
+   "chips": "clay",
+   "chairs": {
+    "frame": "brass",
+    "upholstery": "#2a2320"
+   },
+   "backColour": "#4d1616"
+  }
+ },
+ "vegas": {
+  "name": "Modern Vegas",
+  "design": {
+   "felt": {
+    "colour": "#1a3f93",
+    "texture": "weave",
+    "vignette": 0.35
+   },
+   "border": "led",
+   "led": "#8fd3ff",
+   "rail": {
+    "wood": "ebony",
+    "armrest": "all",
+    "leather": "#1b1a1a",
+    "bead": "chrome"
+   },
+   "tray": {
+    "mode": "ledge",
+    "finish": "steel"
+   },
+   "shuffler": "black",
+   "shufflerTint": "#1c1e22",
+   "shufflerWood": "match",
+   "shoe": "acrylic",
+   "shoeTint": "#141416",
+   "shoeWood": "match",
+   "rack": "smoked",
+   "rackTint": "#1e2328",
+   "rackWood": "match",
+   "spots": "double",
+   "glow": "#8fd3ff",
+   "print": {
+    "font": "montserrat",
+    "ink": "#f4f4f2",
+    "accent": "#8fd3ff",
+    "side": "#8fd3ff",
+    "primary": "#f4f4f2"
+   },
+   "back": "stripe",
+   "cardColour": "#f4f2ec",
+   "front": "classic",
+   "suits": "two",
+   "jackpot": "led",
+   "jackpotRim": "standard",
+   "jackpotSign": "screen",
+   "chips": "ceramic",
+   "chairs": {
+    "frame": "brass",
+    "upholstery": "#2a2320"
+   },
+   "backColour": "#141414"
+  }
+ }
+}
