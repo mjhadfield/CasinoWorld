@@ -102,7 +102,7 @@ section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72c
 <header class="top wrap">
   <h1>Table Limits Sign</h1>
   <p>A second sign on every card table, standing at the other end of the dealer's ledge from the progressive jackpot.
-    It shows the table's limits for the main bet and the side bets, which are set per table on the Floor plan.
+    It shows the table's limits for the main bets and the side bets, which are set per table on the Floor plan.
     Pick a style and a game below and every picture follows.</p>
 </header>
 
@@ -118,7 +118,7 @@ section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72c
     <div class="wrap">
       <h2>The four designs</h2>
       <p class="lead">All four ship. Each table style picks one, beside its jackpot sign, in the Tables designer. They're drawn in
-        the style's own colours, wood and lettering, as tall as the jackpot sign but narrower (32 table units across to its 40). Click one to see it on the table below.</p>
+        the style's own colours, wood and lettering, as tall as the jackpot sign but narrower (28 table units across to its 40). Click one to see it on the table below.</p>
       <div class="designs" id="cards"></div>
     </div>
   </section>
@@ -151,7 +151,7 @@ section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72c
           <label class="pl-field"><span>Down</span><input id="pl-y" type="number" value="384"></label>
           <label class="pl-field"><span>Name</span><input id="pl-name" value="Three Card Poker" maxlength="32"></label>
           <div class="sub">Table limits</div>
-          <div class="pl-field"><span id="pl-main-label">Ante</span>
+          <div class="pl-field"><span>Main bets</span>
             <div class="pair2"><span class="money"><input id="main-min" type="number" min="1" step="1" aria-label="Main bet minimum, pounds"></span><i>to</i>
               <span class="money"><input id="main-max" type="number" min="1" step="1" aria-label="Main bet maximum, pounds"></span></div></div>
           <div class="pl-field"><span>Side bets</span>
@@ -162,14 +162,14 @@ section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72c
         </form>
         <ul class="rules">
           <li><b>Over the maximum is refused at the chip.</b> <span>The chip doesn't go down and the toast says
-            "The table maximum on the Ante is £500."</span></li>
+            "The table maximum on main bets is £500."</span></li>
           <li><b>Under the minimum is allowed while you build the bet</b> <span>(you build a £5 Ante from £1 chips), but Ready is
             refused while one is short, and when betting closes a short bet is handed back and not played. If that's the main
             bet, you sit the hand out.</span></li>
           <li><b>Play, Raise and doubles aren't limited.</b> <span>They're set by the Ante. Flat bets (the £1 Jackpot,
             Let It Ride's £1 Bonus) stay exact.</span></li>
-          <li><b>Main bet</b> <span>is the Ante (Blackjack's Bet; Let It Ride's three bets; Hold'em's Ante and Blind; Baccarat's
-            Player and Banker). <b>Side bets</b> are the rest, Baccarat's Tie included.</span></li>
+          <li><b>Main bets</b> <span>are the bets a hand needs: the Ante, Blackjack's Bet, Let It Ride's three bets, Hold'em's Ante and
+            Blind, Baccarat's Player and Banker. The sign says MAIN BETS on every game. <b>Side bets</b> are the rest, Baccarat's Tie included.</span></li>
           <li><b>Changing limits mid-session</b> <span>leaves bets already down alone. A Rebet that no longer fits is refused,
             and Auto rebet turns itself off and says why.</span></li>
           <li><b>NPCs fit the table:</b> <span>they bet within the limits, and won't sit where they can't afford the minimum
@@ -183,8 +183,7 @@ section > .wrap > p.lead { margin: 0 0 14px; color: var(--muted); max-width: 72c
 <script type="module">
 import { loadAssets, render, drawLimitsSign, LIMITS_SIGNS, VIEWS } from "./render.js";
 
-const GAMES = [["tcp", "Three Card", "ANTE"], ["bj", "Blackjack", "BET"], ["uth", "Hold'em", "ANTE"], ["lir", "Let It Ride", "BETS"],
-  ["bac", "Baccarat", "PLAYER · BANKER"], ["mt", "Master (blank)", "MAIN BETS"]];
+const GAMES = [["tcp", "Three Card"], ["bj", "Blackjack"], ["uth", "Hold'em"], ["lir", "Let It Ride"], ["bac", "Baccarat"], ["mt", "Master (blank)"]];
 const GAME_NAMES = { tcp: "Three Card Poker", bj: "Blackjack", uth: "Ultimate Texas Hold'em", lir: "Let It Ride", bac: "Baccarat", mt: "Master Table" };
 const PAIR = { house: "plaque", grand: "plaque", monte: "tent", deco: "deco", vegas: "digital" };
 const ABOUT = {
@@ -207,7 +206,7 @@ function seg(host, items, current, pick) {
   }));
 }
 const D = () => ({ ...STYLES[S.style].design, limitsSign: S.design });
-const rows = () => { const g = GAMES.find(x => x[0] === S.game); return [[g[2], ...S.limits.main, "primary"], ["SIDE BETS", ...S.limits.side, "side"]]; };
+const rows = () => [["MAIN BETS", ...S.limits.main, "primary"], ["SIDE BETS", ...S.limits.side, "side"]];
 
 function drawCards() {
   const host = document.getElementById("cards");
@@ -242,10 +241,8 @@ function drawBars() {
   seg(document.getElementById("tdesigns"), Object.entries(LIMITS_SIGNS), S.design, k => { S.design = k; drawAll(); });
   seg(document.getElementById("views"), VIEW_KEYS, S.view, k => { S.view = k; drawAll(); });
   seg(document.getElementById("sizes"), [["fit", "Fit"], ["actual", "Game size"]], S.actual ? "actual" : "fit", k => { S.actual = k === "actual"; drawAll(); });
-  const g = GAMES.find(x => x[0] === S.game);
   document.getElementById("plan-title").textContent = GAME_NAMES[S.game];
   document.getElementById("pl-name").value = GAME_NAMES[S.game];
-  document.getElementById("pl-main-label").textContent = g[2] === "MAIN BETS" ? "Main bets" : g[2][0] + g[2].slice(1).toLowerCase().replace("· b", "· B");
 }
 function drawAll() { drawBars(); drawCards(); drawTable(); }
 

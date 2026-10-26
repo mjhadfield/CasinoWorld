@@ -14,8 +14,9 @@ Plan: `~/.claude/plans/minimum-maximum-bets-per-table-nifty-pine.md`.
 Mockup: https://claude.ai/artifact/4eKprTKuiJ6ivpSd8LXuFW, source `docs/limits_sign/mockup/` (a copy of
 `admin_web/tables/render.js` with `limitsSign()` added, plus the House and preset designs in `styles.json`).
 The four designs are `plaque` (brass plaque), `tent` (acrylic tent), `digital` and `deco` (deco frame). Drawn at the
-jackpot sign's scale and height but narrower: 176 mock units across (32 table units to its 40). Mike asked for it
-narrower at the same height, not scaled down.
+jackpot sign's scale and height but narrower: 154 mock units across (28 table units to its 40). Mike asked for it
+narrower at the same height, not scaled down. The rows read MAIN BETS and SIDE BETS on every game (Mike: not every game
+has an Ante); the Floor plan rows are "Main bets" and "Side bets", and refusals say "main bets".
 
 ## Files
 `server/casino_server/plan.py`, `tables/base.py` (+ the card tables' `PRIMARY_SPOTS`), `casino.py`, `npc.py`,

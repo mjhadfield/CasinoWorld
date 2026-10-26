@@ -912,9 +912,9 @@ function jackpotSign(ctx, D, at, on, lit) {
 // The table limits sign (LimitsSign.gd): the jackpot sign's partner at the other end of the dealer's ledge, top
 // right as the players see it, showing the table's minimum and maximum bets. `rows` is [[label, min, max, role]]
 // (pence; role "primary" or "side"). Drawn at the jackpot sign's scale and height (its units, the shadow's foot at
-// `at`), but narrower: LW across (32 table units to the jackpot sign's 40). Its design is the style's `limitsSign`.
+// `at`), but narrower: LW across (28 table units to the jackpot sign's 40). Its design is the style's `limitsSign`.
 export const LIMITS_SIGNS = { plaque: "Brass plaque", tent: "Acrylic tent", digital: "Digital", deco: "Deco frame" };
-const LW = 176;
+const LW = 154;
 const pounds = p => "£" + Math.round(p / 100).toLocaleString("en-GB");
 function limitsSign(ctx, D, at, rows, design) {
   design = design || D.limitsSign || "plaque";
@@ -933,8 +933,9 @@ function limitsSign(ctx, D, at, rows, design) {
   const wood = (x, y, w, h, r, pick) => { ctx.save(); ctx.beginPath(); rrect(ctx, x, y, w, h, r); ctx.clip(); const k = woodTex(D, pick);
     ctx.fillStyle = pat(ctx, k, Object.values(WOODS).find(o => o.tex === k).tile / SIGN_K); ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x, y, w, h); ctx.restore(); };
   const range = r => `${pounds(r[1])} – ${pounds(r[2])}`;
-  for (const [rx, ry, a] of [[84, 9, 0.16], [76, 7, 0.2], [66, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(M, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
+  for (const [rx, ry, a] of [[W * 0.48, 9, 0.16], [W * 0.43, 7, 0.2], [W * 0.375, 5, 0.2]]) { ctx.beginPath(); ctx.ellipse(M, 72, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fill(); }
   const ROW_Y = [33, 51];
+  const fit = pad => [(W - 2 * pad) * 0.42, (W - 2 * pad) * 0.52];   // the most a row's label and its amounts may take
 
   if (design === "tent") {   // smoked acrylic, printed white, a band of the printing's trim colour along the top
     box(M - 40, 58, 80, 14, 2.5, "rgba(190,215,232,.22)"); line(M - 38, 59, M + 38, 59, "rgba(255,255,255,.35)", 1);
@@ -945,8 +946,8 @@ function limitsSign(ctx, D, at, rows, design) {
     word("TABLE LIMITS", M, 12.8, 9, lum(band) > 0.3 ? "#15171b" : "#ffffff", "TS Montserrat", { spacing: 2.5 });
     line(10, 42, W - 10, 42, "rgba(255,255,255,.13)", 0.8);
     rows.forEach((r, i) => {
-      word(r[0], 10, ROW_Y[i], 9.5, "rgba(255,255,255,.66)", "TS Montserrat", { align: "left", spacing: 0.8, max: 68 });
-      word(range(r), W - 10, ROW_Y[i], 16, "#ffffff", "TS Montserrat", { align: "right", max: 84 });
+      word(r[0], 10, ROW_Y[i], 9.5, "rgba(255,255,255,.66)", "TS Montserrat", { align: "left", spacing: 0.8, max: fit(10)[0] });
+      word(range(r), W - 10, ROW_Y[i], 16, "#ffffff", "TS Montserrat", { align: "right", max: fit(10)[1] });
     });
     ctx.beginPath(); path(ctx, [[W - 64, 1], [W - 24, 1], [W - 74, 67], [W - 114, 67]]); ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
   } else if (design === "digital") {   // a black limit display on a post, lit in the table's LED colour
@@ -954,20 +955,22 @@ function limitsSign(ctx, D, at, rows, design) {
     box(M - 32, 64, 64, 8, 3.5, "#1b1c20"); line(M - 28, 65, M + 28, 65, "rgba(255,255,255,.1)", 1);
     box(0, 0, W, 68, 6, "#25272c"); box(1, 1, W - 2, 66, 5, "#0d0e11"); line(6, 2.5, W - 6, 2.5, "#2c2e34", 3);
     box(7, 7, W - 14, 52, 2.5, "#020304");
-    const L = ledOf(D), dim = rgba(L, 0.62), hot = lighten(L, 0.55), xMin = W - 58, xMax = W - 12;
-    word("TABLE LIMITS", 12, 15, 9.5, dim, "TS Barlow", { align: "left", spacing: 1.5, max: 76 });
+    const L = ledOf(D), dim = rgba(L, 0.62), hot = lighten(L, 0.55), xMin = W - 50, xMax = W - 10;
+    word("TABLE LIMITS", 12, 15, 9.5, dim, "TS Barlow", { align: "left", spacing: 1.5, max: xMin - 36 - 12 });
     word("MIN", xMin, 15, 9.5, dim, "TS Barlow", { align: "right", spacing: 2 });
     word("MAX", xMax, 15, 9.5, dim, "TS Barlow", { align: "right", spacing: 2 });
     line(11, 22, W - 11, 22, rgba(L, 0.22), 0.8);
+    ctx.font = '21px "TS VT323"';   // every figure the same size: the biggest that lets the widest fit its column
+    const vs = Math.min(21, Math.floor(21 * 34 / Math.max(...rows.flatMap(r => [r[1], r[2]].map(p => ctx.measureText(pounds(p)).width)))));
     rows.forEach((r, i) => {
       const y = ROW_Y[i] + 1;
-      word(r[0], 12, y, 13, L, "TS Barlow", { align: "left", spacing: 0.8, max: 62, glow: rgba(L, 0.6), blur: 4 });
-      word(pounds(r[1]), xMin, y + 0.5, 21, hot, "TS VT323", { align: "right", max: 40, glow: rgba(L, 0.8) });
-      word(pounds(r[2]), xMax, y + 0.5, 21, hot, "TS VT323", { align: "right", max: 42, glow: rgba(L, 0.8) });
+      word(r[0], 12, y, 13, L, "TS Barlow", { align: "left", spacing: 0.8, max: xMin - 36 - 16, glow: rgba(L, 0.6), blur: 4 });
+      word(pounds(r[1]), xMin, y + 0.5, vs, hot, "TS VT323", { align: "right", glow: rgba(L, 0.8) });
+      word(pounds(r[2]), xMax, y + 0.5, vs, hot, "TS VT323", { align: "right", glow: rgba(L, 0.8) });
     });
     ctx.fillStyle = "rgba(0,0,0,.28)";
     for (let y = 8; y < 59; y += 2) ctx.fillRect(7, y, W - 14, 0.6);
-    ctx.beginPath(); path(ctx, [[9, 7], [64, 7], [46, 59], [9, 59]]); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
+    ctx.beginPath(); path(ctx, [[9, 7], [56, 7], [40, 59], [9, 59]]); ctx.fillStyle = "rgba(255,255,255,.04)"; ctx.fill();
     ctx.beginPath(); ctx.arc(M, 63.5, 3, 0, Math.PI * 2); ctx.fillStyle = rgba(L, 0.25); ctx.fill();
     ctx.beginPath(); ctx.arc(M, 63.5, 1.5, 0, Math.PI * 2); ctx.fillStyle = L; ctx.fill();
   } else if (design === "deco") {   // a gilt deco frame round a panel of the felt, printed like the layout
@@ -976,7 +979,7 @@ function limitsSign(ctx, D, at, rows, design) {
     g.addColorStop(0, lighten(gilt, 0.4)); g.addColorStop(0.5, gilt); g.addColorStop(1, darken(gilt, 0.35));
     box(0, 0, W, 68, 2, g);
     box(3.5, 3.5, W - 7, 61, 1, darken(D.felt.colour, 0.12));
-    const v = ctx.createRadialGradient(M, 34, 16, M, 34, 100); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.35)");
+    const v = ctx.createRadialGradient(M, 34, 16, M, 34, W * 0.57); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.35)");
     box(3.5, 3.5, W - 7, 61, 1, v);
     const c = 7, n = 5, x0 = 8, y0 = 8, x1 = W - 8, y1 = 60;   // the inner line, its corners stepped in
     ctx.beginPath(); ctx.moveTo(x0 + c, y0); ctx.lineTo(x1 - c, y0); ctx.lineTo(x1 - c, y0 + n); ctx.lineTo(x1, y0 + n);
@@ -991,8 +994,8 @@ function limitsSign(ctx, D, at, rows, design) {
     }
     rows.forEach((r, i) => {
       const y = ROW_Y[i] + 1;
-      const lw = word(r[0], 16, y, 9.5, colourOf(D, r[3]), font, { align: "left", spacing: 0.8, max: 66 });
-      const aw = word(range(r), W - 16, y, 14, ink, font, { align: "right", max: 78 });
+      const lw = word(r[0], 16, y, 9.5, colourOf(D, r[3]), font, { align: "left", spacing: 0.8, max: fit(16)[0] });
+      const aw = word(range(r), W - 16, y, 14, ink, font, { align: "right", max: fit(16)[1] });
       ctx.fillStyle = rgba(ink, 0.4);
       for (let x = 16 + lw + 4; x < W - 16 - aw - 4; x += 3.2) { ctx.beginPath(); ctx.arc(x, y + 2.5, 0.55, 0, Math.PI * 2); ctx.fill(); }
     });
@@ -1009,10 +1012,10 @@ function limitsSign(ctx, D, at, rows, design) {
     for (const [x, y] of [[3.8, 3.8], [W - 3.8, 3.8], [3.8, 64.2], [W - 3.8, 64.2]]) { ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fillStyle = "#7a5a22"; ctx.fill(); line(x - 1, y + 1, x + 1, y - 1, "#3b2a0e", 0.5); }
     const ink = "#33230a", lift = "rgba(255,243,206,.55)";
     word("TABLE LIMITS", M, 15, 9, ink, "TS Cinzel", { spacing: 3, engrave: lift });
-    line(M - 50, 22.5, M + 50, 22.5, "rgba(51,35,10,.5)", 0.7); line(M - 50, 23.3, M + 50, 23.3, "rgba(255,243,206,.4)", 0.5);
+    line(M - 46, 22.5, M + 46, 22.5, "rgba(51,35,10,.5)", 0.7); line(M - 46, 23.3, M + 46, 23.3, "rgba(255,243,206,.4)", 0.5);
     rows.forEach((r, i) => {
-      word(r[0], 13, ROW_Y[i] + 1, 9.5, ink, "TS Cinzel", { align: "left", spacing: 0.8, max: 70, engrave: lift });
-      word(range(r), W - 13, ROW_Y[i] + 1, 14, ink, "TS Cinzel", { align: "right", max: 82, engrave: lift });
+      word(r[0], 13, ROW_Y[i] + 1, 9.5, ink, "TS Cinzel", { align: "left", spacing: 0.8, max: fit(13)[0], engrave: lift });
+      word(range(r), W - 13, ROW_Y[i] + 1, 14, ink, "TS Cinzel", { align: "right", max: fit(13)[1], engrave: lift });
     });
   }
   ctx.restore();
@@ -1021,7 +1024,7 @@ function limitsSign(ctx, D, at, rows, design) {
 /** One limits sign on its own, `design` in style `D`, standing on a strip of the style's felt with the rail behind
  *  it (how it stands on the table), filling `canvas`. */
 export function drawLimitsSign(canvas, D, rows, design) {
-  const rect = [-20, -17.5, 40, 20], cssW = canvas.clientWidth || 440, dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
+  const rect = [-18, -17.5, 36, 20], cssW = canvas.clientWidth || 440, dpr = Math.min(2.5, window.devicePixelRatio || 1), k = cssW / rect[2];
   canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(rect[3] * k * dpr);
   const ctx = canvas.getContext("2d");
   ctx.setTransform(k * dpr, 0, 0, k * dpr, -rect[0] * k * dpr, -rect[1] * k * dpr);
