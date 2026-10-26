@@ -15,6 +15,7 @@ its design.json). Shots land in .dev/shots/.
 import argparse
 import json
 import os
+import re
 import shutil
 import ssl
 import subprocess
@@ -138,7 +139,8 @@ def shot(args) -> None:
 
 def put(args) -> None:
     skin = {**json.loads(Path(args.skin).read_text()), "by": "claude"}
-    slug = args.slug or skin.get("name", "scene")
+    # the name's slug, as the server makes them (slot_design_scene._slug)
+    slug = args.slug or re.sub(r"[^a-z0-9]+", "-", skin.get("name", "scene").lower()).strip("-")[:40] or "scene"
     try:   # the dev server checks it first, when it's up, so a bad skin never reaches the live board
         dev = dev_url()
         call(dev, "PUT", f"/api/slot-design/{args.design}/scene/skins/draft", skin)
