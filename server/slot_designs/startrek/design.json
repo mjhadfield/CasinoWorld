@@ -955,7 +955,7 @@
   "volatility": "medium"
  },
  "steps": {
-  "concept": "doing",
+  "concept": "done",
   "art": "done",
   "ladder": "done",
   "scene": "done",
@@ -1305,12 +1305,226 @@
      "ui": "star-trek-film-bt.ttf"
     },
     "texts": {}
+   },
+   "tng-lcars": {
+    "name": "TNG LCARS",
+    "by": "mike",
+    "base": "lcars",
+    "note": "The Next Generation's LCARS: gold, amber and pale yellow elbows over warm black glass, lilac as TNG's accent (Buy Bonus, switched-on buttons, the registry).",
+    "colours": {
+     "gold": "#ffcc66",
+     "goldHi": "#fff1cc",
+     "goldLo": "#8a5a10",
+     "edge": "#e0a63a",
+     "cream": "#fff3dc",
+     "muted": "#c9a978",
+     "ink": "#140c02",
+     "shade": "#0c0703",
+     "win": "#ffe08a",
+     "spin": "#ff9900",
+     "alert": "#cc4444"
+    },
+    "palette": {
+     "hl": "#ffd27a",
+     "a": "#ff9900",
+     "b": "#ffcc66",
+     "c": "#ffe0a3",
+     "d": "#a86a12",
+     "warn": "#cc99cc",
+     "glass": "#140d04",
+     "grand": "#ff9900",
+     "major": "#cc99cc",
+     "minor": "#99ccff",
+     "mini": "#ffcc99"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#ffcc66"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "pill",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [
+     {
+      "id": "rd-l",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 22,
+      "y": 91,
+      "w": 170,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       2,
+       5,
+       2,
+       2
+      ],
+      "colours": [
+       "b",
+       "a",
+       "c",
+       "b"
+      ],
+      "text_colour": "ink",
+      "tick": 2.5,
+      "seed": 3
+     },
+     {
+      "id": "reg",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 200,
+      "y": 87,
+      "w": 140,
+      "h": 20,
+      "colour": "warn",
+      "text": "NCC-1701-D",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "bar-l",
+      "kind": "bar",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 346,
+      "y": 92,
+      "w": 138,
+      "h": 10,
+      "colour": "d",
+      "round": "right"
+     },
+     {
+      "id": "sd",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 796,
+      "y": 87,
+      "w": 230,
+      "h": 20,
+      "colour": "c",
+      "text": "STARDATE {stardate}",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "rd-r",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 1040,
+      "y": 91,
+      "w": 218,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       5,
+       2,
+       3,
+       2
+      ],
+      "colours": [
+       "a",
+       "b",
+       "d",
+       "c"
+      ],
+      "text_colour": "ink",
+      "tick": 3,
+      "seed": 9
+     }
+    ],
+    "fonts": {
+     "display": "star-trek-film-bt.ttf",
+     "ui": "star-trek-film-bt.ttf"
+    },
+    "texts": {
+     "spin": "ENGAGE",
+     "features": "OPS SUBSYSTEMS",
+     "buy": "BUY BONUS",
+     "tagline": "MAKE IT SO",
+     "cashout": "BEAM OUT"
+    }
    }
   },
-  "skin": "lcars",
+  "skin": "tng-lcars",
   "binned_skins": [
    "lcars-2"
-  ]
+  ],
+  "brief": {
+   "text": "",
+   "refs": [],
+   "status": null
+  }
  },
  "sprites": {
   "cabinet": {

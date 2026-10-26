@@ -70,6 +70,8 @@ const BUILT_IN := {
 const BUILT_IN_GAIN_DB := {"click": -6.0, "tick": -4.0, "flip": -3.0, "dice_bounce": -3.0, "reel_spin": -6.0, "reel_stop": -3.0, "win_bangup": -3.0, "trail_hop": -4.0}
 const MIN_GAP := {"dice_bounce": 0.03, "ball_hop": 0.04, "deal": 0.1, "flip": 0.15, "bet": 0.06, "payout": 0.12, "sweep": 0.12, "result": 0.05,
 	"reel_stop": 0.05, "scatter_land": 0.05, "trail_hop": 0.05, "trail_coin": 0.06, "feature_wilds": 0.08, "click": 0.03}
+## A moment no set gives a sound plays this one's instead (server/casino_server/sounds.py FALLBACK).
+const FALLBACK := {"reel_stop_last": "reel_stop"}
 const HEARING := 340.0  # px from the camera at which a table sound has faded out
 ## Whether a place on the floor (global) can be heard from where you are: the floor sets it (a room you can see).
 var audible: Callable
@@ -210,6 +212,8 @@ func _choice(key: String, table: String) -> Dictionary:
 		if not m.is_empty():
 			return m
 		s = _sets[s].parent
+	if FALLBACK.has(key) and not _built_in.has(key):
+		return _choice(FALLBACK[key], table)
 	return _built_in.get(key, {})
 
 

@@ -22,10 +22,23 @@ def test_the_sets_follow_the_floor():
     assert sounds.shows(ARM, "click") and not sounds.shows(ARM, "room") and not sounds.shows("blackjack", "ball_spin")
 
 
+def test_the_final_reel_stop_plays_the_reel_stop_until_it_has_its_own(tmp_path):
+    board = sounds.SoundBoard(tmp_path)
+    assert board.resolve(ARM, "reel_stop_last") == board.resolve(ARM, "reel_stop")
+    row = board.row(ARM, "reel_stop_last")
+    assert row["as"] == "reel_stop" and not row["own"] and row["from"] == ARM
+    # Given a sound in Default, every machine's last reel plays that, even one with its own reel stop.
+    board.saved = {"slots": {"reel_stop_last": {"files": ["pops/cogitollc-pop1.ogg"], "gain_db": 0.0}}}
+    assert board.resolve(ARM, "reel_stop_last") == ({"files": ["pops/cogitollc-pop1.ogg"], "gain_db": 0.0}, "slots")
+    assert "as" not in board.row(ARM, "reel_stop_last")
+    # Muted, it stays silent rather than falling back.
+    board.saved = {ARM: {"reel_stop_last": {"files": [], "gain_db": 0.0}}}
+    assert board.resolve(ARM, "reel_stop_last") == ({"files": [], "gain_db": 0.0}, ARM)
+
 def test_every_moment_has_a_factory_sound_at_home_and_every_file_exists():
     for key, m in sounds.MOMENTS.items():
         assert m["section"] in sounds.SECTIONS, key
-        assert key in sounds.FACTORY[m["home"]], key
+        assert key in sounds.FACTORY[m["home"]] or key in sounds.FALLBACK, key
     for set_key, moments in sounds.FACTORY.items():
         for key, choice in moments.items():
             assert sounds.shows(set_key, key), (set_key, key)

@@ -32,7 +32,8 @@ FACTORY is what each set starts with. Changes made on the page go in
      "presets": {"preset.wild-west": "Wild West"}, "machine_presets": {"slots.armadillo": "preset.wild-west"}}
 
 `{"inherit": true}` hands a moment the factory gave a set back to its parent, and
-`"files": []` silences it there (and below, unless a set below gives it a sound). A moment
+`"files": []` silences it there (and below, unless a set below gives it a sound). A moment no set
+gives a sound plays its FALLBACK's (the final reel stop plays the reel stop's). A moment
 with several files picks one at random each time it plays; `gain_db` trims its volume.
 
 The library is the CC0 collection in server/sound_library/ (read-only, see its
@@ -148,7 +149,8 @@ MOMENTS = {
     # slot machines
     "spin_press": _m("Spin pressed", "The Spin button (or Space, or an auto spin) starting a spin.", "Spin", "slots", "slots"),
     "reel_spin": _m("Reels spinning", "Under the reels from the start of a spin until the last one stops.", "Spin", "slots", "slots", True),
-    "reel_stop": _m("Reel stops", "Each reel landing, left to right, each a step higher.", "Spin", "slots", "slots"),
+    "reel_stop": _m("Reel stops", "Each reel landing, left to right, each a step higher. The last plays Final reel stop.", "Spin", "slots", "slots"),
+    "reel_stop_last": _m("Final reel stop", "The last reel landing. Until something gives it a sound, it plays Reel stops'.", "Spin", "slots", "slots"),
     "scatter_land": _m("Bonus symbol lands", "A reel stopping with a bonus wagon or free-spin pistols showing; the second and third ring higher.", "Spin", "slots", "slots"),
     "reel_tease": _m("Bonus tease", "Two bonus symbols are showing: the next reel spins on, glowing (repeats while it does).", "Spin", "slots", "slots", True),
     "win_small": _m("Line win", "A spin that wins: the lines light up.", "Wins", "slots", "slots"),
@@ -313,6 +315,7 @@ FOLDERS = {
     "slots": ("Slot machines: reels, coins, wins, jackpots", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus", "Jackpot Pick", "Battle Bonus", "Voyage Bonus",
                                                              "Expedition Bonus"]),
     "western": ("Wild West: guns, banjo, harmonica, snakes, horses", ["Spin", "Wins", "Features", "Bonuses", "Trail Bonus"]),
+    "star-trek": ("Star Trek: the DS9 Dabo wheel", ["Spin"]),
     "kenney-jingles": ("Kenney music jingles", ["Wins", "Bonuses", "Jackpot Pick", "Battle Bonus", "Voyage Bonus"]),
     "kenney-impact": ("Kenney impacts: wood, metal, bells", ["Spin", "Features", "Trail Bonus", "Dice", "Battle Bonus", "Voyage Bonus"]),
     "kenney-rpg": ("Kenney coins, latches and creaks", ["Wins", "Chips", "Trail Bonus", "Features", "Voyage Bonus"]),
@@ -332,6 +335,9 @@ FOLDERS = {
     "clocks": ("A ticking clock", ["Interface"]),
     "uploads": ("Your uploads", SECTIONS),
 }
+
+# A moment no set gives a sound plays this one's instead (as it does in the game: client/autoload/sfx.gd).
+FALLBACK = {"reel_stop_last": "reel_stop"}
 
 
 def _ancestors(set_key: str, sets: dict | None = None) -> list[str]:
@@ -426,12 +432,16 @@ class SoundBoard:
             e = self.own(s, key)
             if e is not None:
                 return e, s
+        if key in FALLBACK:
+            return self.resolve(set_key, FALLBACK[key])
         return {"files": [], "gain_db": 0.0}, None
 
     def row(self, set_key: str, key: str) -> dict:
         """One moment as the page shows it in a set."""
         chosen, source = self.resolve(set_key, key)
-        return {"key": key, "own": source == set_key, "from": source, **chosen,
+        borrowed = key in FALLBACK and all(self.own(s, key) is None for s in _ancestors(set_key, self.sets()))
+        return {"key": key, "own": source == set_key and not borrowed, "from": source, **chosen,
+                **({"as": FALLBACK[key]} if borrowed else {}),
                 "changed": key in self.saved.get(set_key, {}) and not set_key.startswith(PRESET),   # (a preset came empty)
                 "can_inherit": set_key != MOMENTS[key]["home"]}
 

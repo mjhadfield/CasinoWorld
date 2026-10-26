@@ -1,4 +1,4 @@
-# Star Trek: ideas to build
+# TNG: ideas to build
 
 Described on the Slot design wizard; each needs the engine (server/casino_server/slots/, docs/slots/mockup/slots_math.js), the mockup and the game's slot screen.
 

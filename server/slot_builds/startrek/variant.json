@@ -1,6 +1,6 @@
 {
  "id": "startrek",
- "name": "Star Trek",
+ "name": "TNG",
  "symbols": {
   "W": "Wild",
   "BS": "Bonus",
@@ -1092,63 +1092,523 @@
    ]
   ]
  },
+ "voyage": {
+  "legs": 6,
+  "kinds": [
+   [
+    "treasure",
+    34
+   ],
+   [
+    "wreck",
+    30
+   ],
+   [
+    "skull",
+    20
+   ],
+   [
+    "port",
+    16
+   ]
+  ],
+  "coves": 1,
+  "treasure": [
+   [
+    3,
+    30
+   ],
+   [
+    4,
+    25
+   ],
+   [
+    5,
+    20
+   ],
+   [
+    8,
+    12
+   ],
+   [
+    12,
+    8
+   ],
+   [
+    20,
+    4
+   ],
+   [
+    40,
+    1
+   ]
+  ],
+  "relics": [
+   [
+    1,
+    50
+   ],
+   [
+    2,
+    35
+   ],
+   [
+    3,
+    15
+   ]
+  ],
+  "item_chance": 0.55,
+  "key_chance": 0.3,
+  "skull": [
+   [
+    8,
+    30
+   ],
+   [
+    12,
+    30
+   ],
+   [
+    20,
+    20
+   ],
+   [
+    30,
+    12
+   ],
+   [
+    60,
+    6
+   ],
+   [
+    120,
+    2
+   ]
+  ],
+  "sink": 0.24,
+  "cove": [
+   [
+    10,
+    40
+   ],
+   [
+    15,
+    30
+   ],
+   [
+    25,
+    20
+   ],
+   [
+    50,
+    10
+   ]
+  ],
+  "relic_value": 1,
+  "artefact_price": 3,
+  "key_price": 2,
+  "spins_price": 4,
+  "spins_games": 1,
+  "chest": 12,
+  "parts": [
+   4,
+   5,
+   8,
+   12
+  ],
+  "legend": 90
+ },
+ "expedition": {
+  "lengths": [
+   [
+    4,
+    1
+   ],
+   [
+    5,
+    1
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "levels": [
+   {
+    "weight": 1,
+    "hazard": 3,
+    "scale": 1,
+    "final": 20
+   },
+   {
+    "weight": 1,
+    "hazard": 7,
+    "scale": 1.7,
+    "final": 22
+   },
+   {
+    "weight": 1,
+    "hazard": 12,
+    "scale": 2.6,
+    "final": 24
+   }
+  ],
+  "ramp": 2.5,
+  "kinds": [
+   [
+    "credits",
+    52
+   ],
+   [
+    "mult",
+    9
+   ],
+   [
+    "tech",
+    15
+   ],
+   [
+    "special",
+    6
+   ]
+  ],
+  "credits": [
+   [
+    1,
+    40
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    15
+   ],
+   [
+    5,
+    9
+   ],
+   [
+    8,
+    4
+   ],
+   [
+    15,
+    2
+   ]
+  ],
+  "mults": [
+   [
+    1,
+    80
+   ],
+   [
+    2,
+    20
+   ]
+  ],
+  "techs": [
+   [
+    "scanner",
+    1
+   ],
+   [
+    "shuttle",
+    1
+   ],
+   [
+    "shields",
+    1
+   ]
+  ],
+  "specials": [
+   [
+    "artefact",
+    50
+   ],
+   [
+    "wormhole",
+    25
+   ],
+   [
+    "spins",
+    25
+   ]
+  ],
+  "artefact": [
+   [
+    10,
+    40
+   ],
+   [
+    20,
+    30
+   ],
+   [
+    40,
+    20
+   ],
+   [
+    100,
+    10
+   ]
+  ],
+  "wormhole": 2,
+  "spins": [
+   [
+    1,
+    60
+   ],
+   [
+    2,
+    30
+   ],
+   [
+    3,
+    10
+   ]
+  ]
+ },
  "art": {},
  "theme": {
   "colours": {
-   "gold": "#30494f",
-   "goldHi": "#cbd2d3",
-   "goldLo": "#1d2c2f",
-   "edge": "#4aa9d9",
-   "cream": "#e9f5fa",
-   "muted": "#fffdfa",
-   "ink": "#0d1e27",
-   "shade": "#09141a",
-   "win": "#7abfff",
-   "spin": "#bfb39b",
-   "alert": "#7d130c"
+   "gold": "#ffcc66",
+   "goldHi": "#fff1cc",
+   "goldLo": "#8a5a10",
+   "edge": "#e0a63a",
+   "cream": "#fff3dc",
+   "muted": "#c9a978",
+   "ink": "#140c02",
+   "shade": "#0c0703",
+   "win": "#ffe08a",
+   "spin": "#ff9900",
+   "alert": "#cc4444"
   },
   "fonts": {
    "display": "display.ttf",
    "ui": "ui.ttf"
   },
   "frame": {
-   "style": "neon",
-   "colour": "#4ab0c9"
+   "style": "glass",
+   "colour": "#ffcc66"
   },
   "deck": {
-   "style": "neon",
+   "style": "glass",
    "colour": null
+  },
+  "skin": {
+   "name": "TNG LCARS",
+   "base": "lcars",
+   "palette": {
+    "hl": "#ffd27a",
+    "a": "#ff9900",
+    "b": "#ffcc66",
+    "c": "#ffe0a3",
+    "d": "#a86a12",
+    "warn": "#cc99cc",
+    "glass": "#140d04",
+    "grand": "#ff9900",
+    "major": "#cc99cc",
+    "minor": "#99ccff",
+    "mini": "#ffcc99"
+   },
+   "glass": {
+    "opacity": 0.55,
+    "sheen": 0.12,
+    "edge": 1.5,
+    "blur": 14
+   },
+   "parts": {
+    "meter": {
+     "shape": "tab",
+     "fill": "tier",
+     "text": "goldHi"
+    },
+    "panel": {
+     "shape": "elbow",
+     "top": "a",
+     "bottom": "c",
+     "spine": [
+      "b",
+      "d",
+      "c"
+     ],
+     "fill": "glass",
+     "edge": "hl",
+     "title": "hl"
+    },
+    "frame": {
+     "shape": "elbow",
+     "top": "a",
+     "bottom": "c",
+     "edge": "hl",
+     "fill": "glass"
+    },
+    "box": {
+     "shape": "pill",
+     "fill": "glass",
+     "edge": "b",
+     "label": "c",
+     "value": "goldHi"
+    },
+    "button": {
+     "shape": "pill",
+     "fill": "b",
+     "on": "warn",
+     "text": "ink"
+    },
+    "spin": {
+     "shape": "pill",
+     "fill": "hl",
+     "text": "ink"
+    },
+    "deck": {
+     "shape": "elbow",
+     "fill": "d",
+     "edge": "hl",
+     "accent": "a"
+    }
+   },
+   "decor": [
+    {
+     "id": "rd-l",
+     "kind": "readout",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 22,
+     "y": 91,
+     "w": 170,
+     "h": 13,
+     "colour": "hl",
+     "cells": [
+      2,
+      5,
+      2,
+      2
+     ],
+     "colours": [
+      "b",
+      "a",
+      "c",
+      "b"
+     ],
+     "text_colour": "ink",
+     "tick": 2.5,
+     "seed": 3
+    },
+    {
+     "id": "reg",
+     "kind": "text",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 200,
+     "y": 87,
+     "w": 140,
+     "h": 20,
+     "colour": "warn",
+     "text": "NCC-1701-D",
+     "font": "display",
+     "size": 17,
+     "align": "left"
+    },
+    {
+     "id": "bar-l",
+     "kind": "bar",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 346,
+     "y": 92,
+     "w": 138,
+     "h": 10,
+     "colour": "d",
+     "round": "right"
+    },
+    {
+     "id": "sd",
+     "kind": "text",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 796,
+     "y": 87,
+     "w": 230,
+     "h": 20,
+     "colour": "c",
+     "text": "STARDATE {stardate}",
+     "font": "display",
+     "size": 17,
+     "align": "left"
+    },
+    {
+     "id": "rd-r",
+     "kind": "readout",
+     "layer": "under",
+     "show": true,
+     "alpha": 1,
+     "x": 1040,
+     "y": 91,
+     "w": 218,
+     "h": 13,
+     "colour": "hl",
+     "cells": [
+      5,
+      2,
+      3,
+      2
+     ],
+     "colours": [
+      "a",
+      "b",
+      "d",
+      "c"
+     ],
+     "text_colour": "ink",
+     "tick": 3,
+     "seed": 9
+    }
+   ],
+   "texts": {
+    "spin": "ENGAGE",
+    "features": "OPS SUBSYSTEMS",
+    "buy": "BUY BONUS",
+    "tagline": "MAKE IT SO",
+    "cashout": "BEAM OUT"
+   }
   },
   "win": {
    "wild": {
     "preset": "glow",
     "strength": 1.0,
-    "colour": "#ffe27a"
+    "colour": "#ffd27a"
    },
    "high": {
     "preset": "shine",
     "strength": 1.0,
-    "colour": "#ffe27a"
+    "colour": "#ffd27a"
    },
    "mid": {
     "preset": "pulse",
     "strength": 1.0,
-    "colour": "#ffe27a"
+    "colour": "#ffd27a"
    },
    "low": {
     "preset": "pulse",
     "strength": 1.0,
-    "colour": "#ffe27a"
+    "colour": "#ffd27a"
    },
    "scatter": {
     "preset": "bounce",
     "strength": 1.0,
-    "colour": "#ffe27a"
+    "colour": "#ffd27a"
    }
   },
   "labels": false,
   "texts": {
-   "tagline": "GOOD LUCK",
+   "tagline": "MAKE IT SO",
    "trail": "TRAIL BONUS",
    "launcher": "THE LAUNCHER",
    "hint": "fire to move along the trail",
@@ -1157,8 +1617,61 @@
    "battle_hint": "tap a ship to fire",
    "enemy": "ENEMY SHIP",
    "boss": "FLAGSHIP",
+   "voyage_name": "DEAD MAN'S MAP",
+   "voyage_hint": "choose your next island",
+   "voyage_start": "TORTUGA",
+   "voyage_final": "ISLA DE MUERTA",
+   "voyage_treasure_name": "TREASURE ISLAND",
+   "voyage_wreck_name": "SHIPWRECK",
+   "voyage_skull_name": "SKULL ISLAND",
+   "voyage_port_name": "PORT ROYAL",
+   "voyage_cove_name": "HIDDEN COVE",
+   "voyage_relic": "RELIC",
+   "voyage_chest_name": "LEGENDARY TREASURE",
+   "voyage_legend_name": "THE LEGEND",
+   "voyage_artefacts": [
+    "COMPASS",
+    "MEDALLION",
+    "SPYGLASS",
+    "CUTLASS"
+   ],
+   "expedition_name": "DELTA QUADRANT",
+   "expedition_hint": "choose a route",
+   "expedition_planet_hint": "choose a planet to explore",
+   "expedition_start": "VOYAGER",
+   "expedition_final": "TRANSWARP CONDUIT",
+   "expedition_sector": "SECTOR",
+   "expedition_credits_name": "CREDITS",
+   "expedition_mult_name": "MULTIPLIER",
+   "expedition_scanner_name": "SCANNER",
+   "expedition_shuttle_name": "SHUTTLE",
+   "expedition_shields_name": "SHIELDS",
+   "expedition_artefact_name": "ANCIENT ARTEFACT",
+   "expedition_wormhole_name": "WORMHOLE",
+   "expedition_spins_name": "FREE GAMES",
+   "expedition_levels": [
+    "LOW",
+    "MODERATE",
+    "SEVERE"
+   ],
+   "expedition_hazards": [
+    "BORG CUBE",
+    "KAZON RAIDERS",
+    "HIROGEN HUNTERS",
+    "SPECIES 8472",
+    "SPATIAL ANOMALY"
+   ],
    "bonus_line": "3+ BONUS",
-   "free_line": "3+ SCATTER"
+   "free_line": "3+ SCATTER",
+   "feature_names": {
+    "wilds": "RANDOM WILDS",
+    "wildReels": "WILD REELS",
+    "colossal": "COLOSSAL REELS",
+    "multiplier": "MULTIPLIER",
+    "upgrade": "SYMBOL UPGRADE",
+    "repeat": "REPEAT WIN",
+    "instant": "INSTANT WIN"
+   }
   },
   "rules": [
    "Wild stands in for everything except Bonus and Scatter. Pays left to right on 25 lines; the longest match on each line pays.",
@@ -1171,10 +1684,10 @@
    "trim": "#478eff",
    "title": "#3bbde8",
    "lines": [
-    "STAR TREK"
+    "TNG"
    ]
   },
-  "background": true
+  "background": false
  },
  "extras": {
   "assets": {
@@ -1207,15 +1720,37 @@
    "b_hero": "Battle: your ship",
    "b_enemy": "Battle: an enemy ship (cloaks, fires back, reveals prizes)",
    "b_boss": "Battle: the boss ship after the last wave",
-   "logo": "Logo",
-   "bg": "Background"
-  },
-  "floor": {
-   "spot": "above_armadillo",
-   "count": 2
+   "v_ship": "Voyage: your ship, sailing the map",
+   "v_treasure": "Voyage island: Treasure Island (a sure prize)",
+   "v_wreck": "Voyage island: a Shipwreck (relics, maybe a key or an artefact)",
+   "v_skull": "Voyage island: Skull Island (a big prize, or it sinks you)",
+   "v_port": "Voyage island: Port Royal (trade relics), and the start port",
+   "v_cove": "Voyage island: a Hidden Cove (a key opens it)",
+   "v_final": "Voyage: the final island",
+   "v_chest": "Voyage: the legendary treasure (a chest with four locks)",
+   "v_relic": "Voyage: a relic",
+   "v_key": "Voyage: a key",
+   "v_art1": "Voyage: the first artefact",
+   "v_art2": "Voyage: the second artefact",
+   "v_art3": "Voyage: the third artefact",
+   "v_art4": "Voyage: the fourth artefact",
+   "x_ship": "Expedition: your ship, on the star chart",
+   "x_planet": "Expedition: an unexplored planet (what every planet shows until it's revealed)",
+   "x_credits": "Expedition planet: credits",
+   "x_mult": "Expedition planet: a multiplier",
+   "x_scanner": "Expedition tech: the Scanner (shows the next sector)",
+   "x_shuttle": "Expedition tech: the Shuttle (explores a second planet)",
+   "x_shields": "Expedition tech: Shields (absorb a hazard)",
+   "x_artefact": "Expedition special: an ancient artefact (a big prize)",
+   "x_wormhole": "Expedition special: a Wormhole (straight to the final destination)",
+   "x_spins": "Expedition special: free games",
+   "x_hazard": "Expedition: a hazard (ends the expedition)",
+   "x_final": "Expedition: the final destination",
+   "logo": "Logo"
   },
   "sounds": {},
+  "sound_preset": null,
   "design": "startrek",
-  "built_at": "2026-10-20T13:41:05"
+  "built_at": "2026-10-26T12:54:48"
  }
 }

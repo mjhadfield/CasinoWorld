@@ -254,6 +254,7 @@ function momentRow(r) {
   const m = data.moments[r.key], s = setOf(setKey);
   const row = el("div", {className: "mrow" + (r.own ? "" : " inherited") + (editing === r.key ? " editing" : ""), id: "m-" + r.key});
   const title = el("div", {className: "mt"}, el("b", {textContent: m.title, title: m.when}), H.info(m.when));
+  if (r.as) title.append(el("span", {className: "tag", textContent: "as " + data.moments[r.as].title}));
   if (!r.own) title.append(el("span", {className: "tag", textContent: "from " + setName(r.from)}));
   if (m.loop) title.append(el("span", {className: "tag", textContent: "loops"}));
   if (r.changed) title.append(el("span", {className: "tag gold", textContent: "changed"}));

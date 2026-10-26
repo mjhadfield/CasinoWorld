@@ -1770,7 +1770,7 @@ func _play_spin(o: Dictionary, base := 0.0) -> void:
 					_sfx("scatter_land", 1.0 + 0.12 * (int(seen[s]) - 1))   # the second and third ring higher
 		if ep != _epoch:
 			return
-		_sfx("reel_stop", 1.0 + 0.03 * r)
+		_sfx("reel_stop_last" if r == 4 else "reel_stop", 1.0 + 0.03 * r)
 		x.glow = 0.0
 		if not _hurry:
 			await _wait(0.12)

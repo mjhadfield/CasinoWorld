@@ -1916,6 +1916,1263 @@
       "cashout": "BEAM OUT"
      }
     }
+   },
+   "tng-lcars": {
+    "name": "TNG LCARS",
+    "by": "claude",
+    "base": "lcars",
+    "note": "Voyager LCARS recoloured as the Next Generation's: gold, amber and pale yellow elbows over warm black glass, lilac as TNG's accent (Buy Bonus, switched-on buttons, the registry). Same layout and decor as Voyager LCARS.",
+    "colours": {
+     "gold": "#ffcc66",
+     "goldHi": "#fff1cc",
+     "goldLo": "#8a5a10",
+     "edge": "#e0a63a",
+     "cream": "#fff3dc",
+     "muted": "#c9a978",
+     "ink": "#140c02",
+     "shade": "#0c0703",
+     "win": "#ffe08a",
+     "spin": "#ff9900",
+     "alert": "#cc4444"
+    },
+    "palette": {
+     "hl": "#ffd27a",
+     "a": "#ff9900",
+     "b": "#ffcc66",
+     "c": "#ffe0a3",
+     "d": "#a86a12",
+     "warn": "#cc99cc",
+     "glass": "#140d04",
+     "grand": "#ff9900",
+     "major": "#cc99cc",
+     "minor": "#99ccff",
+     "mini": "#ffcc99"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#ffcc66"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "pill",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [
+     {
+      "id": "rd-l",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 22,
+      "y": 91,
+      "w": 170,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       2,
+       5,
+       2,
+       2
+      ],
+      "colours": [
+       "b",
+       "a",
+       "c",
+       "b"
+      ],
+      "text_colour": "ink",
+      "tick": 2.5,
+      "seed": 3
+     },
+     {
+      "id": "reg",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 200,
+      "y": 87,
+      "w": 140,
+      "h": 20,
+      "colour": "warn",
+      "text": "NCC-1701-D",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "bar-l",
+      "kind": "bar",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 346,
+      "y": 92,
+      "w": 138,
+      "h": 10,
+      "colour": "d",
+      "round": "right"
+     },
+     {
+      "id": "sd",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 796,
+      "y": 87,
+      "w": 230,
+      "h": 20,
+      "colour": "c",
+      "text": "STARDATE {stardate}",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "rd-r",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 1040,
+      "y": 91,
+      "w": 218,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       5,
+       2,
+       3,
+       2
+      ],
+      "colours": [
+       "a",
+       "b",
+       "d",
+       "c"
+      ],
+      "text_colour": "ink",
+      "tick": 3,
+      "seed": 9
+     }
+    ],
+    "fonts": {
+     "display": "@lettering",
+     "ui": "@lettering"
+    },
+    "texts": {
+     "spin": "ENGAGE",
+     "features": "OPS SUBSYSTEMS",
+     "buy": "BUY BONUS",
+     "tagline": "MAKE IT SO",
+     "cashout": "BEAM OUT"
+    },
+    "at": "2026-10-26T12:10:34",
+    "original": {
+     "name": "TNG LCARS",
+     "by": "claude",
+     "base": "lcars",
+     "note": "Voyager LCARS recoloured as the Next Generation's: gold, amber and pale yellow elbows over warm black glass, lilac as TNG's accent (Buy Bonus, switched-on buttons, the registry). Same layout and decor as Voyager LCARS.",
+     "colours": {
+      "gold": "#ffcc66",
+      "goldHi": "#fff1cc",
+      "goldLo": "#8a5a10",
+      "edge": "#e0a63a",
+      "cream": "#fff3dc",
+      "muted": "#c9a978",
+      "ink": "#140c02",
+      "shade": "#0c0703",
+      "win": "#ffe08a",
+      "spin": "#ff9900",
+      "alert": "#cc4444"
+     },
+     "palette": {
+      "hl": "#ffd27a",
+      "a": "#ff9900",
+      "b": "#ffcc66",
+      "c": "#ffe0a3",
+      "d": "#a86a12",
+      "warn": "#cc99cc",
+      "glass": "#140d04",
+      "grand": "#ff9900",
+      "major": "#cc99cc",
+      "minor": "#99ccff",
+      "mini": "#ffcc99"
+     },
+     "frame": {
+      "style": "glass",
+      "colour": "#ffcc66"
+     },
+     "deck": {
+      "style": "frame",
+      "colour": null
+     },
+     "glass": {
+      "opacity": 0.55,
+      "sheen": 0.12,
+      "edge": 1.5,
+      "blur": 14
+     },
+     "parts": {
+      "meter": {
+       "shape": "tab",
+       "fill": "tier",
+       "text": "goldHi"
+      },
+      "panel": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "spine": [
+        "b",
+        "d",
+        "c"
+       ],
+       "fill": "glass",
+       "edge": "hl",
+       "title": "hl"
+      },
+      "frame": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "edge": "hl",
+       "fill": "glass"
+      },
+      "box": {
+       "shape": "pill",
+       "fill": "glass",
+       "edge": "b",
+       "label": "c",
+       "value": "goldHi"
+      },
+      "button": {
+       "shape": "pill",
+       "fill": "b",
+       "on": "warn",
+       "text": "ink"
+      },
+      "spin": {
+       "shape": "pill",
+       "fill": "hl",
+       "text": "ink"
+      },
+      "deck": {
+       "shape": "elbow",
+       "fill": "d",
+       "edge": "hl",
+       "accent": "a"
+      }
+     },
+     "decor": [
+      {
+       "id": "rd-l",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 22,
+       "y": 91,
+       "w": 170,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        2,
+        5,
+        2,
+        2
+       ],
+       "colours": [
+        "b",
+        "a",
+        "c",
+        "b"
+       ],
+       "text_colour": "ink",
+       "tick": 2.5,
+       "seed": 3
+      },
+      {
+       "id": "reg",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 200,
+       "y": 87,
+       "w": 140,
+       "h": 20,
+       "colour": "warn",
+       "text": "NCC-1701-D",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "bar-l",
+       "kind": "bar",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 346,
+       "y": 92,
+       "w": 138,
+       "h": 10,
+       "colour": "d",
+       "round": "right"
+      },
+      {
+       "id": "sd",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 796,
+       "y": 87,
+       "w": 230,
+       "h": 20,
+       "colour": "c",
+       "text": "STARDATE {stardate}",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "rd-r",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 1040,
+       "y": 91,
+       "w": 218,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        5,
+        2,
+        3,
+        2
+       ],
+       "colours": [
+        "a",
+        "b",
+        "d",
+        "c"
+       ],
+       "text_colour": "ink",
+       "tick": 3,
+       "seed": 9
+      }
+     ],
+     "fonts": {
+      "display": "@lettering",
+      "ui": "@lettering"
+     },
+     "texts": {
+      "spin": "ENGAGE",
+      "features": "OPS SUBSYSTEMS",
+      "buy": "BUY BONUS",
+      "tagline": "MAKE IT SO",
+      "cashout": "BEAM OUT"
+     }
+    }
+   },
+   "ds9-lcars": {
+    "name": "DS9 LCARS",
+    "by": "claude",
+    "base": "lcars",
+    "note": "Voyager LCARS recoloured as Deep Space Nine's Ops: brick red, salmon and tan elbows over dark maroon glass, gold as the sparing accent (Buy Bonus, switched-on buttons, the registry). Buttons rounded on one side only.",
+    "colours": {
+     "gold": "#f08a6c",
+     "goldHi": "#ffe3d6",
+     "goldLo": "#6e1c14",
+     "edge": "#c45a44",
+     "cream": "#fbe9df",
+     "muted": "#c39484",
+     "ink": "#170504",
+     "shade": "#0e0403",
+     "win": "#ffd27a",
+     "spin": "#c0392b",
+     "alert": "#ff5a3c"
+    },
+    "palette": {
+     "hl": "#ff9c80",
+     "a": "#b8382a",
+     "b": "#e0664e",
+     "c": "#d9a580",
+     "d": "#5e1912",
+     "warn": "#f0b860",
+     "glass": "#170706",
+     "grand": "#f0b860",
+     "major": "#d96a8a",
+     "minor": "#d9a580",
+     "mini": "#e0664e"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#f08a6c"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "half",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [
+     {
+      "id": "rd-l",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 22,
+      "y": 91,
+      "w": 170,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       2,
+       5,
+       2,
+       2
+      ],
+      "colours": [
+       "b",
+       "a",
+       "c",
+       "b"
+      ],
+      "text_colour": "ink",
+      "tick": 2.5,
+      "seed": 3
+     },
+     {
+      "id": "reg",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 200,
+      "y": 87,
+      "w": 140,
+      "h": 20,
+      "colour": "warn",
+      "text": "DEEP SPACE 9",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "bar-l",
+      "kind": "bar",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 346,
+      "y": 92,
+      "w": 138,
+      "h": 10,
+      "colour": "d",
+      "round": "right"
+     },
+     {
+      "id": "sd",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 796,
+      "y": 87,
+      "w": 230,
+      "h": 20,
+      "colour": "c",
+      "text": "STARDATE {stardate}",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "rd-r",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 1040,
+      "y": 91,
+      "w": 218,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       5,
+       2,
+       3,
+       2
+      ],
+      "colours": [
+       "a",
+       "b",
+       "d",
+       "c"
+      ],
+      "text_colour": "ink",
+      "tick": 3,
+      "seed": 9
+     }
+    ],
+    "fonts": {
+     "display": "@lettering",
+     "ui": "@lettering"
+    },
+    "texts": {
+     "spin": "ENGAGE",
+     "features": "OPS SYSTEMS",
+     "buy": "BUY BONUS",
+     "tagline": "ALL HANDS TO OPS",
+     "cashout": "BEAM OUT"
+    },
+    "at": "2026-10-26T12:10:34",
+    "original": {
+     "name": "DS9 LCARS",
+     "by": "claude",
+     "base": "lcars",
+     "note": "Voyager LCARS recoloured as Deep Space Nine's Ops: brick red, salmon and tan elbows over dark maroon glass, gold as the sparing accent (Buy Bonus, switched-on buttons, the registry). Buttons rounded on one side only.",
+     "colours": {
+      "gold": "#f08a6c",
+      "goldHi": "#ffe3d6",
+      "goldLo": "#6e1c14",
+      "edge": "#c45a44",
+      "cream": "#fbe9df",
+      "muted": "#c39484",
+      "ink": "#170504",
+      "shade": "#0e0403",
+      "win": "#ffd27a",
+      "spin": "#c0392b",
+      "alert": "#ff5a3c"
+     },
+     "palette": {
+      "hl": "#ff9c80",
+      "a": "#b8382a",
+      "b": "#e0664e",
+      "c": "#d9a580",
+      "d": "#5e1912",
+      "warn": "#f0b860",
+      "glass": "#170706",
+      "grand": "#f0b860",
+      "major": "#d96a8a",
+      "minor": "#d9a580",
+      "mini": "#e0664e"
+     },
+     "frame": {
+      "style": "glass",
+      "colour": "#f08a6c"
+     },
+     "deck": {
+      "style": "frame",
+      "colour": null
+     },
+     "glass": {
+      "opacity": 0.55,
+      "sheen": 0.12,
+      "edge": 1.5,
+      "blur": 14
+     },
+     "parts": {
+      "meter": {
+       "shape": "tab",
+       "fill": "tier",
+       "text": "goldHi"
+      },
+      "panel": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "spine": [
+        "b",
+        "d",
+        "c"
+       ],
+       "fill": "glass",
+       "edge": "hl",
+       "title": "hl"
+      },
+      "frame": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "edge": "hl",
+       "fill": "glass"
+      },
+      "box": {
+       "shape": "pill",
+       "fill": "glass",
+       "edge": "b",
+       "label": "c",
+       "value": "goldHi"
+      },
+      "button": {
+       "shape": "half",
+       "fill": "b",
+       "on": "warn",
+       "text": "ink"
+      },
+      "spin": {
+       "shape": "pill",
+       "fill": "hl",
+       "text": "ink"
+      },
+      "deck": {
+       "shape": "elbow",
+       "fill": "d",
+       "edge": "hl",
+       "accent": "a"
+      }
+     },
+     "decor": [
+      {
+       "id": "rd-l",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 22,
+       "y": 91,
+       "w": 170,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        2,
+        5,
+        2,
+        2
+       ],
+       "colours": [
+        "b",
+        "a",
+        "c",
+        "b"
+       ],
+       "text_colour": "ink",
+       "tick": 2.5,
+       "seed": 3
+      },
+      {
+       "id": "reg",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 200,
+       "y": 87,
+       "w": 140,
+       "h": 20,
+       "colour": "warn",
+       "text": "DEEP SPACE 9",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "bar-l",
+       "kind": "bar",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 346,
+       "y": 92,
+       "w": 138,
+       "h": 10,
+       "colour": "d",
+       "round": "right"
+      },
+      {
+       "id": "sd",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 796,
+       "y": 87,
+       "w": 230,
+       "h": 20,
+       "colour": "c",
+       "text": "STARDATE {stardate}",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "rd-r",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 1040,
+       "y": 91,
+       "w": 218,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        5,
+        2,
+        3,
+        2
+       ],
+       "colours": [
+        "a",
+        "b",
+        "d",
+        "c"
+       ],
+       "text_colour": "ink",
+       "tick": 3,
+       "seed": 9
+      }
+     ],
+     "fonts": {
+      "display": "@lettering",
+      "ui": "@lettering"
+     },
+     "texts": {
+      "spin": "ENGAGE",
+      "features": "OPS SYSTEMS",
+      "buy": "BUY BONUS",
+      "tagline": "ALL HANDS TO OPS",
+      "cashout": "BEAM OUT"
+     }
+    }
+   },
+   "ent-lcars": {
+    "name": "ENT LCARS",
+    "by": "claude",
+    "base": "lcars",
+    "note": "Voyager LCARS recoloured as Enterprise's NX-01 consoles: gunmetal, silver and white over cold charcoal glass, one NX blue as the accent (Buy Bonus, switched-on buttons, the registry). Square-ended buttons; Earth date, not stardate.",
+    "colours": {
+     "gold": "#e6ebf0",
+     "goldHi": "#ffffff",
+     "goldLo": "#4a525b",
+     "edge": "#9aa3ad",
+     "cream": "#f2f5f8",
+     "muted": "#98a1ab",
+     "ink": "#0b0e12",
+     "shade": "#06080a",
+     "win": "#ffd27a",
+     "spin": "#c9d0d7",
+     "alert": "#d9453a"
+    },
+    "palette": {
+     "hl": "#ffffff",
+     "a": "#7d8792",
+     "b": "#b4bcc5",
+     "c": "#dde2e7",
+     "d": "#3a4048",
+     "warn": "#5cb8f0",
+     "glass": "#0b0e12",
+     "grand": "#f0c24a",
+     "major": "#5cb8f0",
+     "minor": "#c9d0d7",
+     "mini": "#8f9aa6"
+    },
+    "frame": {
+     "style": "glass",
+     "colour": "#e6ebf0"
+    },
+    "deck": {
+     "style": "frame",
+     "colour": null
+    },
+    "glass": {
+     "opacity": 0.55,
+     "sheen": 0.12,
+     "edge": 1.5,
+     "blur": 14
+    },
+    "parts": {
+     "meter": {
+      "shape": "tab",
+      "fill": "tier",
+      "text": "goldHi"
+     },
+     "panel": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "spine": [
+       "b",
+       "d",
+       "c"
+      ],
+      "fill": "glass",
+      "edge": "hl",
+      "title": "hl"
+     },
+     "frame": {
+      "shape": "elbow",
+      "top": "a",
+      "bottom": "c",
+      "edge": "hl",
+      "fill": "glass"
+     },
+     "box": {
+      "shape": "pill",
+      "fill": "glass",
+      "edge": "b",
+      "label": "c",
+      "value": "goldHi"
+     },
+     "button": {
+      "shape": "half",
+      "fill": "b",
+      "on": "warn",
+      "text": "ink"
+     },
+     "spin": {
+      "shape": "pill",
+      "fill": "hl",
+      "text": "ink"
+     },
+     "deck": {
+      "shape": "elbow",
+      "fill": "d",
+      "edge": "hl",
+      "accent": "a"
+     }
+    },
+    "decor": [
+     {
+      "id": "rd-l",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 22,
+      "y": 91,
+      "w": 170,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       2,
+       5,
+       2,
+       2
+      ],
+      "colours": [
+       "b",
+       "a",
+       "c",
+       "b"
+      ],
+      "text_colour": "ink",
+      "tick": 2.5,
+      "seed": 3
+     },
+     {
+      "id": "reg",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 200,
+      "y": 87,
+      "w": 140,
+      "h": 20,
+      "colour": "warn",
+      "text": "NX-01",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "bar-l",
+      "kind": "bar",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 346,
+      "y": 92,
+      "w": 138,
+      "h": 10,
+      "colour": "d",
+      "round": "right"
+     },
+     {
+      "id": "sd",
+      "kind": "text",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 796,
+      "y": 87,
+      "w": 230,
+      "h": 20,
+      "colour": "c",
+      "text": "{date}  {time}",
+      "font": "display",
+      "size": 17,
+      "align": "left"
+     },
+     {
+      "id": "rd-r",
+      "kind": "readout",
+      "layer": "under",
+      "show": true,
+      "alpha": 1,
+      "x": 1040,
+      "y": 91,
+      "w": 218,
+      "h": 13,
+      "colour": "hl",
+      "cells": [
+       5,
+       2,
+       3,
+       2
+      ],
+      "colours": [
+       "a",
+       "b",
+       "d",
+       "c"
+      ],
+      "text_colour": "ink",
+      "tick": 3,
+      "seed": 9
+     }
+    ],
+    "fonts": {
+     "display": "@lettering",
+     "ui": "@lettering"
+    },
+    "texts": {
+     "spin": "HIT IT",
+     "features": "TACTICAL SYSTEMS",
+     "buy": "BUY BONUS",
+     "tagline": "FULL IMPULSE",
+     "cashout": "BEAM OUT"
+    },
+    "at": "2026-10-26T12:10:34",
+    "original": {
+     "name": "ENT LCARS",
+     "by": "claude",
+     "base": "lcars",
+     "note": "Voyager LCARS recoloured as Enterprise's NX-01 consoles: gunmetal, silver and white over cold charcoal glass, one NX blue as the accent (Buy Bonus, switched-on buttons, the registry). Square-ended buttons; Earth date, not stardate.",
+     "colours": {
+      "gold": "#e6ebf0",
+      "goldHi": "#ffffff",
+      "goldLo": "#4a525b",
+      "edge": "#9aa3ad",
+      "cream": "#f2f5f8",
+      "muted": "#98a1ab",
+      "ink": "#0b0e12",
+      "shade": "#06080a",
+      "win": "#ffd27a",
+      "spin": "#c9d0d7",
+      "alert": "#d9453a"
+     },
+     "palette": {
+      "hl": "#ffffff",
+      "a": "#7d8792",
+      "b": "#b4bcc5",
+      "c": "#dde2e7",
+      "d": "#3a4048",
+      "warn": "#5cb8f0",
+      "glass": "#0b0e12",
+      "grand": "#f0c24a",
+      "major": "#5cb8f0",
+      "minor": "#c9d0d7",
+      "mini": "#8f9aa6"
+     },
+     "frame": {
+      "style": "glass",
+      "colour": "#e6ebf0"
+     },
+     "deck": {
+      "style": "frame",
+      "colour": null
+     },
+     "glass": {
+      "opacity": 0.55,
+      "sheen": 0.12,
+      "edge": 1.5,
+      "blur": 14
+     },
+     "parts": {
+      "meter": {
+       "shape": "tab",
+       "fill": "tier",
+       "text": "goldHi"
+      },
+      "panel": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "spine": [
+        "b",
+        "d",
+        "c"
+       ],
+       "fill": "glass",
+       "edge": "hl",
+       "title": "hl"
+      },
+      "frame": {
+       "shape": "elbow",
+       "top": "a",
+       "bottom": "c",
+       "edge": "hl",
+       "fill": "glass"
+      },
+      "box": {
+       "shape": "pill",
+       "fill": "glass",
+       "edge": "b",
+       "label": "c",
+       "value": "goldHi"
+      },
+      "button": {
+       "shape": "half",
+       "fill": "b",
+       "on": "warn",
+       "text": "ink"
+      },
+      "spin": {
+       "shape": "pill",
+       "fill": "hl",
+       "text": "ink"
+      },
+      "deck": {
+       "shape": "elbow",
+       "fill": "d",
+       "edge": "hl",
+       "accent": "a"
+      }
+     },
+     "decor": [
+      {
+       "id": "rd-l",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 22,
+       "y": 91,
+       "w": 170,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        2,
+        5,
+        2,
+        2
+       ],
+       "colours": [
+        "b",
+        "a",
+        "c",
+        "b"
+       ],
+       "text_colour": "ink",
+       "tick": 2.5,
+       "seed": 3
+      },
+      {
+       "id": "reg",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 200,
+       "y": 87,
+       "w": 140,
+       "h": 20,
+       "colour": "warn",
+       "text": "NX-01",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "bar-l",
+       "kind": "bar",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 346,
+       "y": 92,
+       "w": 138,
+       "h": 10,
+       "colour": "d",
+       "round": "right"
+      },
+      {
+       "id": "sd",
+       "kind": "text",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 796,
+       "y": 87,
+       "w": 230,
+       "h": 20,
+       "colour": "c",
+       "text": "{date}  {time}",
+       "font": "display",
+       "size": 17,
+       "align": "left"
+      },
+      {
+       "id": "rd-r",
+       "kind": "readout",
+       "layer": "under",
+       "show": true,
+       "alpha": 1,
+       "x": 1040,
+       "y": 91,
+       "w": 218,
+       "h": 13,
+       "colour": "hl",
+       "cells": [
+        5,
+        2,
+        3,
+        2
+       ],
+       "colours": [
+        "a",
+        "b",
+        "d",
+        "c"
+       ],
+       "text_colour": "ink",
+       "tick": 3,
+       "seed": 9
+      }
+     ],
+     "fonts": {
+      "display": "@lettering",
+      "ui": "@lettering"
+     },
+     "texts": {
+      "spin": "HIT IT",
+      "features": "TACTICAL SYSTEMS",
+      "buy": "BUY BONUS",
+      "tagline": "FULL IMPULSE",
+      "cashout": "BEAM OUT"
+     }
+    }
    }
   },
   "skin": "voyager-lcars",

@@ -1668,7 +1668,8 @@
    "bg_glass": "Background, behind glass"
   },
   "sounds": {},
+  "sound_preset": null,
   "design": "voyager",
-  "built_at": "2026-10-21T08:52:34"
+  "built_at": "2026-10-26T12:54:56"
  }
 }
