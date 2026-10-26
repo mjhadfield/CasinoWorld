@@ -163,8 +163,9 @@ sections:
     counters, lounge seating, planters, ATM, kiosk, jackpot board...) and its porcelain and basalt floors are
     installed as uploads by `tools/build_modern_pieces.py`, so they can be edited or deleted like any upload. So are
     the Vegas floor's 24 pieces (`vegas_*`: a raised stage, glass balustrades, the Amber Bar, a cashier cage, LED
-    columns, sign totems, leather lounge seating, palms, pools of light, a video wall...) and its five floors (two
-    Vegas carpets, white and black marble slabs, walnut planks), from `tools/build_vegas_floor.py`. Those are
+    columns, sign totems, leather lounge seating, palms, pools of light, a video wall...) and its ten floors (six
+    Vegas carpets: amber ribbons, deco fans, neon geometry, royal damask, starburst confetti, emerald waves; the pits'
+    oxblood carpet; white and black marble slabs; walnut planks), from `tools/build_vegas_floor.py`. Those are
     drawn at twice the game's resolution: a picture or floor with `scale` 2 is shown at its game size, smoothed,
     while its anchor, footprint and screen stay in game pixels. A piece can carry a `screen` the game draws live on
     it (in its own `colour`): the jackpot boards show the progressive jackpot.

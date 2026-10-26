@@ -6,7 +6,8 @@ The Vegas floor: a modern Las Vegas casino floor as a floor plan blueprint, with
             installed into a data dir's library as uploads (ids vegas_<id>), so each can be edited or deleted on the
             admin page's Floor plan > Assets like any other upload
   floors    marble slabs (white and black) and walnut planks cut from ambientCG's CC0 scans (tools/vegas_floor/
-            textures/), and two Vegas carpets drawn here and woven over a real carpet's fibre; floor ids vegas_*
+            textures/), and seven Vegas carpets (the floor's, five variations, the pits') drawn here and woven over a real
+            carpet's fibre; floor ids vegas_*
   room      "Casino Floor (Vegas)": the raised stage with the Master Table, Roulette, Craps, four slot banks, the Amber
             Bar, the cashier, a lounge and its staff, sent to a running server's draft as a blueprint (unplaced unless
             --place); its tables get "Dark Modern" styles, the master table's look (Roulette's and Craps' are made
@@ -227,8 +228,157 @@ def pit_carpet(size: int = 128) -> Image.Image:
     return Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8))
 
 
+# The variations: each 128 game pixels a repeat at scale 2, like the floor's carpet, every shape placed with wrapped
+# distances so the tile repeats seamlessly, and all woven over the same fibre.
+def _uv(size: int):
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size
+    return xx, yy
+
+
+def _wrap(v, c):
+    """The way from c to v across a repeating tile (-0.5..0.5)."""
+    return (v - c + .5) % 1 - .5
+
+
+def _woven(img: np.ndarray, size: int, blur: float = .6) -> Image.Image:
+    out = Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(blur))
+    img = np.asarray(out, np.float32) / 255 * _fibre(size)[..., None]
+    return Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8))
+
+
+def _soft(d, r, edge=.005):
+    """1 inside radius r, fading out over `edge`."""
+    return np.clip((r - d) / edge, 0, 1)
+
+
+def deco_fans(size: int = 256) -> Image.Image:
+    """Art deco fans: overlapping scallops (seigaiha) on midnight navy, each ringed in gold and pale teal. Each pixel
+    shows the scallop whose middle is furthest below it, so every row lies over the one above, across the tile's edge
+    too, and only the tops of the fans show."""
+    xx, yy = _uv(size)
+    R = .19
+    best_d = np.full((size, size), np.inf, np.float32)
+    best_dy = np.full((size, size), np.inf, np.float32)
+    for row in range(8):
+        for col in range(4):
+            cx, cy = col / 4 + (.125 if row % 2 else 0), row / 8
+            dy = _wrap(yy, cy)
+            d = np.hypot(_wrap(xx, cx), dy)
+            take = (d < R) & (dy < best_dy)
+            best_d, best_dy = np.where(take, d, best_d), np.where(take, dy, best_dy)
+    img = np.broadcast_to(_hex("#0c142b"), (size, size, 3)).copy()
+    ring = (best_d / R * 5) % 1
+    inside = np.isfinite(best_d)
+    img = _layer(img, inside * np.clip((ring - .8) / .04, 0, 1), "#d9b56a")
+    img = _layer(img, inside * (best_d < R * .8) * np.clip(1 - np.abs(ring - .44) / .07, 0, 1), "#3f7f86")
+    img = _layer(img, inside * (best_d < R * .4) * np.clip(1 - np.abs(ring - .44) / .07, 0, 1), "#b08a4a")
+    return _woven(img, size)
+
+
+def neon_geo(size: int = 256) -> Image.Image:
+    """Neon geometry: a triangle lattice in magenta, cyan and amber lines on charcoal, some triangles tinted, glowing
+    nodes where the lines cross."""
+    xx, yy = _uv(size)
+    img = np.broadcast_to(_hex("#121217"), (size, size, 3)).copy()
+    u, v, w = 4 * xx, 4 * (xx + yy), 4 * (xx - yy)
+    cell = (np.floor(u) * 7 + np.floor(v) * 13 + np.floor(w) * 5) % 9   # (which triangle: periodic, as the lines are)
+    for k, col in ((1, "#24152e"), (4, "#0f2430"), (7, "#2a1f12")):
+        img = _layer(img, (cell == k) * .9, col)
+    glow = np.zeros((size, size), np.float32)
+    for f, col in ((u, "#e0408f"), (v, "#33c6d6"), (w, "#f2b25c")):
+        d = np.abs(((f + .5) % 1) - .5) / 4   # distance to the nearest line, in tile units
+        glow = np.maximum(glow, np.clip(1 - d / .03, 0, 1) * .35)
+        img = _layer(img, np.clip((.006 - d) / .004, 0, 1), col)
+    img = img + glow[..., None] * np.array([.25, .12, .22], np.float32)
+    for cx in np.arange(0, 1, .25):
+        for cy in np.arange(0, 1, .25):
+            for ox in (0, .125):
+                d = np.hypot(_wrap(xx, cx + ox), _wrap(yy, cy + ox))
+                img = _layer(img, _soft(d, .012, .004), "#fff1d2")
+    return _woven(img, size, .5)
+
+
+def damask(size: int = 256) -> Image.Image:
+    """Royal damask: gold six-petal medallions with rose hearts on deep burgundy, small rose quatrefoils between, and
+    thin gold vines curling through."""
+    xx, yy = _uv(size)
+    tau = 2 * np.pi
+    img = np.broadcast_to(_hex("#330b14"), (size, size, 3)).copy()
+    tone = np.sin(tau * (xx + yy)) * np.sin(tau * (xx - yy))
+    img = _layer(img, (tone > .4) * .4, "#3f1019")
+    vine = np.sin(tau * (2 * xx + .15 * np.sin(tau * 2 * yy))) - np.sin(tau * 2 * yy)
+    img = _layer(img, np.clip((.06 - np.abs(vine)) / .03, 0, 1) * .8, "#8a6a2e")
+    for cx, cy in ((.25, .25), (.75, .75)):
+        dx, dy = _wrap(xx, cx), _wrap(yy, cy)
+        d, th = np.hypot(dx, dy), np.arctan2(dy, dx)
+        petal = .15 * (.55 + .45 * np.abs(np.cos(3 * th)))
+        img = _layer(img, _soft(d, petal), "#c9963e")
+        img = _layer(img, _soft(d, petal * .78), "#5a1420")
+        img = _layer(img, _soft(d, .15 * .55 * (.6 + .4 * np.abs(np.cos(3 * th + .5)))), "#b8434e")
+        img = _layer(img, _soft(d, .028), "#e8c070")
+    for cx, cy in ((.75, .25), (.25, .75)):
+        dx, dy = _wrap(xx, cx), _wrap(yy, cy)
+        d, th = np.hypot(dx, dy), np.arctan2(dy, dx)
+        img = _layer(img, _soft(d, .07 * (.5 + .5 * np.abs(np.cos(2 * th)))), "#9c3a44")
+        img = _layer(img, _soft(d, .016), "#d9b56a")
+    return _woven(img, size)
+
+
+def confetti(size: int = 256) -> Image.Image:
+    """Starburst confetti: retro-modern sparkles, starbursts, rings and dots in gold, coral and teal scattered over
+    deep purple."""
+    xx, yy = _uv(size)
+    img = np.broadcast_to(_hex("#1b0e29"), (size, size, 3)).copy()
+    img = _layer(img, (np.sin(2 * np.pi * 3 * xx) * np.sin(2 * np.pi * 3 * yy) > .7) * .3, "#24123a")
+    rs = np.random.default_rng(42)
+    for n in range(46):
+        cx, cy, kind = rs.random(), rs.random(), n % 4
+        dx, dy = _wrap(xx, cx), _wrap(yy, cy)
+        d, th = np.hypot(dx, dy), np.arctan2(dy, dx) + rs.random()
+        if kind == 0:     # a four-point sparkle
+            r = .035 + rs.random() * .02
+            img = _layer(img, _soft(d, r * (.12 + .88 * np.abs(np.cos(2 * th)) ** 8), .004), "#f2c96a")
+        elif kind == 1:   # an eight-point starburst
+            r = .03 + rs.random() * .015
+            img = _layer(img, _soft(d, r * (.4 + .6 * np.abs(np.cos(4 * th)) ** 3), .004), "#e8735a")
+            img = _layer(img, _soft(d, r * .3, .003), "#1b0e29")
+        elif kind == 2:   # a ring
+            r = .018 + rs.random() * .012
+            img = _layer(img, _soft(d, r, .003) * (1 - _soft(d, r * .62, .003)), "#3fb7a8")
+        else:             # a dot
+            img = _layer(img, _soft(d, .008 + rs.random() * .006, .003), ("#f2c96a", "#e8735a", "#3fb7a8")[n % 3])
+    return _woven(img, size)
+
+
+def emerald_waves(size: int = 256) -> Image.Image:
+    """Emerald waves: layered swells in jade and deep green, each crest edged in gold with a row of small gold
+    diamonds riding it."""
+    xx, yy = _uv(size)
+    tau = 2 * np.pi
+    img = np.broadcast_to(_hex("#0a2920"), (size, size, 3)).copy()
+    f = 6 * yy + .55 * np.sin(tau * 2 * xx) + .18 * np.sin(tau * 5 * xx + 1.1)
+    band, frac = np.floor(f) % 3, f % 1
+    for k, col in ((0, "#0f3d31"), (1, "#1a5a48"), (2, "#0b2f26")):
+        img = _layer(img, (band == k) * (.4 + .6 * frac), col)   # (each swell darkening into the next)
+    img = _layer(img, np.clip((frac - .94) / .02, 0, 1), "#d9b56a")
+    img = _layer(img, np.clip((frac - .9) / .02, 0, 1) * np.clip((.93 - frac) / .02, 0, 1) * .7, "#2f7a62")
+    for k in range(6):   # diamonds along each crest
+        cyf = (k + 1 - .03)
+        for i in range(8):
+            cx = (i + (.5 if k % 2 else 0)) / 8
+            crest = (cyf - .55 * np.sin(tau * 2 * cx) - .18 * np.sin(tau * 5 * cx + 1.1)) / 6
+            d = np.abs(_wrap(xx, cx)) + np.abs(_wrap(yy, crest))
+            img = _layer(img, _soft(d, .014, .003), "#e8c070")
+    return _woven(img, size)
+
+
 FLOORS = {
     "carpet": ("Vegas carpet, amber ribbons", lambda: vegas_carpet()),
+    "carpet_deco": ("Vegas carpet, deco fans", lambda: deco_fans()),
+    "carpet_neon": ("Vegas carpet, neon geometry", lambda: neon_geo()),
+    "carpet_damask": ("Vegas carpet, royal damask", lambda: damask()),
+    "carpet_confetti": ("Vegas carpet, starburst confetti", lambda: confetti()),
+    "carpet_waves": ("Vegas carpet, emerald waves", lambda: emerald_waves()),
     "pit_carpet": ("Vegas pit carpet, oxblood", lambda: pit_carpet()),
     "marble_white": ("White marble slabs", lambda: slabs("marble_white", 3, grout="#6d665c", grout_a=.5)),
     "marble_black": ("Black marble slabs", lambda: slabs("marble_black", 5, grout="#000000", grout_a=.6)),
