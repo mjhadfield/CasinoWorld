@@ -120,3 +120,30 @@ def test_the_modern_wall_styles_are_kept():
     p = plan.clean({"spawn": "lobby/spawn", "rooms": [{**plan.lobby(), "walls": {"style": "onyx", "sign": "LOBBY"}}]},
                        {"rooms": [], "next": {}})
     assert p["rooms"][0]["walls"]["style"] == "onyx" and "travertine" in plan.WALL_STYLES
+
+
+def test_finer_pictures_and_floors_carry_their_scale(tmp_path):
+    """The Vegas floor's pieces and floors (tools/build_vegas_floor.py) are drawn at twice the game's resolution: the
+    game gets each picture's scale, and the floors drawn finer than 1:1, while the shapes stay in game pixels."""
+    from casino_server.plan_assets import AssetLibrary
+    lib_dir = tmp_path / "plan_assets"
+    lib_dir.mkdir()
+    (lib_dir / "vegas_wall.png").write_bytes(png(680, 116))
+    (lib_dir / "floor_vegas_marble.png").write_bytes(png(256, 256))
+    (lib_dir / "uploads.json").write_text(json.dumps({"assets": {"vegas_wall": {
+        "name": "Video wall", "category": "Wall decor", "mount": "wall", "credit": "",
+        "facings": {"down": {"file": "vegas_wall.png", "anchor": [170, 58], "scale": 2}}, "rect": [-170, -58, 340, 58],
+        "body": None, "screen": {"show": "jackpot", "rect": [96, 30, 148, 20], "colour": "#ffd28a"}}},
+        "floors": {"vegas_marble": {"name": "Marble", "file": "floor_vegas_marble.png", "credit": "", "scale": 2}}}))
+    man = AssetLibrary(tmp_path).manifest()
+    wall = man["assets"]["vegas_wall"]
+    assert wall["facings"]["down"]["scale"] == 2 and wall["facings"]["down"]["anchor"] == [170, 58]
+    assert wall["screen"]["colour"] == "#ffd28a"
+    assert "scale" not in man["assets"]["fountain"]["facings"]["down"]
+    assert man["floor_scales"] == {"vegas_marble": 2} and "vegas_marble" in man["floors"]
+    assert plan.ASSETS["vegas_wall"]["rect"] == [-170, -58, 340, 58]
+
+
+def test_the_smoked_bronze_walls_are_kept():
+    p = plan.clean({"spawn": "lobby/spawn", "rooms": [{**plan.lobby(), "walls": {"style": "bronze"}}]}, {"rooms": [], "next": {}})
+    assert p["rooms"][0]["walls"]["style"] == "bronze"

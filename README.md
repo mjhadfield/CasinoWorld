@@ -161,10 +161,19 @@ sections:
     other facings (or a mirrored one), and deleted unless a room uses it. Built-ins are read-only. The game fetches
     the pictures at runtime, so new art needs no export. The Modern lobby's 21 pieces (`modern_*`: reception
     counters, lounge seating, planters, ATM, kiosk, jackpot board...) and its porcelain and basalt floors are
-    installed as uploads by `tools/build_modern_pieces.py`, so they can be edited or deleted like any upload. A
-    piece can carry a `screen` the game draws live on it: the jackpot board shows the progressive jackpot.
+    installed as uploads by `tools/build_modern_pieces.py`, so they can be edited or deleted like any upload. So are
+    the Vegas floor's 24 pieces (`vegas_*`: a raised stage, glass balustrades, the Amber Bar, a cashier cage, LED
+    columns, sign totems, leather lounge seating, palms, pools of light, a video wall...) and its five floors (two
+    Vegas carpets, white and black marble slabs, walnut planks), from `tools/build_vegas_floor.py`. Those are
+    drawn at twice the game's resolution: a picture or floor with `scale` 2 is shown at its game size, smoothed,
+    while its anchor, footprint and screen stay in game pixels. A piece can carry a `screen` the game draws live on
+    it (in its own `colour`): the jackpot boards show the progressive jackpot.
   - The first run puts just the lobby on the floor (the spawn, with a door top centre) and keeps the old
     hand-built floor and pit in the library as "Classic floor" and "Classic pit" (also git tag `classic-floor`).
+  - "Casino Floor (Vegas)" (`vegas_floor`) is a blueprint in the library: a modern Vegas floor (1280×976) with the
+    Master Table on a raised stage, Roulette and Craps in their pits, four slot banks, the Amber Bar, the cashier
+    and a lounge, its tables in the Dark Modern styles. Its way in is a door in the bottom wall's middle, so it goes
+    with that over the Modern lobby's top door (x -336, y -976, where it's saved).
 - **Slot design:** the slot machine builder (`#design/<design>/<step>`): a tab per design plus **New design**, and
   eleven steps down the side, each marked to do, in progress or done: Concept, Art, Value ladder, Scene, Features,
   Bonus games, Sprites, Sounds, Maths & payouts, Mockup & sign-off, Build. Star Trek is the first design. The
@@ -376,6 +385,15 @@ uploads (`<data>/plan_assets/`, default the live `server/data`), merged with the
 afterwards. Running it again brings back pieces deleted on the admin page. A contact sheet goes to
 `.dev/modern_pieces_contact.png`.
 
+`server/.venv/bin/python tools/build_vegas_floor.py [--data DIR] [--only pieces,floors] [--no-room] [--server URL]
+[--place]` builds the Vegas floor: its furniture (`tools/vegas_floor/pieces.js`, painted on canvas at scale 2 with
+real materials) and floors (marble and walnut cut from the ambientCG CC0 scans in `tools/vegas_floor/textures/`, the
+carpets drawn over a real carpet's fibre) go into a data dir's library as uploads (default the live `server/data`;
+restart that server afterwards), then the room goes into a running server's draft (default the live one) as a
+blueprint, or on the plan with `--place`, and its tables get the Dark Modern styles (Roulette's and Craps' made if
+missing; a table that already has a style keeps it). Running it again replaces the room, keeping its tables' ids. A
+contact sheet goes to `.dev/vegas_contact.png`.
+
 `server/.venv/bin/python tools/build_slot_art.py [variant]` renders a slot's vector art and lays out the art
 library that Armadillo's saved picks (`<data dir>/slot_art.json`) come from. New slot art is designed on the
 admin page's Slot design tab.
@@ -436,6 +454,7 @@ admin page's Slot design tab.
 - **tools/**: `dev.sh`, `shot.py`, `scene.py`, `layout_audit.gd`, `build_art.py`, `build_slot_art.py`,
   `plan_catalogue.gd` (the tables' and cabinet's shapes for the floor plan: rerun it if a table changes shape),
   `build_plan_assets.py` (the floor plan's built-in furniture from LPC packs), `build_modern_pieces.py` and
-  `modern_pieces/` (the Modern lobby's furniture, drawn in code and installed as uploads),
+  `modern_pieces/` (the Modern lobby's furniture, drawn in code and installed as uploads), `build_vegas_floor.py`
+  and `vegas_floor/` (the Vegas floor blueprint, its finer furniture and floors, and its textures),
   `build_table_tiles.py` (the table styles' wood, leather and felt tiles from Poly Haven, for the game and the
   designer), `table_geometry.gd` (the card tables' layout for the designer: rerun it if a table's layout changes).

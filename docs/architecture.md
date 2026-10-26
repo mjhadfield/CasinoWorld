@@ -171,7 +171,9 @@ A Godot 4.7 project exported to the web.
   `<data>/plan_assets/`. It fills `plan.ASSETS` and `plan.FLOORS` (each asset's footprint, how it stands, its
   pictures per facing), which the checks and the admin page use. The game's `PlanArt` autoload fetches the
   manifest and the pictures at runtime and refetches on `plan_art_changed`, so new art needs no export; a
-  `Furniture` node shows a piece (and blocks walking) once its picture is in, and the floor bakes again.
+  `Furniture` node shows a piece (and blocks walking) once its picture is in, and the floor bakes again. Pictures
+  and floors are 1:1 pixel art unless they carry a `scale` (the Vegas floor's are 2): those are shrunk to their game
+  size and smoothed, and everything about placing them (anchor, footprint, screen) stays in game pixels.
 - **Sounds** come in sets (`server/casino_server/sounds.py`): the whole casino, then each table game, and
   Default, then the slot presets made on the admin page, then each machine under the preset it follows. A set
   without its own sound for a moment plays the one above's. Each bonus game (Trail, Battle, Voyage, Expedition)
@@ -270,7 +272,7 @@ A Godot 4.7 project exported to the web.
 - Every room is built on every client and every table's events go to everyone; hidden rooms are only hidden. Past
   a few dozen tables the server should send each session only the tables in the rooms it can see.
 - Interactive objects on the floor plan beyond the ATM: an asset's `interact` has only the one kind, and the admin
-  page's asset editor doesn't set it (the build script for the Modern lobby's pieces does).
+  page's asset editor doesn't set it (the build scripts for the Modern lobby's and the Vegas floor's pieces do).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.
 - Chat and emotes.
 - Trusted HTTPS certificates, and a portrait phone layout.

@@ -60,8 +60,12 @@ function floorFill(ctx, texture, tint) {
     const img = image("/admin-ui/tables/textures/carpet.png");
     if (img) return ctx.createPattern(img, "repeat");
   } else if (CAT.floors[texture] && CAT.floors[texture].url) {
-    const img = image(CAT.floors[texture].url);
-    if (img) return ctx.createPattern(img, "repeat");
+    const img = image(CAT.floors[texture].url), k = CAT.floors[texture].scale || 1;
+    if (img) {
+      const pat = ctx.createPattern(img, "repeat");
+      if (k !== 1) pat.setTransform(new DOMMatrix().scale(1 / k));   // (a finer tile, shown at its game size)
+      return pat;
+    }
   }
   return texture === "carpet" ? "#1f3a3e" : tint;
 }
@@ -307,11 +311,12 @@ function drawFurniture(ctx, item, x, y, s) {
   const a = piece(item.asset) || {}, f = (a.facings || {})[item.facing || "down"] || (a.facings || {}).down;
   const img = f ? image(f.url) : null;
   if (img) {
-    ctx.imageSmoothingEnabled = false;
+    const k = f.scale || 1;   // (a finer picture: its anchor is in game pixels, its pixels k to one)
     ctx.save();
+    ctx.imageSmoothingEnabled = k > 1;
     ctx.translate(x, y);
     if (f.mirror) ctx.scale(-1, 1);
-    ctx.drawImage(img, -f.anchor[0], -f.anchor[1], img.naturalWidth, img.naturalHeight);
+    ctx.drawImage(img, -f.anchor[0], -f.anchor[1], img.naturalWidth / k, img.naturalHeight / k);
     ctx.restore();
   } else {
     ctx.fillStyle = "rgba(201,162,74,.35)"; ctx.fillRect(...s.rect);

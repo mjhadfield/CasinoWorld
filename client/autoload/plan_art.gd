@@ -8,6 +8,7 @@ signal art_changed
 
 var _assets := {}      # id -> {"mount", "body", "by_facing", "facings": {facing: {"url", "anchor", "mirror"}}}
 var _floors := {}      # id -> URL
+var _floor_scales := {}   # id -> its tile's pixels per game pixel (only the floors drawn finer than 1:1)
 var _downloaded := {}  # URL -> Texture2D
 var _version := -1
 var _loading := 0
@@ -26,8 +27,8 @@ func asset(id: String) -> Dictionary:
 	return _assets.get(id, {})
 
 
-## The picture for an asset facing a way (its "down" one if it has none for that way): {texture, anchor, mirror},
-## or {} until it's downloaded.
+## The picture for an asset facing a way (its "down" one if it has none for that way): {texture, anchor, mirror,
+## scale}, or {} until it's downloaded. The anchor is in game pixels; a scale of 2 is a picture drawn at twice that.
 func picture(id: String, facing: String) -> Dictionary:
 	var a: Dictionary = _assets.get(id, {})
 	var f: Dictionary = a.get("facings", {}).get(facing, a.get("facings", {}).get("down", {}))
@@ -35,12 +36,18 @@ func picture(id: String, facing: String) -> Dictionary:
 	if tex == null:
 		return {}
 	var anchor: Array = f.get("anchor", [0, 0])
-	return {"texture": tex, "anchor": Vector2(float(anchor[0]), float(anchor[1])), "mirror": bool(f.get("mirror", false))}
+	return {"texture": tex, "anchor": Vector2(float(anchor[0]), float(anchor[1])), "mirror": bool(f.get("mirror", false)),
+			"scale": maxf(1.0, float(f.get("scale", 1)))}
 
 
 ## A floor texture by name, or null (drawn as plain colour).
 func floor_texture(id: String) -> Texture2D:
 	return _downloaded.get(str(_floors.get(id, "")))
+
+
+## How many of a floor texture's pixels make one game pixel (1, or 2 for the finer Vegas floors).
+func floor_scale(id: String) -> float:
+	return maxf(1.0, float(_floor_scales.get(id, 1)))
 
 
 func reload() -> void:
@@ -70,5 +77,6 @@ func reload() -> void:
 			_downloaded[url] = ImageTexture.create_from_image(img)
 	_assets = manifest.assets
 	_floors = manifest.get("floors", {})
+	_floor_scales = manifest.get("floor_scales", {})
 	_version = int(manifest.get("version", 0))
 	art_changed.emit()

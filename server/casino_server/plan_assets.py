@@ -8,13 +8,20 @@ manifest() and the pictures, so new art needs no export).
   <data dir>/plan_assets/        uploads: their pictures and uploads.json (the same shape as the catalogue)
 
 An asset: {"name", "category", "mount": floor|flat|wall, "credit", "facings": {facing: {"file", "anchor": [x, y],
-"mirror"}}, "rect", "body", "by_facing": {facing: {"rect", "body"}}, "screen", "interact"}. Its pictures stand on their anchor (the
-middle of the base; a rug's middle); rect is the picture about the anchor, body the footprint that blocks walking (none
-for rugs and wall pieces). An optional screen, {"show": "jackpot", "rect": [x, y, w, h] on the picture}, is a display
-the game draws live on it (the Modern lobby's jackpot board). An optional interact, "atm", makes it something you walk
-up to and use (bank.py; the Modern lobby's cash machine). A floor: {"name", "file", "credit"}, one seamless tile.
+"mirror", "scale"}}, "rect", "body", "by_facing": {facing: {"rect", "body"}}, "screen", "interact"}. Its pictures stand
+on their anchor (the middle of the base; a rug's middle); rect is the picture about the anchor, body the footprint that
+blocks walking (none for rugs and wall pieces). An optional screen, {"show": "jackpot", "rect": [x, y, w, h] on the
+picture, "colour": its LEDs' (only when not the usual red)}, is a display the game draws live on it (the Modern lobby's
+jackpot board). An optional interact, "atm", makes it something you walk up to and use (bank.py; the Modern lobby's
+cash machine). A floor: {"name", "file", "credit", "scale"}, one
+seamless tile.
 
-The Modern lobby's pieces (tools/build_modern_pieces.py) are installed as uploads, so they can be edited and deleted.
+A picture's scale (only when set) is how many of its pixels make one game pixel: the Vegas floor's pieces are drawn
+at 2, finer than the 1:1 pixel art, and shown at their game size, smoothed. Anchors, rects, bodies and screens are
+always in game pixels, so a scaled picture is placed exactly like a 1:1 one.
+
+The Modern lobby's pieces (tools/build_modern_pieces.py) and the Vegas floor's (tools/build_vegas_floor.py) are
+installed as uploads, so they can be edited and deleted.
 
 install() puts every asset and floor into plan.ASSETS and plan.FLOORS (with each picture's URL); uploads, edits and
 deletes call it again and bump the version the game refetches by.
@@ -95,15 +102,16 @@ class AssetLibrary:
         self.version += 1
 
     def manifest(self) -> dict:
-        """What the game draws with: {version, assets: {id: {mount, facings: {f: {url, anchor, mirror}}, body,
-        by_facing, screen, interact}}, floors: {id: url}}."""
+        """What the game draws with: {version, assets: {id: {mount, facings: {f: {url, anchor, mirror, scale}}, body,
+        by_facing, screen, interact}}, floors: {id: url}, floor_scales: {id: scale} (the floors drawn finer than 1:1)}."""
         return {"version": self.version,
                 "assets": {aid: {"mount": a["mount"], "body": a.get("body"), "by_facing": a.get("by_facing", {}),
-                                 "facings": {f: {k: v[k] for k in ("url", "anchor", "mirror") if k in v} for f, v in a["facings"].items()},
+                                 "facings": {f: {k: v[k] for k in ("url", "anchor", "mirror", "scale") if k in v} for f, v in a["facings"].items()},
                                  **({"screen": a["screen"]} if a.get("screen") else {}),
                                  **({"interact": a["interact"]} if a.get("interact") else {})}
                            for aid, a in plan.ASSETS.items()},
-                "floors": {fid: f["url"] for fid, f in plan.FLOORS.items() if "url" in f}}
+                "floors": {fid: f["url"] for fid, f in plan.FLOORS.items() if "url" in f},
+                "floor_scales": {fid: f["scale"] for fid, f in plan.FLOORS.items() if "url" in f and f.get("scale", 1) != 1}}
 
     def file_path(self, rel: str) -> Path | None:
         uploaded = rel.startswith("u/")

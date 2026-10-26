@@ -614,7 +614,10 @@ function draw() {
   if (S.layers.reach) { reach = reach || G.npcReach(placed()); drawReach(ctx, reach); }
   for (const r of rooms) {
     const bad = r === cur ? new Set(G.roomProblems(r).map(p => p.i)) : new Set();
-    const order = r.items.map((it, i) => [i, it]).sort((a, b) => (a[1].y - b[1].y));
+    // As the game layers them: rugs and other flat pieces on the floor (in the order placed), then what hangs on the
+    // wall, then everything standing, nearest last.
+    const layer = it => ({ flat: 0, wall: 1 }[(G.piece(it.asset) || {}).mount] ?? 2);
+    const order = r.items.map((it, i) => [i, it]).sort((a, b) => layer(a[1]) - layer(b[1]) || (layer(a[1]) ? a[1].y - b[1].y : a[0] - b[0]));
     for (const [i, it] of order) drawItem(ctx, r, it, { picked: r === cur && S.sel.some(s => s.t === "item" && s.i === i), bad: bad.has(i) });
     if (r === cur && S.layers.paths) drawPaths(ctx, r, { point: pickedIndex("point"), zone: pickedIndex("zone") });
   }

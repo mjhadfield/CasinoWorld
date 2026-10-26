@@ -267,8 +267,14 @@ func _paint(ci: CanvasItem, r: Rect2, texture: String, tint: Color) -> void:
 	var tex: Texture2D = CARPET if texture == "carpet" else PlanArt.floor_texture(texture)
 	if tex == null:
 		ci.draw_rect(r, tint)
-	else:
+		return
+	var k := PlanArt.floor_scale(texture)
+	if k == 1.0:
 		ci.draw_texture_rect(tex, r, true, tint)
+	else:   # (a finer tile: drawn shrunk, still tiling from the corner)
+		ci.draw_set_transform(r.position, 0.0, Vector2.ONE / k)
+		ci.draw_texture_rect(tex, Rect2(Vector2.ZERO, r.size * k), true, tint)
+		ci.draw_set_transform(Vector2.ZERO)
 
 
 ## A floor patch: its floor inside its outline, the pattern over that, the border inside the edge. The admin's
@@ -289,8 +295,9 @@ func _draw_patch(ci: CanvasItem, p: Dictionary) -> void:
 			ci.draw_colored_polygon(pts, tint)
 		else:   # (the floor layer repeats textures, so the UVs tile from the patch's corner)
 			var uvs := PackedVector2Array()
+			var tile := tex.get_size() / PlanArt.floor_scale(texture)
 			for q in pts:
-				uvs.append((q - r.position) / tex.get_size())
+				uvs.append((q - r.position) / tile)
 			ci.draw_colored_polygon(pts, tint, uvs, tex)
 	var pat: Dictionary = p.get("pattern", {})
 	if str(pat.get("kind", "none")) != "none":

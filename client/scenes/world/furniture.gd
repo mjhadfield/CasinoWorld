@@ -33,10 +33,13 @@ func _apply() -> void:
 	var a := PlanArt.asset(asset_id)
 	var pic := PlanArt.picture(asset_id, facing)
 	_pic.texture = pic.get("texture")
-	if not pic.is_empty():
+	if not pic.is_empty():   # (a finer picture, scale 2, is shrunk to its game size and smoothed)
+		var k: float = pic.scale
 		var size: Vector2 = pic.texture.get_size()
 		_pic.flip_h = pic.mirror
-		_pic.offset = -pic.anchor if not pic.mirror else Vector2(-(size.x - pic.anchor.x), -pic.anchor.y)
+		_pic.scale = Vector2.ONE / k
+		_pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if k > 1.0 else CanvasItem.TEXTURE_FILTER_PARENT_NODE
+		_pic.offset = -pic.anchor * k if not pic.mirror else Vector2(-(size.x - pic.anchor.x * k), -pic.anchor.y * k)
 	match str(a.get("mount", "floor")):
 		"flat":
 			z_index = -6   # (on the floor, under everyone)
@@ -73,7 +76,7 @@ func stand_spot() -> Vector2:
 
 ## Whether a point (global) is on its picture.
 func hit(at: Vector2) -> bool:
-	return _pic.texture != null and Rect2(_pic.offset, _pic.texture.get_size()).has_point(to_local(at))
+	return _pic.texture != null and Rect2(_pic.offset * _pic.scale, _pic.texture.get_size() * _pic.scale).has_point(to_local(at))
 
 
 func _apply_screen(a: Dictionary, pic: Dictionary) -> void:
@@ -87,9 +90,10 @@ func _apply_screen(a: Dictionary, pic: Dictionary) -> void:
 		_screen = PlanScreen.new()
 		add_child(_screen)
 	var r: Array = s.get("rect", [0, 0, 0, 0])
-	var size: Vector2 = pic.texture.get_size()
+	var size: Vector2 = pic.texture.get_size() / pic.scale   # (the screen's rect is in game pixels)
 	var x := float(r[0]) if not pic.mirror else size.x - float(r[0]) - float(r[2])
 	_screen.kind = str(s.get("show", "jackpot"))
+	_screen.colour = Color(str(s.get("colour", PlanScreen.LED.to_html(false))))
 	_screen.rect = Rect2(x, float(r[1]), float(r[2]), float(r[3]))
-	_screen.position = _pic.offset
+	_screen.position = _pic.offset * _pic.scale
 	_screen.queue_redraw()

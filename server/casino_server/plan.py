@@ -131,6 +131,7 @@ WALL_STYLES = {
     "charcoal": {"name": "Charcoal", "paper": "#26262b", "stripe": "#2e2e34", "wainscot": "#151518", "trim": "#d4af37", "edge": "#0c0c0e"},
     "onyx": {"name": "Onyx & gold", "paper": "#1e1e23", "stripe": "#25252b", "wainscot": "#111114", "trim": "#d4af5a", "edge": "#09090b"},
     "travertine": {"name": "Travertine", "paper": "#c8baa2", "stripe": "#c0b199", "wainscot": "#3b352e", "trim": "#b8955a", "edge": "#27231e"},
+    "bronze": {"name": "Smoked bronze", "paper": "#1d1917", "stripe": "#231e1b", "wainscot": "#0f0c0b", "trim": "#ffc878", "edge": "#080606"},
     "none": {"name": "None (just the floor)"},
 }
 # Floors (the asset library adds more): "carpet" is the casino's own, "plain" just its tint.
