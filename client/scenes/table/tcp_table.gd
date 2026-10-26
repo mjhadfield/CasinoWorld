@@ -322,9 +322,11 @@ func _dealer_reveal(ev: Dictionary, d: float) -> float:
 
 ## Settle one player: their cards slide out from under the bet back to where
 ## they were dealt and are turned over, and the dealer announces the hand.
-## A pause; then losing bets are swept and winnings placed beside the stakes
-## (where they stay until the whole table is settled, see _return_chips); the
-## cards are cleared away last. Another pause before the next player.
+## When the dealer didn't qualify, the pushed Play bet goes back to the player
+## as the cards come out from under it. A pause; then losing bets are swept and
+## winnings placed beside the stakes (where they stay until the whole table is
+## settled, see _return_chips); the cards are cleared away last. Another pause
+## before the next player.
 func _settle(ev: Dictionary, d: float) -> float:
 	phase = "settling"
 	var seat := int(ev.seat)
@@ -333,11 +335,14 @@ func _settle(ev: Dictionary, d: float) -> float:
 	for k in cards.size():
 		_move_card(cards[k], [card_pos(seat, k), 0.0], 0.3 * d)
 		_after((0.32 + k * 0.05) * d).timeout.connect(cards[k].flip_to.bind(ev.cards[k], 0.28 * d))
+	var steps: Array = ev.steps
+	if ev.get("outcome") == "dealer_no_qualify":
+		_take_stack(seat, "play", chair_pos(seat), d)
+		steps = steps.filter(func(x): return x.spot != "play")
 	var t := 0.65 * d
 	if str(ev.get("say", "")) != "":
 		_after(t).timeout.connect(dealer.say.bind(ev.say, 2.0 + pause * 2))
 	t += pause
-	var steps: Array = ev.steps
 	var ordered := steps.filter(func(x): return x.action == "collect") + steps.filter(func(x): return x.action != "collect")
 	for step in ordered:  # losing bets swept first, then winners paid
 		_after(t).timeout.connect(_settle_step.bind(seat, step, d))

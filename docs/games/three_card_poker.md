@@ -33,7 +33,8 @@ for you and you decide it. Out of time folds whichever is still undecided. Stand
 3. The dealer settles each remaining player in turn, left to right on screen (third base to first). The
    player's cards slide out from under the bet and are turned over, and the dealer announces the hand
    ("Pair of Kings, wins."), or "Pair of Kings -- money back." when it nets nothing (a push, or winnings that
-   only cover the side bets that lost). After a pause, the losing bets are swept, the winnings are placed beside the
+   only cover the side bets that lost). When the dealer didn't qualify, the pushed Play bet goes back to the
+   player as the cards come out from under it. After a pause, the losing bets are swept, the winnings are placed beside the
    stakes, and the cards are cleared away. There's another pause before the next player.
 4. Once everyone is settled, the winnings go back to the players and the next round begins.
 
