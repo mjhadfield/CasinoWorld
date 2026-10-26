@@ -36,6 +36,14 @@ What to aim for: one clear idea taken from the brief and the art, plus the slot'
 every word. Every word stays readable at the sizes the screen uses, and nothing covers the working places (the
 server refuses decor that does).
 
+### A house scene, for every slot
+
+When Mike wants a scene offered to every slot (existing and new), add the finished skin, `"by": "house"`, to
+`server/casino_server/scene_presets.json` and restart the server. It joins **New:** on every design's Scene step
+after Classic and LCARS, under its name's slug. Design it on one slot as above first. Keep it generic: no slot's
+own name or logo words in its decor, and `@lettering` for its fonts, so each slot's own font carries over.
+`test_scene_skins` checks every house scene.
+
 ## The skin
 
 ```json

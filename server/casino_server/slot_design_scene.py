@@ -21,9 +21,13 @@ Colours in palette, parts and decor are a name ("hl", "a", "gold", "cream", ...)
 The Brief (scene.brief) is what Mike asks Claude for: words and reference pictures (scene/brief_<n>.png). A Claude
 Code session answers it with a new skin (put_skin, by "claude"); the skin keeps a copy of how Claude made it
 ("original"), so Reset brings it back after tweaks.
+
+The house's scenes (HOUSE) are offered to every design under New: the Classic and LCARS starters, and finished
+skins kept in scene_presets.json. New copies one into the design, as Mike's to change.
 """
 import copy
 import io
+import json
 import re
 from pathlib import Path
 
@@ -86,6 +90,11 @@ LCARS = {"name": "LCARS", "by": "house", "base": "lcars", "note": "",
                    "deck": {"shape": "elbow", "fill": "d", "edge": "hl", "accent": "a"}},
          "decor": [], "fonts": {"display": LETTERING, "ui": LETTERING}, "texts": {}}
 STARTERS = {"classic": CLASSIC, "lcars": LCARS}
+# The house's scenes, offered to every design under New: the two starters, then the finished ones
+# (scene_presets.json, whole skins made for any slot: TNG, DS9 and ENT LCARS).
+HOUSE = {"classic": CLASSIC, "lcars": LCARS,
+         **{re.sub(r"[^a-z0-9]+", "-", sk["name"].lower()).strip("-"): sk
+            for sk in json.loads((Path(__file__).resolve().parent / "scene_presets.json").read_text())}}
 
 
 def _slug(text: str) -> str:
@@ -324,6 +333,7 @@ def scene_view(d) -> dict:
             "fonts": _fonts(d), "frame_styles": list(FRAME_STYLES), "deck_styles": list(DECK_STYLES),
             "skin": lk["slug"], "skins": skins, "look": lk, "edit": {k: v for k, v in sc["skins"][lk["slug"]].items() if k != "original"},
             "brief": brief, "lettering_font": lettering_font(d),
+            "house": [{"id": k, "name": v["name"], "base": v["base"]} for k, v in HOUSE.items()],
             "schema": {"bases": list(BASES), "palette": list(PALETTE), "parts": {p: {"shapes": list(s), "colours": list(k)} for p, (s, k) in PARTS.items()},
                        "decor": list(DECOR_KINDS), "texts": TEXTS, "colours": list(THEME_DEFAULTS), "protected": PROTECTED, "safe": SAFE}}
 
@@ -413,13 +423,13 @@ class SceneMixin:
                 if not name:
                     raise DesignError("Give the scene a name.")
                 sk["name"] = name
-            elif action == "new":   # a fresh skin of a family, from its starter
-                base_id = body.get("base")
-                if base_id not in STARTERS:
-                    raise DesignError(f"A new scene's base is one of {', '.join(BASES)}.")
-                st = copy.deepcopy(STARTERS[base_id])
+            elif action == "new":   # a fresh skin from one of the house's (a starter or a finished scene)
+                house = body.get("house") or body.get("base")
+                if house not in HOUSE:
+                    raise DesignError(f"A new scene starts from one of {', '.join(HOUSE)}.")
+                st = copy.deepcopy(HOUSE[house])
                 st["by"] = "mike"
-                if base_id == "classic":
+                if house == "classic":
                     st["colours"], st["fonts"] = dict(sk["colours"]), dict(sk["fonts"])
                 new = _free_slug(sc["skins"], st["name"])
                 if new != _slug(st["name"]):

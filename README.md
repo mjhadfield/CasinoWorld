@@ -196,7 +196,8 @@ sections:
     Symbol Upgrade chain beside it. Auto-fill takes the specials by name and each category in order.
   - **Scene:** the screen's whole look, as **scenes** (skins: `slot_design_scene.py`, and [docs/slots/scenes.md](docs/slots/scenes.md)).
     A design keeps several and plays the chosen one: a strip to pick, rename, duplicate, bin (restorable) or start a
-    new Classic or LCARS one, and **Reset to Claude's version** for one Claude made. **Look**: the family (Classic,
+    new one from the house's (**New:** Classic, LCARS, and the finished TNG, DS9 and ENT LCARS in
+    `scene_presets.json`, offered to every slot), and **Reset to Claude's version** for one Claude made. **Look**: the family (Classic,
     the four frame styles; LCARS, elbows and pills on frosted glass), the palette, glass, the two fonts (by default
     the Art step's lettering font), the screen's eleven colours and its words (SPIN, CREDIT, ...). **Parts**: a shape
     and colours per part (Classic: the reel frame's style and colour, and the deck's). **Decor**: the shapes Claude

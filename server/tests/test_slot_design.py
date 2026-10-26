@@ -674,6 +674,15 @@ def test_scene_skins(board):
     new = c.post("/api/slot-design/demo/scene/skins/bridge/new", json={"base": "lcars"}).json()["slug"]
     assert new == "lcars"
     assert c.post("/api/slot-design/demo/scene/skins/lcars/new", json={"base": "lcars"}).json()["slug"] == "lcars-2"
+    # the house's finished scenes: every one checks, and New gives the design its own copy
+    assert [h["id"] for h in _overview(c)["scene"]["house"]] == list(scene.HOUSE)
+    for sk in scene.HOUSE.values():
+        scene.check_skin(sk, list(scene.FONT_DEFAULTS.values()))
+    assert c.post("/api/slot-design/demo/scene/skins/lcars/new", json={"house": "ds9-lcars"}).json()["slug"] == "ds9-lcars"
+    sc = _overview(c)["scene"]
+    assert sc["skin"] == "ds9-lcars" and sc["look"]["skin"]["palette"] == scene.HOUSE["ds9-lcars"]["palette"]
+    assert next(s for s in sc["skins"] if s["slug"] == "ds9-lcars")["by"] == "mike"
+    assert c.post("/api/slot-design/demo/scene/skins/lcars/new", json={"house": "nope"}).status_code == 400
     assert c.post(f"/api/slot-design/demo/scene/skins/{dup}/bin").status_code == 200
     sc = _overview(c)["scene"]
     assert dup not in [s["slug"] for s in sc["skins"]] and sc["bin"]["skins"] == [{"slug": dup, "name": "Bridge night"}]
