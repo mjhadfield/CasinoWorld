@@ -26,7 +26,8 @@ game result and every penny is decided on the server; the client only renders an
   made once and handed to each: the store (a character's cash and bank), the card progressive and the slots'
   progressives and figures, and the NPC cast with its **claims** (`casinos.Claims`, npc id -> casino id: a punter
   is claimed from coming in until they've walked out, a dealer for their shift, and the other casinos' directors
-  and rosters skip anyone claimed, so nobody is in two at once; the house's generic Dealer fills any gap). It
+  and rosters skip anyone claimed, so nobody is in two at once; the house's generic Dealer fills any gap, and deals
+  every table of a hidden casino, so one still being built doesn't keep the cast from the open ones). It
   handles everything before a floor: `join`, characters, bans, and the casino chooser (`casinos`,
   `enter_casino`, `leave_casino`); a session that has entered a casino (`session.casino`) has the rest handled
   by that casino. Every casino in the registry runs all the time, players or not.

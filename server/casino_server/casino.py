@@ -90,6 +90,11 @@ class Casino:
     def name(self) -> str:
         return self.resort.name_of(self.id) if self.resort is not None else self.id
 
+    def listed(self) -> bool:
+        """On the players' chooser (open), not hidden. A casino on its own counts as open."""
+        e = self.resort.entry(self.id) if self.resort is not None else None
+        return bool(e["open"]) if e else True
+
     def population(self) -> int:
         """How many punters its NPC director keeps on the floor: the registry's figure (the admin page's setting
         when it's on its own)."""

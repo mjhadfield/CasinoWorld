@@ -239,3 +239,27 @@ def test_the_admin_page_makes_changes_and_deletes_casinos(two):
     two.delete(f"/api/casinos/{copied}")
     two.delete("/api/casinos/second")
     assert two.delete("/api/casinos/demo").status_code == 400   # (the last one)
+
+
+def test_a_hidden_casino_leaves_the_dealers_to_the_open_ones(tmp_path):
+    for cid in ("demo", "site"):
+        for name in ("live.json", "draft.json"):
+            plan._write(plan.plan_dir(casinos.casino_dir(tmp_path, cid)) / name, CLASSIC_PLAN)
+    registry = [casinos.entry("demo", "Demo", population=0), casinos.entry("site", "Site", open_=False, population=0)]
+    now = [1_000_000.0]
+    resort = Resort(Store(tmp_path / "c.sqlite"), tmp_path, registry=registry, rng=random.Random(2),
+                    clock=lambda: now[0], wall=lambda: now[0])
+    demo, site = resort.casinos["demo"], resort.casinos["site"]
+    for _ in range(3):
+        now[0] += 60 * 60   # (shifts end: reliefs come from the free dealers)
+        for casino in (demo, site):
+            for runner in casino.tables.values():
+                runner.machine.phase = "betting"
+            casino.dealers.tick(now[0])
+    assert site.dealers.status() == {} and len(demo.dealers.status()) == 15
+    resort.change_casino("site", {"open": True})   # (opened: named dealers come on at the next reliefs)
+    now[0] += 60 * 60
+    for runner in site.tables.values():
+        runner.machine.phase = "betting"
+    site.dealers.tick(now[0])
+    assert site.dealers.status() and not set(site.dealers.status()) & set(demo.dealers.status())

@@ -1,8 +1,7 @@
 # Multiple casinos
 
-**Branch:** `task/multi-casino`, in the worktree `.claude/worktrees/multi-casino` (dev instance on 8672). Step 1 is on
-`main` (8c8584e); the rest stays on the branch so the live server, which runs from the main folder, keeps the
-single-casino code until the switch-over (going live = merge into `main`, then export and restart).
+**Branch:** done on `task/multi-casino` (worktree `.claude/worktrees/multi-casino`), merged into `main` and live
+2026-10-27. The git tag `single-casino` (8e684e5) is the code from before.
 **Plan:** `~/.claude/plans/new-feature-multiple-casino-shiny-curry.md` (copied below; written 2026-10-27)
 
 ## Goal
@@ -23,23 +22,27 @@ Boulevard", is seeded from blockout C.
   `last_casino`, resume. (f871bce, with step 4)
 - [x] 4 Publishing reloads only that casino. (f871bce)
 - [x] 5 Client: casino chooser, session state, rebuild check, switch mode; `shot.py --casino` and `--door=casino`. (b93f2ce)
-- [ ] 6 Admin: casino picker and Casinos dialog; per-casino columns and settings.
-- [ ] 7 The Boulevard seeded (dev first, then live); docs updated.
-- [ ] `tools/dev.sh test` passes; live switch-over done with backups and the git tag `single-casino`.
+- [x] 6 Admin: casino picker and Casinos dialog; per-casino columns and settings. (dc0e7a5)
+- [x] 7 The Boulevard seeded (dev first, then live); docs updated. (a3c38f7)
+- [x] `tools/dev.sh test` passes (1018); live switch-over done with backups and the git tag `single-casino`.
 
 ## Handoff
-- **State:** steps 1-5 built and committed; 6 and 7 and the go-live are left.
+- **State:** finished and live (2026-10-27). Live has Demo (the old floor, open) and The Boulevard (`boulevard`,
+  hidden, no punters; walk round it at `/?casino=boulevard`).
 - **Changed from the plan:** `casinos_changed` isn't a message of its own: the server resends `casinos` to everyone
   on the chooser. A new `list_casinos` gives the chooser fresh counts when it's opened from the floor. A `?casino=`
-  link sends `pick_character` with `casino` (enters directly) rather than its own message. A publish needing a slot
-  built since start still restarts the server (only a start loads a built slot).
-- **Interim gaps until step 6:** the admin Settings tab's "Punters on the floor" still writes the old global
-  setting, which nothing reads now (each casino's `population` is in `casinos.json`); the NPC tab's Bring in goes
-  to Demo (`?casino=` on the endpoint); the Floor plan tab only edits Demo.
-- **Checked:** full `tools/dev.sh test` (1015 passed); on the dev instance (a test casino "Upstairs" added by hand to
-  `.dev/data/casinos.json`), `shot.py --door=casino`, `--casino upstairs`, and switching to Demo from the wallet.
-- **Note:** the full suite sits at ~79% for a while (the slot-design tests are slow); it isn't hung.
-- **Questions for Mike:** none open. His answers are under "Mike's decisions" below.
+  link sends `pick_character` with `casino` (enters directly). A publish needing a slot built since start still
+  restarts the server. A hidden casino's tables all have the generic Dealer (else the Boulevard's 25 tables took
+  every free dealer and Demo's shifts stopped changing). The client's socket buffer is 8 MB (`Net.INBOUND_BUFFER`):
+  entering the Boulevard overflowed Godot's 64 KB default.
+- **Backups:** `server/data/pre-multi-casino-20261027-023501/` (sqlite `.backup` and the old `plan/`), and the
+  migration's own `server/data/plan-single-casino-20261027-023519/`. Checked after the switch: every character's
+  cash and bank unchanged, Demo's live plan identical, table-style placements now `demo/<table>`.
+- **Left for Mike:** the Boulevard's placeholders (blockouts README step 4): slots (all Armadillo), staff looks,
+  limits, floors and walls; its blurb; listing it and giving it punters (Floor plan tab › Casinos…).
+- **Next task:** send each session only the tables in rooms it can see (architecture "Not done yet"): the Boulevard
+  sends 133 table states on entering.
+- **Questions for Mike:** none open.
 
 ---
 

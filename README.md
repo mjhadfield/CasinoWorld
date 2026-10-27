@@ -124,7 +124,8 @@ sections:
   and NPCs apart, `slots/stats.py`), the cabinets on the floor now, and players' return on slots.
 - **Floor plan** (`#plan`): a casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). The
   picker at the start of the bar chooses the casino (remembered in this browser); **Casinos…** adds one (an empty
-  Modern lobby, or a copy of a casino; new ones start hidden with no punters), renames it, gives it the blurb on
+  Modern lobby, or a copy of a casino; new ones start hidden with no punters, and a hidden one's tables have the
+  house's generic Dealer, leaving the named dealers to the open ones), renames it, gives it the blurb on
   its card, lists or hides it (a hidden one opens only by its link, `/?casino=<id>`), sets its punters, orders the
   chooser and deletes one (only when nobody's in it and it isn't the last; its plan is kept in
   `<data>/casinos-deleted/`). Changes

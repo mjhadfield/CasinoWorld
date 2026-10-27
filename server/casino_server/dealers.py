@@ -3,7 +3,10 @@ Dealers on shifts: every table has a dealer from the roster (role "dealer"),
 and every shift a fresh one relieves them -- staggered a couple of minutes apart
 table to table, so the relief walks round the floor, and only between hands
 (while the table's taking bets), never mid-deal. With fewer dealers than
-tables, dealers simply stay on longer.
+tables, dealers simply stay on longer. The dealers are shared between the
+casinos (each is in one at a time: casinos.Claims), and a hidden casino (one
+not on the players' chooser, still being built) has the house's generic Dealer
+at every table, so it doesn't keep the cast from the open ones.
 
 The table's dealer goes out in table_state (on_duty {id, name, look}) and a
 dealer_change table event when they're relieved.
@@ -42,7 +45,9 @@ class DealerRoster:
         return {"id": record["id"], "name": record["name"], "look": look}
 
     def _off_duty(self) -> list[dict]:
-        """Dealers free to take a table here: not dealing here, or in another casino."""
+        """Dealers free to take a table here: not dealing here, or in another casino (none for a hidden casino)."""
+        if not self.casino.listed():
+            return []
         busy = {d["id"] for d in self.on_duty.values()}
         claims, cid = self.casino.claims, self.casino.id
         return [r for r in self.casino.store.npcs("dealer")
@@ -86,9 +91,10 @@ class DealerRoster:
             self.relief_at[table_id] = now + shift
             if free:
                 self.relieve(table_id, self.rng.choice(free))
-            elif self.on_duty.get(table_id, DEFAULT)["id"] in self.dismissed:
-                self._put_on(table_id, None)
-                runner.publish([{"kind": "dealer_change", "dealer": self.on_table(table_id)}])
+            elif self.on_duty.get(table_id, DEFAULT)["id"] in self.dismissed or not self.casino.listed():
+                if self.on_duty.get(table_id, DEFAULT)["id"] is not None:   # (the generic Dealer takes over)
+                    self._put_on(table_id, None)
+                    runner.publish([{"kind": "dealer_change", "dealer": self.on_table(table_id)}])
 
     def stand_down(self, npc_id: int):
         """They've been archived or deleted: wherever they're dealing, they're relieved at the next betting window
