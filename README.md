@@ -438,8 +438,8 @@ problems. Its slots (all Armadillo), staff looks, limits, floors and walls are s
 - **server/casino_server/**
   - `app.py`: the FastAPI app; `resort.py`: the casinos, what they share, accounts, characters and the casino
     chooser; `casino.py`: one casino's sessions and floor messages; `world.py`: everyone on its floor.
-  - `floor.py`: `Floor`, what's on a casino's floor now (tables, points, seats, walking distances, sound sets), made from
-    the live floor plan by `plan.install`.
+  - `floor.py`: `Floor`, what's on a casino's floor now (tables, points, seats, walking distances, sound sets, and the
+    tables near each place, `tables_near`, which are all a player is sent), made from the live floor plan by `plan.install`.
   - `tables/base.py`: seating, betting, Ready and the clock, shared by every table machine.
   - `tables/<game>.py`: the timed table machines, which are pure and emit events;
     `tables/slot_machine.py` is a cabinet; `tables/master.py` is the Master Table, which holds whichever card game's

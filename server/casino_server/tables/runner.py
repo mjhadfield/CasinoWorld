@@ -6,8 +6,10 @@ current time, publishes the resulting events and wakes the loop. run() sleeps
 until the machine's next deadline (or an action), then tick()s it. One runner
 task per table, owned by the Casino's lifespan.
 
-Every joined session gets every table's events, so tables are live to watch
-from the floor. Keys starting "_" never leave the server: card faces a seat
+A joined session gets the events of the tables near it (Casino.sees: the rooms
+it can see, and one door on), so they're live to watch from the floor; the rest
+it's only told who sits where (`table_seats`, after any event that seats or
+stands someone), for Find and the chairs. Keys starting "_" never leave the server: card faces a seat
 may keep private ("_private") only go to the session in that seat (a second box's
 go to its player as "mine_box", once they may see them), and "_paid"
 lists participants whose balance the event changed (they get a wallet update
@@ -18,6 +20,9 @@ on the round_end ("round_nets").
 import asyncio
 import copy
 import time
+
+## The events that seat or stand someone (or move them, at a Master Table): those far off get `table_seats` after them.
+SEATING = {"seated", "stood", "box_taken", "box_dropped", "master_change"}
 
 
 class TableRunner:
@@ -66,13 +71,28 @@ class TableRunner:
                 "my_box": self._box_of_viewer(seat), "second_box": bool(getattr(self.machine, "SECOND_BOX", False)),
                 "on_duty": dealers.on_table(self.table_id) if dealers and getattr(self.machine, "DEALER", True) else None}
 
+    def seats_view(self) -> list:
+        """Who sits where (a `table_seats` entry): each seat's {entity, name, human, box_of?}, or None."""
+        return [None if s.participant is None else
+                {"entity": s.participant.entity_id, "name": s.participant.name, "human": s.participant.is_human}
+                | ({"box_of": s.box_of} if s.box_of is not None else {}) for s in self.machine.seats]
+
     def publish(self, events: list):
         for event in events:
+            sees = getattr(self.casino, "sees", None)
+            watching, far = [], []
+            for session in self.casino.joined_sessions():   # (and whoever it's about: you hear you've been stood up)
+                near = sees is None or sees(session, self.table_id) or event.get("entity") == session.entity_id
+                (watching if near else far).append(session)
             self._side_effects(event)
             self._add_nets(event)
             private = event.get("_private")
             public = {k: v for k, v in event.items() if not k.startswith("_")}
-            for session in self.casino.joined_sessions():
+            if far and event["kind"] in SEATING:
+                seats = {"type": "table_seats", "tables": {self.table_id: self.seats_view()}}
+                for session in far:
+                    session.push(seats)
+            for session in watching:
                 body = public
                 if private:
                     seat = self.viewer_seat(session)
@@ -84,7 +104,7 @@ class TableRunner:
                 session.push({"type": "table_event", "table": self.table_id, "event": body})
             # A Master Table changed game: the whole table again, as each viewer may see it.
             if event.get("_resnap"):
-                for session in self.casino.joined_sessions():
+                for session in watching:
                     session.push(self.snapshot_for(session))
             # Money moved by this event: new balances follow the event that explains them.
             for participant in event.get("_paid", []):

@@ -40,8 +40,9 @@ Boulevard", is seeded from blockout C.
   cash and bank unchanged, Demo's live plan identical, table-style placements now `demo/<table>`.
 - **Left for Mike:** the Boulevard's placeholders (blockouts README step 4): slots (all Armadillo), staff looks,
   limits, floors and walls; its blurb; listing it and giving it punters (Floor plan tab › Casinos…).
-- **Next task:** send each session only the tables in rooms it can see (architecture "Not done yet"): the Boulevard
-  sends 133 table states on entering.
+- **Follow-up done (2026-10-27):** each session is sent only the tables near it (protocol v8, `table_seats`;
+  protocol.md "Tables near you"). Entering the Boulevard now sends no table states at the spawn (74 KB in all) and
+  some 45 standing among its tables, instead of 133.
 - **Questions for Mike:** none open.
 
 ---

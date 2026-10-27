@@ -30,6 +30,8 @@ from casino_server.tables.base import TableError
 from casino_server.tables.runner import TableRunner
 from casino_server.world import Entity, World
 
+LOOK_STEP = 64   # walked this far, a player's tables in view are worked out again (Casino.look)
+
 PLAYER_LOOK = "player_default"   # a character with no look of its own (one from before characters)
 DECISIONS = {"decide", "insure", "act", "fold", "claim"}   # table messages a player can send for their second box (`seat`)
 MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackjack": blackjack.BlackjackMachine,
@@ -170,6 +172,36 @@ class Casino:
     def online_players(self) -> set[int]:
         return {s.player.id for s in self.joined_sessions()}
 
+    def sees(self, session: Session, table_id: str) -> bool:
+        """Whether a session is sent that table's states and events (else only who sits there: `table_seats`)."""
+        return table_id in session.sees or table_id == session.table
+
+    def look(self, session: Session, quiet: bool = False):
+        """Which tables the session is sent: Floor.tables_near where it is (the table it's sitting at, else its last
+        move, else the spawn point), checked again once it's moved LOOK_STEP or into another room. Tables that come
+        into view get a fresh `table_state` (unless `quiet`: a snapshot follows)."""
+        e = self.world.entities.get(session.entity_id)
+        if session.table in self.floor.at:   # (sitting, its moves don't count, and a far table's neighbours show)
+            at = self.floor.at[session.table]
+        elif e is not None and e.x is not None:
+            at = (e.x, e.y)
+        else:
+            spawn = self.floor.points.get(self.floor.spawn)
+            at = (spawn["x"], spawn["y"]) if spawn else None
+        room = self.floor.room_at(*at) if at is not None else None
+        if room is None:
+            room = session.room if session.room in self.floor.rooms else None
+        last = session.looked_at
+        if not quiet and room == session.room and at is not None and last is not None \
+                and abs(at[0] - last[0]) < LOOK_STEP and abs(at[1] - last[1]) < LOOK_STEP:
+            return
+        old = session.sees
+        session.room, session.looked_at = room, at
+        session.sees = self.floor.tables_near(room, at, old)
+        if not quiet:
+            for table_id in session.sees - old:
+                if table_id in self.tables and table_id != session.table:
+                    session.push(self.tables[table_id].snapshot_for(session))
 
     def broadcast_world(self, floor: Floor):
         """The live floor plan changed (a publish that needed no restart): the casino takes the new floor, and
@@ -182,6 +214,8 @@ class Casino:
             if isinstance(runner.machine, master.MasterMachine) and table_id in floor.tables:
                 runner.machine.anim, runner.machine.speed = cfg.get("anim", master.DEFAULT_ANIM), cfg.get("speed", master.DEFAULT_SPEED)
                 runner.machine.on_seats(len(runner.machine.seats))
+        for session in self.joined_sessions():   # (the rooms may have moved: the resync after the rebuild sends tables)
+            self.look(session, quiet=True)
         self.broadcast_all({"type": "world", "world": plan.world(floor.plan)})
 
     def preview_world(self, room_id: str) -> dict:
@@ -326,13 +360,21 @@ class Casino:
                       "preview": session.preview, "seating": self.seating_view(), "table_styles": self.styles_view()})
 
     def _snapshots(self, session: Session):
-        """Everything going on: the wallet, the jackpots, everyone on the floor and every table."""
+        """Everything going on: the wallet, the jackpots, everyone on the floor, the tables in view and who sits at
+        the rest."""
         self.send_wallet(session)
         session.push(self.jackpot.snapshot())
         session.push(self.slot_jackpots.snapshot())
         session.push(self.world.snapshot())
-        for runner in self.tables.values():
-            session.push(runner.snapshot_for(session))
+        self.look(session, quiet=True)
+        far = {}
+        for table_id, runner in self.tables.items():
+            if self.sees(session, table_id):
+                session.push(runner.snapshot_for(session))
+            else:
+                far[table_id] = runner.seats_view()
+        if far:
+            session.push({"type": "table_seats", "tables": far})
 
     def resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while
@@ -349,6 +391,7 @@ class Casino:
         except (KeyError, TypeError, ValueError):
             return
         self.world.move(session.entity_id, x, y, str(msg.get("dir", "")), str(msg.get("anim", "")), source=session)
+        self.look(session)
 
     def _sit(self, session: Session, msg: dict):
         session.kick = None   # (sitting anywhere ends a wait for an NPC's seat)
@@ -369,6 +412,7 @@ class Casino:
         session.table, session.seat = runner.table_id, seat
         session.push({"type": "seated", "table": runner.table_id, "seat": seat, "rules": runner.machine.rules()})
         session.push(runner.snapshot_for(session))
+        self.look(session)
 
     def _kick(self, session: Session, msg: dict):
         """Ask the NPC in a seat to give it up (the client has asked if they're sure). They get up now, and the

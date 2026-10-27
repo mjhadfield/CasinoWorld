@@ -1,4 +1,4 @@
-# Casino World protocol (v7)
+# Casino World protocol (v8)
 
 Messages are JSON objects with a `type` field, carried over a WebSocket at `/ws`.
 The server is authoritative, so the client sends intents and renders what comes back.
@@ -22,7 +22,7 @@ hear the casino you're in. A character's money and the jackpots are the same in 
    - `wallet`
    - `jackpot`, `slot_jackpots`
    - `world_snapshot`
-   - one `table_state` per table
+   - one `table_state` per table near you, and one `table_seats` for all the rest (see "Tables near you" below)
    - your own `entity_spawn`, which everyone receives
 5. `leave_casino` takes you off the floor (standing you up first) and back to the chooser: `casino_left`, then
    `casinos`. `leave_character` takes you off the floor, or the chooser, and back to the select: `character_left`,
@@ -96,12 +96,13 @@ body on the floor, isn't sent the casino's goings-on, and everything else it sen
 | `entity_despawn` | `id` | Someone left. |
 | `kick_waiting` | `table`, `seat`, `name` | The NPC you asked (`kick`) is in a hand, or has craps bets out: they get up once it's settled, and you sit straight down if you haven't sat elsewhere or sent `kick_cancel`. |
 | `seated` | `table`, `seat`, `rules` | You sat down. `rules` holds the paytable, `chips`, `min_ante` and `seats`. A `table_state` follows. |
-| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on join, and when you sit. |
-| `table_event` | `table`, `event` | Something happened at a table. Every joined player gets every table's events (see below). |
+| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on entering for each table near you, when one comes near as you walk, and when you sit. |
+| `table_event` | `table`, `event` | Something happened at a table near you, or at the table you're at (see below). An event about you (`entity` is yours, say a `stood`) comes wherever the table is. |
+| `table_seats` | `tables` {table id: [per seat {`entity`, `name`, `human`, `box_of`?} or null]} | Who sits where at tables that aren't near you: all of them on entering (and on a `resync`), then a table's again after anything far off seats or stands someone there (`seated`, `stood`, `box_taken`, `box_dropped`, `master_change`). Its other goings-on aren't sent until it's near (a `table_state`). |
 | `notice` / `error` | `message` | Information, or a rejected action. |
 | `barred` | `kind` (`ban` \| `timeout` \| `removed`), `reason`, `retry_in` (seconds, or null) | The admin page has shut this account out: the reply to `join` (or `pick_character`) from a banned or timed-out account, or sent to anyone on it when it happens, at the character select too (`removed`: the account, or the character being played, was deleted). The server hangs up straight after. The client shows why and doesn't reconnect until `retry_in` has passed (never, without a reload, when it's null). |
 | `pong` | `t` | The reply to `ping`. |
-| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `welcome`, `wallet`, `jackpot`, `slot_jackpots`, `world_snapshot` and one `table_state` per table, as on picking. At the chooser it's followed by `casinos`, at the character select by `account`, and before joining by `hello`. |
+| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `welcome`, `wallet`, `jackpot`, `slot_jackpots`, `world_snapshot`, a `table_state` per table near you and `table_seats` for the rest, as on entering. At the chooser it's followed by `casinos`, at the character select by `account`, and before joining by `hello`. |
 | `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables reopens the casino instead: `casino_left` {`reload`}, then a fresh `welcome`), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
 | `plan_art_changed` | `version` | The floor plan's asset library changed (an upload, an edit, a delete). The client refetches `GET /api/plan/art`. Previews get it too. |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
@@ -325,7 +326,7 @@ While it changes, `phase` is `changing` and every bet is refused.
 | `master_vote_cast` | `seat`, `accept` | One of them agreed. |
 | `master_vote_end` | `ok`, `game`, and `seat`, `name` for a no | Agreed (the change follows), or turned down. |
 | `master_queued` | `game` or null | The game agreed on for after this hand, or none any more. |
-| `master_change` | `game` ("" back to blank), `seats` (6 or 5), `map` (each new seat's old seat, or -1), `anim`, `speed`, `seconds`, `rules` | The table becomes `game` now: the client swaps in that game's table and animates it. A fresh `table_state` follows for every session (seats renumbered). Betting opens on it after `seconds`. |
+| `master_change` | `game` ("" back to blank), `seats` (6 or 5), `map` (each new seat's old seat, or -1), `anim`, `speed`, `seconds`, `rules` | The table becomes `game` now: the client swaps in that game's table and animates it. A fresh `table_state` follows for everyone it's near (seats renumbered; the rest get its `table_seats`). Betting opens on it after `seconds`. |
 | `master_revert` | `seconds` or null | Nobody's seated: back to the crest in `seconds` (null: someone sat down again). |
 
 ### Every table: dealers on shifts (`event.kind`)
@@ -361,6 +362,19 @@ The runner (`tables/runner.py`) adds what the hand won or lost each seat's playe
 |---|---|---|
 | `settle_seat` | `round_net` | The seat's net for the hand, in pence (+ won, − lost). |
 | `round_end` | `round_nets[]` {`seat`, `net`} | The seats that played but had no `settle_seat` of their own: a bust or folded hand, a Blackjack paid early, a losing Roulette seat. |
+
+
+### Tables near you
+
+The server sends each player only the tables near them (`Floor.tables_near`, worked out in `Casino.look` as they move):
+- the tables in the rooms they can see from where they are (their room, every room an archway joins to it, and the
+  rooms one door on from those; never through an NPCs-only room), and
+- within 900 either way across and 700 up or down of them (the camera shows about 420 by 285), keeping one already
+  sent until it's 200 further out.
+
+Sitting, it's worked out from the table you're at. A table that comes near gets a fresh `table_state`; one that goes
+out of range just stops, and its seats come by `table_seats`. The client keeps those far tables' chairs and sitters
+up to date (and Find's free seats), and they come back to life with the `table_state`.
 
 ## Admin HTTP API (`/admin`, also `/maintenance`)
 The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-only, like the game.

@@ -25,6 +25,9 @@ class Session:
         self.entity_id: str = ""
         self.table: str | None = None  # table id while seated
         self.seat: int | None = None
+        self.room: str | None = None  # the room they're in, as far as their moves say (Casino.look)
+        self.sees: frozenset = frozenset()  # the tables they're sent (Floor.tables_near); the rest just their seats
+        self.looked_at: tuple | None = None  # where they were when `sees` was worked out
         self.away = False  # tab hidden: nothing is sent until the client asks to `resync`
         self.preview: str | None = None  # a floor-plan preview (the room it shows): no body, no tables, not "joined"
         self.kick: str | None = None  # the NPC (entity id) they asked to give up a seat, while they wait for it

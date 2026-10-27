@@ -69,8 +69,13 @@ game result and every penny is decided on the server; the client only renders an
   new for Roulette and Craps (tested against the exact arithmetic). `slots/` is the slot engine and its
   variants.
 - **`TableRunner` (`tables/runner.py`)** drives one machine: it sleeps until the next deadline or a player's
-  action, ticks it, and publishes the events. Every joined session gets every table's events, so tables are
-  live to watch from the floor. A late joiner gets a `table_state` snapshot first.
+  action, ticks it, and publishes the events. Each joined session gets the events of the tables near it, so
+  they're live to watch from the floor, and a `table_state` snapshot as one comes near: `Floor.near` (from
+  `plan.near_tables`) is each room's tables in the rooms it can see (its archway-joined rooms and one door on),
+  and `Floor.tables_near` keeps to those within `VIEW` of where you are (`Casino.look` works it out again as you
+  move, or from your table while you sit; `Session.sees` holds it). The rest it's only told who sits where
+  (`table_seats`), so the far tables' chairs and Find stay right. Entering the Boulevard sends a few tables'
+  states rather than all 133.
 - **Privacy and money.** Event keys starting `_` never leave the server. Cards only one seat may see go under
   `_private` and reach only that seat's session. `_paid` lists whoever's money the event moved, and they get
   a `wallet` straight after it.
@@ -87,7 +92,7 @@ game result and every penny is decided on the server; the client only renders an
   for, built by the Casino's `_make_machine` and passed everything it doesn't handle itself, so the runner, the NPCs
   and the message handling see an ordinary table of that game (its `game` too: `master_table` only while blank).
   It swaps the inner machine between hands (seats renumbered when the count changes 6↔5: the runner sends everyone
-  a fresh `table_state`, and `Casino.on_reseated` moves sessions, the world's seats and NPCs to their new seats;
+  near it a fresh `table_state` (the rest its `table_seats`), and `Casino.on_reseated` moves sessions, the world's seats and NPCs to their new seats;
   the floor's `seats` follow the seat count). The client swaps in that game's own table scene (`casino_floor.gd`,
   `MasterSwap`).
 
@@ -295,10 +300,9 @@ A Godot 4.7 project exported to the web.
 
 - Staff other than dealers (waiters, pit bosses, cashiers, bar staff) can be designed but don't work the
   floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more.
-- Every room of a casino is built on its clients and every table's events go to everyone in it; hidden rooms are
-  only hidden. Past a few dozen tables the server should send each session only the tables in the rooms it can see.
-  The Boulevard (25 tables, 108 cabinets) is where it starts to matter: entering it sends 133 table states at once
-  (the client's socket buffer is 8 MB for that, `Net.INBOUND_BUFFER`).
+- Every room of a casino is still built on its clients, and everyone on the floor (NPC walks included) goes to
+  everyone in it; only the tables are sent by what's near. A Master Table that's far off shows its old game (Find
+  too) until it's near.
 - Interactive objects on the floor plan beyond the ATM: an asset's `interact` has only the one kind, and the admin
   page's asset editor doesn't set it (the build scripts for the Modern lobby's and the Vegas floor's pieces do).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.

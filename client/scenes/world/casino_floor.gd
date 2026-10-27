@@ -1252,6 +1252,10 @@ func _on_message(msg: Dictionary) -> void:
 				_on_slot_state(g, msg)
 			else:
 				_on_table_state(msg)
+		"table_seats":
+			for id in msg.tables:
+				if tables.has(id):
+					_on_table_seats(tables[id], msg.tables[id])
 		"table_event":
 			var g = tables.get(msg.table)
 			if g is SlotCabinet:
@@ -1298,6 +1302,24 @@ func _on_message(msg: Dictionary) -> void:
 			hud.atm.close_atm()   # (the server wouldn't let you use it: you weren't at it)
 			if hud.sorter.is_open():
 				hud.sorter.open_again()
+
+
+## Who sits at a table out of range (the server sends its states and events only near it): its sitters sit or get up
+## there unseen, so they're in place when it comes into view.
+func _on_table_seats(g: FloorGame, seats: Array) -> void:
+	var was := g.occupants.duplicate()
+	g.set_occupants(seats)
+	for seat in was:
+		var who: String = was[seat].entity
+		if was[seat].has("box_of") or (g.occupants.has(seat) and g.occupants[seat].entity == who):
+			continue
+		if who != Session.entity_id and entities.has(who) and entities[who].seated:
+			entities[who].stand_at(g, seat)
+	for seat in g.occupants:
+		var s: Dictionary = g.occupants[seat]
+		if not s.has("box_of") and seat < g.seat_count() and entities.has(s.entity) \
+				and not (was.has(seat) and was[seat].entity == s.entity):
+			entities[s.entity].sit_at(g, seat, false)
 
 
 func _on_slot_state(c: SlotCabinet, msg: Dictionary) -> void:

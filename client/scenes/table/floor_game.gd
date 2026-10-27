@@ -307,6 +307,19 @@ func move_sitters() -> void:
 			who.position = (who.get_parent() as Node2D).to_local(to_global(chair_pos(seat)))
 
 
+## Who sits where at a table too far off to be sent its goings-on (a `table_seats` entry: each seat's {entity, name,
+## human, box_of?} or null): Find and the chairs keep up, the rest waits for a table_state once it's near.
+func set_occupants(seats: Array) -> void:
+	occupants.clear()
+	for i in seats.size():
+		var s = seats[i]
+		if s != null:
+			occupants[i] = {"entity": s.entity, "name": s.name, "human": s.human}
+			if s.get("box_of") != null:
+				occupants[i].box_of = int(s.box_of)
+	queue_redraw()
+
+
 func free_seats() -> Array:
 	var free := []
 	for i in seat_count():

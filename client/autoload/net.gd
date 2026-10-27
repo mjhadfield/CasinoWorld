@@ -9,7 +9,7 @@ signal message_received(msg: Dictionary)
 ## A `resync` reply arrived: everything before it was dropped, and fresh state follows.
 signal resynced(msg: Dictionary)
 
-const PROTOCOL_VERSION := 7
+const PROTOCOL_VERSION := 8
 ## Used when running from the editor / a desktop build. Override with CASINO_SERVER_URL.
 const DESKTOP_URL := "ws://127.0.0.1:8660/ws"
 const RECONNECT_DELAYS := [1.0, 2.0, 5.0, 10.0]
@@ -18,8 +18,8 @@ const RECONNECT_DELAYS := [1.0, 2.0, 5.0, 10.0]
 const STALL_SECONDS := 3.0
 ## No `resync` reply by then (an older server, say): reconnect, which joins afresh.
 const RESYNC_TIMEOUT_MS := 5000
-## What the socket holds that hasn't been read yet. Entering a big casino sends its whole floor and every table's
-## state at once (the Boulevard's is well past the 64 KB default), and past this it drops messages.
+## What the socket holds that hasn't been read yet. Entering a big casino sends its whole floor at once, and the
+## seats at every table (the Boulevard's is well past the 64 KB default), and past this it drops messages.
 const INBOUND_BUFFER := 8 * 1024 * 1024
 
 var _socket := WebSocketPeer.new()

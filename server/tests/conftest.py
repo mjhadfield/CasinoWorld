@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from casino_server import casinos, plan
+from casino_server import casinos, floor, plan
 from casino_server.app import app
 from casino_server.engines.cards import Card, Deck
 from casino_server.tables import base
@@ -44,6 +44,7 @@ def classic_plan(tmp_path, monkeypatch):
     CASINO_DATA_DIR). Its card tables, and any made without the plan, take OPEN_LIMITS."""
     monkeypatch.setattr(base, "DEFAULT_LIMITS", OPEN_LIMITS)
     monkeypatch.setattr(plan, "DEFAULT_LIMITS", OPEN_LIMITS)
+    monkeypatch.setattr(floor, "VIEW", (100_000, 100_000))   # (every table's in view: test_table_view has the real one)
     for name in ("live.json", "draft.json"):
         plan._write(demo_plan_dir(tmp_path) / name, CLASSIC_PLAN)
 

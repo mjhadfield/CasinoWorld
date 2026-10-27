@@ -945,7 +945,7 @@ def install(plan: dict) -> Floor:
     """Make a plan's placed rooms into a floor (see the module docstring)."""
     placed = [r for r in plan["rooms"] if r["placed"]]
     tables = tables_of(plan)
-    points, seats = {}, {}
+    points, seats, at = {}, {}, {}
     for room in placed:
         for p in room["paths"]["points"]:
             points[f"{room['id']}/{p['name']}"] = {"x": room["x"] + p["x"], "y": room["y"] + p["y"], "kind": p["kind"],
@@ -954,12 +954,46 @@ def install(plan: dict) -> Floor:
             if item["id"] in tables:
                 s = shapes(room, item)
                 seats[item["id"]] = s["stands"] if s else []
+                at[item["id"]] = (room["x"] + item["x"], room["y"] + item["y"])
     npc_only = {r["id"] for r in placed if r.get("npc_only")}
     spawns = [k for k, p in points.items() if p["kind"] == "spawn" and p["room"] not in npc_only]
     spawn = plan.get("spawn") if plan.get("spawn") in spawns else (spawns[0] if spawns else "")
     ops, _ = openings(placed)
     on_floor = {tid: {k: v for k, v in cfg.items() if k != "room"} for tid, cfg in tables.items()}
-    return Floor(copy.deepcopy(plan), on_floor, points, seats, spawn, Routes(placed, ops), sounds.table_sets(on_floor))
+    return Floor(copy.deepcopy(plan), on_floor, points, seats, spawn, Routes(placed, ops), sounds.table_sets(on_floor),
+                 rooms={r["id"]: (r["x"], r["y"], r["w"], r["h"]) for r in placed}, near=near_tables(placed, ops, tables), at=at)
+
+
+def near_tables(placed: list, ops: dict, tables: dict) -> dict:
+    """Room id -> the tables a player standing in it is sent: those in its rooms on show (it and every room an
+    archway joins to it, as the client shows them together) and in the rooms one door on from those, so a room's
+    tables are up to date before you're in its doorway and it shows. NPCs-only rooms aren't seen through."""
+    npc_only = {r["id"] for r in placed if r.get("npc_only")}
+    zone = {}
+    for room in placed:   # (rooms joined by archways)
+        if room["id"] in zone:
+            continue
+        todo, members = [room["id"]], set()
+        while todo:
+            r = todo.pop()
+            if r in members:
+                continue
+            members.add(r)
+            todo += [o["to"] for o in ops.get(r, []) if o["kind"] == "archway" and o["to"] is not None]
+        for r in members:
+            zone[r] = frozenset(members)
+    in_room = {}
+    for tid, cfg in tables.items():
+        in_room.setdefault(cfg["room"], set()).add(tid)
+    near = {}
+    for room in placed:
+        seen = set(zone[room["id"]])
+        for r in zone[room["id"]]:
+            for o in ops.get(r, []):
+                if o["kind"] == "door" and o["to"] in zone and o["to"] not in npc_only:
+                    seen |= zone[o["to"]]
+        near[room["id"]] = frozenset(t for r in seen for t in in_room.get(r, ()))
+    return near
 
 
 def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> dict:

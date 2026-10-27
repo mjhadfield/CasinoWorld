@@ -96,6 +96,7 @@ HOOK = """
         try { m = JSON.parse(ev.data); } catch (e) { return; }
         const kind = m.type === 'table_event' ? m.event.kind : null;
         if (m.type === 'table_state') st.tables[m.table] = m;
+        if (m.type === 'table_seats') for (const t in m.tables) st.tables[t] = {seats: m.tables[t]};   // (far off)
         if (m.type === 'seated') st.seated = {table: m.table, seat: m.seat};
         if (m.type === 'welcome') st.me = m;
         if (kind === 'stood' && st.seated && m.table === st.seated.table && m.event.entity === (st.me || {}).entity_id) st.seated = null;
