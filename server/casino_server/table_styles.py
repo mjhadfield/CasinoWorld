@@ -18,7 +18,7 @@ House is saved the first time it's asked for and can be changed but not deleted.
 import copy
 import re
 
-from casino_server import floor, plan, seating
+from casino_server import seating
 
 KEY = "table_styles"
 HOUSE_ID = "house"
@@ -251,12 +251,11 @@ def _kind(kind: str) -> dict:
     return KINDS[kind]
 
 
-def styled_tables(kind: str = "cards") -> dict:
-    """The tables of a kind, on the floor or in a blueprint in the floor plan's library (a room taken off the floor
-    keeps its tables' styles): {table_id: {name, game, layout, on_floor}}."""
+def styled_tables(every: dict, kind: str = "cards") -> dict:
+    """The tables of a kind among `every` (PlanBoard.every_table: on the floor or in a blueprint in the floor plan's
+    library, so a room taken off the floor keeps its tables' styles): {table_id: {name, game, layout, on_floor}}."""
     games = _kind(kind)["games"]
-    every = {**plan.every_table(), **floor.TABLES}
-    return {tid: {"name": t["name"], "game": t["game"], "layout": LAYOUTS[t["game"]], "on_floor": tid in floor.TABLES}
+    return {tid: {"name": t["name"], "game": t["game"], "layout": LAYOUTS[t["game"]], "on_floor": t["on_floor"]}
             for tid, t in every.items() if t.get("game") in games}
 
 
@@ -312,8 +311,9 @@ def clean_design(data: dict, kind: str = "cards") -> dict:
     return out
 
 
-def load(store, kind: str = "cards") -> dict:
-    """A kind's styles (the built-ins marked `builtin`), which tables have which, and the default."""
+def load(store, kind: str = "cards", every: dict | None = None) -> dict:
+    """A kind's styles (the built-ins marked `builtin`), which tables have which (only tables in `every`, when it's
+    given: PlanBoard.every_table), and the default."""
     k = _kind(kind)
     house = k["house"]
     saved = store.get_json(k["key"], None)
@@ -331,14 +331,14 @@ def load(store, kind: str = "cards") -> dict:
         styles[sid] = {"name": str(s.get("name") or sid), "design": design, "builtin": False}
     styles.setdefault(HOUSE_ID, {"name": "House", "design": copy.deepcopy(house), "builtin": False})
     default = saved.get("default") if saved.get("default") in styles else HOUSE_ID
-    known = styled_tables(kind)
-    tables = {t: sid for t, sid in (saved.get("tables") or {}).items() if sid in styles and t in known}
+    known = styled_tables(every, kind) if every is not None else None
+    tables = {t: sid for t, sid in (saved.get("tables") or {}).items() if sid in styles and (known is None or t in known)}
     return {"styles": styles, "tables": tables, "default": default}
 
 
-def load_all(store) -> dict:
+def load_all(store, every: dict | None = None) -> dict:
     """Every kind's styles, as the welcome and the `table_styles` broadcast send them: {kind: load(kind)}."""
-    return {kind: load(store, kind) for kind in KINDS}
+    return {kind: load(store, kind, every) for kind in KINDS}
 
 
 def _save(store, current: dict, kind: str) -> dict:
@@ -377,10 +377,11 @@ def delete_style(store, style_id: str, kind: str = "cards") -> dict:
     return _save(store, current, kind)
 
 
-def assign(store, data: dict, kind: str = "cards") -> dict:
-    """{"tables": {table_id: style_id, or None for the default}, "default": style_id}, either part optional."""
-    current = load(store, kind)
-    known = styled_tables(kind)
+def assign(store, data: dict, every: dict, kind: str = "cards") -> dict:
+    """{"tables": {table_id: style_id, or None for the default}, "default": style_id}, either part optional; the
+    tables are among `every` (PlanBoard.every_table)."""
+    current = load(store, kind, every)
+    known = styled_tables(every, kind)
     if "default" in data:
         if data["default"] not in current["styles"]:
             raise ValueError(f"No table style called {data['default']!r}.")

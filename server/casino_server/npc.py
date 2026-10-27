@@ -194,7 +194,7 @@ class NpcDirector:
 
     def _room_to_play(self) -> bool:
         """Somewhere to come in and a seat to take: else nobody visits (an empty floor plan, or a full house)."""
-        if not floor.arrivals():
+        if not self.casino.floor.arrivals():
             return False
         for runner in self.casino.tables.values():
             if runner.machine.game == slots.GAME_KEY:
@@ -205,7 +205,7 @@ class NpcDirector:
         return False
 
     def _weighted(self, keys: list[str]) -> str:
-        weights = [max(0.0, float(floor.POINTS[k]["weight"])) for k in keys]
+        weights = [max(0.0, float(self.casino.floor.points[k]["weight"])) for k in keys]
         if sum(weights) <= 0:
             weights = [1.0] * len(keys)
         return self.rng.choices(keys, weights)[0]
@@ -251,7 +251,7 @@ class NpcDirector:
         return self.rng.choices(free, weights)[0]
 
     def spawn(self, record: dict, now: float) -> Npc:
-        doors = floor.arrivals()
+        doors = self.casino.floor.arrivals()
         if not doors:
             raise ValueError("NPCs have nowhere to come in: the floor plan has no arrival point.")
         self._serial += 1
@@ -266,7 +266,7 @@ class NpcDirector:
         npc.plan = ["wander"] * self.rng.randint(0, 2) + ["play"] + ["wander"] * self.rng.randint(0, 1) + ["leave"]
         self.npcs[npc.entity_id] = npc
         npc.door = self._weighted(doors)
-        npc.at = floor.position(f"point:{npc.door}")
+        npc.at = self.casino.floor.position(f"point:{npc.door}")
         x, y = npc.at
         self.casino.world.add(Entity(npc.entity_id, "npc", npc.name, look, x=x, y=y), at=f"point:{npc.door}")
         self._next_step(npc, now)
@@ -295,8 +295,8 @@ class NpcDirector:
 
     def _walk(self, npc: Npc, target: str, now: float, state: str = "walking"):
         """Send them walking: as long as the walk takes at an easy pace, through the doorways (each client paths it)."""
-        to = floor.position(target)
-        far = floor.distance(npc.at, to)
+        to = self.casino.floor.position(target)
+        far = self.casino.floor.distance(npc.at, to)
         seconds = far / (plan.NPC_SPEED * self.rng.uniform(0.85, 1.15)) if far is not None else self.rng.uniform(5.0, 9.0)
         duration = max(1.0, seconds) * self.pace
         npc.state, npc.target, npc.until = state, target, now + duration
@@ -315,18 +315,18 @@ class NpcDirector:
                 npc.plan.insert(0, "play")
             step = "wander"
         if step == "wander":
-            options = [p for p in floor.wander_points() if f"point:{p}" != npc.target]
+            options = [p for p in self.casino.floor.wander_points() if f"point:{p}" != npc.target]
             if options:
                 self._walk(npc, f"point:{self._weighted(options)}", now)
             else:   # nowhere else to go: a while longer where they are
                 npc.state, npc.until = "loitering", now + self.rng.uniform(2.0, 7.0) * self.pace
         else:
             self.end_visit(npc, npc.ended or "done")
-            doors = floor.arrivals()
+            doors = self.casino.floor.arrivals()
             if not doors:   # (the way they came in is gone, and there's no other)
                 return self._despawn(npc)
             door = npc.door if npc.door in doors else min(
-                doors, key=lambda k: floor.distance(npc.at, floor.position(f"point:{k}")) or 0.0)
+                doors, key=lambda k: self.casino.floor.distance(npc.at, self.casino.floor.position(f"point:{k}")) or 0.0)
             self._walk(npc, f"point:{door}", now, state="leaving")
 
     def _head_for_seat(self, npc: Npc, now: float, only: str | None = None) -> bool:
@@ -543,7 +543,7 @@ class NpcDirector:
                 return self._despawn(npc)
             if npc.table is not None:
                 return self._arrive_at_seat(npc, now)
-            linger = floor.POINTS.get(npc.target[6:], {}).get("linger", 0) if npc.target.startswith("point:") else 0
+            linger = self.casino.floor.points.get(npc.target[6:], {}).get("linger", 0) if npc.target.startswith("point:") else 0
             npc.state, npc.until = "loitering", now + (self.rng.uniform(2.0, 7.0) + linger) * self.pace
         elif npc.state == "loitering" and now >= npc.until:
             self._next_step(npc, now)

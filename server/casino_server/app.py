@@ -72,7 +72,6 @@ async def lifespan(app: FastAPI):
     if built:
         print("built slots: " + ", ".join(built))
     library = plan_assets.AssetLibrary(data_dir)   # (first: the plan's checks know the furniture)
-    plan.install(plan.load_live(data_dir))
     plan_board = plan.PlanBoard(data_dir, builds_dir)
     store = Store(data_dir / "casino.sqlite")
     for p in store.players():
@@ -85,19 +84,20 @@ async def lifespan(app: FastAPI):
     speed = float(os.environ.get("CASINO_SPEED", "1"))
     npcs = os.environ.get("CASINO_NPCS")   # unset: the admin page's floor population
     looks = LookCache(data_dir)
-    casino = Casino(store, speed=speed, npc_population=int(npcs) if npcs else None, npc_pace=speed, looks=looks)
+    casino = Casino(store, plan_board.floor, speed=speed, npc_population=int(npcs) if npcs else None, npc_pace=speed,
+                    looks=looks, board=plan_board)
     app.state.casino = casino
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
     app.state.plan = plan_board
     app.state.plan_assets = library
     plan_board.on_draft = lambda _draft: casino.preview_changed()
-    plan_board.on_publish = lambda _live: casino.broadcast_world()
-    casino.preview_world = lambda room_id: plan.preview_world(plan_board.draft(), room_id)
+    plan_board.on_publish = casino.broadcast_world
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
     app.state.slot_design.sounds = app.state.sounds
     app.state.slot_design.builds_dir = builds_dir
+    app.state.slot_design.cabinets_on_floor = lambda variant: casino.floor.cabinets(variant)
     design_worker = asyncio.create_task(app.state.slot_design.run())
     app.state.looks = looks
     await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
@@ -252,7 +252,7 @@ def sounds_overview(request: Request):
 
 @app.get("/api/sounds/manifest")
 def sounds_manifest(request: Request):
-    return JSONResponse(request.app.state.sounds.manifest(), headers=NO_STORE)
+    return JSONResponse(request.app.state.sounds.manifest(request.app.state.casino.floor.sound_sets), headers=NO_STORE)
 
 
 async def _json_body(request: Request, shape: str) -> dict:
@@ -937,7 +937,7 @@ def slot_design_file(design: str, rel: str, request: Request):
 # building a sprite sheet (pure image work) goes to a worker thread.
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
 
-from casino_server import art, floor, roster, seating, staff, table_styles  # noqa: E402
+from casino_server import art, roster, seating, staff, table_styles  # noqa: E402
 
 
 def _npc_view(request: Request, rec: dict) -> dict:
@@ -966,7 +966,7 @@ def npc_options(request: Request):
     return {**art.catalogue(), "roles": {k: r["label"] for k, r in crew["roles"].items()}, "staff": crew["roles"],
             "uniforms": crew["uniforms"], "uniform_slots": list(staff.UNIFORM_SLOTS), "on_the_floor": list(roster.ON_THE_FLOOR),
             "archetypes": roster.ARCHETYPES, "modifiers": roster.MODIFIERS, "games": roster.GAMES,
-            "tables": {tid: cfg["name"] for tid, cfg in floor.TABLES.items()}}
+            "tables": {tid: cfg["name"] for tid, cfg in request.app.state.casino.floor.tables.items()}}
 
 
 @app.get("/api/look-options")
@@ -1319,9 +1319,9 @@ async def seating_tables_put(request: Request):
 # ------------------------------------------------------------------ table styles
 def _table_styles_changed(request: Request, kind: str) -> dict:
     """Every client restyles its tables; the admin page gets the kind it changed back."""
-    store = request.app.state.casino.store
-    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": table_styles.load_all(store)})
-    return table_styles.load(store, kind)
+    store, every = request.app.state.casino.store, request.app.state.plan.every_table()
+    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": table_styles.load_all(store, every)})
+    return table_styles.load(store, kind, every)
 
 
 def _style_kind(kind: str) -> str:
@@ -1334,8 +1334,9 @@ def _style_kind(kind: str) -> str:
 @app.get("/api/table-styles")
 async def table_styles_get(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
-    return JSONResponse({**table_styles.load(request.app.state.casino.store, kind), "kind": kind,
-                         "games": table_styles.styled_tables(kind), "choices": table_styles.KINDS[kind]["choices"]},
+    every = request.app.state.plan.every_table()
+    return JSONResponse({**table_styles.load(request.app.state.casino.store, kind, every), "kind": kind,
+                         "games": table_styles.styled_tables(every, kind), "choices": table_styles.KINDS[kind]["choices"]},
                         headers=NO_STORE)
 
 
@@ -1365,7 +1366,7 @@ async def table_style_delete(style_id: str, request: Request, kind: str = "cards
 async def table_styles_tables_put(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     try:
-        table_styles.assign(request.app.state.casino.store, await _body(request), kind)
+        table_styles.assign(request.app.state.casino.store, await _body(request), request.app.state.plan.every_table(), kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _table_styles_changed(request, kind)

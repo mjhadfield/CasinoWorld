@@ -423,7 +423,8 @@ existing Modern/Vegas assets, the Casino Floor source blueprint and the Dark Mod
 ## Code map
 - **server/casino_server/**
   - `app.py`: the FastAPI app; `casino.py`: sessions and message routing; `world.py`: everyone on the floor.
-  - `floor.py`: what's on the floor now (tables, points, seats, walking distances), filled from the live floor plan.
+  - `floor.py`: `Floor`, what's on a casino's floor now (tables, points, seats, walking distances, sound sets), made from
+    the live floor plan by `plan.install`.
   - `tables/base.py`: seating, betting, Ready and the clock, shared by every table machine.
   - `tables/<game>.py`: the timed table machines, which are pure and emit events;
     `tables/slot_machine.py` is a cabinet; `tables/master.py` is the Master Table, which holds whichever card game's

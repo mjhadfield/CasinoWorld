@@ -18,7 +18,7 @@ The sounds are a tree of sets, each inheriting from the one above:
 A moment (MOMENTS) is defined in one set, its `home`, and can be given its own sounds
 in any set below that whose game uses it: Blackjack can have its own card deal,
 Armadillo Goes West its own reel stop. A set that doesn't set a moment plays its
-parent's. Each table plays from its game's set (TABLE_SETS).
+parent's. Each table plays from its game's set (table_sets: each Floor keeps its own).
 
 A machine follows Default unless it's given a preset (on the page, or by the design that built it:
 MACHINE_PRESETS); its own sounds are tweaks on top of the preset, so changing the preset reaches
@@ -78,11 +78,9 @@ def _sets() -> dict:
     return sets
 
 
-# The sets, which set each table plays from, and which sets a moment's `uses` names. Filled by refresh_sets(), now
-# and again once built slots (slot_builds.py) have joined the floor; updated in place, so other modules' references
-# stay good.
+# The sets, and which sets a moment's `uses` names. Filled by refresh_sets(), now and again once built slots
+# (slot_builds.py) have loaded; updated in place, so other modules' references stay good.
 SETS: dict = {}
-TABLE_SETS: dict = {}
 _TABLE_GAMES: set = set()
 _MACHINES: set = set()
 USERS: dict = {}
@@ -91,11 +89,6 @@ USERS: dict = {}
 def refresh_sets():
     SETS.clear()
     SETS.update(_sets())
-    TABLE_SETS.clear()
-    # (a Master Table plays the casino's own set until it has a game: then its game's -- casino.py sets that)
-    TABLE_SETS.update({tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else
-                             "casino" if cfg["game"] == "master_table" else cfg["game"])
-                       for tid, cfg in floor.TABLES.items()})
     _TABLE_GAMES.clear()
     _TABLE_GAMES.update(k for k, s in SETS.items() if s["group"] == "Table games")
     _MACHINES.clear()
@@ -111,6 +104,14 @@ def refresh_sets():
 
 
 refresh_sets()
+
+
+def table_sets(tables: dict) -> dict:
+    """Which set each of a floor's tables plays from (Floor.sound_sets). A Master Table plays the casino's own set
+    until it has a game: then its game's (casino.py sets that)."""
+    return {tid: ("slots." + cfg["variant"] if cfg["game"] == "slots" else
+                  "casino" if cfg["game"] == "master_table" else cfg["game"]) for tid, cfg in tables.items()}
+
 
 # ------------------------------------------------------------------ the moments
 # Page order. Each: title, when it plays, its section on the page, its home set, which
@@ -445,7 +446,7 @@ class SoundBoard:
                 "changed": key in self.saved.get(set_key, {}) and not set_key.startswith(PRESET),   # (a preset came empty)
                 "can_inherit": set_key != MOMENTS[key]["home"]}
 
-    def manifest(self) -> dict:
+    def manifest(self, tables: dict | None = None) -> dict:
         """What the game loads: each set's own moments (files as URLs, and the volume trim), each
         set's parent, and which set each table plays from. A moment a set doesn't have comes from
         the nearest set above it that does. Every machine plays the bonus games' sets, so their moments go in
@@ -463,7 +464,7 @@ class SoundBoard:
                 sets["slots"]["moments"].update(moments)
             else:
                 sets[s] = {"parent": info["parent"], "moments": moments}
-        return {"version": self.version, "sets": sets, "tables": TABLE_SETS}
+        return {"version": self.version, "sets": sets, "tables": tables or {}}
 
     def overview(self) -> dict:
         """Everything the admin page shows. A machine's set says which preset it follows ("preset"), and Default's

@@ -47,8 +47,8 @@ a group as one; and "locked": true, which keeps the page's canvas from picking i
 A bank's size is fixed (another size is another asset, so a new id); everything past the page sees its cabinets
 (flat_items), each an ordinary slot item, so the game and the NPCs never know about banks.
 
-install() puts the live plan's placed rooms on the floor (floor.py): their tables and cabinets join floor.TABLES, and
-their points, seats and doors give the NPCs somewhere to go. Publishing changes the floor at once when only places
+install() makes the live plan's placed rooms into a floor (floor.Floor, the Casino's): their tables and cabinets are its
+tables, and their points, seats and doors give the NPCs somewhere to go. Publishing changes the floor at once when only places
 changed; adding or removing tables or cabinets restarts the casino (as the old Floor tab's Apply did).
 
 The shapes come from plan_catalogue.json, measured from the client's scenes by tools/plan_catalogue.gd.
@@ -62,7 +62,8 @@ import subprocess
 import time
 from pathlib import Path
 
-from casino_server import floor, slot_builds, sounds
+from casino_server import slot_builds, sounds
+from casino_server.floor import Floor
 from casino_server.slots.variants import VARIANTS
 from casino_server.tables import master
 from casino_server.tables.base import DEFAULT_LIMITS, LIMIT_NAMES
@@ -146,8 +147,6 @@ PIECES = {
 
 # Furniture from the asset library (plan_assets.py fills it): id -> {"name", "category", "mount", "rect", "body", ...}
 ASSETS: dict = {}
-
-_LIVE: dict = {}       # what install() put on the floor
 
 
 class PlanError(ValueError):
@@ -916,7 +915,7 @@ def _nearest_open(grid, cols: int, rows: int, cx: int, cy: int):
 
 # ------------------------------------------------------------------ the floor (install) and what clients get
 def tables_of(plan: dict, placed_only: bool = True) -> dict:
-    """The tables and cabinets in a plan's rooms: table id -> its floor.TABLES entry (plus "room")."""
+    """The tables and cabinets in a plan's rooms: table id -> its Floor.tables entry (plus "room")."""
     out = {}
     for room in plan["rooms"]:
         if placed_only and not room["placed"]:
@@ -941,51 +940,25 @@ def tables_of(plan: dict, placed_only: bool = True) -> dict:
     return out
 
 
-def install(plan: dict) -> list[str]:
-    """Put a plan's placed rooms on the floor (see the module docstring). Returns the table ids."""
+def install(plan: dict) -> Floor:
+    """Make a plan's placed rooms into a floor (see the module docstring)."""
     placed = [r for r in plan["rooms"] if r["placed"]]
     tables = tables_of(plan)
-    floor.TABLES.clear()
-    floor.TABLES.update({tid: {k: v for k, v in cfg.items() if k != "room"} for tid, cfg in tables.items()})
-    floor.POINTS.clear()
-    floor.SEATS.clear()
+    points, seats = {}, {}
     for room in placed:
         for p in room["paths"]["points"]:
-            floor.POINTS[f"{room['id']}/{p['name']}"] = {"x": room["x"] + p["x"], "y": room["y"] + p["y"], "kind": p["kind"],
-                                                         "weight": p["weight"], "linger": p["linger"], "room": room["id"]}
+            points[f"{room['id']}/{p['name']}"] = {"x": room["x"] + p["x"], "y": room["y"] + p["y"], "kind": p["kind"],
+                                                   "weight": p["weight"], "linger": p["linger"], "room": room["id"]}
         for item in flat_items(room):
             if item["id"] in tables:
                 s = shapes(room, item)
-                floor.SEATS[item["id"]] = s["stands"] if s else []
+                seats[item["id"]] = s["stands"] if s else []
     npc_only = {r["id"] for r in placed if r.get("npc_only")}
-    spawns = [k for k, p in floor.POINTS.items() if p["kind"] == "spawn" and p["room"] not in npc_only]
-    floor.SPAWN = plan.get("spawn") if plan.get("spawn") in spawns else (spawns[0] if spawns else "")
+    spawns = [k for k, p in points.items() if p["kind"] == "spawn" and p["room"] not in npc_only]
+    spawn = plan.get("spawn") if plan.get("spawn") in spawns else (spawns[0] if spawns else "")
     ops, _ = openings(placed)
-    floor.ROUTES = Routes(placed, ops)
-    _LIVE.clear()
-    _LIVE.update(plan=copy.deepcopy(plan), tables=sorted(tables))
-    sounds.refresh_sets()
-    return sorted(tables)
-
-
-def live() -> dict:
-    """The plan install() put on the floor."""
-    return _LIVE.get("plan") or {"rev": 0, "rooms": [], "spawn": ""}
-
-
-def cabinets_on_floor(variant: str) -> int:
-    return sum(1 for cfg in floor.TABLES.values() if cfg.get("variant") == variant)
-
-
-def every_table() -> dict:
-    """Every table id in the live and draft plans, placed or in the library (so settings kept by table id --
-    a table's style -- outlive a room being taken off the floor): id -> {"game", "name"}."""
-    out = tables_of(live(), placed_only=False)
-    out.update({k: v for k, v in _DRAFT_TABLES.items() if k not in out})
-    return out
-
-
-_DRAFT_TABLES: dict = {}
+    on_floor = {tid: {k: v for k, v in cfg.items() if k != "room"} for tid, cfg in tables.items()}
+    return Floor(copy.deepcopy(plan), on_floor, points, seats, spawn, Routes(placed, ops), sounds.table_sets(on_floor))
 
 
 def world(plan: dict, rooms: list | None = None, start: tuple | None = None) -> dict:
@@ -1089,19 +1062,27 @@ class Routes:
 
 # ------------------------------------------------------------------ the page
 class PlanBoard:
-    """The admin page's Floor plan tab: the draft, its problems, publishing, history. `on_draft(plan)` and
-    `on_publish(plan)` let the app tell previews and players."""
+    """The admin page's Floor plan tab: the draft, its problems, publishing, history. `floor` is the live plan's
+    Floor (the casino's); `on_draft(plan)` and `on_publish(floor)` let the app tell previews and players."""
 
-    def __init__(self, data_dir: Path, builds_dir: Path | None = None):
+    def __init__(self, data_dir: Path, builds_dir: Path | None = None, floor: Floor | None = None):
         self.data_dir, self.builds_dir = data_dir, builds_dir
         self.dir = plan_dir(data_dir)
+        self.floor = floor or install(load_live(data_dir))
         self.on_draft = None
         self.on_publish = None
         self._note_draft(load_draft(data_dir))
 
     def _note_draft(self, draft: dict):
-        _DRAFT_TABLES.clear()
-        _DRAFT_TABLES.update({k: v for k, v in tables_of(draft, placed_only=False).items()})
+        self._draft_tables = tables_of(draft, placed_only=False)
+
+    def every_table(self) -> dict:
+        """Every table id in the live and draft plans, placed or in the library (so settings kept by table id --
+        a table's style -- outlive a room being taken off the floor): id -> {"game", "name", "on_floor"}."""
+        out = {k: v for k, v in self._draft_tables.items()}
+        out.update(tables_of(self.floor.plan, placed_only=False))
+        out.update(self.floor.tables)
+        return {k: {"game": v["game"], "name": v["name"], "on_floor": k in self.floor.tables} for k, v in out.items()}
 
     def draft(self) -> dict:
         return load_draft(self.data_dir)
@@ -1111,7 +1092,7 @@ class PlanBoard:
         live_plan = load_live(self.data_dir)
         probs = problems(draft, self.builds_dir)
         return {"draft": draft, "problems": probs, "live_rev": live_plan.get("rev", 0),
-                "pending": self.changes(draft, live_plan), "restart": self.needs_restart(draft, live()),
+                "pending": self.changes(draft, live_plan), "restart": self.needs_restart(draft, self.floor.plan),
                 "can_publish": not any(p["placed"] for p in probs), "live": slot_builds.is_live()}
 
     @staticmethod
@@ -1150,7 +1131,7 @@ class PlanBoard:
         probs = [p for p in problems(draft, self.builds_dir) if p["placed"]]
         if probs:
             raise PlanError(probs[0]["message"] + (f" (and {len(probs) - 1} more)" if len(probs) > 1 else ""))
-        restart = self.needs_restart(draft, live())
+        restart = self.needs_restart(draft, self.floor.plan)
         old = load_live(self.data_dir)
         stamp = time.strftime("%Y%m%d-%H%M%S")
         _write(self.dir / "history" / f"{stamp}-r{old.get('rev', 0)}.json", old)
@@ -1168,9 +1149,9 @@ class PlanBoard:
             else:
                 message = "Published. This is a test or dev instance: restart it to put the new tables on its floor."
         else:
-            install(draft)
+            self.floor = install(draft)
             if self.on_publish:
-                self.on_publish(draft)
+                self.on_publish(self.floor)
             message = "Published: the floor has changed."
         return {"message": message, "restart": restart, **self.view()}
 

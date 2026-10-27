@@ -6,6 +6,8 @@ from casino_server.casino import Casino
 from casino_server.store import Store
 from casino_server.tables.three_card_poker import Timings
 
+from conftest import classic_floor
+
 from test_machine import CODES, FakeParticipant, find, kinds, machine, timings
 
 ANTE = {"ante": 500, "pair_plus": 0, "prime": 0, "jackpot": 0}
@@ -144,7 +146,7 @@ def test_npcs_get_their_bets_down_inside_a_rebet_countdown(tmp_path):
     betting closes has a bet down by then. Three Card Poker and Roulette (chip by chip)."""
     for table, population in (("tcp_1", 12), ("rou_1", 30)):   # (enough NPCs that some sit there)
         now = [1_000_000.0]
-        casino = Casino(Store(tmp_path / f"{table}.sqlite"), npc_population=population, rng=random.Random(5),
+        casino = Casino(Store(tmp_path / f"{table}.sqlite"), classic_floor(), npc_population=population, rng=random.Random(5),
                         clock=lambda: now[0], wall=lambda: now[0])
         runner = casino.tables[table]
         casino.tables = {table: runner}   # the only table on the floor, so its seats fill whatever the NPCs fancy

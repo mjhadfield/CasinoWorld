@@ -1080,7 +1080,7 @@ def test_sign_off_locks_how_it_pays(board):
 
 # ------------------------------------------------------------------ Build (Phase 8)
 def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch):
-    from casino_server import floor, plan, slot_builds, sounds
+    from casino_server import plan, slot_builds, sounds
     from casino_server.slots.variant import from_json
     from casino_server.slots.variants import VARIANTS
     c, d = board
@@ -1120,14 +1120,15 @@ def test_build_and_the_built_slot_joins_the_casino(board, tmp_path, monkeypatch)
     assert r.status_code == 200 and r.json()["restart"] and "restart it" in r.json()["message"]
     # restarting loads it: its cabinets, its sound set, its art and fonts
     with TestClient(app) as c2:
-        assert "demo" in VARIANTS and [t for t, cfg in floor.TABLES.items() if cfg.get("variant") == "demo"] == ["slot_11", "slot_12", "slot_13", "slot_14"]
+        fl = c2.app.state.casino.floor
+        assert "demo" in VARIANTS and [t for t, cfg in fl.tables.items() if cfg.get("variant") == "demo"] == ["slot_11", "slot_12", "slot_13", "slot_14"]
         assert c2.get("/api/slot-design/demo").json()["build"]["on_floor"] == 4
         assert "slots.demo" in sounds.SETS and sounds.FACTORY["slots.demo"]["reel_stop"]["files"]
         man = c2.get("/api/slots/art/manifest").json()
         assert set(man["variants"]["demo"]) >= {"H1", "BS", "armadillo"} and set(man["fonts"]["demo"]) == {"display", "ui"}
         assert c2.get(man["variants"]["demo"]["H1"]).headers["content-type"] == "image/png"
         assert c2.get(man["fonts"]["demo"]["ui"]).headers["content-type"] == "font/ttf"
-        cab = [i for r in plan.world(plan.live())["rooms"] for i in r["items"] if i["props"].get("variant") == "demo"]
+        cab = [i for r in plan.world(fl.plan)["rooms"] for i in r["items"] if i["props"].get("variant") == "demo"]
         assert [x["id"] for x in cab] == ["slot_11", "slot_12", "slot_13", "slot_14"] and (cab[0]["x"], cab[0]["y"]) == (1599, 860)
         assert {x["facing"] for x in cab} == {"down"} and cab[0]["cabinet"] == v.theme["cabinet"]
         m = c2.app.state.casino.tables["slot_11"].machine

@@ -6,7 +6,7 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 
-from casino_server import floor, plan
+from casino_server import plan
 from casino_server.app import app
 from casino_server.casino import MACHINES
 from casino_server.npc import reserved_seats
@@ -258,7 +258,6 @@ def master_client(tmp_path, monkeypatch):
     p["next"] = {**p.get("next", {}), "mt": 2}
     for name in ("live.json", "draft.json"):
         plan._write(plan.plan_dir(tmp_path) / name, p)
-    plan.install(p)
     monkeypatch.setenv("CASINO_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))
@@ -291,7 +290,8 @@ def test_choosing_over_the_websocket(master_client):
         assert state["game"] == "let_it_ride" and state["master"]["game"] == "let_it_ride"
         mine = state["my_seat"]
         assert state["seats"][mine]["name"] and len(state["seats"]) == 5
-        assert floor.SEATS["mt_1"] == plan.tables_of(plan.live())["mt_1"]["stands"]["5"]
+        fl = master_client.app.state.casino.floor
+        assert fl.seats["mt_1"] == plan.tables_of(fl.plan)["mt_1"]["stands"]["5"]
         ws.send_json({"type": "choose_game", "game": "craps"})
         assert "can't set" in recv_until(ws, "error")["message"]
 
@@ -310,11 +310,11 @@ def npc_master(tmp_path):
     for other in p["rooms"]:
         if other is not room:
             other["placed"] = False
-    plan.install(plan.clean(p, {"rev": 0, "next": {}, "rooms": []}))
-    assert list(floor.TABLES) == ["mt_1"]
+    fl = plan.install(plan.clean(p, {"rev": 0, "next": {}, "rooms": []}))
+    assert list(fl.tables) == ["mt_1"]
     now = [1_000_000.0]
     store = Store(tmp_path / "npc.sqlite")
-    casino = Casino(store, npc_population=12, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
+    casino = Casino(store, fl, npc_population=12, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
     runner = casino.tables["mt_1"]
     m = runner.machine
     m.timings = master.Timings(vote=10.0, revert=600.0, hold=0.5)

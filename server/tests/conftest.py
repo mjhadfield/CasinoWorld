@@ -28,17 +28,19 @@ def pytest_configure(config):
 OPEN_LIMITS = {"main": (100, plan.LIMIT_TOP), "side": (100, plan.LIMIT_TOP)}
 
 
+def classic_floor():
+    """The classic plan's floor, for a Casino made without the app."""
+    return plan.install(CLASSIC_PLAN)
+
+
 @pytest.fixture(autouse=True)
 def classic_plan(tmp_path, monkeypatch):
-    """Every test's scratch data dir has the classic plan published, and the floor has it (the app's lifespan loads
-    it again from CASINO_DATA_DIR). Its card tables, and any made without the plan, take OPEN_LIMITS."""
+    """Every test's scratch data dir has the classic plan published (the app's lifespan loads it from
+    CASINO_DATA_DIR). Its card tables, and any made without the plan, take OPEN_LIMITS."""
     monkeypatch.setattr(base, "DEFAULT_LIMITS", OPEN_LIMITS)
     monkeypatch.setattr(plan, "DEFAULT_LIMITS", OPEN_LIMITS)
     for name in ("live.json", "draft.json"):
         plan._write(plan.plan_dir(tmp_path) / name, CLASSIC_PLAN)
-    plan.install(CLASSIC_PLAN)
-    yield
-    plan.install({"rooms": [], "spawn": ""})
 
 
 def pytest_collection_modifyitems(config, items):

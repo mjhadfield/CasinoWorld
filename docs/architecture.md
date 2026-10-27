@@ -38,8 +38,8 @@ game result and every penny is decided on the server; the client only renders an
 - **The world (`world.py`)** is every avatar on the floor: `{id, kind, name, look, x, y, dir, anim, seat,
   walk}`. Players move themselves and report it (`move`, about 10 times a second), and the server relays it.
   NPCs are sent walks instead (`entity_walk {id, target, duration}` to a floor-plan point,
-  `point:<room>/<name>`, or a seat). The server times a walk by its distance through the doorways (`floor.py`,
-  filled from the floor plan); each client paths it on its navigation map at whatever speed arrives on time, so
+  `point:<room>/<name>`, or a seat). The server times a walk by its distance through the doorways (the casino's
+  `floor.Floor`, made from the floor plan); each client paths it on its navigation map at whatever speed arrives on time, so
   everyone sees them arrive together. A walk that comes before the map is ready (the snapshot as the page loads,
   just before the floor's bake reaches the navigation server) waits for it rather than cutting across the tables,
   and every walk is re-pathed whenever the map changes. The server keeps an NPC's `x, y` as where its walk set
@@ -76,7 +76,7 @@ game result and every penny is decided on the server; the client only renders an
   and the message handling see an ordinary table of that game (its `game` too: `master_table` only while blank).
   It swaps the inner machine between hands (seats renumbered when the count changes 6↔5: the runner sends everyone
   a fresh `table_state`, and `Casino.on_reseated` moves sessions, the world's seats and NPCs to their new seats;
-  `floor.SEATS` follows the seat count). The client swaps in that game's own table scene (`casino_floor.gd`,
+  the floor's `seats` follow the seat count). The client swaps in that game's own table scene (`casino_floor.gd`,
   `MasterSwap`).
 
 ### NPCs, dealers and the roster
@@ -127,7 +127,7 @@ background task. Every card table shows it on its own jackpot sign (docs/tables.
 names the table it was won at, so only that table's sign celebrates. The slots have their own Mini/Minor/Major/Grand meters (`slots/jackpots.py`).
 
 Each card table has limits on its main and side bets: set per table on the floor plan (`plan.py`, item
-`props.limits`, else `DEFAULT_LIMITS` in `tables/base.py`), carried in `floor.TABLES` to the table's machine
+`props.limits`, else `DEFAULT_LIMITS` in `tables/base.py`), carried in the Floor's `tables` to the table's machine
 (`TableMachine.limits`, refreshed on a publish by `Casino.broadcast_world`; a Master Table hands them to each game
 it becomes) and in the world message to the client's limits sign. The machine refuses a bet over a maximum and
 Ready under a minimum, and hands back a bet still short when betting closes (`_hand_back_short`).
@@ -154,11 +154,13 @@ A Godot 4.7 project exported to the web.
   each with its walls, floor, doors and archways, the tables, slot cabinets and pieces placed in it, and the NPCs'
   points (spawn, arrival, wander, with weights and linger times) and no-go zones. The admin page's Floor plan tab
   edits a draft (`draft.json`); publishing copies it to `live.json` (the last 20 publishes kept in `history/`).
-  At startup, after the built slots, `plan.install` fills `floor.py` from the live plan's placed rooms: every table
+  At startup, after the built slots, `plan.install` makes a `floor.Floor` (the Casino's `floor`, and the
+  `PlanBoard`'s) from the live plan's placed rooms: the plan itself, every table
   and cabinet (an item's id is its table id, given by the server and never reused; a slot bank is one item whose
   cabinets, `<bank id>_<n>`, are what everything past the plan sees), the points, each seat's
-  standing spot and the doorways (`plan.Routes`, for how long an NPC's walk takes). A publish that only moves things
-  installs at once and sends everyone `world`; one that adds or removes tables restarts the server. The checks
+  standing spot, the doorways (`plan.Routes`, for how long an NPC's walk takes) and each table's sound set. A
+  publish that only moves things installs a new Floor at once (`Casino.broadcast_world` takes it) and sends everyone
+  `world`; one that adds or removes tables restarts the server. The checks
   (`plan.problems`: things off the floor or in each other's way, doors that don't line up, seats and points nobody
   can walk to, by a flood fill over the plan) use the tables' and cabinet's shapes in `plan_catalogue.json`,
   measured from the client's scenes by `tools/plan_catalogue.gd`. The first run seeds the lobby (live) and the

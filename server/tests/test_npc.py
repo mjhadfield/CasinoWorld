@@ -8,6 +8,8 @@ from casino_server.casino import Casino
 from casino_server.npc import reserved_seats
 from casino_server.store import Store
 
+from conftest import classic_floor
+
 
 def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None, punters=None):
     """A casino with NPCs on a fake clock (real time and wall time both fake). Returns
@@ -21,7 +23,7 @@ def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None,
         _roster.seed(store)
         for rec in store.npcs("punter"):
             store.update_npc(rec["id"], punters)
-    casino = Casino(store, npc_population=population, rng=random.Random(seed), clock=lambda: now[0],
+    casino = Casino(store, classic_floor(), npc_population=population, rng=random.Random(seed), clock=lambda: now[0],
                     wall=lambda: now[0])
     stats = {"reserve_taken": 0, "seated_ever": set(), "despawned": 0, "rounds": 0, "dealer_changes": 0}
     original_remove = casino.world.remove
@@ -101,7 +103,7 @@ def test_a_bust_npc_cools_down_and_the_roster_cycles(tmp_path):
 
 def test_hit_and_run_leaves_once_up(tmp_path):
     store = Store(tmp_path / "t.sqlite")
-    casino = Casino(store, npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
+    casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
     rec = store.npcs("punter")[0]
     store.update_npc(rec["id"], {"traits": ["hit_and_run"], "settings": {"hit_and_run_pct": 50}})
     npc = casino.npcs.spawn(store.npc(rec["id"]), 0.0)
@@ -114,7 +116,7 @@ def test_hit_and_run_leaves_once_up(tmp_path):
 
 def test_a_chaser_raises_after_losses_and_resets_when_even(tmp_path):
     store = Store(tmp_path / "t.sqlite")
-    casino = Casino(store, npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
+    casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
     rec = store.npcs("punter")[0]
     store.update_npc(rec["id"], {"archetype": "casual", "traits": ["chaser"]})
     d = casino.npcs
@@ -146,7 +148,7 @@ def test_a_card_counter_bets_up_on_a_good_count(tmp_path):
     from types import SimpleNamespace
     from casino_server.engines.cards import Card
     store = Store(tmp_path / "t.sqlite")
-    casino = Casino(store, npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
+    casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
     rec = store.npcs("punter")[0]
     store.update_npc(rec["id"], {"archetype": "grinder", "traits": ["card_counter"]})
     d = casino.npcs
@@ -162,7 +164,7 @@ def test_a_card_counter_bets_up_on_a_good_count(tmp_path):
 def test_regulars_come_back_sooner(tmp_path):
     store = Store(tmp_path / "t.sqlite")
     t = [0.0]
-    casino = Casino(store, npc_population=0, rng=random.Random(1), clock=lambda: t[0], wall=lambda: t[0])
+    casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: t[0], wall=lambda: t[0])
     store.set_json("npc_settings", {"cooldown_min": [60, 60], "regular_cooldown": 0.3})
     a, b = store.npcs("punter")[:2]
     store.update_npc(a["id"], {"traits": ["regular"]})
@@ -197,7 +199,7 @@ def test_table_state_keeps_the_games_dealer(tmp_path):
     """Who's dealing rides alongside the game's own dealer state, never over it."""
     store = Store(tmp_path / "t.sqlite")
     t = [0.0]
-    casino = Casino(store, npc_population=0, rng=random.Random(1), clock=lambda: t[0], wall=lambda: t[0])
+    casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: t[0], wall=lambda: t[0])
     casino.dealers.start(0.0)
     for table_id, runner in casino.tables.items():
         game = runner.machine.snapshot(None, 0.0)
@@ -212,7 +214,7 @@ def test_table_state_keeps_the_games_dealer(tmp_path):
 def test_switching_npcs_off_sends_them_home_after_their_round_and_back_on_they_return_one_at_a_time(tmp_path):
     store = Store(tmp_path / "t.sqlite")
     now = [1_000_000.0]
-    casino = Casino(store, npc_population=6, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
+    casino = Casino(store, classic_floor(), npc_population=6, rng=random.Random(5), clock=lambda: now[0], wall=lambda: now[0])
     stands = []   # (table, phase, bets riding) whenever an NPC gets up after the switch
     for table_id, runner in casino.tables.items():
         m = runner.machine
@@ -261,7 +263,6 @@ def test_switching_npcs_off_sends_them_home_after_their_round_and_back_on_they_r
 def test_npcs_in_a_snapshot_are_where_they_are_not_at_the_players_spawn_point(tmp_path):
     """A snapshot (joining, or back from a hidden tab) places each NPC where the server has them: the start of the
     walk they're on, or where they stopped -- never left for the client to put at the players' spawn point."""
-    from casino_server import floor
     first = {}   # each NPC's place in the first snapshot they're in
 
     def check(casino):
@@ -272,7 +273,8 @@ def test_npcs_in_a_snapshot_are_where_they_are_not_at_the_players_spawn_point(tm
         return False
 
     simulate(tmp_path, seconds=900, until=check)
-    arrivals = {floor.position(f"point:{k}") for k in floor.arrivals()}
+    fl = classic_floor()
+    arrivals = {fl.position(f"point:{k}") for k in fl.arrivals()}
     assert first and all(at in arrivals for at in first.values())   # each came in at an arrival point
 
 
@@ -319,7 +321,7 @@ def _run(casino, now, seconds, until=None):
 def _kick_casino(tmp_path, seed=7):
     now = [1_000_000.0]
     store = Store(tmp_path / "kick.sqlite")
-    casino = Casino(store, npc_population=6, rng=random.Random(seed), clock=lambda: now[0], wall=lambda: now[0])
+    casino = Casino(store, classic_floor(), npc_population=6, rng=random.Random(seed), clock=lambda: now[0], wall=lambda: now[0])
     return casino, now
 
 

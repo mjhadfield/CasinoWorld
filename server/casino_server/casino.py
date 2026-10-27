@@ -1,8 +1,8 @@
 """
-The Casino: connected sessions, the world (everyone on the floor), the tables,
-the NPCs, the store and the jackpot. It lives on app.state for the app's
-lifespan (see app.py); start()/stop() own the background tasks -- one runner
-per table plus the NPC director.
+The Casino: connected sessions, its floor (floor.Floor, from the live plan), the
+world (everyone on the floor), the tables, the NPCs, the store and the jackpot.
+It lives on app.state for the app's lifespan (see app.py); start()/stop() own
+the background tasks -- one runner per table plus the NPC director.
 
 Message handling is synchronous: the event loop runs one message at a time,
 so table and world state never need locks.
@@ -12,7 +12,8 @@ import sys
 import time
 from datetime import datetime
 
-from casino_server import PROTOCOL_VERSION, art, bank, floor, plan, seating, sounds, table_styles
+from casino_server import PROTOCOL_VERSION, art, bank, plan, seating, table_styles
+from casino_server.floor import Floor
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
@@ -45,10 +46,12 @@ MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackja
 
 
 class Casino:
-    def __init__(self, store: Store, jackpot: Jackpot | None = None, speed: float | None = None,
+    def __init__(self, store: Store, floor: Floor, jackpot: Jackpot | None = None, speed: float | None = None,
                  npc_population: int | None = 6, npc_pace: float = 1.0, deck_factory=None, rng=None,
-                 clock=time.monotonic, wall=time.time, looks=None):
+                 clock=time.monotonic, wall=time.time, looks=None, board: plan.PlanBoard | None = None):
         self.store = store
+        self.floor = floor
+        self.board = board            # its floor plan (previews, and the tables its styles may name); None: no previews
         self.looks = looks            # art.LookCache: builds the roster's looks (None: built-in looks only)
         roster.seed(store)            # the starting cast, the first time
         self.jackpot = jackpot or Jackpot(store)
@@ -61,13 +64,12 @@ class Casino:
         self._speed = speed
         self._deck_factory = deck_factory
         self.tables = {}
-        for table_id, cfg in floor.TABLES.items():
+        for table_id, cfg in floor.tables.items():
             self.tables[table_id] = TableRunner(table_id, self, self._make_machine(table_id, cfg["game"], cfg["seats"], cfg), clock)
         self.npcs = NpcDirector(self, npc_population, rng, clock, pace=npc_pace, wall=wall)
         self.dealers = DealerRoster(self, rng, clock, pace=npc_pace)
         self._tasks: list[asyncio.Task] = []
         self._serial = 0
-        self.preview_world = None   # room id -> the draft's world for a preview (app.py sets it: plan.PlanBoard)
 
     def _make_machine(self, table_id: str, game: str, seats: int, cfg: dict | None = None):
         machine_class = MACHINES[game]
@@ -88,11 +90,11 @@ class Casino:
             return {"variant": cfg["variant"], "progressives": self.slot_jackpots, "stats": self.slot_stats}
         if game == master.GAME_KEY:
             def on_seats(n: int):   # (the floor's seat points as the live plan has them now: it may have moved)
-                stands = floor.TABLES.get(table_id, {}).get("stands", {})
+                stands = self.floor.tables.get(table_id, {}).get("stands", {})
                 if str(n) in stands:
-                    floor.SEATS[table_id] = [tuple(p) for p in stands[str(n)]]
+                    self.floor.seats[table_id] = [tuple(p) for p in stands[str(n)]]
                 runner = self.tables.get(table_id)
-                sounds.TABLE_SETS[table_id] = (runner.machine.current if runner else "") or "casino"
+                self.floor.sound_sets[table_id] = (runner.machine.current if runner else "") or "casino"
 
             return {"make": lambda g, n: self._make_machine(table_id, g, n), "anim": cfg.get("anim", master.DEFAULT_ANIM),
                     "speed": cfg.get("speed", master.DEFAULT_SPEED), "leavers": self._npc_leavers, "on_seats": on_seats}
@@ -153,21 +155,31 @@ class Casino:
                       "retry_in": max(1, round(until - time.time())) if until else None})
         session.close()
 
-    def broadcast_world(self):
-        """The live floor plan changed (a publish that needed no restart): everyone rebuilds the floor."""
+    def broadcast_world(self, floor: Floor):
+        """The live floor plan changed (a publish that needed no restart): the casino takes the new floor, and
+        everyone rebuilds it."""
+        self.floor = floor
         for table_id, runner in self.tables.items():   # a Master Table's options, and its seat points where it stands now
-            cfg = floor.TABLES.get(table_id, {})
+            cfg = floor.tables.get(table_id, {})
             if "limits" in cfg:   # (each card table's limits: bets already down stand)
                 runner.machine.limits = {k: tuple(v) for k, v in cfg["limits"].items()}
-            if isinstance(runner.machine, master.MasterMachine) and table_id in floor.TABLES:
+            if isinstance(runner.machine, master.MasterMachine) and table_id in floor.tables:
                 runner.machine.anim, runner.machine.speed = cfg.get("anim", master.DEFAULT_ANIM), cfg.get("speed", master.DEFAULT_SPEED)
                 runner.machine.on_seats(len(runner.machine.seats))
-        self.broadcast_all({"type": "world", "world": plan.world(plan.live())})
+        self.broadcast_all({"type": "world", "world": plan.world(floor.plan)})
+
+    def preview_world(self, room_id: str) -> dict:
+        """The draft's world for a preview starting in `room_id` (plan.PlanError if it can't be shown)."""
+        return plan.preview_world(self.board.draft(), room_id)
+
+    def every_table(self) -> dict | None:
+        """The tables its settings may name (PlanBoard.every_table), or None without a board."""
+        return self.board.every_table() if self.board is not None else None
 
     def preview_changed(self):
         """The draft was saved: every preview shows it again."""
         for s in self.sessions:
-            if s.preview is not None and self.preview_world is not None:
+            if s.preview is not None and self.board is not None:
                 try:
                     s.push({"type": "world", "world": self.preview_world(s.preview)})
                 except plan.PlanError as e:
@@ -413,7 +425,7 @@ class Casino:
         for runner in self.tables.values():
             session.push(runner.snapshot_for(session))
         self.world.add(Entity(session.entity_id, "player", player.name, self._look_of(player)),
-                       at=f"point:{floor.SPAWN}")
+                       at=f"point:{self.floor.spawn}")
 
     def _leave_character(self, session: Session, msg: dict):
         if session.player is None:
@@ -437,7 +449,7 @@ class Casino:
         tables shown but not dealt. It has no body on the floor and isn't sent the casino's goings-on."""
         if session.account is not None:
             return session.error("Already joined.")
-        if self.preview_world is None:
+        if self.board is None:
             return session.error("Previews aren't available here.")
         session.account = {"id": 0, "token": ""}
         session.player, session.preview = Player(0, 0, "Preview", 0), room_id
@@ -452,13 +464,13 @@ class Casino:
                 world = self.preview_world(session.preview)
             except plan.PlanError as e:
                 session.error(str(e))
-                world = plan.world(plan.live())
+                world = plan.world(self.floor.plan)
         else:
-            world = plan.world(plan.live())
+            world = plan.world(self.floor.plan)
         session.push({"type": "welcome", "player": {"id": player.id, "name": player.name, "difficulty": player.difficulty},
                       "entity_id": session.entity_id, "look": self._look_of(player), "world": world,
                       "preview": session.preview, "seating": seating.load(self.store),
-                      "table_styles": table_styles.load_all(self.store)})
+                      "table_styles": table_styles.load_all(self.store, self.every_table())})
 
     def _resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while
@@ -661,7 +673,7 @@ class Casino:
         if session.table is not None:
             return session.error("Stand up first to use the ATM.")
         e = self.world.entities.get(session.entity_id)
-        if e is None or not bank.near_atm(e.x, e.y):
+        if e is None or not bank.near_atm(self.floor, e.x, e.y):
             return session.error("Walk up to the ATM to use it.")
         pid = session.player.id
         s = bank.settings(self.store)

@@ -12,6 +12,8 @@ from casino_server.slots.rng import mulberry32
 from casino_server.store import Store
 from casino_server.tables.base import TableError
 from casino_server.tables.slot_machine import SlotMachine, Timings
+
+from conftest import classic_floor
 from tests.test_machine import FakeParticipant
 
 
@@ -443,7 +445,7 @@ def test_npcs_leave_two_cabinets_free_and_never_pass_the_bank(tmp_path):
     busiest = 0
     for seed in (5, 6, 7, 8):
         t = [0.0]
-        casino = Casino(Store(tmp_path / f"c{seed}.sqlite"), npc_population=20, rng=random.Random(seed),
+        casino = Casino(Store(tmp_path / f"c{seed}.sqlite"), classic_floor(), npc_population=20, rng=random.Random(seed),
                         clock=lambda: t[0], wall=lambda: t[0])
         casino.dealers.start(0.0)
         cabinets = [r for r in casino.tables.values() if r.machine.game == "slots"]

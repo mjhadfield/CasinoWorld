@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from casino_server import plan, slot_builds
+from casino_server import slot_builds
 from casino_server.slot_design_art import web_font
 from casino_server.slot_design_scene import bake_glass, look
 from casino_server.slot_design_steps import (FONTS_DIR, EXPEDITION_WORDS, VOYAGE_WORDS, DesignError, _font_path, art_view, deck_look, bonuses_view, features_view,
@@ -26,6 +26,7 @@ ARMADILLO_ART = Path(__file__).resolve().parents[1] / "slot_art" / "armadillo" /
 
 class BuildMixin:
     builds_dir: Path = slot_builds.DEFAULT_DIR   # app.py sets it from CASINO_SLOT_BUILDS_DIR
+    cabinets_on_floor = staticmethod(lambda variant: 0)   # how many of a slot's cabinets are on the floor (app.py sets it)
 
     def build_view(self, d) -> dict:
         built = None
@@ -36,7 +37,7 @@ class BuildMixin:
                 built = {"at": v.get("extras", {}).get("built_at"), "loaded": d.id in slot_builds.BUILT}
             except (ValueError, OSError):
                 built = {"at": None, "loaded": False}
-        on_floor = plan.cabinets_on_floor(d.id)
+        on_floor = self.cabinets_on_floor(d.id)
         return {"built": built, "on_floor": on_floor, "live": slot_builds.is_live(),
                 "ideas": d.data.get("specs", []), "signed_off": bool(d.data.get("signed_off"))}
 

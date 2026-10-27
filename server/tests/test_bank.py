@@ -3,6 +3,7 @@ import sqlite3
 import pytest
 
 from casino_server import bank, plan
+from casino_server.floor import Floor
 from casino_server.store import STARTING_BANK, InsufficientFunds, Store
 
 from conftest import recv_until
@@ -122,14 +123,14 @@ def test_atms_are_the_interact_pieces_on_placed_rooms(monkeypatch):
     rooms = [{"placed": True, "x": 100, "y": 50, "items": [{"asset": "a:test_atm", "x": 380, "y": 88},
                                                            {"asset": "a:test_sofa", "x": 10, "y": 10}]},
              {"placed": False, "x": 0, "y": 0, "items": [{"asset": "a:test_atm", "x": 0, "y": 0}]}]
-    monkeypatch.setattr(plan, "live", lambda: {"rooms": rooms})
-    assert bank.atms() == [(480, 138)]
-    assert bank.near_atm(480, 160) and not bank.near_atm(480, 260) and not bank.near_atm(None, None)
+    fl = Floor({"rooms": rooms})
+    assert bank.atms(fl) == [(480, 138)]
+    assert bank.near_atm(fl, 480, 160) and not bank.near_atm(fl, 480, 260) and not bank.near_atm(fl, None, None)
 
 
 # ------------------------------------------------------------------ the ATM, over the socket
 def test_the_atm(client, monkeypatch):
-    monkeypatch.setattr(bank, "atms", lambda: [(400.0, 100.0)])
+    monkeypatch.setattr(bank, "atms", lambda _floor: [(400.0, 100.0)])
     client.put("/api/bank-settings", json={"start_hand": 0})
     with client.websocket_connect("/ws") as ws:
         welcome, wallet, *_ = join(ws)
@@ -157,7 +158,7 @@ def test_the_atm(client, monkeypatch):
 
 
 def test_the_bigger_withdrawal_over_the_socket(client, monkeypatch):
-    monkeypatch.setattr(bank, "atms", lambda: [(400.0, 100.0)])
+    monkeypatch.setattr(bank, "atms", lambda _floor: [(400.0, 100.0)])
     client.put("/api/bank-settings", json={"start_hand": 0, "start_bank": 5000})
     with client.websocket_connect("/ws") as ws:
         join(ws)

@@ -3,7 +3,7 @@ the table machines (tables/base.py) and by the NPCs (npc.py). The other tests pl
 these set real ones."""
 import pytest
 
-from casino_server import floor, plan
+from casino_server import plan
 from casino_server.tables import base
 from casino_server.tables.baccarat import BaccaratMachine
 from casino_server.tables.baccarat import Timings as BacTimings
@@ -54,9 +54,9 @@ def test_card_tables_carry_their_limits_to_the_floor_and_the_clients():
 
 def test_a_published_change_of_limits_reaches_the_table(client):
     casino = client.app.state.casino
-    table_id = next(t for t, cfg in floor.TABLES.items() if cfg["game"] == "three_card_poker")
-    floor.TABLES[table_id]["limits"] = {"main": [2_500, 10_000], "side": [500, 1_000]}
-    casino.broadcast_world()
+    table_id = next(t for t, cfg in casino.floor.tables.items() if cfg["game"] == "three_card_poker")
+    casino.floor.tables[table_id]["limits"] = {"main": [2_500, 10_000], "side": [500, 1_000]}
+    casino.broadcast_world(casino.floor)
     assert casino.tables[table_id].machine.limits == {"main": (2_500, 10_000), "side": (500, 1_000)}
 
 
@@ -149,7 +149,6 @@ def test_npcs_bet_within_the_limits(tmp_path, monkeypatch):
     limits = {"main": (1_000, 2_500), "side": (200, 500)}
     monkeypatch.setattr(plan, "DEFAULT_LIMITS", limits)
     monkeypatch.setattr(base, "DEFAULT_LIMITS", limits)
-    plan.install(CLASSIC_PLAN)
     seen = {"main": [], "side": []}
 
     def watch(casino):

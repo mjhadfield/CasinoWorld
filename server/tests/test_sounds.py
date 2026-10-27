@@ -3,9 +3,9 @@ import json
 
 import pytest
 
-from casino_server import floor, sounds
+from casino_server import sounds
 
-from conftest import recv_until
+from conftest import classic_floor, recv_until
 from test_ws import join
 
 ARM = "slots.armadillo"
@@ -14,8 +14,9 @@ ARM = "slots.armadillo"
 def test_the_sets_follow_the_floor():
     assert sounds.SETS["casino"]["parent"] is None
     assert sounds.SETS["blackjack"]["parent"] == "casino" and sounds.SETS[ARM]["parent"] == "slots"
-    assert set(sounds.TABLE_SETS) == set(floor.TABLES)
-    assert sounds.TABLE_SETS["slot_1"] == ARM and sounds.TABLE_SETS["rou_1"] == "roulette"
+    fl = classic_floor()
+    assert set(fl.sound_sets) == set(fl.tables)
+    assert fl.sound_sets["slot_1"] == ARM and fl.sound_sets["rou_1"] == "roulette"
     # Who can change what: cards at card tables, reels at slot machines, the room only casino-wide.
     assert sounds.shows("blackjack", "deal") and not sounds.shows("roulette", "deal")
     assert sounds.shows(ARM, "reel_stop") and sounds.shows("slots", "reel_stop") and not sounds.shows("casino", "reel_stop")

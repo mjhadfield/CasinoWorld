@@ -111,10 +111,10 @@ def withdraw_problem(amount, check: dict) -> str | None:
     return None
 
 
-def atms() -> list[tuple[float, float]]:
-    """Where every ATM on the live floor stands (its base, in the floor's frame)."""
+def atms(floor) -> list[tuple[float, float]]:
+    """Where every ATM on a floor stands (its base, in the floor's frame)."""
     out = []
-    for room in plan.live()["rooms"]:
+    for room in floor.plan["rooms"]:
         if not room.get("placed"):
             continue
         for item in room["items"]:
@@ -124,7 +124,7 @@ def atms() -> list[tuple[float, float]]:
     return out
 
 
-def near_atm(x: float | None, y: float | None) -> bool:
+def near_atm(floor, x: float | None, y: float | None) -> bool:
     if x is None or y is None:
         return False
-    return any(math.hypot(x - ax, y - ay) <= REACH for ax, ay in atms())
+    return any(math.hypot(x - ax, y - ay) <= REACH for ax, ay in atms(floor))

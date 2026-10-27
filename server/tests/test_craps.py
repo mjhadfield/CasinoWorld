@@ -14,6 +14,7 @@ from casino_server.store import Store
 from casino_server.tables.base import TableError
 from casino_server.tables.craps import INACTIVE_ROLLS, CrapsMachine, Timings
 
+from conftest import classic_floor
 from test_machine import FakeParticipant
 
 ROLLS = list(product(range(1, 7), repeat=2))
@@ -635,7 +636,7 @@ def test_snapshot_mid_throw():
 # ---------------------------------------------------------------- NPCs at the table
 def test_npcs_keep_the_craps_table_busy(tmp_path):
     now = [1_000_000.0]
-    casino = Casino(Store(tmp_path / "c.sqlite"), npc_population=3, rng=random.Random(7),
+    casino = Casino(Store(tmp_path / "c.sqlite"), classic_floor(), npc_population=3, rng=random.Random(7),
                     clock=lambda: now[0], wall=lambda: now[0], speed=0.2)
     craps = casino.tables["crp_1"]
     seen = 0
@@ -652,7 +653,7 @@ def test_npcs_keep_the_craps_table_busy(tmp_path):
 
 def test_npcs_play_craps_and_only_leave_when_nothing_is_stuck(tmp_path):
     now = [1_000_000.0]
-    casino = Casino(Store(tmp_path / "c.sqlite"), npc_population=4, rng=random.Random(11),
+    casino = Casino(Store(tmp_path / "c.sqlite"), classic_floor(), npc_population=4, rng=random.Random(11),
                     clock=lambda: now[0], wall=lambda: now[0], speed=0.2, npc_pace=0.2)
     m = casino.tables["crp_1"].machine
     throws = 0
@@ -676,7 +677,7 @@ def test_npcs_play_craps_and_only_leave_when_nothing_is_stuck(tmp_path):
 
 # ---------------------------------------------------------------- over the wire
 def test_a_roll_over_the_wire(client):
-    from conftest import recv_until
+    from conftest import classic_floor, recv_until
     from test_ws import join
     client.app.state.casino.tables["crp_1"].machine.dice = Dice((3, 4))
     with client.websocket_connect("/ws") as ws:

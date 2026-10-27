@@ -6,9 +6,11 @@ import random
 
 import pytest
 
-from casino_server import floor, plan, table_styles
+from casino_server import plan, table_styles
 from casino_server.casino import Casino
 from casino_server.store import Store
+
+from conftest import classic_floor
 from tests.conftest import CLASSIC_PLAN, enter, recv_until
 
 
@@ -34,8 +36,8 @@ def test_first_run_seeds_the_lobby_live_and_the_classic_floor_in_the_library(tmp
     lobby = room(live, "lobby")
     assert (lobby["w"], lobby["h"]) == (1024, 640) and lobby["doors"] == [{"id": "d1", "side": "top", "at": 512, "width": 64, "kind": "door"}]
     assert not [p for p in plan.problems(live) if p["placed"]]
-    plan.install(live)
-    assert floor.TABLES == {} and floor.SPAWN == "lobby/spawn" and floor.arrivals() == ["lobby/arrival"]
+    fl = plan.install(live)
+    assert fl.tables == {} and fl.spawn == "lobby/spawn" and fl.arrivals() == ["lobby/arrival"]
     # the classic tables are kept, by their ids, in the library
     assert {"tcp_1", "bj_5", "crp_1"} <= set(plan.tables_of(live, placed_only=False))
     # and new ones never take their ids
@@ -44,8 +46,9 @@ def test_first_run_seeds_the_lobby_live_and_the_classic_floor_in_the_library(tmp
 
 def test_the_classic_plan_is_clean_and_puts_every_table_on_the_floor():
     assert plan.problems(CLASSIC_PLAN) == []
-    assert len([t for t, c in floor.TABLES.items() if c["game"] != "slots"]) == 15
-    assert floor.TABLES["lir_1"]["seats"] == 5 and floor.TABLES["slot_3"] == {"game": "slots", "variant": "armadillo", "name": "Armadillo Goes West", "seats": 1}
+    fl = classic_floor()
+    assert len([t for t, c in fl.tables.items() if c["game"] != "slots"]) == 15
+    assert fl.tables["lir_1"]["seats"] == 5 and fl.tables["slot_3"] == {"game": "slots", "variant": "armadillo", "name": "Armadillo Goes West", "seats": 1}
     # the archway between the floor and the pit belongs to both rooms
     ops, probs = plan.openings([r for r in CLASSIC_PLAN["rooms"] if r["placed"]])
     assert probs == []
@@ -231,9 +234,9 @@ def test_a_slot_banks_cabinets_go_on_the_floor_and_to_the_client():
     assert messages(p) == ["Lobby: there's no slot 'nope' for bank_1_2."]
     assert plan.problems(p)[0]["item"] == "bank_1"   # (the page picks out the bank)
     room(p, "lobby")["items"][0]["props"]["slots"][1] = "armadillo"
-    ids = plan.install(p)
-    assert ids == [f"bank_1_{n}" for n in range(1, 7)] and floor.TABLES["bank_1_5"]["variant"] == "armadillo"
-    assert floor.SEATS["bank_1_5"] == [(512 - 58 - 49, 360 + 2 - 1)]   # (the left end's player stands to its left)
+    fl = plan.install(p)
+    assert sorted(fl.tables) == [f"bank_1_{n}" for n in range(1, 7)] and fl.tables["bank_1_5"]["variant"] == "armadillo"
+    assert fl.seats["bank_1_5"] == [(512 - 58 - 49, 360 + 2 - 1)]   # (the left end's player stands to its left)
     items = room(plan.world(p), "lobby")["items"]
     assert [(i["asset"], i["facing"]) for i in items][:2] == [("slot", "up"), ("slot", "up")]
     # moving a bank is a hot change; another slot in it restarts the casino
@@ -331,8 +334,8 @@ def test_an_npcs_only_lift_is_the_smallest_room_and_players_cant_use_it():
     room(p, "lift")["paths"]["points"].append({"name": "start", "x": 24, "y": 100, "kind": "spawn", "weight": 1, "linger": 0})
     p["spawn"] = "lift/start"
     assert "Players can't appear in an NPCs-only room: pick another spawn point." in messages(p)
-    plan.install(p)
-    assert floor.SPAWN == "lobby/spawn" and "lift/lift" in floor.arrivals()
+    fl = plan.install(p)
+    assert fl.spawn == "lobby/spawn" and "lift/lift" in fl.arrivals()
     # a wander point in it is for NPCs only; a slot cabinet in it no player could get to
     p["spawn"] = "lobby/spawn"
     room(p, "lift")["paths"]["points"][1]["kind"] = "wander"
@@ -404,9 +407,8 @@ def test_a_preview_shows_the_draft_and_has_no_body(client):
 
 # ------------------------------------------------------------------ NPCs and settings
 def test_nobody_visits_an_empty_floor(tmp_path):
-    plan.install(lobby_only())
     now = [1000.0]
-    casino = Casino(Store(tmp_path / "c.sqlite"), npc_population=6, rng=random.Random(1), clock=lambda: now[0], wall=lambda: now[0])
+    casino = Casino(Store(tmp_path / "c.sqlite"), plan.install(lobby_only()), npc_population=6, rng=random.Random(1), clock=lambda: now[0], wall=lambda: now[0])
     for _ in range(100):
         now[0] += 0.5
         casino.npcs.tick(now[0])
@@ -417,9 +419,9 @@ def test_npcs_wander_to_one_point_and_walk_as_far_as_the_doors_take_them(tmp_pat
     p = copy.deepcopy(CLASSIC_PLAN)
     for r in p["rooms"]:   # one wander point left (the director once chose from nothing)
         r["paths"]["points"] = [x for x in r["paths"]["points"] if x["kind"] != "wander" or x["name"] == "pit_n"]
-    plan.install(p)
+    fl = plan.install(p)
     now = [1000.0]
-    casino = Casino(Store(tmp_path / "c.sqlite"), npc_population=0, rng=random.Random(2), clock=lambda: now[0], wall=lambda: now[0])
+    casino = Casino(Store(tmp_path / "c.sqlite"), fl, npc_population=0, rng=random.Random(2), clock=lambda: now[0], wall=lambda: now[0])
     from casino_server import roster
     npc = casino.npcs.spawn(casino.store.npcs("punter")[0], now[0])
     for step in range(3):
@@ -428,24 +430,24 @@ def test_npcs_wander_to_one_point_and_walk_as_far_as_the_doors_take_them(tmp_pat
         casino.npcs._next_step(npc, now[0])
     assert npc.target in ("point:classic_pit/pit_n", "") and npc.door == "classic_floor/entrance"
     # entrance -> pit: through the archway, ~2500px at an easy pace
-    npc.at = floor.position("point:classic_floor/entrance")
+    npc.at = fl.position("point:classic_floor/entrance")
     casino.npcs._walk(npc, "point:classic_pit/pit_n", now[0])
     assert 20 < npc.until - now[0] < 45
-    npc.at = floor.position("point:classic_pit/pit_n")
+    npc.at = fl.position("point:classic_pit/pit_n")
     casino.npcs._walk(npc, "point:classic_pit/pit_s", now[0])
     assert 6 < npc.until - now[0] < 16   # ~8s at an easy pace, +-15%
 
 
 def test_a_tables_style_outlives_its_room_leaving_the_floor(client):
-    store = client.app.state.casino.store
-    table_styles.assign(store, {"tables": {"tcp_1": "grand"}})
+    store, board = client.app.state.casino.store, client.app.state.plan
+    table_styles.assign(store, {"tables": {"tcp_1": "grand"}}, board.every_table())
     draft = client.get("/api/plan").json()["draft"]
     for r in draft["rooms"]:
         r["placed"] = r["id"] == "classic_pit"
     draft["rooms"].append(plan.lobby())
     draft["spawn"] = "lobby/spawn"
     client.put("/api/plan/draft", json=draft)
-    plan.install(client.get("/api/plan").json()["draft"])   # (as a restart would)
-    assert "tcp_1" not in floor.TABLES
-    table_styles.assign(store, {"tables": {"bj_2": "monte"}})   # saving another table's style...
-    assert table_styles.load(store)["tables"] == {"tcp_1": "grand", "bj_2": "monte"}   # ...keeps tcp_1's
+    board.floor = plan.install(client.get("/api/plan").json()["draft"])   # (as a restart would)
+    assert "tcp_1" not in board.floor.tables
+    table_styles.assign(store, {"tables": {"bj_2": "monte"}}, board.every_table())   # saving another table's style...
+    assert table_styles.load(store, every=board.every_table())["tables"] == {"tcp_1": "grand", "bj_2": "monte"}   # ...keeps tcp_1's
