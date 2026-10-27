@@ -1,13 +1,15 @@
 extends Node
 ## Client-side mirror of what the server says about this player: their account's
-## characters, the one they're playing, its balance, and the progressive jackpot.
-## Display only -- the server's wallet is the source of truth.
+## characters, the one they're playing, the casino they're in, its balance, and the
+## progressive jackpot. Display only -- the server's wallet is the source of truth.
 ##
 ## The server issues an account token on first join; it's kept in user://
 ## (IndexedDB on the web build), so each device or browser stays the same account.
-## Joining gets the character select (`account`); nobody is on the floor until a
-## character is picked. After a dropped connection the same character is picked
-## again (`resume`), so a blip doesn't bounce you back to the select.
+## Joining gets the character select (`account`); picking a character gets the
+## casino chooser (`casinos`); nobody is on a floor until they enter a casino.
+## After a dropped connection the same character is picked again into the same
+## casino (`resume`), so a blip doesn't bounce you back to the select. A page
+## opened with ?casino=<id> goes straight into that casino (a hidden one too).
 
 signal joined(player: Dictionary)
 signal balance_changed(pence: int)
@@ -15,6 +17,10 @@ signal balance_changed(pence: int)
 signal account_received
 ## Off the floor and back at the select: "switch" (you left), "elsewhere" (picked in another window).
 signal character_left(reason: String, character_name: String)
+## The casino chooser's list arrived (or changed): casinos, last_casino.
+signal casinos_received
+## Off the casino's floor: "leave" (back to the chooser), "reload" (it reopens with new tables: a welcome follows).
+signal casino_left(reason: String)
 
 const SAVE_PATH := "user://session.cfg"
 
@@ -28,6 +34,14 @@ var last_character := -1      # id last played, or -1
 var account_ready := false    # an `account` has come on this connection
 var pending_pick := -1        # a character asked for and not yet on the floor as
 var _resume := -1             # the character to pick again after a reconnect
+var _resume_casino := ""      # and the casino to go back into
+var casinos: Array = []       # the chooser: [{id, name, blurb, players, npcs, tables}]
+var last_casino := ""         # the casino this character was last in
+var casinos_ready := false    # a `casinos` has come for the character picked
+var casino := {}              # {id, name}: the casino you're in (from the welcome)
+var pending_casino := ""      # a casino asked for and not yet in
+## The page's ?casino=<id>: straight into that casino on picking (and a preview of its draft).
+var want_casino := ""
 ## A floor-plan preview (the admin page's Preview: the page's address ends ?preview=<room>): the draft's floor to
 ## walk round alone. The server gives it no body and no tables to play.
 var preview := ""
@@ -51,12 +65,17 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		var p = JavaScriptBridge.eval("new URLSearchParams(location.search).get('preview') || ''")
 		preview = str(p) if p != null else ""
+		var c = JavaScriptBridge.eval("new URLSearchParams(location.search).get('casino') || ''")
+		want_casino = str(c) if c != null else ""
 	Net.message_received.connect(_on_message)
 	Net.disconnected.connect(func():
 		if on_floor:
 			_resume = int(player.get("id", -1))
+			_resume_casino = str(casino.get("id", ""))
 		on_floor = false
 		pending_pick = -1
+		pending_casino = ""
+		casinos_ready = false
 		account_ready = false)
 	Net.resynced.connect(func(_msg): _held = false)  # the payout it waited on was dropped; a fresh wallet follows
 
@@ -69,6 +88,8 @@ func _on_message(msg: Dictionary) -> void:
 			var join := {"token": _load_token()}
 			if preview != "":
 				join["preview"] = preview
+				if want_casino != "":
+					join["casino"] = want_casino
 			Net.send("join", join)
 		"account":
 			characters = msg.get("characters", [])
@@ -81,21 +102,42 @@ func _on_message(msg: Dictionary) -> void:
 			if _resume >= 0 and not on_floor and pending_pick < 0:   # back after a dropped connection
 				pending_pick = _resume
 				_resume = -1
-				Net.send("pick_character", {"id": pending_pick, "resume": true})
+				var again := {"id": pending_pick, "resume": true}
+				if _resume_casino != "":
+					again["casino"] = _resume_casino
+				_resume_casino = ""
+				Net.send("pick_character", again)
 			account_received.emit()
 		"character_left":
 			on_floor = false
 			entity_id = ""
+			casinos_ready = false
+			pending_casino = ""
 			if str(msg.get("reason", "")) != "switch":   # (a switch's pick follows its leave)
 				pending_pick = -1
 			_resume = -1
 			character_left.emit(str(msg.get("reason", "")), str(msg.get("name", "")))
+		"casinos":
+			casinos = msg.get("list", [])
+			last_casino = str(msg.get("last")) if msg.get("last") != null else ""
+			casinos_ready = true
+			pending_pick = -1
+			casinos_received.emit()
+		"casino_left":
+			on_floor = false
+			entity_id = ""
+			var why := str(msg.get("reason", ""))
+			if why == "reload":   # (it reopens: its welcome is on the way)
+				pending_casino = str(casino.get("id", ""))
+			casino_left.emit(why)
 		"welcome":
 			player = msg.get("player", {})
 			entity_id = str(msg.get("entity_id", ""))
 			look = str(msg.get("look", look))
+			casino = msg.get("casino", {})
 			on_floor = true
 			pending_pick = -1
+			pending_casino = ""
 			joined.emit(player)
 		"wallet":
 			balance = int(msg.get("balance", 0))
@@ -121,12 +163,35 @@ func hold_balance(on: bool) -> void:
 		balance_changed.emit(shown_balance)
 
 
-## Onto the floor as one of your characters (from the select, or switching: leave first).
+## Play as one of your characters (from the select, or switching: leave first): the casino chooser next, or
+## straight into the page's ?casino=.
 func pick(id: int) -> void:
 	pending_pick = id
+	casinos_ready = false
 	if on_floor:
 		Net.send("leave_character")
-	Net.send("pick_character", {"id": id})
+	var msg := {"id": id}
+	if want_casino != "":
+		msg["casino"] = want_casino
+	Net.send("pick_character", msg)
+
+
+## Onto a casino's floor (from the chooser, or switching casino: leave the one you're in first).
+func enter_casino(id: String) -> void:
+	pending_casino = id
+	if on_floor:
+		Net.send("leave_casino")
+	Net.send("enter_casino", {"casino": id})
+
+
+## The chooser's list again, fresh (opening it on the floor).
+func list_casinos() -> void:
+	Net.send("list_casinos")
+
+
+## Back from the chooser to the character select.
+func leave_character() -> void:
+	Net.send("leave_character")
 
 
 func create_character(character_name: String, spec: Dictionary, difficulty: String) -> void:

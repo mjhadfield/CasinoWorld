@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## Screen-space overlay. Top left, walking or seated: Settings, then your name and cash in hand (WalletPill: click
-## it to switch character); top right: the minimap (Minimap, with Find and its guide under it).
+## it to switch casino or character); top right: the minimap (Minimap, with Find and its guide under it).
 ## Walking: the interact prompt under your feet (Use ATM, Play) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), Paytable and Stand up.

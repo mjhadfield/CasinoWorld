@@ -2,9 +2,10 @@ class_name FrontDoor
 extends Control
 ## The way in: over the floor before you're on it. While connecting it's the loading screen; then the character
 ## select (up to Session.max_characters cards: Play, Edit, Delete, and New while there's room); then the designer
-## for a new character (name, difficulty, look) or a change to one (name, look). Making a character takes you
-## straight in as it. On the floor, clicking your name and cash (the wallet) opens the select again to switch
-## character (`open_switch`), with Close; switching is only offered on foot.
+## for a new character (name, difficulty, look) or a change to one (name, look). Playing a character (or making
+## one) leads to the casino chooser: a card per casino (Enter; the one you were last in lit), with Back to the
+## select. On the floor, clicking your name and cash (the wallet) opens the chooser again to switch casino
+## (`open_switch`), with Change character and Close; switching is only offered on foot.
 ##
 ## It follows Session: shown whenever you're not on the floor (and not previewing the floor plan), hidden once a
 ## `welcome` puts you there.
@@ -15,7 +16,7 @@ const DIFFICULTY := [["easy", "Easy"], ["normal", "Normal"], ["hard", "Hard"]]
 
 var switching := false   # opened from the wallet, on the floor
 var can_switch := true   # (not while seated or at a slot)
-var _mode := "select"    # select | design (the loading screen is whenever there's nothing to choose from yet)
+var _mode := "select"    # select | design | casino (the loading screen is whenever there's nothing to choose from yet)
 var _notice := ""        # over the cards: why you're back here
 var _deleting := -1      # the card asking you to type its name
 var _editing := -1       # design: the character being changed, or -1 for a new one
@@ -32,6 +33,11 @@ var _subtitle: Label
 var _notice_label: Label
 var _cards: HBoxContainer
 var _select_foot: HBoxContainer
+var _casino: VBoxContainer
+var _casino_subtitle: Label
+var _casino_notice: Label
+var _casino_cards: HBoxContainer
+var _casino_foot: HBoxContainer
 var _design: PanelContainer
 var _design_title: Label
 var _name_edit: LineEdit
@@ -59,8 +65,9 @@ func _ready() -> void:
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_loading = _build_loading()
 	_select = _build_select()
+	_casino = _build_casinos()
 	_design = _build_design()
-	for v in [_loading, _select, _design]:   # (one shows at a time, in the middle)
+	for v in [_loading, _select, _casino, _design]:   # (one shows at a time, in the middle)
 		centre.add_child(v)
 	_preview_timer = Timer.new()
 	_preview_timer.one_shot = true
@@ -72,6 +79,8 @@ func _ready() -> void:
 	Net.disconnected.connect(_update)
 	Net.message_received.connect(_on_message)
 	Session.account_received.connect(_on_account)
+	Session.casinos_received.connect(_update)
+	Session.casino_left.connect(func(_reason): _update())
 	Session.joined.connect(func(_p):
 		switching = false
 		_mode = "select"
@@ -93,25 +102,32 @@ func _update() -> void:
 		return
 	show()
 	_bg.color = Color(0.02, 0.025, 0.03, 0.82) if switching else Color(0.03, 0.035, 0.04, 1.0)
-	var waiting := not Session.account_ready or Session.pending_pick >= 0
+	if Session.casinos_ready and not Session.on_floor and _mode == "select":   # (a character's picked)
+		_mode = "casino"
+	var waiting := not Session.account_ready or Session.pending_pick >= 0 or Session.pending_casino != ""
 	_loading.visible = waiting
 	_select.visible = not waiting and _mode == "select"
+	_casino.visible = not waiting and _mode == "casino"
 	_design.visible = not waiting and _mode == "design"
 	if waiting:
-		_status.text = ("Walking in..." if Session.pending_pick >= 0 else "Opening the doors...") if Net.is_open() else "Connecting..."
+		_status.text = ("Walking in..." if Session.pending_casino != "" else "Opening the doors...") if Net.is_open() else "Connecting..."
 	elif _mode == "select":
 		_fill_select()
+	elif _mode == "casino":
+		_fill_casinos()
 
 
-## Opened from the wallet on the floor: the select, to switch to another character (`allowed`: you're on foot).
+## Opened from the wallet on the floor: the casino chooser, to switch casino, or (Change character) the select, to
+## switch character (`allowed`: you're on foot).
 func open_switch(allowed: bool) -> void:
 	if not Session.account_ready:
 		return
 	switching = true
 	can_switch = allowed
-	_mode = "select"
+	_mode = "casino"
 	_notice = ""
 	_deleting = -1
+	Session.list_casinos()   # (fresh counts; the last list shows meanwhile)
 	_update()
 
 
@@ -126,6 +142,8 @@ func _input(event: InputEvent) -> void:
 	if _mode == "design" and not _busy:
 		_mode = "select"
 		_update()
+	elif _mode == "casino" and not switching:
+		_back_to_select()
 	elif switching:
 		close_switch()
 	else:
@@ -175,6 +193,105 @@ func _title() -> Label:
 	t.add_theme_font_override("font", TITLE_FONT)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return t
+
+
+# ------------------------------------------------------------------ the casino chooser
+func _build_casinos() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	box.add_child(_title())
+	_casino_subtitle = DoorUi.label("Choose your casino", 22, DoorUi.MUTED)
+	_casino_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_casino_subtitle)
+	_casino_notice = DoorUi.label("", 18, BettingBar.WARN)
+	_casino_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_casino_notice)
+	box.add_child(DoorUi.gap(10))
+	_casino_cards = HBoxContainer.new()
+	_casino_cards.alignment = BoxContainer.ALIGNMENT_CENTER
+	_casino_cards.add_theme_constant_override("separation", 18)
+	box.add_child(_casino_cards)
+	box.add_child(DoorUi.gap(12))
+	_casino_foot = HBoxContainer.new()
+	_casino_foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	_casino_foot.add_theme_constant_override("separation", 16)
+	box.add_child(_casino_foot)
+	return box
+
+
+func _fill_casinos() -> void:
+	var here := str(Session.casino.get("id", "")) if Session.on_floor else ""
+	_casino_subtitle.text = "Switch casino" if switching else "Choose your casino"
+	_casino_notice.text = "Stand up to switch casino." if switching and not can_switch else ""
+	_casino_notice.visible = _casino_notice.text != ""
+	for c in _casino_cards.get_children():
+		c.queue_free()
+	for c in Session.casinos:
+		_casino_cards.add_child(_casino_card(c, here))
+	if Session.casinos.is_empty():
+		_casino_cards.add_child(DoorUi.label("No casino is open just now.", 18, DoorUi.MUTED))
+	for c in _casino_foot.get_children():
+		c.queue_free()
+	var other := DoorUi.button("Change character" if switching else "Back", "ghost", "" if switching else "Esc")
+	other.disabled = switching and not can_switch
+	other.pressed.connect(func():
+		if switching:
+			_mode = "select"
+			_update()
+		else:
+			_back_to_select())
+	_casino_foot.add_child(other)
+	if switching:
+		var close := DoorUi.button("Close", "ghost", "Esc")
+		close.pressed.connect(close_switch)
+		_casino_foot.add_child(close)
+
+
+func _casino_card(c: Dictionary, here: String) -> PanelContainer:
+	var id := str(c.id)
+	var inside := id == here
+	var card := _card_box(inside or (here == "" and id == Session.last_casino))
+	card.custom_minimum_size = Vector2(CARD.x + 20, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	card.add_child(box)
+	var n := DoorUi.label(str(c.name), 28, DoorUi.INK)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	n.clip_text = true
+	box.add_child(n)
+	var blurb := DoorUi.label(str(c.get("blurb", "")), 16, DoorUi.MUTED)
+	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.custom_minimum_size = Vector2(CARD.x - 12, 44)
+	box.add_child(blurb)
+	var busy := DoorUi.label("%d playing · %d at the tables · %d tables" % [int(c.get("players", 0)), int(c.get("npcs", 0)), int(c.get("tables", 0))], 15, DoorUi.BRASS)
+	busy.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(busy)
+	var st := DoorUi.label("You're here" if inside else ("Where you were last" if id == Session.last_casino and here == "" else ""), 15, BettingBar.WIN)
+	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(st)
+	box.add_child(DoorUi.gap(4))
+	var enter := DoorUi.button("Back to the floor" if inside else "Enter", "primary")
+	enter.disabled = not inside and switching and not can_switch
+	enter.pressed.connect(func():
+		if inside:
+			close_switch()
+		else:
+			Session.enter_casino(id)
+			_update())
+	box.add_child(enter)
+	var lip_gap := Control.new()   # room for Enter's lip
+	lip_gap.custom_minimum_size.y = 4
+	box.add_child(lip_gap)
+	return card
+
+
+## From the chooser back to the character select (you're no longer playing the character).
+func _back_to_select() -> void:
+	Session.casinos_ready = false
+	Session.leave_character()
+	_mode = "select"
+	_update()
 
 
 # ------------------------------------------------------------------ the select

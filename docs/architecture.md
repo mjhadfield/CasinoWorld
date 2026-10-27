@@ -246,13 +246,17 @@ A Godot 4.7 project exported to the web.
 - **The front door (`scenes/ui/front_door.gd`)** covers everything until you're on the floor: the loading screen
   while connecting, then the character select (`Session.characters` from `account`) and the designer (its look
   controls are `look_editor.gd`, a port of the admin page's NPC designer; the preview is built by the server's
-  `POST /api/looks/preview` and fetched by `LookLoader`). It follows Session: shown whenever you aren't on the floor,
-  hidden by `welcome`. Switching (from the wallet) sends `leave_character` then `pick_character`; the floor's
-  `_off_the_floor()` clears what it showed, and the next `welcome` starts you at the spawn point. After a dropped
-  connection Session picks the same character again with `resume`, so you come back where you were.
+  `POST /api/looks/preview` and fetched by `LookLoader`), then the casino chooser (`Session.casinos` from `casinos`:
+  a card per casino, the last one lit). It follows Session: shown whenever you aren't on the floor, hidden by
+  `welcome`. From the wallet it opens the chooser in switch mode (fresh counts by `list_casinos`): another casino
+  sends `leave_casino` then `enter_casino`, and Change character goes to the select (`leave_character` then
+  `pick_character`); the floor's `_off_the_floor()` clears what it showed, it rebuilds when the welcome's casino or
+  plan rev differs from what it built, and the next `welcome` starts you at the spawn point. After a dropped
+  connection Session picks the same character again with `resume` and the casino it was in, so you come back where
+  you were. A page opened with `?casino=<id>` goes straight into that casino on picking (a hidden one too).
 - **The HUD (`scenes/ui/hud.tscn`)** keeps Settings and then your name, connection and cash in hand top left
-  (`wallet_pill.gd`, with a round's result flashing beside it; clicking it opens the front door's select to switch
-  character), and the minimap top right, walking or seated. The
+  (`wallet_pill.gd`, with a round's result flashing beside it; clicking it opens the front door's casino chooser to switch
+  casino or character), and the minimap top right, walking or seated. The
   minimap (`scenes/ui/minimap.gd`, signed off on `docs/minimap/mockup/`) draws your room and every room one doorway
   on (an archway's rooms count as one; a room the plan marks off the minimap is left out), with the tables, slot banks and ATM (a square saying ATM) in their kinds'
   colours, full tables faint, other real players as dots and you as an arrow; past a readable scale it pans with you,

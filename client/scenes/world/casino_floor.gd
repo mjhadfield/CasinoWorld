@@ -55,6 +55,7 @@ var points := {}    # "room/name" -> position (the floor plan's points)
 var rooms := {}     # room id -> PlanRoom
 var spawn := ""     # the point players appear at
 var _world_rev := -1
+var _world_casino := ""   # the casino the floor was built for (each casino's plan has its own revs)
 var _pending_world = null   # a new floor plan that came while you sat: built once you're up and walking
 var _zone_of := {}  # room id -> its zone (rooms joined by archways show together)
 var _shown := {}    # the room ids on show
@@ -172,6 +173,7 @@ func _ready() -> void:
 	hud.stand_confirmed.connect(func(): Net.send("stand"))
 	hud.switch_pressed.connect(func(): hud.front_door.open_switch(state == "walking"))
 	Session.character_left.connect(func(_reason, _name): _off_the_floor())
+	Session.casino_left.connect(func(_reason): _off_the_floor())
 	hud.interact_pressed.connect(_interact)
 	hud.atm.closed.connect(func():
 		if state == "walking":
@@ -1198,7 +1200,9 @@ func _on_message(msg: Dictionary) -> void:
 			Seating.configure(msg.get("seating", {}))
 			TableStyle.configure(msg.get("table_styles", {}))
 			var w: Dictionary = msg.get("world", {})
-			if int(w.get("rev", -1)) != _world_rev or rooms.is_empty():
+			var cid := str(msg.get("casino", {}).get("id", ""))
+			if int(w.get("rev", -1)) != _world_rev or rooms.is_empty() or cid != _world_casino:
+				_world_casino = cid
 				_build_world(w)
 			else:
 				_restyle_tables()
@@ -1460,8 +1464,9 @@ func _on_resynced(msg: Dictionary) -> void:
 		hud.sorter.close()  # (Pai Gow reopens it if you're still setting)
 
 
-## Off the floor and back at the character select (switching, or the character was picked in another window): as a
-## dropped connection, without the toast. The next character's `welcome` puts you back at the spawn point.
+## Off the floor and back at the chooser or the character select (switching casino or character, a casino reopening
+## with new tables, or the character was picked in another window): as a dropped connection, without the toast. The
+## next `welcome` puts you back at the spawn point.
 func _off_the_floor() -> void:
 	_arriving = true
 	_stop_guide()

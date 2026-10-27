@@ -4,8 +4,9 @@
     tools/shot.py [options] [STEP ...]
 
 It opens the game, gets past the character select (picking the account's first character, or
-making one called Shot if it has none), waits until you're on the floor, then runs the steps in
-order. With --door it stops at the character select instead, for shots of the front door. With no
+making one called Shot if it has none) and the casino chooser (entering --casino, default demo),
+waits until you're on the floor, then runs the steps in order. With --door it stops at the
+character select instead (--door=casino: at the chooser), for shots of the front door. With no
 steps it takes one shot of the floor. The game's own WebSocket is wrapped, so a step can
 wait for a real message or send one, instead of guessing coordinates and timeouts.
 
@@ -129,7 +130,9 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=ROOT / ".dev/shots")
     ap.add_argument("--cpu-slowdown", type=float, default=1, help="slow the page's CPU this many times (default 1)")
     ap.add_argument("--gpu", action="store_true", help="draw with the GPU, not SwiftShader")
-    ap.add_argument("--door", action="store_true", help="stay at the character select (the steps run there)")
+    ap.add_argument("--door", nargs="?", const="select", choices=("select", "casino"),
+                    help="stay at the character select, or (=casino) the casino chooser (the steps run there)")
+    ap.add_argument("--casino", default="demo", help="the casino to enter (default demo)")
     args = ap.parse_args()
     url = args.url or dev_url()
     w, h = map(int, args.size.split("x"))
@@ -195,7 +198,7 @@ def main() -> None:
                 print(f"previewing {welcome['preview']} at {url}")
                 return
             account = wait_for("account")["msg"]
-            if args.door:
+            if args.door == "select":
                 page.wait_for_timeout(1500)  # the cards drawn, their looks fetched
                 print(f"at the character select at {url} ({len(account['characters'])} characters)")
                 return
@@ -204,10 +207,17 @@ def main() -> None:
                 send({"type": "pick_character", "id": account["characters"][0]["id"]})
             else:   # (the game goes in as a character it's just made)
                 send({"type": "create_character", "name": NAME, "look": LOOK, "difficulty": "normal"})
+            listing = wait_for("casinos", after=mark)["msg"]
+            if args.door == "casino":
+                page.wait_for_timeout(1500)  # the cards drawn
+                print(f"at the casino chooser at {url} ({', '.join(c['name'] for c in listing['list'])})")
+                return
+            mark = seq()
+            send({"type": "enter_casino", "casino": args.casino})
             wait_for("welcome", after=mark)
             wait_for("entity_spawn", after=mark)
             page.wait_for_timeout(1000)  # first frames with everyone drawn
-            print(f"on the floor at {url} as {NAME}")
+            print(f"on the floor of {args.casino} at {url} as {NAME}")
 
         step, joined = "joining", None
         try:

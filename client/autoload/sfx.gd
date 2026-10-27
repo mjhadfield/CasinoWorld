@@ -100,7 +100,9 @@ func _ready() -> void:
 	Net.connected.connect(reload)
 	Net.message_received.connect(func(msg: Dictionary):
 		if msg.get("type") == "sounds_changed" and int(msg.get("version", -1)) != _manifest_version:
-			reload())
+			reload()
+		elif msg.get("type") == "welcome":   # (which set each of this casino's tables plays from)
+			_tables = msg.get("sound_sets", {}).duplicate())
 
 
 ## A sound for you alone, at full volume wherever you are. `pitch` raises or
@@ -260,7 +262,6 @@ func reload() -> void:
 				moments[key] = {"streams": streams, "gain_db": float(info.moments[key].get("gain_db", 0.0))}
 		sets[s] = {"parent": info.get("parent"), "moments": moments}
 	_sets = sets
-	_tables = manifest.get("tables", {})
 	_manifest_version = int(manifest.get("version", 0))
 	if _room != null:
 		start_room()

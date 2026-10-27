@@ -365,8 +365,9 @@ timing each step by the server's messages rather than by guesswork:
 tools/shot.py sit:crp_1 until:roll_open send:'{"type":"bet","spot":"pass","add":500}' \
     until:throw wait:1500 shot:craps@240,60,800,600
 ```
-It goes in as the account's first character (making one called Shot if there's none); `--door` stays at the
-character select instead, and `type:TEXT` types into a name box. Shots land in `.dev/shots/`. `tools/shot.py
+It goes in as the account's first character (making one called Shot if there's none) and enters `--casino ID`
+(default `demo`); `--door` stays at the character select instead (`--door=casino`: at the casino chooser), and
+`type:TEXT` types into a name box. Shots land in `.dev/shots/`. `tools/shot.py
 --help` lists the steps. `frames:NAME:MS` times frames instead,
 with `--gpu` and `--cpu-slowdown N` for other machines ([docs/performance.md](docs/performance.md)).
 
@@ -460,9 +461,9 @@ existing Modern/Vegas assets, the Casino Floor source blueprint and the Dark Mod
     the roulette wheel and the craps dice. The Master Table: `master_table` and `master_felt` (blank, the crest) and
     `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
-  - `scenes/ui/`: the `front_door` (the loading screen, the character select and the designer, with the
+  - `scenes/ui/`: the `front_door` (the loading screen, the character select, the casino chooser and the designer, with the
     `look_editor` ported from the admin page's NPC look designer, `look_preview` for the walking pictures and
-    `door_ui`'s controls), the HUD, its top-left `wallet_pill` (click it to switch character), its top-right `minimap` (with Find; the route on the floor is
+    `door_ui`'s controls), the HUD, its top-left `wallet_pill` (click it to switch casino or character), its top-right `minimap` (with Find; the route on the floor is
     `scenes/world/route_line.gd`) and its seated `betting_bar` (keys: 1-5 pick a chip, Space Ready or Repeat Bet, Backspace Undo,
     Esc Stand up, plus each game's decision keys), the Pai Gow `hand_sorter`, the lobby's `atm_panel` (the cash machine), the `perf_overlay` (the frame-rate corner and the
     graphics auto step-down), and the `settings_menu`, which edits the `Settings` autoload (saved to
