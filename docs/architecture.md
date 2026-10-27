@@ -294,8 +294,10 @@ A Godot 4.7 project exported to the web.
 
 - Staff other than dealers (waiters, pit bosses, cashiers, bar staff) can be designed but don't work the
   floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more.
-- Every room is built on every client and every table's events go to everyone; hidden rooms are only hidden. Past
-  a few dozen tables the server should send each session only the tables in the rooms it can see.
+- Every room of a casino is built on its clients and every table's events go to everyone in it; hidden rooms are
+  only hidden. Past a few dozen tables the server should send each session only the tables in the rooms it can see.
+  The Boulevard (25 tables, 108 cabinets) is where it starts to matter: entering it sends 133 table states at once
+  (the client's socket buffer is 8 MB for that, `Net.INBOUND_BUFFER`).
 - Interactive objects on the floor plan beyond the ATM: an asset's `interact` has only the one kind, and the admin
   page's asset editor doesn't set it (the build scripts for the Modern lobby's and the Vegas floor's pieces do).
 - Baccarat's 5 Treasures side bets are in the engine but not on the layout.

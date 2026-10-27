@@ -18,6 +18,9 @@ const RECONNECT_DELAYS := [1.0, 2.0, 5.0, 10.0]
 const STALL_SECONDS := 3.0
 ## No `resync` reply by then (an older server, say): reconnect, which joins afresh.
 const RESYNC_TIMEOUT_MS := 5000
+## What the socket holds that hasn't been read yet. Entering a big casino sends its whole floor and every table's
+## state at once (the Boulevard's is well past the 64 KB default), and past this it drops messages.
+const INBOUND_BUFFER := 8 * 1024 * 1024
 
 var _socket := WebSocketPeer.new()
 var _was_open := false
@@ -88,6 +91,7 @@ func _connect_now() -> void:
 	_away = false
 	_resyncing = false
 	_socket = WebSocketPeer.new()
+	_socket.inbound_buffer_size = INBOUND_BUFFER
 	var url := server_url()
 	if _socket.connect_to_url(url) != OK:
 		push_warning("Net: could not start connection to %s" % url)

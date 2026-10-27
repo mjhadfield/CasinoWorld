@@ -544,10 +544,10 @@ def _clean_blurb(raw) -> str:
 
 def new_lobby_plan(source: dict | None) -> dict:
     """A plan with just a lobby: the source plan's Modern lobby (placed or in its library), else the plain first
-    lobby. Its spawn is the lobby's."""
+    lobby, where it was (so blueprints drawn round it fit). Its spawn is the lobby's."""
     room = next((r for r in (source or {}).get("rooms", []) if r["id"] == "modern_lobby"), None)
     room = copy.deepcopy(room) if room else plan.lobby()
-    room.update(placed=True, x=0, y=0)
+    room["placed"] = True
     spawn = next((p["name"] for p in room["paths"]["points"] if p["kind"] == "spawn"), "")
     out = {"rev": 1, "next": {}, "spawn": f"{room['id']}/{spawn}" if spawn else "", "rooms": [room]}
     out["next"] = plan._serials(out)

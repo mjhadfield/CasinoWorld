@@ -1,5 +1,8 @@
 # Resort floor blockouts
 
+**C · The Boulevard has been built** as its own hidden casino, `boulevard` (2026-10-27, `tools/seed_boulevard.py`;
+see `docs/tasks/multi-casino.md`). Step 4 onwards below (the placeholders, the NPCs) is still to do there.
+
 Three layouts for a medium resort casino, drawn at game scale on top of the live Modern lobby. They're blockouts,
 not a build: nothing here is on the floor plan, live or draft. Nothing's been decided yet; this is for Mike to
 review and, if one appeals, to build from.
@@ -91,7 +94,7 @@ Taken from `plan_catalogue.json`, `plan.py` and the client, so a new room can be
 5. **Tune the NPCs:** each room has one to three wander points (weight 1, linger 20 s), and each NPCs-only room
    (kitchen, staff, restrooms, boutique) has an arrival point. Adjust the weights so the bar and restaurant draw
    people.
-6. **Publishing adds tables, so the casino restarts.** Plan for that.
+6. **Publishing adds tables, so the casino reopens** with them (its players are moved across; other casinos carry on).
 
 ## Open questions before building
 
