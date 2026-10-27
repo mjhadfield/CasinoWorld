@@ -38,8 +38,10 @@ Boulevard", is seeded from blockout C.
 - **Backups:** `server/data/pre-multi-casino-20261027-023501/` (sqlite `.backup` and the old `plan/`), and the
   migration's own `server/data/plan-single-casino-20261027-023519/`. Checked after the switch: every character's
   cash and bank unchanged, Demo's live plan identical, table-style placements now `demo/<table>`.
-- **Left for Mike:** the Boulevard's placeholders (blockouts README step 4): slots (all Armadillo), staff looks,
-  limits, floors and walls; its blurb; listing it and giving it punters (Floor plan tab › Casinos…).
+- **More casinos (2026-10-27):** The Loop (`loop`, blockout A) and The Promenade (`promenade`, B) seeded live the
+  same way, hidden with no punters (`tools/seed_blockout.py a|b|c`, which replaced `seed_boulevard.py`).
+- **Left for Mike:** in all three hidden casinos, the placeholders (blockouts README step 4): slots (all Armadillo), staff looks,
+  limits, floors and walls; their blurbs; listing them and giving them punters (Floor plan tab › Casinos…).
 - **Follow-up done (2026-10-27):** each session is sent only the tables near it (protocol v8, `table_seats`;
   protocol.md "Tables near you"). Entering the Boulevard now sends no table states at the spawn (74 KB in all) and
   some 45 standing among its tables, instead of 133.

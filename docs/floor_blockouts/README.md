@@ -1,7 +1,8 @@
 # Resort floor blockouts
 
-**C · The Boulevard has been built** as its own hidden casino, `boulevard` (2026-10-27, `tools/seed_boulevard.py`;
-see `docs/tasks/multi-casino.md`). Step 4 onwards below (the placeholders, the NPCs) is still to do there.
+**All three have been built**, each as its own hidden casino (2026-10-27, `tools/seed_blockout.py a|b|c`; see
+`docs/tasks/multi-casino.md`): A **The Loop** (`loop`), B **The Promenade** (`promenade`) and C **The Boulevard**
+(`boulevard`). Step 4 onwards below (the placeholders, the NPCs) is still to do in each.
 
 Three layouts for a medium resort casino, drawn at game scale on top of the live Modern lobby. They're blockouts,
 not a build: nothing here is on the floor plan, live or draft. Nothing's been decided yet; this is for Mike to
@@ -98,10 +99,8 @@ Taken from `plan_catalogue.json`, `plan.py` and the client, so a new room can be
 
 ## Open questions before building
 
-- **Performance.** C has 25 tables and 108 slots, and A has 152 slots. `docs/architecture.md` ("Not done yet")
-  says every room is built on every client and every table's events go to everyone. Past a few dozen tables the
-  server should send each session only the tables in rooms it can see. That's worth doing before the bigger
-  plans go live.
+- **Performance.** C has 25 tables and 108 slots, and A has 152 slots. Each player is now sent only the tables
+  near them (protocol.md "Tables near you"), but every room is still built on every client.
 - **Walking time.** Around 30 s to the furthest rooms in all three. If that's too long in play, shrink the main
   floor rather than the side rooms, or add a spawn nearer the action.
 - **Staff who only stand there.** Waiters, cashiers, bar staff and pit bosses are decoration for now (also in
