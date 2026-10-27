@@ -367,6 +367,10 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 
 | method & path | does |
 |---|---|
+| `GET /api/casinos` | `casinos`: the registry in order, each {`id`, `name`, `blurb`, `open`, `order`, `population`} with `players`, `npcs`, `tables` and `cabinets` on its floor now. |
+| `POST /api/casinos` | {`name`, `blurb`, `start`: `lobby` (an empty Modern lobby) or `copy:<id>`}: a new casino, hidden, with no punters. Returns its `id` and `casinos`. Players on the chooser are sent `casinos`. |
+| `PUT /api/casinos/{id}` | Any of {`name`, `blurb`, `open`, `population` (0-30), `order` (its new place)}. Returns `casinos`; the chooser hears. |
+| `DELETE /api/casinos/{id}` | Gone (its plan moved to `<data>/casinos-deleted/`), unless someone's playing in it or it's the last one (400). |
 | `GET /api/npcs` | The roster, plus each NPC's `look_id`/`look_url`, `on_floor` {`state`, `table`, `bankroll`, `budget`, `rounds`} or null, `dealing` (a table id) or null, and `casino` (the casino they're in, or null). Also `settings`. |
 | `POST /api/npcs` | Create from {`name`, `role`, `look`, `archetype`, `traits`, `settings`, `enabled`}. Checked by `roster.clean`; a 400 says what's wrong. |
 | `GET /api/npcs/{id}` | One NPC, plus `visits` (the last 25). |

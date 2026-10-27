@@ -1,4 +1,5 @@
-// The Floor plan section (plan.py): the casino's rooms on one plan, and each room's blueprint.
+// The Floor plan section (plan.py): a casino's rooms on one plan, and each room's blueprint. The picker at the start
+// of the bar chooses the casino (remembered); Casinos… adds, renames, hides, orders and deletes them (resort.py).
 //
 //   Plan     every room on the floor, drawn to scale: drag them into place (doorways that meet light green), pick
 //            which spawn point players appear at; the library of blueprints down the side (new, duplicate, place on
@@ -41,6 +42,7 @@ const S = {
   cam: { x: 0, y: 0, s: 0.5 }, mouse: null, drag: null, clip: null, search: "", tab: "Tables",
   hover: null,                      // {t, i}: what a click would pick, or a row pointed at in Layers or the menu
   side: savedSide(),                // the room's side panel: "pieces" (the palette) or "layers"
+  casino: "demo", casinos: [],      // the casino whose plan this is (every /api/plan call says), and them all
 };
 const SNAP = { item: 8, room: 32 };
 function savedGrid() { try { return localStorage.getItem("plan.grid") === "1"; } catch { return false; } }
@@ -50,11 +52,14 @@ let app, canvas, ctx, reach = null;
 export async function load() {
   app.textContent = "Loading…";
   try {
-    const [view, cat, npcs] = await Promise.all([api("GET", "/api/plan"), api("GET", "/api/plan/catalogue"), api("GET", "/api/npcs")]);
+    S.casinos = (await api("GET", "/api/casinos")).casinos;
+    const want = remember.get("plan.casino");
+    S.casino = S.casinos.some(c => c.id === want) ? want : S.casinos[0].id;
+    const [view, cat, npcs] = await Promise.all([api("GET", q("/api/plan")), api("GET", q("/api/plan/catalogue")), api("GET", "/api/npcs")]);
     G.setCatalogue(cat);
     S.npcs = npcs.npcs.filter(n => n.look_id);
     take(view, true);
-    await loadTables(api).catch(e => status("Tables are drawn plain: " + e.message, "warn"));
+    await loadTables(api, S.casino).catch(e => status("Tables are drawn plain: " + e.message, "warn"));
   } catch (e) {
     app.textContent = "Couldn't load the floor plan: " + e.message;
     return;
@@ -66,6 +71,89 @@ export async function load() {
   window.__plan = S;   // (for browser checks)
   fitPlan();
   refresh();
+}
+
+/** A plan API path for the casino being edited. */
+function q(path) { return path + (path.includes("?") ? "&" : "?") + "casino=" + encodeURIComponent(S.casino); }
+
+/** Work on another casino's plan (what's unsaved is saved first). */
+async function switchCasino(id) {
+  if (S.timer || S.saving) await save();
+  try {
+    const [view, cat] = await Promise.all([api("GET", "/api/plan?casino=" + encodeURIComponent(id)), api("GET", "/api/plan/catalogue?casino=" + encodeURIComponent(id))]);
+    S.casino = id;
+    remember.set("plan.casino", id);
+    G.setCatalogue(cat);
+    S.undo = []; S.redo = []; S.room = -1; S.pick = -1;
+    take(view, true);
+    await loadTables(api, S.casino).catch(() => {});
+    await loadHistory();
+    setMode("plan");
+    status(`${casinoName()}'s floor plan.`, "ok");
+  } catch (e) { status("Couldn't open that casino's plan: " + e.message, "warn"); refreshBar(); }
+}
+
+const casinoName = (id = S.casino) => (S.casinos.find(c => c.id === id) || { name: id }).name;
+
+// ---------------------------------------------------------------- the casinos: add, rename, hide, order, delete
+async function casinosDialog() {
+  const dlg = el("dialog", { className: "pl-casinos" });
+  const body = el("div", { className: "pl-cas-body" });
+  const note = el("p", { className: "hint", textContent: "" });
+  const close = () => dlg.close();
+  const fill = () => {
+    body.replaceChildren(el("div", { className: "pl-cas-row pl-cas-head" },
+      ...["Name", "Blurb (on its card)", "Listed", "Punters", "", ""].map(t => el("span", { textContent: t }))));
+    S.casinos.forEach((c, i) => {
+      const name = el("input", { value: c.name, maxLength: 40 }), blurb = el("input", { value: c.blurb || "", maxLength: 120 });
+      const open = el("input", { type: "checkbox", checked: c.open, title: "Open: on the players' chooser. Hidden: only by its link (?casino=" + c.id + ")" });
+      const pop = el("input", { type: "number", min: 0, max: 30, value: c.population, title: "Punters its NPC director keeps on the floor" });
+      const put = async change => {
+        try { S.casinos = (await api("PUT", "/api/casinos/" + c.id, change)).casinos; note.textContent = "Saved."; fill(); refreshBar(); }
+        catch (e) { note.textContent = e.message; }
+      };
+      name.onchange = () => put({ name: name.value });
+      blurb.onchange = () => put({ blurb: blurb.value });
+      open.onchange = () => put({ open: open.checked });
+      pop.onchange = () => put({ population: +pop.value });
+      const busy = c.players > 0;
+      body.append(el("div", { className: "pl-cas-row" }, name, blurb, open, pop,
+        el("span", { className: "pl-cas-moves" },
+          el("button", { type: "button", className: "ghost sq", textContent: "↑", title: "Earlier on the chooser", disabled: i === 0, onclick: () => put({ order: i - 1 }) }),
+          el("button", { type: "button", className: "ghost sq", textContent: "↓", title: "Later on the chooser", disabled: i === S.casinos.length - 1, onclick: () => put({ order: i + 1 }) })),
+        el("button", { type: "button", className: "ghost", textContent: "Delete", disabled: busy || S.casinos.length < 2,
+          title: busy ? `${c.players} playing in it now` : S.casinos.length < 2 ? "There has to be one casino" : "Delete it (its plan is kept aside on the server)",
+          onclick: async () => {
+            if (!confirm(`Delete ${c.name}? Its floor plan goes, and its tables' settings stop being used.`)) return;
+            try {
+              S.casinos = (await api("DELETE", "/api/casinos/" + c.id)).casinos;
+              note.textContent = `${c.name} deleted.`;
+              if (S.casino === c.id) await switchCasino(S.casinos[0].id);
+              fill(); refreshBar();
+            } catch (e) { note.textContent = e.message; }
+          } })));
+    });
+  };
+  const newName = el("input", { placeholder: "New casino's name", maxLength: 40 });
+  const start = el("select", {}, el("option", { value: "lobby", textContent: "An empty Modern lobby" }),
+    ...S.casinos.map(c => el("option", { value: "copy:" + c.id, textContent: "A copy of " + c.name })));
+  const add = el("button", { type: "button", className: "primary", textContent: "Add", onclick: async () => {
+    try {
+      const r = await api("POST", "/api/casinos", { name: newName.value, start: start.value });
+      S.casinos = r.casinos;
+      close();
+      await switchCasino(r.id);
+      status(`${casinoName(r.id)} is made, hidden: give it a blurb and tick Listed when it's ready.`, "ok");
+    } catch (e) { note.textContent = e.message; }
+  } });
+  dlg.append(el("div", { className: "pl-cas-head-row" }, el("b", { textContent: "Casinos" }),
+      el("span", { className: "hint", textContent: "Players choose between the listed ones, in this order. A hidden one opens by its link." }),
+      el("button", { type: "button", textContent: "Close", onclick: close })),
+    body, el("div", { className: "pl-cas-row pl-cas-new" }, newName, start, add), note);
+  fill();
+  document.body.append(dlg);
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.showModal();
 }
 
 // ---------------------------------------------------------------- the draft: edits, undo, saving
@@ -108,7 +196,7 @@ async function save() {
   refreshBar();
   try {
     const body = JSON.parse(JSON.stringify(S.draft, (k, v) => k === "_hidden" ? undefined : v));   // (hiding is the page's)
-    const view = await api("PUT", "/api/plan/draft", { ...body, base_rev: S.rev });
+    const view = await api("PUT", q("/api/plan/draft"), { ...body, base_rev: S.rev });
     take(view, false);
     if (S.edits === sent) { keepHidden(S.draft, view.draft); S.draft = view.draft; }   // nothing changed meanwhile: the server's copy, with its ids
     else adoptIds(view.draft);
@@ -210,7 +298,7 @@ function setMode(mode, roomIndex = S.room) {
 
 /** The library changed (an upload, an edit): what the palette offers and how things are drawn. */
 async function reloadCatalogue() {
-  G.setCatalogue(await api("GET", "/api/plan/catalogue"));
+  G.setCatalogue(await api("GET", q("/api/plan/catalogue")));
   return G.CAT;
 }
 
@@ -227,10 +315,16 @@ function refreshBar() {
     ...S.history.map(h => el("option", { value: h.id, textContent: `${h.id.slice(0, 13).replace(/(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)/, "$3/$2 $4:$5")}: ${h.rooms.join(", ") || "nothing"}` })));
   hist.onchange = async () => {
     if (!hist.value || !confirm("Put that floor back in the draft? (Publish it to use it.)")) { hist.value = ""; return; }
-    take(await api("POST", "/api/plan/rollback/" + hist.value), true);
+    take(await api("POST", q("/api/plan/rollback/" + hist.value)), true);
     S.undo = []; S.redo = []; setMode("plan");
   };
+  const pickCasino = el("select", { title: "The casino whose floor plan this is" },
+    ...S.casinos.map(c => el("option", { value: c.id, textContent: c.name + (c.open ? "" : " (hidden)"), selected: c.id === S.casino })));
+  pickCasino.onchange = () => switchCasino(pickCasino.value);
   bar.replaceChildren(
+    pickCasino,
+    el("button", { className: "ghost", textContent: "Casinos…", title: "Add, rename, hide, order or delete casinos", onclick: casinosDialog }),
+    el("span", { className: "sep" }),
     el("div", { className: "seg" }, tab("plan", "Plan"), tab("room", S.room >= 0 && room() ? "Room: " + room().name : "Room"), tab("assets", "Assets")),
     el("span", { className: "sep" }),
     el("button", { className: "ghost sq", textContent: "↶", title: "Undo (Ctrl+Z)", disabled: !S.undo.length, onclick: () => undo(true) }),
@@ -245,20 +339,20 @@ function refreshBar() {
                    disabled: !pending || !m.can_publish || S.saving || S.error !== "", onclick: publish }));
 }
 
-async function loadHistory() { S.history = await api("GET", "/api/plan/history").catch(() => []); refreshBar(); }
+async function loadHistory() { S.history = await api("GET", q("/api/plan/history")).catch(() => []); refreshBar(); }
 
 async function preview() {
   if (S.timer || S.saving) await save();
   const r = S.mode === "room" ? room() : S.draft.rooms[S.pick] || placed()[0];
   if (!r || !r.id) return status("Save the room first.", "warn");
-  window.open("/?preview=" + encodeURIComponent(r.id), "casino-preview");
+  window.open("/?preview=" + encodeURIComponent(r.id) + "&casino=" + encodeURIComponent(S.casino), "casino-preview");
 }
 
 async function publish() {
   const m = S.meta;
-  if (m.restart && !confirm("This adds or takes away tables or slot cabinets, so this casino reopens with them (everyone in it is moved across in a moment; the other casinos carry on). Publish now?")) return;
+  if (m.restart && !confirm(casinoName() + ": this adds or takes away tables or slot cabinets, so this casino reopens with them (everyone in it is moved across in a moment; the other casinos carry on). Publish now?")) return;
   try {
-    const r = await api("POST", "/api/plan/publish");
+    const r = await api("POST", q("/api/plan/publish"));
     take(r, true);
     status(r.message, "ok");
     loadHistory();
@@ -268,7 +362,7 @@ async function publish() {
 
 async function discard() {
   if (!confirm("Throw the draft away and go back to the floor as it's live?")) return;
-  take(await api("POST", "/api/plan/discard"), true);
+  take(await api("POST", q("/api/plan/discard")), true);
   S.undo = []; S.redo = [];
   setMode("plan", -1);
 }
@@ -1516,5 +1610,12 @@ const CSS = `
   .pl-facings { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .pl-facing { display: grid; gap: 3px; justify-items: start; font-size: var(--fs-xs); }
   .pl-facing img { height: 48px; image-rendering: pixelated; background: var(--stage); border-radius: 4px; }
+  .pl-casinos { width: min(980px, 94vw); padding: 14px 16px; }
+  .pl-cas-head-row { display: flex; gap: 12px; align-items: baseline; margin-bottom: 10px; }
+  .pl-cas-head-row .hint { flex: 1; }
+  .pl-cas-row { display: grid; grid-template-columns: 180px 1fr 56px 70px 64px 70px; gap: 8px; align-items: center; padding: 3px 0; }
+  .pl-cas-head span { font-size: 12px; color: var(--fg-muted); }
+  .pl-cas-new { grid-template-columns: 220px 220px 80px; margin-top: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+  .pl-cas-moves { display: flex; gap: 4px; }
   .pl-floor-preview { height: 160px; border-radius: 8px; background-repeat: repeat; image-rendering: pixelated; }
 `;

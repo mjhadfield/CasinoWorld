@@ -190,13 +190,16 @@ function thumb(url) {
 }
 
 // ------------------------------------------------------------ the roster
+const tableName = (n, t) => opts.tables[n.casino + "/" + t] || t;   // (opts.tables is by "<casino>/<table>")
+const casinoName = n => (opts.casinos || {})[n.casino] || n.casino;
+const inCasino = n => Object.keys(opts.casinos || {}).length > 1 ? " · " + casinoName(n) : "";   // (only once there are several)
 function statusOf(n) {
   if (!n.enabled) return ["Off", "warn"];
-  if (n.dealing) return ["Dealing · " + (opts.tables[n.dealing] || n.dealing), "ok"];
+  if (n.dealing) return ["Dealing · " + tableName(n, n.dealing) + inCasino(n), "ok"];
   if (n.on_floor) {
-    const f = n.on_floor, where = f.table ? opts.tables[f.table] || f.table : null;
+    const f = n.on_floor, where = f.table ? tableName(n, f.table) : null;
     const doing = f.state === "leaving" ? "Leaving" : where ? (f.state === "seated" ? "At " : "Heading to ") + where : "On the floor";
-    return [doing + " · " + money(f.bankroll), "ok"];
+    return [doing + " · " + money(f.bankroll) + inCasino(n), "ok"];
   }
   if (n.cooldown_until && n.cooldown_until * 1000 > Date.now()) return ["Away till " + new Date(n.cooldown_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}), ""];
   if (n.archived_at) return ["Archived " + new Date(n.archived_at).toLocaleDateString([], {dateStyle: "medium"}), ""];
@@ -300,7 +303,11 @@ function renderEditor() {
   } else {
     if (selected) {
       if (selected.role === "punter") {
-        head.append(el("button", {type: "button", id: "npc-bring", textContent: "Bring in now", onclick: () => act("bring-in", "Here they come.")}),
+        const into = el("select", {title: "The casino they come into"},
+          ...Object.entries(opts.casinos || {demo: "Demo"}).map(([id, name]) => el("option", {value: id, textContent: name})));
+        if (into.options.length > 1) head.append(into);
+        head.append(el("button", {type: "button", id: "npc-bring", textContent: "Bring in now",
+                      onclick: () => act("bring-in?casino=" + encodeURIComponent(into.value), "Here they come.")}),
                     el("button", {type: "button", id: "npc-home", textContent: "Send home", onclick: () => act("send-home", "Off they go.")}));
       }
       const reset = el("button", {type: "button", className: "ghost", textContent: "Reset stats"});
@@ -512,7 +519,7 @@ function renderStatus() {
   const n = selected;
   const [st] = statusOf(n);
   box.replaceChildren(el("div", {className: "controls"}, el("span", {className: "tag", textContent: st})));
-  if (n.role !== "punter") { box.append(el("p", {className: "hint", textContent: n.dealing ? "Dealing at " + (opts.tables[n.dealing] || n.dealing) + "." : "Not on a table right now."})); return; }
+  if (n.role !== "punter") { box.append(el("p", {className: "hint", textContent: n.dealing ? "Dealing at " + tableName(n, n.dealing) + inCasino(n) + "." : "Not on a table right now."})); return; }
   const stat = (label, value, cls = "") => el("div", {className: "stat"}, el("small", {textContent: label}), el("b", {className: cls, textContent: value}));
   if (n.on_floor) box.append(el("div", {className: "stats"}, stat("This visit", money(n.on_floor.bankroll) + " of " + money(n.on_floor.budget)),
     stat("Rounds so far", n.on_floor.rounds)));

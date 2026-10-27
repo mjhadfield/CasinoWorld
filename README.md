@@ -47,7 +47,7 @@ tools/dev.sh server         # a scratch instance on its own port (8670 up) with 
 - **By hand:** `cd server; .venv/bin/python -m casino_server`.
 
 Environment knobs:
-- `CASINO_NPCS` pins how many NPCs roam, overriding the floor population on the admin page's Settings tab.
+- `CASINO_NPCS` pins how many NPCs roam each casino, overriding each one's punters on the admin page's Settings tab.
 - `CASINO_SPEED` scales every table timer and NPC pace; `0.5` is twice as fast.
 - `CASINO_DATA_DIR` sets where the SQLite database lives (default `server/data/`).
 - `CASINO_PORT` and `CASINO_WEB_DIR` set the HTTP port (HTTPS is one above) and the web export served.
@@ -109,7 +109,7 @@ sections:
   - **Stats** per NPC, and **Bring in now**, **Send home**, **Reset stats** and **Archive**.
   - Staff other than dealers can be designed, but don't work the floor yet.
 - **Players:** every character's difficulty, cash, bank and lifetime staked, returned and net from the ledger, and
-  who's playing now. A device's account holds up to three characters (players have no logins). Pick a character to
+  who's playing now (and in which casino). A device's account holds up to three characters (players have no logins). Pick a character to
   manage it: **Protected** (nothing here can delete, ban or time out the account until it's unticked), **Time out**
   (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**, **Delete
   character** (it and its ledger) and **Delete the whole account** (every character on the device). Protected, bans
@@ -122,10 +122,16 @@ sections:
   together: staked, returned, net, bets and returned %.
 - **Slots:** the jackpot meters and their settings, each machine's figures (spins, staked, returned, bonuses; humans
   and NPCs apart, `slots/stats.py`), the cabinets on the floor now, and players' return on slots.
-- **Floor plan** (`#plan`): the casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). Changes
+- **Floor plan** (`#plan`): a casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). The
+  picker at the start of the bar chooses the casino (remembered in this browser); **Casinos…** adds one (an empty
+  Modern lobby, or a copy of a casino; new ones start hidden with no punters), renames it, gives it the blurb on
+  its card, lists or hides it (a hidden one opens only by its link, `/?casino=<id>`), sets its punters, orders the
+  chooser and deletes one (only when nobody's in it and it isn't the last; its plan is kept in
+  `<data>/casinos-deleted/`). Changes
   go into a draft as you make them (undo and redo, Ctrl+Z / Ctrl+Y); **Preview** opens the game on the draft in a
-  new tab (`/?preview=<room>`: walk round alone, nothing to play), and **Publish** puts it on the floor: at once if
-  only places changed, or by restarting the casino when tables or cabinets come or go. **History** puts an earlier
+  new tab (`/?preview=<room>&casino=<id>`: walk round alone, nothing to play), and **Publish** puts it on the floor:
+  at once if only places changed, or by reopening that casino with them when tables or cabinets come or go (its
+  players are moved across; the other casinos carry on). **History** puts an earlier
   publish back in the draft; **Discard draft** goes back to the live floor.
   - **Plan:** every room on the floor to scale. Drag rooms into place (32px steps, Shift for free); a door in one
     room's wall joins the room whose wall runs along it (shown green). The rooms list holds the library too: new,
@@ -311,7 +317,7 @@ sections:
   `admin_web/tables/` and draws with the game's own tiles and fonts.
 - **Settings:** the **NPCs in the casino** switch (it applies at once: off, nobody new comes in, anyone walking
   about heads for the door, and anyone at a table finishes the round they're in, then stands and leaves; on, they
-  arrive one at a time again), punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
+  arrive one at a time again), each casino's punters on the floor, cooldowns, dealer shift length, and **Seating**: the default seating
   style every table and slot cabinet uses (the chair, its colours and size, how people sit down, when the slot
   game opens, and the craps standing spot). The card tables and Roulette take their chairs' frame and upholstery
   from their table style, so Settings' colours are the slot stools'. Saving updates the floor straight away. The API

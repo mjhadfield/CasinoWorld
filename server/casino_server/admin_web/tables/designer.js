@@ -148,6 +148,7 @@ const CSS = `
   .ts-default { padding: var(--pad); border-bottom: 1px solid var(--line); }
   #ts-tables .ts-table { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; gap: 6px; align-items: center; padding: 3px var(--pad); font-size: var(--fs-s); }
   #ts-tables .ts-table small { color: var(--fg-faint); }
+  #ts-tables .ts-casino { padding: 8px var(--pad) 2px; font-size: var(--fs-s); color: var(--fg-muted); text-transform: uppercase; letter-spacing: .06em; }
   #ts-tables .ts-table select { width: 100%; height: 26px; }
   #ts-box canvas#ts-stage { display: block; border-radius: 4px; }
   .ts-warn { color: var(--danger); font-size: var(--fs-s); padding: 4px 8px; }
@@ -312,14 +313,27 @@ function drawPlacement() {
   options($("#ts-default"), placingDefault, false);
   const host = $("#ts-tables");
   host.replaceChildren();
-  for (const [tid, t] of Object.entries(data.games)) {
-    const sel = el("select", { "aria-label": `${t.name} (${tid})` });
+  const casinos = data.casinos || {};   // (tables are "<casino>/<table>": grouped by casino once there are several)
+  let group = null;
+  for (const [tid, t] of Object.entries(data.games).sort(([a], [b]) => casinoOrder(casinos, a) - casinoOrder(casinos, b))) {
+    const [cid, plain] = tid.includes("/") ? tid.split("/", 2) : ["", tid];
+    if (Object.keys(casinos).length > 1 && cid !== group) {
+      group = cid;
+      host.append(el("div", { className: "ts-casino" }, casinos[cid] || cid));
+    }
+    const sel = el("select", { "aria-label": `${t.name} (${plain}${cid ? ", " + (casinos[cid] || cid) : ""})` });
     options(sel, placing[tid] || "", true);
     sel.addEventListener("change", () => { if (sel.value) placing[tid] = sel.value; else delete placing[tid]; });
     const show = el("button", { type: "button", className: "ghost sq", title: "Show this game", hidden: kind !== "cards", style: "height: 24px; width: 24px" }, "▸");
     show.addEventListener("click", () => { view.game = t.layout; drawStage(); syncButtons(); });
-    host.append(el("label", { className: "ts-table" }, el("span", {}, t.name, el("small", {}, " " + tid)), sel, show));
+    host.append(el("label", { className: "ts-table" }, el("span", {}, t.name, el("small", {}, " " + plain)), sel, show));
   }
+}
+
+// Where a table's casino comes in the registry's order (data.casinos keeps it).
+function casinoOrder(casinos, tid) {
+  const i = Object.keys(casinos).indexOf(tid.split("/")[0]);
+  return i < 0 ? 999 : i;
 }
 
 function drawControls() {

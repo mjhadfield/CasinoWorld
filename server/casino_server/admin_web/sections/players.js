@@ -45,7 +45,7 @@ export function shown(on) {   // who's on now
 function statusOf(p) {   // [text, class]
   if (p.banned) return ["Banned", "neg"];
   if (p.timeout_until) return ["Timed out till " + new Date(p.timeout_until * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}), "neg"];
-  return p.online ? ["Playing", "pos"] : ["", ""];
+  return p.online ? ["Playing" + (p.casino && Object.keys(data.casinos || {}).length > 1 ? " · " + (data.casinos[p.casino] || p.casino) : ""), "pos"] : ["", ""];
 }
 
 function draw() {

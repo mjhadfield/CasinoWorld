@@ -69,11 +69,14 @@ export async function load(quiet) {
   const busy = o.cabinets.filter(c => c.player).length;
   $("#slots-busy").textContent = `${busy} of ${o.cabinets.length} in use`;
   $("#slot-cabs").replaceChildren(el("table", {}, el("thead", {}, el("tr", {}, th("Cabinet"), th("Player"), th("Doing"), th("Bet", "num"))),
-    el("tbody", {}, ...o.cabinets.map(c => el("tr", {className: c.player ? "" : "off"},
+    el("tbody", {}, ...o.cabinets.flatMap((c, i) => [   // (grouped by casino, once there are several)
+      ...(Object.keys(o.casinos || {}).length > 1 && c.casino !== o.cabinets[i - 1]?.casino
+        ? [el("tr", {}, el("th", {colSpan: 4, textContent: o.casinos[c.casino] || c.casino}))] : []),
+      el("tr", {className: c.player ? "" : "off"},
       el("td", {}, el("span", {textContent: c.name}), el("span", {className: "faint", textContent: " " + c.table})),
       el("td", {textContent: c.player ? c.player + (c.human ? "" : " (NPC)") : "—"}),
       el("td", {textContent: c.player ? c.phase + (c.pending.length ? " → " + c.pending.join(", ") : "") : ""}),
-      el("td", {className: "num", textContent: c.player ? money(c.bet) : ""}))))));
+      el("td", {className: "num", textContent: c.player ? money(c.bet) : ""}))]))));
   if (!quiet) H.status("Slots loaded.");
 }
 

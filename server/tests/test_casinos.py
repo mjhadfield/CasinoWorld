@@ -206,3 +206,36 @@ def _until_pong(ws) -> list:
     while (msg := ws.receive_json())["type"] != "pong":
         seen.append(msg)
     return seen
+
+
+def test_the_admin_page_makes_changes_and_deletes_casinos(two):
+    resort = two.app.state.resort
+    r = two.post("/api/casinos", json={"name": "  The   Boulevard ", "blurb": "Big and new", "start": "lobby"})
+    assert r.status_code == 200, r.text
+    cid = r.json()["id"]
+    new = next(c for c in r.json()["casinos"] if c["id"] == cid)
+    assert cid == "the_boulevard" and new["name"] == "The Boulevard" and not new["open"] and new["population"] == 0
+    assert [rm["id"] for rm in resort.boards[cid].floor.plan["rooms"]] == ["lobby"] and resort.casinos[cid].floor.spawn
+    copied = two.post("/api/casinos", json={"name": "Second", "start": "copy:second"}).json()["id"]
+    assert copied == "second_2" and set(resort.casinos[copied].tables) == set(resort.casinos["second"].tables)
+    assert two.post("/api/casinos", json={"name": "", "start": "lobby"}).status_code == 400
+    assert two.post("/api/casinos", json={"name": "X", "start": "copy:nowhere"}).status_code == 400
+    with two.websocket_connect("/ws") as ws:
+        enter(ws, hello=True)
+        ws.send_json({"type": "leave_casino"})
+        recv_until(ws, "casinos")
+        r = two.put(f"/api/casinos/{cid}", json={"open": True, "population": 4, "order": 0, "name": "Boulevard"})
+        assert r.status_code == 200 and r.json()["casinos"][0]["id"] == cid
+        assert [c["id"] for c in recv_until(ws, "casinos")["list"]] == [cid, "demo"]   # (the chooser hears)
+        assert resort.casinos[cid].population() == 4
+        assert two.put(f"/api/casinos/{cid}", json={"population": 99}).status_code == 400
+        ws.send_json({"type": "enter_casino", "casino": cid})
+        recv_until(ws, "welcome")
+        assert two.delete(f"/api/casinos/{cid}").status_code == 400   # (someone's in it)
+    assert two.delete(f"/api/casinos/{cid}").status_code == 200
+    assert cid not in resort.casinos and cid not in two.app.state.boards
+    assert [c["id"] for c in two.get("/api/casinos").json()["casinos"]] == ["demo", "second", copied]
+    assert two.get(f"/api/plan?casino={cid}").status_code == 404
+    two.delete(f"/api/casinos/{copied}")
+    two.delete("/api/casinos/second")
+    assert two.delete("/api/casinos/demo").status_code == 400   # (the last one)

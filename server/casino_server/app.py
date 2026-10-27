@@ -386,6 +386,7 @@ def slots_overview(request: Request):
     tiers = [{**t, **pg.settings[t["id"]], "amount": pg.amount(t["id"])} for t in slot_jackpots.TIERS]
     return JSONResponse({"tiers": tiers, "cabinets": cabinets, "players": {"wagered": wagered, "returned": returned},
                          "jackpot_rtp": 100 * pg.rtp(), "machines": _slot_machines(resort, cabinets),
+                         "casinos": {c["id"]: c["name"] for c in resort.registry},
                          "stats_since": resort.slot_stats.since()}, headers=NO_STORE)
 
 
@@ -501,6 +502,46 @@ async def plan_history(request: Request, casino: str = casinos.DEMO):
 @app.post("/api/plan/rollback/{hid}")
 async def plan_rollback(request: Request, hid: str, casino: str = casinos.DEMO):
     return _plan_call(_board(request, casino).rollback, hid)
+
+
+# ------------------------------------------------------------------ the casinos (resort.py; the Floor plan tab's Casinos)
+def _casino_call(fn, *args):
+    try:
+        return fn(*args)
+    except KeyError:
+        raise HTTPException(404, "There's no such casino.")
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/casinos")
+async def casinos_list(request: Request):
+    return JSONResponse({"casinos": request.app.state.resort.overview()}, headers=NO_STORE)
+
+
+@app.post("/api/casinos")
+async def casinos_add(request: Request):
+    """{name, blurb, start: "lobby" | "copy:<id>"}: a new hidden casino."""
+    body = await _json_body(request, "{name, blurb, start}")
+    resort = request.app.state.resort
+    cid = _casino_call(resort.add_casino, body.get("name"), body.get("blurb", ""), str(body.get("start") or "lobby"))
+    return {"id": cid, "casinos": resort.overview()}
+
+
+@app.put("/api/casinos/{cid}")
+async def casinos_change(cid: str, request: Request):
+    """Any of {name, blurb, open, population, order}."""
+    body = await _json_body(request, "{name, blurb, open, population, order}")
+    resort = request.app.state.resort
+    _casino_call(resort.change_casino, cid, body)
+    return {"casinos": resort.overview()}
+
+
+@app.delete("/api/casinos/{cid}")
+async def casinos_delete(cid: str, request: Request):
+    resort = request.app.state.resort
+    _casino_call(resort.delete_casino, cid)
+    return {"casinos": resort.overview()}
 
 
 # ------------------------------------------------------------------ the floor plan's asset library (plan_assets.py)
@@ -974,7 +1015,8 @@ def npc_options(request: Request):
             "uniforms": crew["uniforms"], "uniform_slots": list(staff.UNIFORM_SLOTS), "on_the_floor": list(roster.ON_THE_FLOOR),
             "archetypes": roster.ARCHETYPES, "modifiers": roster.MODIFIERS, "games": roster.GAMES,
             "tables": {casinos.qualify(c.id, tid): cfg["name"] for c in request.app.state.resort.casinos.values()
-                       for tid, cfg in c.floor.tables.items()}}
+                       for tid, cfg in c.floor.tables.items()},
+            "casinos": {c["id"]: c["name"] for c in request.app.state.resort.registry}}
 
 
 @app.get("/api/look-options")
@@ -1348,7 +1390,8 @@ async def table_styles_get(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     every = casinos.every_table(request.app.state.boards)
     return JSONResponse({**table_styles.load(request.app.state.resort.store, kind, every), "kind": kind,
-                         "games": table_styles.styled_tables(every, kind), "choices": table_styles.KINDS[kind]["choices"]},
+                         "games": table_styles.styled_tables(every, kind), "choices": table_styles.KINDS[kind]["choices"],
+                         "casinos": {c["id"]: c["name"] for c in request.app.state.resort.registry}},
                         headers=NO_STORE)
 
 
@@ -1395,7 +1438,7 @@ async def players_stats(request: Request):
         p["casino"] = resort.where(p["id"])
         if p["timeout_until"] and p["timeout_until"] <= now:   # (a timeout that's run out)
             p["timeout_until"] = None
-    return {"players": players, "games": roster.GAMES, "now": now}
+    return {"players": players, "games": roster.GAMES, "now": now, "casinos": {c["id"]: c["name"] for c in resort.registry}}
 
 
 # Player management. Protected, bans and timeouts are the account's (the device's), so they cover all its characters;

@@ -16,6 +16,8 @@ casino's to handle.
 Message handling is synchronous: the event loop runs one message at a time, so no locks.
 """
 import asyncio
+import copy
+import re
 import time
 from pathlib import Path
 
@@ -435,3 +437,118 @@ class Resort:
         session.casino.leave(session)
         session.push({"type": "casino_left", "reason": "leave"})
         self._send_casinos(session)
+
+    # ------------------------------------------------------------------ the admin page's Casinos
+    def overview(self) -> list[dict]:
+        """The registry, in order, with who's in each now (the admin page)."""
+        out = []
+        for c in self.registry:
+            casino = self.casinos[c["id"]]
+            out.append({**c, "players": len(casino.joined_sessions()), "npcs": casino.npcs.here(),
+                        "tables": sum(1 for r in casino.tables.values() if r.machine.game != "slots"),
+                        "cabinets": sum(1 for r in casino.tables.values() if r.machine.game == "slots")})
+        return out
+
+    def add_casino(self, name: str, blurb: str = "", start: str = "lobby") -> str:
+        """A new casino, hidden, from `start`: "lobby" (an empty lobby: Demo's Modern lobby if it has one) or
+        "copy:<id>" (that casino's live plan, its draft too). Returns its id."""
+        name = _clean_name(name)
+        base = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:20] or "casino"
+        cid, n = base, 2
+        while cid in self.casinos or casinos.casino_dir(self.data_dir, cid).exists():
+            cid, n = f"{base}_{n}", n + 1
+        if start.startswith("copy:"):
+            board = self.boards.get(start[5:])
+            if board is None:
+                raise ValueError("There's no such casino to copy.")
+            live, draft = copy.deepcopy(board.floor.plan), board.draft()
+        elif start == "lobby":
+            live = new_lobby_plan(self.boards[self.registry[0]["id"]].floor.plan if self.registry else None)
+            draft = copy.deepcopy(live)
+        else:
+            raise ValueError("Start from a lobby or a copy of a casino.")
+        d = plan.plan_dir(casinos.casino_dir(self.data_dir, cid))
+        plan._write(d / "live.json", live)
+        plan._write(d / "draft.json", draft)
+        self.registry.append(casinos.entry(cid, name, _clean_blurb(blurb), open_=False, population=0))
+        casinos.save(self.data_dir, self.registry)
+        casino = self._open(cid)
+        if _running():
+            casino.launch()
+        self.casinos_changed()
+        return cid
+
+    def change_casino(self, cid: str, data: dict) -> dict:
+        """Rename it, its blurb, Open (listed) or Hidden, its population, its place in the order."""
+        e = self.entry(cid)
+        if e is None:
+            raise KeyError(cid)
+        if "name" in data:
+            e["name"] = _clean_name(data["name"])
+        if "blurb" in data:
+            e["blurb"] = _clean_blurb(data["blurb"])
+        if "open" in data:
+            e["open"] = bool(data["open"])
+        if "population" in data:
+            try:
+                n = int(data["population"])
+            except (TypeError, ValueError):
+                raise ValueError("Punters on the floor is a whole number.")
+            if not 0 <= n <= 30:
+                raise ValueError("Punters on the floor is 0 to 30.")
+            e["population"] = n
+        if "order" in data:
+            try:
+                at = max(0, min(len(self.registry) - 1, int(data["order"])))
+            except (TypeError, ValueError):
+                raise ValueError("Order is a number.")
+            self.registry.remove(e)
+            self.registry.insert(at, e)
+        casinos.save(self.data_dir, self.registry)
+        self.casinos_changed()
+        return e
+
+    def delete_casino(self, cid: str):
+        """Gone, when nobody's playing in it and it isn't the last one: its plan is kept aside in
+        <data>/casinos-deleted/ (settings kept by its tables' ids just stop being used)."""
+        casino = self.casinos.get(cid)
+        if casino is None:
+            raise KeyError(cid)
+        if len(self.registry) <= 1:
+            raise ValueError("That's the last casino: there has to be one.")
+        if casino.joined_sessions():
+            raise ValueError("There are people playing in it: wait until it's empty (or hide it first).")
+        for s in [s for s in casino.sessions if s.preview is not None]:
+            casino.leave(s)
+            s.close()
+        casino.halt()
+        del self.casinos[cid], self.boards[cid]
+        self.registry = [c for c in self.registry if c["id"] != cid]
+        casinos.save(self.data_dir, self.registry)
+        gone = self.data_dir / "casinos-deleted" / f"{cid}-{time.strftime('%Y%m%d-%H%M%S')}"
+        gone.parent.mkdir(parents=True, exist_ok=True)
+        casinos.casino_dir(self.data_dir, cid).rename(gone)
+        self.casinos_changed()
+
+
+def _clean_name(raw) -> str:
+    name = " ".join(str(raw or "").split())[:casinos.MAX_NAME]
+    if not name:
+        raise ValueError("Give the casino a name.")
+    return name
+
+
+def _clean_blurb(raw) -> str:
+    return " ".join(str(raw or "").split())[:casinos.MAX_BLURB]
+
+
+def new_lobby_plan(source: dict | None) -> dict:
+    """A plan with just a lobby: the source plan's Modern lobby (placed or in its library), else the plain first
+    lobby. Its spawn is the lobby's."""
+    room = next((r for r in (source or {}).get("rooms", []) if r["id"] == "modern_lobby"), None)
+    room = copy.deepcopy(room) if room else plan.lobby()
+    room.update(placed=True, x=0, y=0)
+    spawn = next((p["name"] for p in room["paths"]["points"] if p["kind"] == "spawn"), "")
+    out = {"rev": 1, "next": {}, "spawn": f"{room['id']}/{spawn}" if spawn else "", "rooms": [room]}
+    out["next"] = plan._serials(out)
+    return out

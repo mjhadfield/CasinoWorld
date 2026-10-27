@@ -1,4 +1,4 @@
-// Settings: how the floor runs (NPCs on or off, the population, cooldowns, dealer shifts), the Default seating style, and
+// Settings: how the floors run (NPCs on or off, each casino's punters, cooldowns, dealer shifts), the Default seating style, and
 // the Bank (the lobby ATM's rules and what new players start with), and this browser's admin preferences, side by side.
 import { ZOOM_STEP } from "/admin-ui/plan/plan.js";
 let H;
@@ -11,8 +11,8 @@ export function init(h) {
       <div class="ph">Floor <span class="grow"></span><button type="submit" class="primary">Save</button></div>
       <div class="pb padded">
         <label class="controls" style="margin-bottom:12px"><input type="checkbox" id="s-npcs-on"> NPCs in the casino</label>
+        <div class="grid2" id="s-pops"></div>
         <div class="grid2">
-          <label class="field"><span>Punters on the floor</span><input type="number" id="s-population" min="0" max="30" step="1"></label>
           <label class="field"><span>Regulars' cooldown (× normal)</span><input type="number" id="s-regular" min="0.05" max="1" step="0.05"></label>
           <label class="field"><span>Cooldown after a visit (min)</span><span class="controls"><input type="number" id="s-cool-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-cool-hi" min="0" step="1" style="width:6em"></span></label>
           <label class="field"><span>Cooldown after going bust (min)</span><span class="controls"><input type="number" id="s-bust-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-bust-hi" min="0" step="1" style="width:6em"></span></label>
@@ -81,7 +81,11 @@ export function init(h) {
   $("#settings-form").addEventListener("submit", async e => {
     e.preventDefault();
     try {
-      await H.api("PUT", "/api/npc-settings", {population: +$("#s-population").value, regular_cooldown: +$("#s-regular").value,
+      for (const inp of H.view.querySelectorAll("#s-pops input")) {   // (each casino's own: the Casinos registry)
+        if (+inp.value !== +inp.dataset.was) await H.api("PUT", "/api/casinos/" + inp.dataset.casino, {population: +inp.value});
+        inp.dataset.was = inp.value;
+      }
+      await H.api("PUT", "/api/npc-settings", {regular_cooldown: +$("#s-regular").value,
         cooldown_min: [+$("#s-cool-lo").value, +$("#s-cool-hi").value], bust_cooldown_min: [+$("#s-bust-lo").value, +$("#s-bust-hi").value],
         dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value});
       H.status("Settings saved.", "ok");
@@ -116,7 +120,12 @@ export async function load() {
   try {
     const s = await H.api("GET", "/api/npc-settings");
     $("#s-npcs-on").checked = s.npcs_on;
-    $("#s-population").value = s.population; $("#s-regular").value = s.regular_cooldown;
+    $("#s-pops").replaceChildren(...(await H.api("GET", "/api/casinos")).casinos.map(c => {
+      const inp = H.el("input", {type: "number", min: 0, max: 30, step: 1, value: c.population});
+      Object.assign(inp.dataset, {casino: c.id, was: c.population});
+      return H.el("label", {className: "field"}, H.el("span", {textContent: `Punters in ${c.name}` + (c.open ? "" : " (hidden)")}), inp);
+    }));
+    $("#s-regular").value = s.regular_cooldown;
     $("#s-cool-lo").value = s.cooldown_min[0]; $("#s-cool-hi").value = s.cooldown_min[1];
     $("#s-bust-lo").value = s.bust_cooldown_min[0]; $("#s-bust-hi").value = s.bust_cooldown_min[1];
     $("#s-shift").value = s.dealer_shift_min; $("#s-stagger").value = s.dealer_stagger_min;

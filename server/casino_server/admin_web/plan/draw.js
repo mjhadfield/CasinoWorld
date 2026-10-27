@@ -21,11 +21,13 @@ export function image(url) {
 }
 
 // ---------------------------------------------------------------- the tables, drawn once each in their style
-let styles = null;   // {cards, roulette, craps}: the Tables tab's styles and which table has which
+let styles = null;   // {cards, roulette, craps}: the Tables tab's styles and which table has which ("<casino>/<table>")
+let casinoId = "demo";   // the casino whose tables are drawn
 const thumbs = {};
 const KIND = { roulette: "roulette", craps: "craps" };
 
-export async function loadTables(api) {
+export async function loadTables(api, casino = "demo") {
+  casinoId = casino;
   await loadAssets("/admin-ui/tables/");
   const kinds = ["cards", "roulette", "craps"];
   const got = await Promise.all(kinds.map(k => api("GET", "/api/table-styles?kind=" + k)));
@@ -35,7 +37,7 @@ export async function loadTables(api) {
 // A table's style: its id and design.
 function styleOf(game, tableId) {
   if (!styles) return {};
-  const st = styles[KIND[game] || "cards"], sid = (st.tables || {})[tableId] || st.default;
+  const st = styles[KIND[game] || "cards"], sid = (st.tables || {})[`${casinoId}/${tableId}`] || st.default;
   return { sid, design: (st.styles[sid] || st.styles[st.default] || {}).design };
 }
 
