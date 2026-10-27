@@ -1,7 +1,9 @@
 # Multiple casinos
 
-**Branch:** `main`
-**Plan:** `~/.claude/plans/new-feature-multiple-casino-shiny-curry.md` (copied below; written 2026-10-27, not started)
+**Branch:** `task/multi-casino`, in the worktree `.claude/worktrees/multi-casino` (dev instance on 8672). Step 1 is on
+`main` (8c8584e); the rest stays on the branch so the live server, which runs from the main folder, keeps the
+single-casino code until the switch-over (going live = merge into `main`, then export and restart).
+**Plan:** `~/.claude/plans/new-feature-multiple-casino-shiny-curry.md` (copied below; written 2026-10-27)
 
 ## Goal
 Players choose a casino after their character. The current plan becomes "Demo", and a new hidden casino, "The
@@ -10,25 +12,33 @@ Boulevard", is seeded from blockout C.
 ## Files
 - Server: `floor.py`, `plan.py`, `casino.py`, new `casinos.py` and `resort.py`, `npc.py`, `dealers.py`, `bank.py`,
   `sounds.py`, `table_styles.py`, `seating.py`, `store.py`, `session.py`, `app.py`, `__init__.py`, `protocol.md`, tests.
-- Client: `session.gd`, `net.gd`, `front_door.gd`, `casino_floor.gd`.
+- Client: `session.gd`, `net.gd`, `front_door.gd`, `casino_floor.gd`, `sfx.gd`.
 - Admin: `admin_web/plan/plan.js` and the NPCs, Players, Settings and Tables sections.
 - Tools: `tools/shot.py`, `tools/dev.sh`.
 
 ## Done when
-- [ ] 1 `Floor` class; `plan.install` returns a Floor; `Casino(floor)`. No behaviour change.
-- [ ] 2 Casinos registry; migration to Demo; a PlanBoard per casino; `?casino=` on the plan API; qualified meta keys.
-- [ ] 3 `Resort`: account handling moved, several Casinos, claims, shared jackpots, population per casino, protocol v7,
-  `last_casino`, resume.
-- [ ] 4 Publishing reloads only that casino.
-- [ ] 5 Client: casino chooser, session state, rebuild check, switch mode; `shot.py --casino` and `--door=casino`.
+- [x] 1 `Floor` class; `plan.install` returns a Floor; `Casino(floor)`. No behaviour change. (8c8584e, on main)
+- [x] 2 Casinos registry; migration to Demo; a PlanBoard per casino; `?casino=` on the plan API; qualified meta keys. (aae87dc)
+- [x] 3 `Resort`: account handling moved, several Casinos, claims, shared jackpots, population per casino, protocol v7,
+  `last_casino`, resume. (f871bce, with step 4)
+- [x] 4 Publishing reloads only that casino. (f871bce)
+- [x] 5 Client: casino chooser, session state, rebuild check, switch mode; `shot.py --casino` and `--door=casino`. (b93f2ce)
 - [ ] 6 Admin: casino picker and Casinos dialog; per-casino columns and settings.
 - [ ] 7 The Boulevard seeded (dev first, then live); docs updated.
 - [ ] `tools/dev.sh test` passes; live switch-over done with backups and the git tag `single-casino`.
 
 ## Handoff
-- **State:** planned only. Nothing is built yet.
-- **Changed:** nothing yet.
-- **Checked:** nothing yet.
+- **State:** steps 1-5 built and committed; 6 and 7 and the go-live are left.
+- **Changed from the plan:** `casinos_changed` isn't a message of its own: the server resends `casinos` to everyone
+  on the chooser. A new `list_casinos` gives the chooser fresh counts when it's opened from the floor. A `?casino=`
+  link sends `pick_character` with `casino` (enters directly) rather than its own message. A publish needing a slot
+  built since start still restarts the server (only a start loads a built slot).
+- **Interim gaps until step 6:** the admin Settings tab's "Punters on the floor" still writes the old global
+  setting, which nothing reads now (each casino's `population` is in `casinos.json`); the NPC tab's Bring in goes
+  to Demo (`?casino=` on the endpoint); the Floor plan tab only edits Demo.
+- **Checked:** full `tools/dev.sh test` (1015 passed); on the dev instance (a test casino "Upstairs" added by hand to
+  `.dev/data/casinos.json`), `shot.py --door=casino`, `--casino upstairs`, and switching to Demo from the wallet.
+- **Note:** the full suite sits at ~79% for a while (the slot-design tests are slow); it isn't hung.
 - **Questions for Mike:** none open. His answers are under "Mike's decisions" below.
 
 ---
