@@ -1,4 +1,4 @@
-"""Check the three plans, write their blueprints and write the review page (../resort-floor-blockouts.html)."""
+"""Check the five plans, write their blueprints and write the review page (../resort-floor-blockouts.html)."""
 import html
 import json
 from pathlib import Path
@@ -6,8 +6,8 @@ from pathlib import Path
 from render import KIND_LABEL, NAMES, build
 
 HERE = Path(__file__).parent
-plans = build(["plan_a", "plan_b", "plan_c"])
-LETTERS = "ABC"
+plans = build(["plan_a", "plan_b", "plan_c", "plan_d", "plan_e"])
+LETTERS = "ABCDE"
 
 CSS = r"""
 :root{
@@ -198,7 +198,7 @@ LEGEND = """<div class="legend">
 
 NOTES = """<section class="sheet"><h2>Building it in CasinoWorld</h2><div class="notes">
 <div><h3>Doors or archways</h3><p>Rooms joined by an archway draw together, so archways carry the floor's noise and bustle into the bar, lounge and sportsbook. A room behind a door stays hidden until you reach the doorway, which is right for the high limit rooms and the restaurant. They feel private, and each door gets a named tab on the minimap.</p></div>
-<div><h3>Lobby kept as is</h3><p>All three plans build north of the live Modern lobby (608 × 400) and keep the two lifts. The only change is turning the lobby's 64 px top door into a 192 px archway, so you can see the casino from the spawn point.</p></div>
+<div><h3>Lobby kept as is</h3><p>All five plans build round the live Modern lobby (608 × 400) and keep the two lifts. The only change is turning the lobby's 64 px top door into a 192 px archway, so you can see the casino from the spawn point.</p></div>
 <div><h3>NPCs-only rooms</h3><p>Kitchen, staff, restrooms and the lifts are dead ends in the same way the lifts are now. NPCs arrive there and walk back in, so the restaurant gets waiters, the pits get dealers walking in for a shift change, and people pop off to the restrooms, with none of it costing any art.</p></div>
 <div><h3>Table count and performance</h3><p>These plans have 13 to 25 tables. Every room is built on every client, and the architecture notes say that past a few dozen tables the server should only send each player the tables in rooms they can see. That cut-off is worth doing before the biggest of these goes live.</p></div>
 <div><h3>High limit tools you already have</h3><p>Table limits and the limits sign set the high-limit rooms apart (the labels like "Blackjack £500" are only suggestions). A Master table gives a small salon every game without adding tables, and the cashier cage and ATMs tie in with the Bank.</p></div>
@@ -232,8 +232,8 @@ doc = f"""<title>Resort Floor Blockouts</title>
 <div class="wrap">
 <header class="top">
   <div class="intro"><span class="eyebrow">CasinoWorld · floor plan blockouts</span>
-  <h1>A medium resort casino, three ways</h1>
-  <p class="muted">Three layouts for a medium casino, drawn at game scale on top of the live Modern lobby. They're blockouts, not a build, but every room, door, table and slot bank was laid out as a real floor plan and run through the server's own floor plan checks, so the sizes are ones the game will take. Hover a room to find it in the schedule.</p></div>
+  <h1>A medium resort casino, five ways</h1>
+  <p class="muted">Five layouts for a medium casino (D and E from GPT's concept sheets, re-laid to the game's sizes), drawn at game scale on top of the live Modern lobby. They're blockouts, not a build, but every room, door, table and slot bank was laid out as a real floor plan and run through the server's own floor plan checks, so the sizes are ones the game will take. Hover a room to find it in the schedule.</p></div>
   <div class="titleblock"><div>Project</div><div>CasinoWorld</div><div>Sheet</div><div>A-101 to A-103</div>
   <div>Scale</div><div>game px (1:1 plan)</div><div>North</div><div>back wall up</div><div>Date</div><div>27 Oct 2026</div>
   <div>Checks</div><div>{'all pass' if total_ok else 'see sheets'}</div></div>

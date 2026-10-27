@@ -10,7 +10,7 @@ sys.path.insert(0, str(SERVER))
 from casino_server import plan, plan_assets  # noqa: E402
 
 plan_assets.AssetLibrary(SERVER / "data")
-LIVE = json.loads((SERVER / "data/plan/live.json").read_text())
+LIVE = json.loads((SERVER / "data/casinos/demo/plan/live.json").read_text())
 SLOT = "armadillo"
 
 

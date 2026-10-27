@@ -221,4 +221,4 @@ def write_blueprint(key, cleaned):
 
 
 if __name__ == "__main__":
-    build(sys.argv[1:] or ["plan_a", "plan_b", "plan_c"])
+    build(sys.argv[1:] or ["plan_a", "plan_b", "plan_c", "plan_d", "plan_e"])

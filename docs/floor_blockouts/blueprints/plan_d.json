@@ -1,0 +1,2013 @@
+{
+ "variation": "plan_d",
+ "lobby_change": "modern_lobby's top door becomes an archway 192 wide",
+ "rooms": [
+  {
+   "id": "d_hall",
+   "name": "Grand Hall",
+   "placed": false,
+   "x": -832,
+   "y": -1728,
+   "w": 2304,
+   "h": 1664,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [
+    {
+     "x": 1046,
+     "y": 70,
+     "w": 212,
+     "h": 1584,
+     "texture": "plain",
+     "tint": "#d9c69a",
+     "shape": "rect",
+     "radius": 0,
+     "pattern": {
+      "kind": "none",
+      "colour": "#000000",
+      "size": 16,
+      "opacity": 30
+     },
+     "border": {
+      "style": "none",
+      "colour": "#c9a24a",
+      "width": 4
+     }
+    },
+    {
+     "x": 8,
+     "y": 470,
+     "w": 2288,
+     "h": 220,
+     "texture": "plain",
+     "tint": "#d9c69a",
+     "shape": "rect",
+     "radius": 0,
+     "pattern": {
+      "kind": "none",
+      "colour": "#000000",
+      "size": 16,
+      "opacity": 30
+     },
+     "border": {
+      "style": "none",
+      "colour": "#c9a24a",
+      "width": 4
+     }
+    }
+   ],
+   "walls": {
+    "style": "crimson",
+    "sign": "GRAND HALL",
+    "sign_at": 1152
+   },
+   "doors": [],
+   "items": [
+    {
+     "asset": "table:blackjack",
+     "x": 462,
+     "y": 290,
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:blackjack",
+     "x": 882,
+     "y": 290,
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:three_card_poker",
+     "x": 1422,
+     "y": 290,
+     "props": {
+      "label": "Three Card Poker"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:ultimate_texas_holdem",
+     "x": 1842,
+     "y": 290,
+     "props": {
+      "label": "Ultimate Texas Hold'em"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:let_it_ride",
+     "x": 462,
+     "y": 880,
+     "props": {
+      "label": "Let It Ride"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:mississippi_stud",
+     "x": 882,
+     "y": 880,
+     "props": {
+      "label": "Mississippi Stud"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:high_card_flush",
+     "x": 1422,
+     "y": 880,
+     "props": {
+      "label": "High Card Flush"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:pai_gow_fortune",
+     "x": 1842,
+     "y": 880,
+     "props": {
+      "label": "Fortune Pai Gow"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:roulette",
+     "x": 440,
+     "y": 1340,
+     "props": {
+      "label": "Roulette",
+      "sign": "left"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:craps",
+     "x": 860,
+     "y": 1340,
+     "props": {
+      "label": "Craps",
+      "sign": "left"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:master_table",
+     "x": 1422,
+     "y": 1340,
+     "props": {
+      "label": "Master Table",
+      "anim": "cloth",
+      "speed": 1.0
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:roulette",
+     "x": 1842,
+     "y": 1340,
+     "props": {
+      "label": "Roulette"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 230,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 230,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 400,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 400,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 800,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 800,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 990,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 990,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 1180,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 1180,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 115,
+     "y": 1370,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 2189,
+     "y": 1370,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_planter_palm",
+     "x": 1000,
+     "y": 1600,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_planter_palm",
+     "x": 1304,
+     "y": 1600,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "npc",
+     "x": 1152,
+     "y": 600,
+     "props": {
+      "look": "dealer",
+      "name": "Pit boss"
+     },
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 1152,
+      "y": 1560,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 1152,
+      "y": 580,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_2",
+      "x": 300,
+      "y": 580,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_3",
+      "x": 2000,
+      "y": 580,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_4",
+      "x": 1152,
+      "y": 1060,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_restaurant",
+   "name": "Restaurant",
+   "placed": false,
+   "x": -1472,
+   "y": -2368,
+   "w": 1152,
+   "h": 640,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "RESTAURANT",
+    "sign_at": 576
+   },
+   "doors": [
+    {
+     "side": "bottom",
+     "at": 928,
+     "width": 224,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "a:round_table",
+     "x": 160,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 114,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 206,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 160,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 114,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 206,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 160,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 114,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 206,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 272,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 226,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 318,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 272,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 226,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 318,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 272,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 226,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 318,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 384,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 338,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 430,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 384,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 338,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 430,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 384,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 338,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 430,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 496,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 450,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 542,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 496,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 450,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 542,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 496,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 450,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 542,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 608,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 562,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 654,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 608,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 562,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 654,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 608,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 562,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 654,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 720,
+     "y": 250,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 674,
+     "y": 254,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 766,
+     "y": 254,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 720,
+     "y": 360,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 674,
+     "y": 364,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 766,
+     "y": 364,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:round_table",
+     "x": 720,
+     "y": 470,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 674,
+     "y": 474,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:armchair",
+     "x": 766,
+     "y": 474,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:reception_desk",
+     "x": 860,
+     "y": 560,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "npc",
+     "x": 920,
+     "y": 540,
+     "props": {
+      "look": "dealer",
+      "name": "Ma\u00eetre d'"
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "a:wine_rack_mixed",
+     "x": 860,
+     "y": 150,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:wine_rack_red",
+     "x": 960,
+     "y": 150,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:grand_piano",
+     "x": 1060,
+     "y": 300,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 928,
+      "y": 450,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 400,
+      "y": 580,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_kitchen",
+   "name": "Kitchen",
+   "placed": false,
+   "x": -320,
+   "y": -2368,
+   "w": 640,
+   "h": 640,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "KITCHEN",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "left",
+     "at": 352,
+     "width": 96,
+     "kind": "door"
+    }
+   ],
+   "items": [],
+   "paths": {
+    "points": [
+     {
+      "name": "arrival_0",
+      "x": 320,
+      "y": 400,
+      "kind": "arrival",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   },
+   "npc_only": true
+  },
+  {
+   "id": "d_salon",
+   "name": "High Roller Salon",
+   "placed": false,
+   "x": 320,
+   "y": -2368,
+   "w": 1152,
+   "h": 640,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [
+    {
+     "x": 8,
+     "y": 70,
+     "w": 1136,
+     "h": 560,
+     "texture": "plain",
+     "tint": "#2a3550",
+     "shape": "rect",
+     "radius": 0,
+     "pattern": {
+      "kind": "none",
+      "colour": "#000000",
+      "size": 16,
+      "opacity": 30
+     },
+     "border": {
+      "style": "none",
+      "colour": "#c9a24a",
+      "width": 4
+     }
+    }
+   ],
+   "walls": {
+    "style": "crimson",
+    "sign": "HIGH ROLLER SALON",
+    "sign_at": 576
+   },
+   "doors": [
+    {
+     "side": "bottom",
+     "at": 608,
+     "width": 160,
+     "kind": "door"
+    },
+    {
+     "side": "right",
+     "at": 480,
+     "width": 128,
+     "kind": "door"
+    }
+   ],
+   "items": [
+    {
+     "asset": "table:blackjack",
+     "x": 230,
+     "y": 330,
+     "props": {
+      "label": "Blackjack \u00a3500"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:baccarat",
+     "x": 576,
+     "y": 330,
+     "props": {
+      "label": "Baccarat \u00a3500"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "table:blackjack",
+     "x": 922,
+     "y": 330,
+     "props": {
+      "label": "Blackjack \u00a31,000"
+     },
+     "rot": 0
+    },
+    {
+     "asset": "npc",
+     "x": 1040,
+     "y": 560,
+     "props": {
+      "look": "dealer",
+      "name": "Host"
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "npc",
+     "x": 140,
+     "y": 560,
+     "props": {
+      "look": "security",
+      "name": "Security"
+     },
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 576,
+      "y": 540,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_vip",
+   "name": "VIP Lounge",
+   "placed": false,
+   "x": 1472,
+   "y": -2368,
+   "w": 640,
+   "h": 640,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [
+    {
+     "x": 8,
+     "y": 70,
+     "w": 624,
+     "h": 560,
+     "texture": "plain",
+     "tint": "#2a3550",
+     "shape": "rect",
+     "radius": 0,
+     "pattern": {
+      "kind": "none",
+      "colour": "#000000",
+      "size": 16,
+      "opacity": 30
+     },
+     "border": {
+      "style": "none",
+      "colour": "#c9a24a",
+      "width": 4
+     }
+    }
+   ],
+   "walls": {
+    "style": "crimson",
+    "sign": "VIP LOUNGE",
+    "sign_at": 320
+   },
+   "doors": [],
+   "items": [
+    {
+     "asset": "a:vegas_back_bar",
+     "x": 320,
+     "y": 70,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_counter",
+     "x": 320,
+     "y": 200,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 194,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 244.5,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 295,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 345,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 395.5,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 446,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_sofa",
+     "x": 200,
+     "y": 460,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 120,
+     "y": 460,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 280,
+     "y": 460,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:vegas_sofa",
+     "x": 460,
+     "y": 560,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_side_table",
+     "x": 540,
+     "y": 560,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "npc",
+     "x": 520,
+     "y": 300,
+     "props": {
+      "look": "dealer",
+      "name": "Host"
+     },
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 320,
+      "y": 420,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 480,
+      "y": 460,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_sports",
+   "name": "Sports Lounge",
+   "placed": false,
+   "x": -1472,
+   "y": -1728,
+   "w": 640,
+   "h": 768,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "SPORTS LOUNGE",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "right",
+     "at": 576,
+     "width": 224,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "a:vegas_video_wall",
+     "x": 300,
+     "y": 70,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 100,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 100,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 164,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 164,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 228,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 228,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 292,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 292,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 356,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 356,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 420,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 420,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 484,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 484,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 548,
+     "y": 300,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 548,
+     "y": 400,
+     "props": {},
+     "facing": "up"
+    },
+    {
+     "asset": "a:vegas_high_top",
+     "x": 120,
+     "y": 640,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_high_top",
+     "x": 260,
+     "y": 640,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 320,
+      "y": 520,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 160,
+      "y": 560,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_cards",
+   "name": "Side Card Room",
+   "placed": false,
+   "x": -1472,
+   "y": -960,
+   "w": 640,
+   "h": 640,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "SIDE CARD ROOM",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "right",
+     "at": 544,
+     "width": 128,
+     "kind": "door"
+    }
+   ],
+   "items": [
+    {
+     "asset": "table:blackjack",
+     "x": 150,
+     "y": 340,
+     "props": {
+      "label": "Blackjack"
+     },
+     "rot": 90
+    },
+    {
+     "asset": "table:pai_gow_face_up",
+     "x": 420,
+     "y": 340,
+     "props": {
+      "label": "Face Up Pai Gow"
+     },
+     "rot": 90
+    },
+    {
+     "asset": "podium",
+     "x": 560,
+     "y": 160,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 320,
+      "y": 560,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_cashier",
+   "name": "Cashier",
+   "placed": false,
+   "x": -1472,
+   "y": -320,
+   "w": 640,
+   "h": 256,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "CASHIER",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "right",
+     "at": 128,
+     "width": 96,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "a:vegas_cashier_cage",
+     "x": 260,
+     "y": 200,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "npc",
+     "x": 260,
+     "y": 130,
+     "props": {
+      "look": "cashier",
+      "name": "Cashier"
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_atm",
+     "x": 520,
+     "y": 200,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 460,
+      "y": 220,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_slot_salon",
+   "name": "Slot Salon",
+   "placed": false,
+   "x": 1472,
+   "y": -1728,
+   "w": 640,
+   "h": 768,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "SLOT SALON",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "left",
+     "at": 576,
+     "width": 192,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "bank:4",
+     "x": 170,
+     "y": 134,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:4",
+     "x": 470,
+     "y": 134,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 420,
+     "y": 400,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    },
+    {
+     "asset": "bank:6",
+     "x": 420,
+     "y": 620,
+     "props": {
+      "slots": [
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo",
+       "armadillo"
+      ]
+     },
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 160,
+      "y": 640,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 320,
+      "y": 300,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_restrooms",
+   "name": "Restrooms",
+   "placed": false,
+   "x": 1472,
+   "y": -960,
+   "w": 640,
+   "h": 512,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "RESTROOMS",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "left",
+     "at": 288,
+     "width": 128,
+     "kind": "door"
+    }
+   ],
+   "items": [],
+   "paths": {
+    "points": [
+     {
+      "name": "arrival_0",
+      "x": 320,
+      "y": 300,
+      "kind": "arrival",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   },
+   "npc_only": true
+  },
+  {
+   "id": "d_staff",
+   "name": "Staff & Security",
+   "placed": false,
+   "x": 1472,
+   "y": -448,
+   "w": 640,
+   "h": 384,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "STAFF & SECURITY",
+    "sign_at": 320
+   },
+   "doors": [
+    {
+     "side": "left",
+     "at": 192,
+     "width": 96,
+     "kind": "door"
+    }
+   ],
+   "items": [],
+   "paths": {
+    "points": [
+     {
+      "name": "arrival_0",
+      "x": 320,
+      "y": 240,
+      "kind": "arrival",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   },
+   "npc_only": true
+  },
+  {
+   "id": "d_bar",
+   "name": "Bar & Lounge",
+   "placed": false,
+   "x": -1472,
+   "y": -64,
+   "w": 1152,
+   "h": 512,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "BAR & LOUNGE",
+    "sign_at": 576
+   },
+   "doors": [
+    {
+     "side": "top",
+     "at": 896,
+     "width": 256,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "a:vegas_back_bar",
+     "x": 400,
+     "y": 70,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_counter",
+     "x": 400,
+     "y": 200,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 274,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 302,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 330,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 358,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 386,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 414,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 442,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 470,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 498,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_bar_stool",
+     "x": 526,
+     "y": 240,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:nocturne_banquette",
+     "x": 180,
+     "y": 420,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:nocturne_banquette",
+     "x": 420,
+     "y": 420,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:nocturne_cocktail",
+     "x": 300,
+     "y": 340,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_high_top",
+     "x": 700,
+     "y": 300,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_high_top",
+     "x": 800,
+     "y": 300,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 900,
+      "y": 380,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 400,
+      "y": 300,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  },
+  {
+   "id": "d_hotel",
+   "name": "Hotel Lounge",
+   "placed": false,
+   "x": 960,
+   "y": -64,
+   "w": 1152,
+   "h": 512,
+   "floor": {
+    "texture": "carpet",
+    "tint": "#ffffff"
+   },
+   "patches": [],
+   "walls": {
+    "style": "crimson",
+    "sign": "HOTEL LOUNGE",
+    "sign_at": 576
+   },
+   "doors": [
+    {
+     "side": "top",
+     "at": 192,
+     "width": 224,
+     "kind": "archway"
+    }
+   ],
+   "items": [
+    {
+     "asset": "a:vegas_sofa",
+     "x": 500,
+     "y": 300,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 420,
+     "y": 300,
+     "props": {},
+     "facing": "right"
+    },
+    {
+     "asset": "a:vegas_armchair",
+     "x": 580,
+     "y": 300,
+     "props": {},
+     "facing": "left"
+    },
+    {
+     "asset": "a:vegas_sofa",
+     "x": 800,
+     "y": 400,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:reception_desk",
+     "x": 1000,
+     "y": 200,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:vegas_planter_palm",
+     "x": 1100,
+     "y": 440,
+     "props": {},
+     "facing": "down"
+    },
+    {
+     "asset": "a:bench",
+     "x": 300,
+     "y": 440,
+     "props": {},
+     "facing": "down"
+    }
+   ],
+   "paths": {
+    "points": [
+     {
+      "name": "wander_0",
+      "x": 200,
+      "y": 380,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     },
+     {
+      "name": "wander_1",
+      "x": 700,
+      "y": 360,
+      "kind": "wander",
+      "weight": 1,
+      "linger": 20
+     }
+    ],
+    "zones": []
+   }
+  }
+ ]
+}

@@ -1,8 +1,15 @@
 # Resort floor blockouts
 
-**All three have been built**, each as its own hidden casino (2026-10-27, `tools/seed_blockout.py a|b|c`; see
-`docs/tasks/multi-casino.md`): A **The Loop** (`loop`), B **The Promenade** (`promenade`) and C **The Boulevard**
-(`boulevard`). Step 4 onwards below (the placeholders, the NPCs) is still to do in each.
+**All five have been built**, each as its own hidden casino (2026-10-27, `tools/seed_blockout.py a|b|c|d|e`; see
+`docs/tasks/multi-casino.md`): A **The Loop** (`loop`), B **The Promenade** (`promenade`), C **The Boulevard**
+(`boulevard`), D **The Grand Hall** (`grand_hall`) and E **The Garden Loop** (`garden_loop`). Step 4 onwards below
+(the placeholders, the NPCs) is still to do in each.
+
+D and E are GPT's two concept sheets (`~/Projects/casino-floor-plan-concepts/`, its plans A and B), built here:
+its rooms are where its 112 × 88 module sheet put them (32 px a module), moved so the main floor's entrance is over
+the Modern lobby's top door, and the lobby takes the place of its entrance lobby. Its tables were symbols only, so
+the furniture is placed again to the real sizes. The Garden Loop's dining foyer opens off the floor's front rather
+than the lobby (the lobby's right wall is its reception desk), and its restaurant's archway moved up clear of a table.
 
 Three layouts for a medium resort casino, drawn at game scale on top of the live Modern lobby. They're blockouts,
 not a build: nothing here is on the floor plan, live or draft. Nothing's been decided yet; this is for Mike to
@@ -12,18 +19,20 @@ review and, if one appeals, to build from.
 a room schedule for each, and building notes. It's also published as a private artifact:
 https://claude.ai/artifact/CaS96diAGkrDWER8PLxfLy. (Offline, the page falls back to system fonts.)
 
-## The three variations
+## The variations
 
 | | Idea | Inspired by | Tables | Slots | Furthest walk |
 |---|---|---|---|---|---|
 | **A · The Loop** | One big open floor. A racetrack aisle circles two pits plus roulette and craps, slots line the outside, and the centre bar is at the head of the entrance aisle. High limit salon, high limit slots, restaurant, showroom lounge and sportsbook open off the floor's walls. | Las Vegas Strip resorts | 16 | 152 | 34 s |
 | **B · The Promenade** | Rooms in a line on one axis: Grand Hall, then Grand Salon, then Salle Privée, each one door further in. The slots get their own hall, and a garden terrace loops back to the salon. The lounge bar and restaurant are on the other side. | Grand European casinos | 13 | 112 | 28 s |
 | **C · The Boulevard** | An indoor street across the front with a restaurant, show lounge, café, sportsbook and shop doors off it. Three archways lead onto a big floor: slots at the front, then two pits of six round an island bar, then roulette and craps. The Vault, the Jade Room (Baccarat and Pai Gow) and high limit slots open off its back and sides. | Resort shopping streets, Macau baccarat salons | 25 | 108 | 29 s |
+| **D · The Grand Hall** | One great hall with a spine aisle from the lobby and a cross aisle between a sports lounge and a slot salon: three rows of four tables, slots down both walls. Restaurant, high roller salon and VIP lounge behind it; side card room and cashier on one side; restrooms and staff on the other; bar and hotel lounge either side of the lobby. | GPT's concept A, after Bellagio | 17 | 92 | 32 s |
+| **E · The Garden Loop** | A big floor round an indoor garden with a fountain and a walk round it, card tables along the back and front. Side card room, private Master table salon and music lounge along the back; high roller salon, VIP lounge and restaurant down the right; bar, restrooms and a dining foyer along the front. | GPT's concept B, after Park MGM | 16 | 54 | 30 s |
 
 "Furthest walk" is from the lobby spawn to the middle of the furthest named room, timed by the server's own
 `plan.Routes` at the player's walking speed (105 px/s).
 
-All three keep the Modern lobby where it is, at (0, −64) and 608 × 400, along with both lifts. The one change is
+All five keep the Modern lobby where it is, at (0, −64) and 608 × 400, along with both lifts. The one change is
 the lobby's top door, which becomes an **archway 192 wide** so you can see the casino from the spawn point.
 
 ## What's in this folder

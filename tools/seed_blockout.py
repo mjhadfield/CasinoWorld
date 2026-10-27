@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Seed a casino from one of the floor blockouts (docs/floor_blockouts/): A The Loop, B The Promenade, C The Boulevard.
+"""Seed a casino from one of the floor blockouts (docs/floor_blockouts/): A The Loop, B The Promenade, C The Boulevard,
+D The Grand Hall, E The Garden Loop.
 
-    server/.venv/bin/python tools/seed_blockout.py a|b|c [--server URL]
+    server/.venv/bin/python tools/seed_blockout.py a|b|c|d|e [--server URL]
 
 Through the admin API of a running server (default: this checkout's dev instance), so it goes the same way on the
-dev instance and the live one: a new casino (`loop`, `promenade` or `boulevard`) starting from Demo's live Modern
-lobby (POST /api/casinos), Demo's two lifts beside it, the lobby's top door opened into a 192-wide archway (the
-blueprint's lobby_change), and every plan_<x>.json room placed. It's published (the casino reopens with its
-tables), named, and left hidden with no punters, for Mike to finish on the Floor plan tab: the slots (all
+dev instance and the live one: a new casino (`loop`, `promenade`, `boulevard`, `grand_hall` or `garden_loop`) starting
+from Demo's live Modern lobby (POST /api/casinos), Demo's two lifts beside it, the lobby's top door opened into a
+192-wide archway (the blueprint's lobby_change), and every plan_<x>.json room placed. It's published (the casino
+reopens with its tables), named, and left hidden with no punters, for Mike to finish on the Floor plan tab: the slots (all
 Armadillo), the staff looks, the limits, the floors and walls. It stops if that casino exists already or the plan
 has problems.
 """
@@ -27,6 +28,8 @@ VARIATIONS = {
     "a": ("Loop", "loop", "The Loop", "One big open floor, a racetrack aisle round the pits, and slots all the way round."),
     "b": ("Promenade", "promenade", "The Promenade", "Grand rooms one after another, each a door further in."),
     "c": ("Boulevard", "boulevard", "The Boulevard", "A street of bars and shops, and a big floor beyond."),
+    "d": ("Grand Hall", "grand_hall", "The Grand Hall", "One great hall with quieter rooms all round its edges."),
+    "e": ("Garden Loop", "garden_loop", "The Garden Loop", "A floor round an indoor garden, with rooms to discover."),
 }
 
 
@@ -48,7 +51,7 @@ def call(base: str, method: str, path: str, body=None) -> dict:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("variation", choices=sorted(VARIATIONS), help="a (The Loop), b (The Promenade) or c (The Boulevard)")
+    ap.add_argument("variation", choices=sorted(VARIATIONS), help="a (The Loop), b (The Promenade), c (The Boulevard), d (The Grand Hall) or e (The Garden Loop)")
     ap.add_argument("--server", help="the server's http URL (default: this checkout's dev instance)")
     args = ap.parse_args()
     base = (args.server or dev_url()).rstrip("/")

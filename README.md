@@ -428,9 +428,9 @@ API. It never publishes or places it. It preserves the source Casino Floor, all 
 styles; Nocturne's Roulette and Craps have their own coordinated teal-and-brass style. This build expects the
 existing Modern/Vegas assets, the Casino Floor source blueprint and the Dark Modern card style in that instance.
 
-`server/.venv/bin/python tools/seed_blockout.py a|b|c [--server URL]` makes a hidden casino from a floor blockout
-(`docs/floor_blockouts/`): **The Loop** (`loop`, A), **The Promenade** (`promenade`, B) or **The Boulevard**
-(`boulevard`, C), through a running server's admin API (default this checkout's dev instance): Demo's Modern lobby
+`server/.venv/bin/python tools/seed_blockout.py a|b|c|d|e [--server URL]` makes a hidden casino from a floor blockout
+(`docs/floor_blockouts/`): **The Loop** (`loop`, A), **The Promenade** (`promenade`, B), **The Boulevard**
+(`boulevard`, C), **The Grand Hall** (`grand_hall`, D) or **The Garden Loop** (`garden_loop`, E), through a running server's admin API (default this checkout's dev instance): Demo's Modern lobby
 with its top door opened into a 192 archway, Demo's two lifts, and every `plan_<x>.json` room, placed and published,
 with no punters. It stops if that casino exists already or the plan has problems. Its slots (all Armadillo), staff
 looks, limits, floors and walls are stand-ins for Mike to finish.
