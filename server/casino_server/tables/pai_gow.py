@@ -87,6 +87,11 @@ class PlayerHand:
     bonus: pg.Bonus | None = None
     settled: bool = False
 
+    @property
+    def decided(self) -> bool:
+        """Set, folded or claimed: done with this hand's one decision (a second box can be shown)."""
+        return self.set or self.folded or self.claimed
+
 
 def _codes(cards) -> list:
     return [c.code for c in cards]
@@ -119,6 +124,7 @@ class PaiGowMachine(TableMachine):
     NEEDS_MAIN = "Side bets need an Ante alongside them."
     CANT_COVER = "Not enough balance for that."
     FACE_UP = False
+    SECOND_BOX = True
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None, jackpot=None,
                  deck_factory=None, lines: DealerLines | None = None, rng=None):
@@ -247,6 +253,7 @@ class PaiGowMachine(TableMachine):
 
     def claim(self, seat: int, now: float) -> list:
         hand = self._claiming_hand(seat)
+        self._box_first(seat)
         if hand.bonus_name is None:
             raise TableError("There's no bonus to claim -- fold.")
         return self._respond(seat, True) + self._after_claims(now)
@@ -269,7 +276,7 @@ class PaiGowMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
 
     def _dealer_state(self) -> dict:
         return {"cards": _codes(self.dealer_cards), "front": _codes(self.dealer_front),
@@ -288,6 +295,7 @@ class PaiGowMachine(TableMachine):
 
     def set_hand(self, seat: int, front_codes: list, back_codes: list, now: float) -> list:
         hand = self._hand_for(seat)
+        self._box_first(seat)
         if len(front_codes) != 2 or len(back_codes) != 5:
             raise TableError("Set 2 cards in your Low hand and 5 in your High hand.")
         front = _cards_from(front_codes, hand.cards)
@@ -301,8 +309,10 @@ class PaiGowMachine(TableMachine):
             raise TableError("You can't fold at this table.")
         if self.phase == "claiming":
             self._claiming_hand(seat)
+            self._box_first(seat)
             return self._respond(seat, False) + self._after_claims(now)
         hand = self._hand_for(seat)
+        self._box_first(seat)
         hand.folded = True
         return [{"kind": "hand_set", "seat": seat, "folded": True}] + self._after_setting(now)
 
@@ -321,12 +331,19 @@ class PaiGowMachine(TableMachine):
             end = now + self.timings.last_decision
             if self.deadline is None or end < self.deadline:
                 self.deadline = end
-        return []
+        return self._reveal_boxes()
+
+    def _box_private(self, seat: int) -> dict:
+        hand = self.round[seat]
+        private = {"cards": _codes(hand.cards)}
+        if self.phase == "claiming":
+            private["bonus"] = hand.bonus_name
+        return private
 
     def suggest(self, seat: int) -> dict:
         """The House Way for a player's own cards (the House Way button)."""
         hand = self.round.get(seat)
-        if hand is None or self.phase != "setting":
+        if hand is None or self.phase != "setting" or not self._box_shown(seat):
             raise TableError("There's no hand to set.")
         front, back = pg.house_way_set(hand.cards)
         return {"front": _codes(front), "back": _codes(back), **_labels(front, back)}
@@ -334,7 +351,7 @@ class PaiGowMachine(TableMachine):
     def check(self, seat: int, front_codes: list, back_codes: list) -> dict:
         """Names a proposed split and says if it fouls (the sorter's live readout)."""
         hand = self.round.get(seat)
-        if hand is None:
+        if hand is None or not self._box_shown(seat):
             raise TableError("There's no hand to set.")
         result = {"front": front_codes, "back": back_codes, "front_label": "", "back_label": "", "foul": False}
         front = _cards_from(front_codes, hand.cards)
@@ -469,7 +486,7 @@ class PaiGowMachine(TableMachine):
             entry["bets"] = dict(hand.bets)
             state = "folded" if hand.folded else "claimed" if hand.claimed else "set" if hand.set else "dealt"
             entry["hand"] = None if hand.settled else {"state": state}
-            if viewer == i and not hand.settled:
+            if self._sees(viewer, i) and not hand.settled:
                 entry["hand"]["cards"] = _codes(hand.cards)
                 if self.phase == "claiming":
                     entry["hand"]["bonus"] = hand.bonus_name

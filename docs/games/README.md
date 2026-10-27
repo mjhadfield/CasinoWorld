@@ -94,15 +94,15 @@ up, and turn back when they stand.
   play the next hand, nothing leaves your balance yet, and Undo, Clear and Repeat Bet work on them. When betting
   opens they go on as ordinary bets and start the countdown. If you can no longer cover them, they come back
   with a message.
-- **A second box:** sitting at Three Card Poker, Blackjack, Mississippi Stud, Ultimate Texas Hold'em, Let It Ride
-  or High Card Flush (or a Master Table playing one of them), a free chair right beside you shows a **2nd Box**
+- **A second box:** sitting at Three Card Poker, Blackjack, Fortune or Face Up Pai Gow, Mississippi Stud, Ultimate
+  Texas Hold'em, Let It Ride or High Card Flush (or a Master Table playing one of them), a free chair right beside you shows a **2nd Box**
   pill. Click it and confirm ("Play second box? Your bets will be matched") and you play that seat too. Every bet
   you make is matched on it, so you need enough to cover both; a click on its spots is a bet on yours. It's dealt,
   decided and settled as a hand of its own, with its own result floating off its chair, and the bar asks about
   "Box 1" (your own seat) and then "Box 2". Where everyone decides at once, Box 2's cards stay face down to you
   until Box 1 has decided, and Box 1 decides first on every street. While you play it, a wooden
   **RESERVED** sign hangs on its chair's back for everyone to see. Between hands it also shows **Drop Box** to give the seat back (the sign goes
-  with it); the box also goes when you stand up, and when a Master Table changes game. Not at Pai Gow or Baccarat.
+  with it); the box also goes when you stand up, and when a Master Table changes game. Not at Baccarat.
 
 ## Keys at the tables
 

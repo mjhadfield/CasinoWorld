@@ -267,21 +267,21 @@ func _register(t: FloorGame) -> void:
 		if t == active_table:
 			my_hand = text)
 	if t.has_signal("sort_requested"):  # Pai Gow: your cards open in the sorter, and close once set
-		t.sort_requested.connect(func(cards: Array):
+		t.sort_requested.connect(func(cards: Array, seat: int):
 			if t == active_table:
 				Sfx.play("turn")
 				hud.sorter.look = t.style()
 				hud.sorter.under = t.dealer_cards_bottom
-				hud.sorter.open(cards, t.face_up))
+				hud.sorter.open(cards, t.face_up, seat, t.box_prefix(seat)))
 		t.sort_finished.connect(func():
 			if t == active_table:
 				hud.sorter.close())
-		t.claim_requested.connect(func(cards: Array, bonus):
+		t.claim_requested.connect(func(cards: Array, bonus, seat: int):
 			if t == active_table:
 				Sfx.play("turn")
 				hud.sorter.look = t.style()
 				hud.sorter.under = t.dealer_cards_bottom
-				hud.sorter.open_claim(cards, bonus))
+				hud.sorter.open_claim(cards, bonus, seat, t.box_prefix(seat)))
 
 
 ## Where players appear (the plan's spawn point), else the middle of the first room.

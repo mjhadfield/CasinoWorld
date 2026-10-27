@@ -46,7 +46,11 @@ neither collect Envy nor trigger it.
   bet you **Claim bonus** (**Space**), otherwise you **Fold** (**Backspace**).
 
 ## A second box
-Not offered at either Pai Gow table.
+Offered at both tables (docs/games/README.md has how it's taken and dropped). Both boxes are dealt their own seven
+cards where their seats fall in the deal. Box 2's packet stays face down on the felt until Box 1 is set (or folded,
+or claimed after an Ace-high push); then the sorter opens again for Box 2, its title and the bar saying which box
+you're on. Run out of time on Box 1 and House Way sets both. Each box is settled as its own hand in its seat's
+turn, and each can collect Envy off the other's Four of a Kind or better, as off anyone else's.
 
 ## NPCs
 

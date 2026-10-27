@@ -247,3 +247,76 @@ def test_the_runner_gives_the_box_cards_to_its_player_once_shown():
     assert not any("mine_box" in x.get("event", {}) or "mine" in x.get("event", {}) for x in other.sent)
     snap = runner.snapshot_for(mike)
     assert snap["my_seat"] == 1 and snap["my_box"] == 2 and snap["second_box"] is True
+
+
+# ------------------------------------------------------------------ Pai Gow
+def pg_dealt(cls, hands, **kw):
+    from test_pai_gow_machine import machine as pg_machine
+    m = pg_machine(cls, hands, **kw)
+    mike = with_box(m, seat=0, box=1, bets={"ante": 1_000, "fortune": 500})
+    m.ready(0, 0)
+    m.tick(0)
+    return m, mike
+
+
+PG_NOTHING = ["2c", "4d", "6h", "8s", "10c", "Qd", "Kh"]
+PG_MINE = ["As", "Ad", "Kc", "Kd", "9h", "5s", "3c"]
+PG_BOX = ["Qh", "Qs", "Jc", "Jd", "8h", "4s", "2d"]
+
+
+def test_pai_gow_box_2_is_set_after_box_1_and_both_settle():
+    from casino_server.tables.pai_gow import FortunePaiGowMachine
+    m, mike = pg_dealt(FortunePaiGowMachine, [PG_NOTHING, PG_MINE, PG_BOX])
+    assert m.phase == "setting" and sorted(m.round) == [0, 1] and mike.balance == 100_000 - 3_000
+    snap = m.snapshot(0, 0)
+    assert "cards" in snap["seats"][0]["hand"] and "cards" not in snap["seats"][1]["hand"]
+    with pytest.raises(TableError, match="Box 1 first"):
+        m.set_hand(1, ["Jc", "Jd"], ["Qh", "Qs", "8h", "4s", "2d"], 1)
+    with pytest.raises(TableError):
+        m.suggest(1)   # (no peeking at the House Way for it either)
+    ev = m.set_hand(0, ["Kc", "Kd"], ["As", "Ad", "9h", "5s", "3c"], 1)
+    shown = find(ev, "box_revealed")
+    assert shown and shown[0]["_private"][1] == {"cards": PG_BOX}
+    assert m.suggest(1)["front"] == ["Jc", "Jd"] and m.snapshot(0, 1)["seats"][1]["hand"]["cards"] == PG_BOX
+    ev = m.set_hand(1, ["Jc", "Jd"], ["Qh", "Qs", "8h", "4s", "2d"], 1)
+    for k in range(10):
+        ev += m.tick(1 + k)
+    settles = {e["seat"]: e for e in find(ev, "settle_seat")}
+    assert settles[0]["outcome"] == "win" and settles[1]["outcome"] == "win"
+    assert m.round_net(0) == 950 - 500 and m.round_net(1) == 950 - 500   # (Fortune lost on each)
+    assert mike.balance - 100_000 == m.round_net(0) + m.round_net(1)
+
+
+def test_pai_gow_face_up_box_folds_and_claims_box_1_first():
+    from casino_server.tables.pai_gow import FaceUpPaiGowMachine
+    from test_pai_gow_machine import timings
+    ace_high = ["As", "Kd", "9c", "7h", "5s", "3d", "2c"]
+    trips = ["Qh", "Qd", "Qc", "8s", "4c", "6d", "Js"]
+    m, _ = pg_dealt(FaceUpPaiGowMachine, [ace_high, PG_NOTHING, trips], timings=timings(claim=100.0))
+    assert m.phase == "claiming"
+    with pytest.raises(TableError, match="Box 1 first"):
+        m.claim(1, 1)
+    ev = m.fold(0, 1)
+    assert find(ev, "box_revealed")[0]["_private"][1] == {"cards": trips, "bonus": "Three of a Kind"}
+    m.claim(1, 1)
+    assert m.round[0].folded and m.round[1].claimed
+
+
+def test_pai_gow_box_1_out_of_time_sets_both_by_house_way():
+    from casino_server.tables.pai_gow import FortunePaiGowMachine
+    from test_pai_gow_machine import timings
+    m, _ = pg_dealt(FortunePaiGowMachine, [PG_NOTHING, PG_MINE, PG_BOX], timings=timings(setting=5.0))
+    ev = m.tick(5.0)
+    assert {e["seat"] for e in find(ev, "hand_set") if e.get("auto")} == {0, 1}
+
+
+def test_pai_gow_queries_go_to_the_second_box_by_seat():
+    from casino_server.casino import Casino
+    from casino_server.tables.pai_gow import FortunePaiGowMachine
+    m, _ = pg_dealt(FortunePaiGowMachine, [PG_NOTHING, PG_MINE, PG_BOX])
+
+    class R:
+        machine = m
+    assert Casino._decision_seat(R, 0, {"seat": 1}) == 1 and Casino._decision_seat(R, 0, {}) == 0
+    with pytest.raises(TableError, match="not your box"):
+        Casino._decision_seat(R, 0, {"seat": 3})

@@ -19,16 +19,19 @@ extends CasinoTable
 ## fanned in their column, losers swept, winnings paid. After a Face Up dealer
 ## Ace-high Pai Gow, players claim a side-bet win or fold instead of setting.
 ##
+## With a second box, Box 1 is set (or claimed, or folded) first; Box 2's cards come
+## once it's done (box_revealed) and the sorter opens again for them.
+##
 ## Each seat, top to bottom: the Jackpot disc and the Fortune circle (with an
 ## ENVY button when £5+ is on it), the Ante circle, the upright
 ## LOW box and the sideways HIGH box.
 
-## Your packet has been picked up: open the sorter with these cards.
-signal sort_requested(cards: Array)
+## Your packet (at `seat`: yours, or your second box's) has been picked up: open the sorter with these cards.
+signal sort_requested(cards: Array, seat: int)
 ## Your hand is set (or folded, or claimed): close the sorter.
 signal sort_finished
-## A Face Up dealer Ace-high Pai Gow: claim your side-bet win (`bonus`) or fold.
-signal claim_requested(cards: Array, bonus)
+## A Face Up dealer Ace-high Pai Gow: claim your side-bet win (`bonus`) or fold, for the hand at `seat`.
+signal claim_requested(cards: Array, bonus, seat: int)
 
 const ANTE_Y := -59.5
 const ANTE_R := 9.5
@@ -49,11 +52,13 @@ var _dealer_low: Array = []
 var _dealer_high: Array = []
 var dealer_label := ""
 var setting_seats := {}   # seats still setting
-var my_set := false
+var _done := {}           # your boxes that have set, folded or claimed this hand
 var _results := {}        # seat -> {"front"/"back": [won, shown at]} as settled (the little win/lose marks)
 var _bump_until := 0.0    # a mark is still popping in until then
 var claim_seats := {}     # Face Up Ace-high push: seats still to claim or fold
-var _my_cards: Array = [] # your seven, as dealt
+var _my_cards := {}       # each of your boxes -> its seven, as dealt (a second box's once you're shown them)
+var _my_bonus := {}       # ...and at an Ace-high push, the side-bet win it can claim
+var _ace_high := false    # this hand's dealer has an Ace-high Pai Gow at Face Up: claims, no setting
 
 
 # ------------------------------------------------------------------ layout
@@ -158,7 +163,15 @@ func _dealer_fan_pos(which: String, k: int) -> Vector2:
 
 # ------------------------------------------------------------------ the HUD
 func deciding() -> bool:
-	return in_hand and phase in ["dealing", "setting", "claiming"] and not my_set
+	return in_hand and phase in ["dealing", "setting", "claiming"] and acting_seat() >= 0
+
+
+## Which of your boxes is still to set (or claim), or -1: your own first, then your second box.
+func acting_seat() -> int:
+	for seat in my_seats():
+		if _piles.has(seat) and not _done.has(seat):
+			return seat
+	return -1
 
 
 func seated_view(ctx: Dictionary) -> Dictionary:
@@ -170,14 +183,15 @@ func seated_view(ctx: Dictionary) -> Dictionary:
 		"dealing":
 			info = "Dealing..."
 		"setting":
-			if in_hand and not my_set:
-				info = "Set your hand -- %ds" % left
+			if in_hand and acting_seat() >= 0:
+				info = box_prefix(acting_seat()) + "Set your hand -- %ds" % left
 			else:
 				info = "Waiting for the others to set" if in_hand else "Watching this hand"
 		"dealer":
 			info = "The dealer sets their hand"
 		"claiming":
-			info = ("Ace-high Pai Gow: your Ante pushes -- %ds" % left) if claim_seats.has(my_seat) \
+			var seat := acting_seat()
+			info = (box_prefix(seat) + "Ace-high Pai Gow: your Ante pushes -- %ds" % left) if claim_seats.has(seat) \
 				else "Ace-high Pai Gow: every Ante pushes"
 	return {"info": info, "actions": [], "my_turn": false}
 
@@ -190,17 +204,18 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 	_results.clear()
 	setting_seats.clear()
 	dealer_label = ""
-	my_set = false
+	_done.clear()
+	_my_cards.clear()
+	_my_bonus.clear()
+	_ace_high = false
 	claim_seats.clear()
 	var seats: Array = state.get("seats", [])
-	var my_cards: Array = []
-	var my_bonus = null
 	for i in seats.size():
 		var s = seats[i]
 		if s == null or s.get("hand") == null:
 			continue
 		var hand: Dictionary = s.hand
-		if i == my_seat:
+		if is_mine(i):
 			in_hand = true
 		var pile := _new_pile(i)
 		for k in 7:
@@ -208,33 +223,32 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 		match hand.state:
 			"set":
 				_split_pile(i, 0.0, true)
-				if i == my_seat:
-					my_set = true
+				if is_mine(i):
+					_done[i] = true
 			"folded":
 				_fold_pile(i, 0.0, true)
-				if i == my_seat:
-					my_set = true
+				if is_mine(i):
+					_done[i] = true
 			"claimed":
-				if i == my_seat:
-					my_set = true
+				if is_mine(i):
+					_done[i] = true
 			_:
 				if phase == "claiming":
 					claim_seats[i] = true
 				else:
 					setting_seats[i] = true
-				if i == my_seat:
-					my_cards = hand.get("cards", [])
-					my_bonus = hand.get("bonus")
+				if is_mine(i) and hand.has("cards"):   # (a second box's only once you're shown them)
+					_my_cards[i] = hand.cards
+					_my_bonus[i] = hand.get("bonus")
 	var dealer: Dictionary = state.get("dealer", {})
 	if dealer.get("shown", false):
 		_reveal_dealer(dealer, 0.0, true)
 	elif not dealer.get("cards", []).is_empty():
 		for k in 7:
 			_dealer_cards.append(_new_messy_card(dealer_pile_pos(), k))
-	if not my_cards.is_empty() and phase == "setting":
-		_pick_up(my_cards)
-	elif not my_cards.is_empty() and phase == "claiming":
-		claim_requested.emit(my_cards, my_bonus)
+	_ace_high = phase == "claiming"
+	if phase in ["setting", "claiming"]:
+		_offer_next()
 
 
 func _new_pile(seat: int) -> Dictionary:
@@ -252,7 +266,10 @@ func _cards_on_felt() -> Array:
 # ------------------------------------------------------------------ events -> animation
 func _note_event(ev: Dictionary) -> void:
 	if ev.kind in ["bets_closed", "betting_open"]:
-		my_set = false
+		_done.clear()
+		_my_cards.clear()
+		_my_bonus.clear()
+		_ace_high = false
 		_results.clear()
 		dealer_label = ""
 	if ev.kind == "betting_open":
@@ -275,15 +292,17 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			for seat in ev.seats:
 				claim_seats[int(seat)] = true
 			_start_timer(float(ev.seconds))
-			var mine = ev.get("mine")
-			if mine != null and my_seat >= 0 and _piles.has(my_seat):
-				claim_requested.emit(_my_cards, mine.get("bonus"))
+			for seat in my_seats():
+				var mine = mine_for(ev, seat)
+				if mine is Dictionary:
+					_my_bonus[seat] = mine.get("bonus")
+			_offer_next()
 			return 0.0
 		"claimed":
 			var seat := int(ev.seat)
 			claim_seats.erase(seat)
-			if seat == my_seat:
-				my_set = true
+			if is_mine(seat):
+				_done[seat] = true
 				sort_finished.emit()
 			if not ev.claimed and _piles.has(seat):
 				_fold_pile(seat, d)
@@ -316,7 +335,6 @@ func _deal(ev: Dictionary, d: float) -> float:
 	shuffler.show_number(int(ev.start), 3.0 * d)
 	var interval := float(ev.interval) * d
 	var t := 0.7 * d
-	var mine = ev.get("mine")
 	var unclaimed := []  # hands dealt to empty seats: cleared to the rack once the deal's done
 	for k in ev.order.size():
 		var who = ev.order[k]
@@ -361,24 +379,51 @@ func _deal(ev: Dictionary, d: float) -> float:
 					n += 1)
 		# ...and nothing else happens (the reveal, picking your hand up) till the last is in.
 		total += ((unclaimed.size() - 1) * 0.025 + 0.32 + 0.2) * d
-	if mine != null:
-		_my_cards = mine.cards
+	for seat in my_seats():
+		var cards = mine_for(ev, seat)
+		if cards is Dictionary:
+			_my_cards[seat] = cards.cards
+	_ace_high = ev.get("ace_high", false)
 	if face_up and ev.has("dealer"):  # the dealer's hand is revealed before anyone sets theirs
 		var reveal := ev.dealer as Dictionary
 		_after(total).timeout.connect(func(): _reveal_dealer(reveal, d))
 		total += 3.1 * d
-	if mine != null and my_seat >= 0 and _piles.has(my_seat) and not ev.get("ace_high", false):
-		_after(total).timeout.connect(_pick_up.bind(mine.cards))
+	if not _ace_high:
+		_after(total).timeout.connect(_offer_next)
 	return total + 0.2 * d
 
 
-## You pick your cards up: they leave the felt and open in the sorter.
-func _pick_up(cards: Array) -> void:
-	if not _piles.has(my_seat):
+## The next of your boxes still to decide, if you've its cards: set it in the sorter, or (Ace-high push)
+## claim or fold it. Box 1 first; Box 2 once you've been shown its cards.
+func _offer_next() -> void:
+	var seat := acting_seat()
+	if seat < 0 or not _my_cards.has(seat):
 		return
-	for card in _piles[my_seat].all:
+	if phase == "claiming":
+		if claim_seats.has(seat):
+			claim_requested.emit(_my_cards[seat], _my_bonus.get(seat), seat)
+	elif phase in ["dealing", "setting"] and not _ace_high:
+		_pick_up(seat)
+
+
+## You pick your cards up: they leave the felt and open in the sorter.
+func _pick_up(seat: int) -> void:
+	if not _piles.has(seat):
+		return
+	for card in _piles[seat].all:
 		card.visible = false
-	sort_requested.emit(cards)
+	sort_requested.emit(_my_cards[seat], seat)
+
+
+## Your second box's cards, shown to you now Box 1's done: the sorter opens for it.
+func _reveal_box(seat: int, mine, d: float) -> float:
+	if not mine is Dictionary or not mine.has("cards") or _done.has(seat):   # (set by House Way already: out of time)
+		return 0.0
+	_my_cards[seat] = mine.cards
+	if mine.has("bonus"):
+		_my_bonus[seat] = mine.bonus
+	_offer_next()
+	return 0.2 * d
 
 
 ## The dealer's hand is revealed: all seven turned over in the order they were
@@ -459,16 +504,16 @@ func _hand_set(ev: Dictionary, d: float) -> float:
 	setting_seats.erase(seat)
 	if not _piles.has(seat):
 		return 0.0
-	if seat == my_seat:
-		my_set = true
+	if is_mine(seat):
+		_done[seat] = true
 		for card in _piles[seat].all:  # back down on the felt
 			card.visible = true
 		sort_finished.emit()
-		var mine = ev.get("mine")
-		if mine != null:
-			my_hand_changed.emit("Low: %s  ·  High: %s" % [mine.front_label, mine.back_label])
+		var mine = mine_for(ev, seat)
+		if mine is Dictionary:
+			_show_hand(seat, "Low: %s  ·  High: %s" % [mine.front_label, mine.back_label])
 		elif ev.folded:
-			my_hand_changed.emit("Folded")
+			_show_hand(seat, "Folded")
 	if ev.folded:
 		_fold_pile(seat, d)
 	else:

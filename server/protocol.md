@@ -59,11 +59,11 @@ body on the floor, isn't sent the casino's goings-on, and everything else it sen
 | `decide` | `play` (bool) | Three Card Poker: Play (matches the Ante) or Fold. |
 | `insure` | `take` (bool) | Blackjack, while insurance is open: insure for half your bet, or decline. |
 | `act` | `action` | Blackjack, on your turn: `hit`, `stand`, `double` or `split` (only what the `turn` event offered). |
-| `set_hand` | `front` [2 codes], `back` [5 codes] | Pai Gow, while setting: your Low and High hands. A foul (High not beating Low) is refused. |
+| `set_hand` | `front` [2 codes], `back` [5 codes], `seat`? | Pai Gow, while setting: your Low and High hands (`seat`: your second box's). A foul (High not beating Low) is refused. |
 | `fold` | | Face Up Pai Gow, while setting: muck your cards unseen and lose every bet (Ante, Fortune and Jackpot); `cards` in your `settle_seat` is empty. While claiming after a dealer Ace-high Pai Gow: muck your cards unseen (the Ante still pushes). |
 | `claim` | | Face Up Pai Gow, while claiming: show your cards to collect a side-bet win. |
-| `pg_suggest` | | Pai Gow: the House Way split of your own cards. The reply `pg_suggest` {`front`, `back`, `front_label`, `back_label`} goes only to you. |
-| `pg_check` | `front`, `back` | Pai Gow: name a proposed split and say if it fouls. The reply `pg_check` {`front`, `back`, `front_label`, `back_label`, `foul`} goes only to you. |
+| `pg_suggest` | `seat`? | Pai Gow: the House Way split of your own cards (`seat`: your second box's, once shown). The reply `pg_suggest` {`seat`, `front`, `back`, `front_label`, `back_label`} goes only to you. |
+| `pg_check` | `front`, `back`, `seat`? | Pai Gow: name a proposed split and say if it fouls. The reply `pg_check` {`seat`, `front`, `back`, `front_label`, `back_label`, `foul`} goes only to you. |
 | `atm_open` | | The lobby's ATM (bank.py): its screen's state. Only on foot, standing at an ATM (within 64px of its base, by your last `move`); otherwise an `error`. The reply is `atm`. |
 | `atm_withdraw` | `amount` | Take `amount` pence from your bank into your cash in hand. It must be whole £50 notes, within the withdrawal limit (`cap`), while you hold less than the limit on hand and, when overdrawn, not within the wait since your last withdrawal (`atm`'s fields). The reply is `wallet` and then `atm` with `done`, or `atm` with the `error` its screen shows. Same place rules as `atm_open`. |
 | `atm_deposit` | `amount` | Pay `amount` pence of your cash in hand into your bank (any amount you hold). Replies as `atm_withdraw`. |
@@ -334,15 +334,16 @@ While it changes, `phase` is `changing` and every bet is refused.
 |---|---|---|
 | `dealer_change` | `dealer` {`id`, `name`, `look`} | A fresh dealer relieves the last one. Shifts are set on the admin page, and a relief only happens while the table is taking bets. |
 
-### Every card table but Pai Gow and Baccarat: a second box
+### Every card table but Baccarat: a second box
 A seated player can also play the free seat right beside them as a second box: Three Card Poker, Blackjack,
-Mississippi Stud, Ultimate Texas Hold'em, Let It Ride and High Card Flush, and a Master Table while it's one of
+Fortune and Face Up Pai Gow, Mississippi Stud, Ultimate Texas Hold'em, Let It Ride and High Card Flush, and a Master Table while it's one of
 those. The box is a seat of its own, dealt, decided and settled like any other, with its own `round_net`, but its
 money is its player's: every bet they make is matched on it (`bet`, `clear_bets`, `rebet`, Auto rebet, `ready`,
 queued bets), and a bet they can't cover on both boxes is refused. Its seat entry in snapshots carries `box_of`
 (the player's own seat); nobody's avatar sits there.
 
-Decisions for the box are the usual messages (`decide`, `act`, `insure`) with `seat` set to the box's seat. In the
+Decisions for the box are the usual messages (`decide`, `act`, `insure`, and Pai Gow's `set_hand`, `fold`, `claim`,
+`pg_suggest`, `pg_check`) with `seat` set to the box's seat. In the
 games where everyone decides at once, its cards stay hidden from its player until their own hand has decided, and on
 every street or stage their own hand decides first ("Decide Box 1 first."). Blackjack's cards are face up and its
 turns go seat by seat, so nothing waits there.
@@ -351,7 +352,7 @@ turns go seat by seat, so nothing waits there.
 |---|---|---|
 | `box_taken` | `seat`, `of`, `entity`, `name` | The player in seat `of` is playing `seat` as a second box. Their bets follow at once as `bet_changed` for it. |
 | `box_dropped` | `seat`, `of`, `reason` | The box is given back: `dropped`, `stood` (they stood up, or were stood up), or `game_change` (a Master Table changing game). Standing up mid-hand treats the box as the seat itself would be. |
-| `box_revealed` | `seat`, `of`, `mine_box` | The player's own hand has decided: the box's private cards, as `dealt` gave them for a seat of your own (`cards`, `hand`, and at High Card Flush `flush`, `max_raise`). |
+| `box_revealed` | `seat`, `of`, `mine_box` | The player's own hand has decided: the box's private cards, as `dealt` gave them for a seat of your own (`cards`, `hand`, and at High Card Flush `flush`, `max_raise`; at Pai Gow `cards`, plus `bonus` while claiming). |
 
 Any event with private parts carries `mine_box` alongside `mine` for the player's second box, once it's been shown.
 

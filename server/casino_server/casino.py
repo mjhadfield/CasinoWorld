@@ -33,7 +33,7 @@ from casino_server.world import Entity, World
 LOOK_STEP = 64   # walked this far, a player's tables in view are worked out again (Casino.look)
 
 PLAYER_LOOK = "player_default"   # a character with no look of its own (one from before characters)
-DECISIONS = {"decide", "insure", "act", "fold", "claim"}   # table messages a player can send for their second box (`seat`)
+DECISIONS = {"decide", "insure", "act", "fold", "claim", "set_hand"}   # table messages a player can send for their second box (`seat`)
 MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackjack": blackjack.BlackjackMachine,
             "pai_gow_fortune": pai_gow.FortunePaiGowMachine, "pai_gow_face_up": pai_gow.FaceUpPaiGowMachine,
             "mississippi_stud": mississippi_stud.MississippiStudMachine,
@@ -459,14 +459,8 @@ class Casino:
             return session.error("Sit at a table first.")
         runner, seat, kind = self.tables[session.table], session.seat, msg["type"]
         try:
-            if kind in DECISIONS and msg.get("seat") is not None:   # a decision for their second box
-                try:
-                    box = int(msg["seat"])
-                except (TypeError, ValueError):
-                    raise TableError("There's no such seat.")
-                if box != seat and runner.machine.seats[seat].box != box:
-                    raise TableError("That's not your box.")
-                seat = box
+            if kind in DECISIONS:
+                seat = self._decision_seat(runner, seat, msg)
             if kind == "second_box":
                 try:
                     box = int(msg.get("seat"))
@@ -543,24 +537,39 @@ class Casino:
         except TableError as e:
             session.error(str(e))
 
+    @staticmethod
+    def _decision_seat(runner, seat: int, msg: dict) -> int:
+        """The seat a decision is for: the player's own, or their second box's when `seat` names it."""
+        if msg.get("seat") is None:
+            return seat
+        try:
+            box = int(msg["seat"])
+        except (TypeError, ValueError):
+            raise TableError("There's no such seat.")
+        if box != seat and runner.machine.seats[seat].box != box:
+            raise TableError("That's not your box.")
+        return box
+
     def _pai_gow_query(self, session: Session, msg: dict):
         """The Pai Gow sorter asking about your own cards: the House Way split
         (pg_suggest), or what a split makes and whether it fouls (pg_check).
         Answers go only to you; nothing changes at the table."""
         if session.table is None:
             return session.error("Sit at a table first.")
-        machine = self.tables[session.table].machine
+        runner = self.tables[session.table]
+        machine = runner.machine
         if not hasattr(machine, "suggest"):
             return session.error("That's for Pai Gow tables.")
         try:
+            seat = self._decision_seat(runner, session.seat, msg)   # (`seat`: about their second box's cards)
             if msg["type"] == "pg_suggest":
-                answer = machine.suggest(session.seat)
+                answer = machine.suggest(seat)
             else:
-                answer = machine.check(session.seat, [str(c) for c in msg.get("front") or []],
+                answer = machine.check(seat, [str(c) for c in msg.get("front") or []],
                                        [str(c) for c in msg.get("back") or []])
         except TableError as e:
             return session.error(str(e))
-        session.push({"type": msg["type"], "table": session.table, **answer})
+        session.push({"type": msg["type"], "table": session.table, "seat": seat, **answer})
 
     def _atm(self, session: Session, msg: dict):
         """The lobby's ATM (bank.py): atm_open for its screen, atm_withdraw / atm_deposit {amount} to use it. On foot

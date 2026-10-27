@@ -18,6 +18,9 @@ extends PanelContainer
 ## your seven cards with one button -- Claim bonus if they win a side bet,
 ## otherwise Fold (open_claim).
 ##
+## Playing a second box, it opens for Box 1 and then again for Box 2: every
+## message it sends names the seat it's setting (`seat`), and its title says which box.
+##
 ## Built from UiKit, like the HUD's other popups.
 
 const CARD_SIZE := Vector2(66, 94)
@@ -30,6 +33,7 @@ var _face_up := false
 var look := {}            # the table's style, for the cards' fronts (Card2D.paint)
 var under := Callable()   # the screen y of the dealer's cards' bottom edge (the table's dealer_cards_bottom)
 var _sent := false
+var _seat := -1           # the seat whose hand this is (yours, or your second box's)
 var _claim_mode := false
 var _bonus = null         # claim mode: the side-bet hand you can claim, or null
 var _title: Label
@@ -64,19 +68,19 @@ func _ready() -> void:
 	_sort_button = _button(buttons, "Sort", "S", "quiet")
 	_sort_button.pressed.connect(_sort_rows)
 	_house_button = _button(buttons, "House Way", "H", "quiet")
-	_house_button.pressed.connect(func(): Net.send("pg_suggest"))
+	_house_button.pressed.connect(func(): _send("pg_suggest"))
 	_set_button = _button(buttons, "Set hand", "Space", "primary")
 	_set_button.pressed.connect(_submit)
 	_fold_button = _button(buttons, "Fold", "", "fold")
 	_fold_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
-			Net.send("fold"))
+			_send("fold"))
 	_claim_button = _button(buttons, "Claim bonus", "Space", "primary")
 	_claim_button.pressed.connect(func():
 		if not _sent:
 			_sent = true
-			Net.send("claim"))
+			_send("claim"))
 
 
 func _row_label(parent: Control) -> Label:
@@ -101,7 +105,9 @@ func _button(parent: Control, words: String, key: String, kind: String) -> Betti
 
 
 # ------------------------------------------------------------------ open / close
-func open(cards: Array, face_up: bool) -> void:
+## `seat` is whose hand it is; `prefix` is "Box 1: " / "Box 2: " with a second box, else "".
+func open(cards: Array, face_up: bool, seat := -1, prefix := "") -> void:
+	_seat = seat
 	_order = cards.duplicate()
 	_order.shuffle()  # as you'd pick them up: in no particular order
 	_low = []
@@ -109,7 +115,7 @@ func open(cards: Array, face_up: bool) -> void:
 	_face_up = face_up
 	_sent = false
 	_claim_mode = false
-	_title.text = "Set your hand: two cards Low, five High"
+	_title.text = prefix + "Set your hand: two cards Low, five High"
 	for b in [_sort_button, _house_button, _set_button]:
 		b.visible = true
 	_fold_button.setup("Fold", "", "fold")
@@ -123,14 +129,15 @@ func open(cards: Array, face_up: bool) -> void:
 
 ## After a Face Up dealer Ace-high Pai Gow: your seven cards, and one button --
 ## Claim bonus (it shows them and the side bet's paid) or Fold.
-func open_claim(cards: Array, bonus) -> void:
+func open_claim(cards: Array, bonus, seat := -1, prefix := "") -> void:
+	_seat = seat
 	_order = cards.duplicate()
 	_claim_mode = true
 	_bonus = bonus
 	_sent = false
 	_low = []
 	_high = _sorted(cards)
-	_title.text = "Dealer has an Ace-high Pai Gow -- every Ante pushes"
+	_title.text = prefix + "Dealer has an Ace-high Pai Gow -- every Ante pushes"
 	for b in [_sort_button, _house_button, _set_button]:
 		b.visible = false
 	_claim_button.visible = bonus != null
@@ -180,7 +187,7 @@ func is_open() -> bool:
 
 # ------------------------------------------------------------------ the server's answers
 func on_suggest(msg: Dictionary) -> void:
-	if not visible or _claim_mode:
+	if not visible or _claim_mode or not _about_this_hand(msg):
 		return
 	_low = _sorted(msg.front)
 	_high = _sorted(msg.back)
@@ -188,12 +195,24 @@ func on_suggest(msg: Dictionary) -> void:
 
 
 func on_check(msg: Dictionary) -> void:
-	if not visible or _claim_mode or msg.front != _low or msg.back != _high:
+	if not visible or _claim_mode or not _about_this_hand(msg) or msg.front != _low or msg.back != _high:
 		return  # an answer about a split that's since changed
 	_low_label.text = "LOW" + ("  ·  " + msg.front_label if msg.front_label != "" else "")
 	_high_label.text = "HIGH" + ("  ·  " + msg.back_label if msg.back_label != "" else "")
 	_warning.text = "Foul: your High hand has to beat your Low hand." if msg.foul else ""
 	_set_button.disabled = msg.foul or _sent
+
+
+## Whether a pg_suggest / pg_check answer is about the hand open now (not the other box's).
+func _about_this_hand(msg: Dictionary) -> bool:
+	return _seat < 0 or msg.get("seat") == null or int(msg.seat) == _seat
+
+
+## Sends a message about this hand, naming its seat.
+func _send(kind: String, body: Dictionary = {}) -> void:
+	if _seat >= 0:
+		body["seat"] = _seat
+	Net.send(kind, body)
 
 
 # ------------------------------------------------------------------ sorting
@@ -233,7 +252,7 @@ func _refresh() -> void:
 	_warning.text = ""
 	_set_button.disabled = not ready or _sent
 	if not _low.is_empty():
-		Net.send("pg_check", {"front": _low, "back": _high})
+		_send("pg_check", {"front": _low, "back": _high})
 
 
 ## Where each card is on screen right now (mid-slide included).
@@ -285,7 +304,7 @@ func _submit() -> void:
 		return
 	_sent = true
 	_set_button.disabled = true
-	Net.send("set_hand", {"front": _low, "back": _high})
+	_send("set_hand", {"front": _low, "back": _high})
 
 
 func _sorted(codes: Array) -> Array:
@@ -314,7 +333,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_sort_rows()
 		get_viewport().set_input_as_handled()
 	elif event.keycode == KEY_H and not _sent:
-		Net.send("pg_suggest")
+		_send("pg_suggest")
 		get_viewport().set_input_as_handled()
 	elif event.keycode >= KEY_1 and event.keycode <= KEY_7:
 		var i: int = event.keycode - KEY_1
