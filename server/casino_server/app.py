@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.casino import Casino
 from casino_server.session import Session
-from casino_server import bank, plan, plan_assets, slot_builds, slot_design_art
+from casino_server import bank, casinos, plan, plan_assets, slot_builds, slot_design_art
 from casino_server.slot_art import SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -72,8 +72,10 @@ async def lifespan(app: FastAPI):
     if built:
         print("built slots: " + ", ".join(built))
     library = plan_assets.AssetLibrary(data_dir)   # (first: the plan's checks know the furniture)
-    plan_board = plan.PlanBoard(data_dir, builds_dir)
     store = Store(data_dir / "casino.sqlite")
+    registry = casinos.migrate(data_dir, store)
+    boards = {c["id"]: plan.PlanBoard(casinos.casino_dir(data_dir, c["id"]), builds_dir) for c in registry}
+    plan_board = boards[casinos.DEMO]
     for p in store.players():
         if p["stored_as"] != "integer":
             print(f"WARNING: {p['name']}'s balance is {p['balance']!r}, which isn't a number of pence; "
@@ -89,7 +91,7 @@ async def lifespan(app: FastAPI):
     app.state.casino = casino
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
-    app.state.plan = plan_board
+    app.state.boards = boards
     app.state.plan_assets = library
     plan_board.on_draft = lambda _draft: casino.preview_changed()
     plan_board.on_publish = casino.broadcast_world
@@ -461,40 +463,48 @@ def _plan_call(fn, *args):
         raise HTTPException(400, str(e))
 
 
+# Each takes ?casino=<id> (the default: Demo): every casino has its own plan.
+def _board(request: Request, casino: str) -> plan.PlanBoard:
+    board = request.app.state.boards.get(casino)
+    if board is None:
+        raise HTTPException(404, f"There's no casino {casino!r}.")
+    return board
+
+
 @app.get("/api/plan")
-async def plan_view(request: Request):
-    return _plan_call(request.app.state.plan.view)
+async def plan_view(request: Request, casino: str = casinos.DEMO):
+    return _plan_call(_board(request, casino).view)
 
 
 @app.get("/api/plan/catalogue")
-async def plan_catalogue(request: Request):
-    return _plan_call(plan.catalogue, request.app.state.plan.builds_dir)
+async def plan_catalogue(request: Request, casino: str = casinos.DEMO):
+    return _plan_call(plan.catalogue, _board(request, casino).builds_dir)
 
 
 @app.put("/api/plan/draft")
-async def plan_save(request: Request):
+async def plan_save(request: Request, casino: str = casinos.DEMO):
     body = await _json_body(request, "{rooms: [...], spawn, base_rev}")
-    return _plan_call(request.app.state.plan.save, body, body.get("base_rev"))
+    return _plan_call(_board(request, casino).save, body, body.get("base_rev"))
 
 
 @app.post("/api/plan/publish")
-async def plan_publish(request: Request):
-    return _plan_call(request.app.state.plan.publish)
+async def plan_publish(request: Request, casino: str = casinos.DEMO):
+    return _plan_call(_board(request, casino).publish)
 
 
 @app.post("/api/plan/discard")
-async def plan_discard(request: Request):
-    return _plan_call(request.app.state.plan.discard)
+async def plan_discard(request: Request, casino: str = casinos.DEMO):
+    return _plan_call(_board(request, casino).discard)
 
 
 @app.get("/api/plan/history")
-async def plan_history(request: Request):
-    return _plan_call(request.app.state.plan.history)
+async def plan_history(request: Request, casino: str = casinos.DEMO):
+    return _plan_call(_board(request, casino).history)
 
 
 @app.post("/api/plan/rollback/{hid}")
-async def plan_rollback(request: Request, hid: str):
-    return _plan_call(request.app.state.plan.rollback, hid)
+async def plan_rollback(request: Request, hid: str, casino: str = casinos.DEMO):
+    return _plan_call(_board(request, casino).rollback, hid)
 
 
 # ------------------------------------------------------------------ the floor plan's asset library (plan_assets.py)
@@ -546,8 +556,9 @@ async def plan_asset_update(aid: str, request: Request):
 
 @app.delete("/api/plan-assets/{aid}")
 async def plan_asset_delete(aid: str, request: Request):
-    board = request.app.state.plan
-    plans = [board.draft(), plan.load_live(board.data_dir)] + [plan._read(p) or {"rooms": []} for p in sorted((board.dir / "history").glob("*.json"))[-3:]]
+    plans = [p for board in request.app.state.boards.values()   # (every casino's)
+             for p in [board.draft(), plan.load_live(board.data_dir)]
+             + [plan._read(h) or {"rooms": []} for h in sorted((board.dir / "history").glob("*.json"))[-3:]]]
     _asset_call(request, request.app.state.plan_assets.delete, aid, plans)
     return {"deleted": aid}
 
@@ -1276,9 +1287,9 @@ async def bank_settings_put(request: Request):
 # ------------------------------------------------------------------ seating
 def _seating_changed(request: Request) -> dict:
     """Every client redraws its chairs from the new styles."""
-    current = seating.load(request.app.state.casino.store)
-    request.app.state.casino.broadcast_all({"type": "seating", "seating": current})
-    return current
+    casino = request.app.state.casino
+    casino.broadcast_all({"type": "seating", "seating": casino.seating_view()})
+    return seating.load(casino.store)
 
 
 @app.get("/api/seating")
@@ -1319,9 +1330,9 @@ async def seating_tables_put(request: Request):
 # ------------------------------------------------------------------ table styles
 def _table_styles_changed(request: Request, kind: str) -> dict:
     """Every client restyles its tables; the admin page gets the kind it changed back."""
-    store, every = request.app.state.casino.store, request.app.state.plan.every_table()
-    request.app.state.casino.broadcast_all({"type": "table_styles", "table_styles": table_styles.load_all(store, every)})
-    return table_styles.load(store, kind, every)
+    casino = request.app.state.casino
+    casino.broadcast_all({"type": "table_styles", "table_styles": casino.styles_view()})
+    return table_styles.load(casino.store, kind, casinos.every_table(request.app.state.boards))
 
 
 def _style_kind(kind: str) -> str:
@@ -1334,7 +1345,7 @@ def _style_kind(kind: str) -> str:
 @app.get("/api/table-styles")
 async def table_styles_get(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
-    every = request.app.state.plan.every_table()
+    every = casinos.every_table(request.app.state.boards)
     return JSONResponse({**table_styles.load(request.app.state.casino.store, kind, every), "kind": kind,
                          "games": table_styles.styled_tables(every, kind), "choices": table_styles.KINDS[kind]["choices"]},
                         headers=NO_STORE)
@@ -1366,7 +1377,7 @@ async def table_style_delete(style_id: str, request: Request, kind: str = "cards
 async def table_styles_tables_put(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     try:
-        table_styles.assign(request.app.state.casino.store, await _body(request), request.app.state.plan.every_table(), kind)
+        table_styles.assign(request.app.state.casino.store, await _body(request), casinos.every_table(request.app.state.boards), kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _table_styles_changed(request, kind)

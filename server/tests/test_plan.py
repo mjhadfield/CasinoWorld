@@ -6,11 +6,11 @@ import random
 
 import pytest
 
-from casino_server import plan, table_styles
+from casino_server import casinos, plan, table_styles
 from casino_server.casino import Casino
 from casino_server.store import Store
 
-from conftest import classic_floor
+from conftest import classic_floor, demo_plan_dir
 from tests.conftest import CLASSIC_PLAN, enter, recv_until
 
 
@@ -365,7 +365,7 @@ def test_save_publish_and_roll_back(client, tmp_path):
         assert r.status_code == 200 and not r.json()["restart"] and r.json()["message"] == "Published: the floor has changed."
         world = recv_until(ws, "world")["world"]
         assert [i["x"] for i in room(world, "classic_floor")["items"] if i["id"] == "tcp_1"] == [310]
-    assert json.loads((plan.plan_dir(tmp_path) / "live.json").read_text())["rooms"][0]["items"][0]["x"] == 310
+    assert json.loads((demo_plan_dir(tmp_path) / "live.json").read_text())["rooms"][0]["items"][0]["x"] == 310
     # adding a table does: a test instance says so instead
     draft = client.get("/api/plan").json()["draft"]
     room(draft, "classic_floor")["items"].append({"asset": "table:baccarat", "x": 1500, "y": 1040})
@@ -439,8 +439,9 @@ def test_npcs_wander_to_one_point_and_walk_as_far_as_the_doors_take_them(tmp_pat
 
 
 def test_a_tables_style_outlives_its_room_leaving_the_floor(client):
-    store, board = client.app.state.casino.store, client.app.state.plan
-    table_styles.assign(store, {"tables": {"tcp_1": "grand"}}, board.every_table())
+    store, boards = client.app.state.casino.store, client.app.state.boards
+    board = boards["demo"]
+    table_styles.assign(store, {"tables": {"demo/tcp_1": "grand"}}, casinos.every_table(boards))
     draft = client.get("/api/plan").json()["draft"]
     for r in draft["rooms"]:
         r["placed"] = r["id"] == "classic_pit"
@@ -449,5 +450,5 @@ def test_a_tables_style_outlives_its_room_leaving_the_floor(client):
     client.put("/api/plan/draft", json=draft)
     board.floor = plan.install(client.get("/api/plan").json()["draft"])   # (as a restart would)
     assert "tcp_1" not in board.floor.tables
-    table_styles.assign(store, {"tables": {"bj_2": "monte"}}, board.every_table())   # saving another table's style...
-    assert table_styles.load(store, every=board.every_table())["tables"] == {"tcp_1": "grand", "bj_2": "monte"}   # ...keeps tcp_1's
+    table_styles.assign(store, {"tables": {"demo/bj_2": "monte"}}, casinos.every_table(boards))   # saving another table's style...
+    assert table_styles.load(store, every=casinos.every_table(boards))["tables"] == {"demo/tcp_1": "grand", "demo/bj_2": "monte"}   # ...keeps tcp_1's

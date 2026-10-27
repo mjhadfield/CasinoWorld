@@ -150,7 +150,8 @@ A Godot 4.7 project exported to the web.
   five-royal variant with a shared bonus scatter spin for spin).
 - **Built slots** (`slot_builds.py`) join at startup, before the casino is made: their variants, their sound sets
   (`sounds.refresh_sets` rebuilds the sets in place), and their art and fonts in the art manifest.
-- **The floor plan** (`plan.py`, `<data>/plan/`) is the casino's layout as data: rooms side by side on one plan,
+- **The floor plan** (`plan.py`, `<data>/casinos/<id>/plan/`: each casino in `casinos.py`'s registry has its own, and a
+  `PlanBoard`) is a casino's layout as data: rooms side by side on one plan,
   each with its walls, floor, doors and archways, the tables, slot cabinets and pieces placed in it, and the NPCs'
   points (spawn, arrival, wander, with weights and linger times) and no-go zones. The admin page's Floor plan tab
   edits a draft (`draft.json`); publishing copies it to `live.json` (the last 20 publishes kept in `history/`).
@@ -166,7 +167,9 @@ A Godot 4.7 project exported to the web.
   measured from the client's scenes by `tools/plan_catalogue.gd`. The first run seeds the lobby (live) and the
   classic floor and pit (`plan_classic.json`, the old hand-built floor) as unplaced blueprints. The welcome sends
   the placed rooms (`plan.world`), and a preview (`join` with `preview`) gets the draft's instead. Settings kept by
-  table id (table styles) count every table in the plan, placed or not, and the sound sets cover every game, so
+  table id (table styles, seating, an NPC's `avoid_table`) are kept by qualified id, `<casino>/<table>` (each plan
+  has its own id serials), and each casino sends its own slice by plain id; they count every table in the plan,
+  placed or not, and the sound sets cover every game, so
   taking a room off the floor loses neither.
 - **The asset library** (`plan_assets.py`) is the furniture, decor, rugs and floor textures rooms can use: the
   built-ins in `server/plan_assets/` (cut from LPC packs by `tools/build_plan_assets.py`) and uploads in

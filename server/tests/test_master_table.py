@@ -14,7 +14,7 @@ from casino_server.tables import master
 from casino_server.tables.base import TableError
 from casino_server.tables.master import MasterMachine, remap
 
-from conftest import CLASSIC_PLAN, enter, recv_until
+from conftest import CLASSIC_PLAN, demo_plan_dir, enter, recv_until
 from test_machine import FakeJackpot, FakeParticipant
 
 
@@ -257,7 +257,7 @@ def master_client(tmp_path, monkeypatch):
     room["items"].append({"id": "mt_1", "asset": "table:master_table", "x": 950, "y": 1040, "props": {"anim": "cloth", "speed": 2.0}})
     p["next"] = {**p.get("next", {}), "mt": 2}
     for name in ("live.json", "draft.json"):
-        plan._write(plan.plan_dir(tmp_path) / name, p)
+        plan._write(demo_plan_dir(tmp_path) / name, p)
     monkeypatch.setenv("CASINO_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CASINO_DESIGNS_DIR", str(tmp_path / "slot_designs"))
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))

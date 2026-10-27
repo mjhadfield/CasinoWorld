@@ -12,7 +12,7 @@ import sys
 import time
 from datetime import datetime
 
-from casino_server import PROTOCOL_VERSION, art, bank, plan, seating, table_styles
+from casino_server import PROTOCOL_VERSION, art, bank, casinos, plan, seating, table_styles
 from casino_server.floor import Floor
 from casino_server.jackpot import Jackpot
 from casino_server import roster
@@ -48,7 +48,9 @@ MACHINES = {"three_card_poker": three_card_poker.ThreeCardPokerMachine, "blackja
 class Casino:
     def __init__(self, store: Store, floor: Floor, jackpot: Jackpot | None = None, speed: float | None = None,
                  npc_population: int | None = 6, npc_pace: float = 1.0, deck_factory=None, rng=None,
-                 clock=time.monotonic, wall=time.time, looks=None, board: plan.PlanBoard | None = None):
+                 clock=time.monotonic, wall=time.time, looks=None, board: plan.PlanBoard | None = None,
+                 casino_id: str = casinos.DEMO):
+        self.id = casino_id
         self.store = store
         self.floor = floor
         self.board = board            # its floor plan (previews, and the tables its styles may name); None: no previews
@@ -173,8 +175,20 @@ class Casino:
         return plan.preview_world(self.board.draft(), room_id)
 
     def every_table(self) -> dict | None:
-        """The tables its settings may name (PlanBoard.every_table), or None without a board."""
-        return self.board.every_table() if self.board is not None else None
+        """The tables its settings may name (PlanBoard.every_table) by qualified id, or None without a board."""
+        if self.board is None:
+            return None
+        return {casinos.qualify(self.id, k): v for k, v in self.board.every_table().items()}
+
+    def seating_view(self) -> dict:
+        """The seating styles, with this casino's tables' placements by plain table id (as clients look them up)."""
+        s = seating.load(self.store)
+        return {**s, "tables": casinos.own(s["tables"], self.id)}
+
+    def styles_view(self) -> dict:
+        """Every kind's table styles, with this casino's tables' placements by plain table id."""
+        return {kind: {**v, "tables": casinos.own(v["tables"], self.id)}
+                for kind, v in table_styles.load_all(self.store, self.every_table()).items()}
 
     def preview_changed(self):
         """The draft was saved: every preview shows it again."""
@@ -469,8 +483,7 @@ class Casino:
             world = plan.world(self.floor.plan)
         session.push({"type": "welcome", "player": {"id": player.id, "name": player.name, "difficulty": player.difficulty},
                       "entity_id": session.entity_id, "look": self._look_of(player), "world": world,
-                      "preview": session.preview, "seating": seating.load(self.store),
-                      "table_styles": table_styles.load_all(self.store, self.every_table())})
+                      "preview": session.preview, "seating": self.seating_view(), "table_styles": self.styles_view()})
 
     def _resync(self, session: Session):
         """The client's tab is visible again: it has dropped everything it buffered while

@@ -43,7 +43,7 @@ import random
 import time
 from dataclasses import dataclass, field
 
-from casino_server import floor, npc_slips, plan, roster
+from casino_server import casinos, floor, npc_slips, plan, roster
 from casino_server.engines import baccarat as bac
 from casino_server.engines import blackjack as bj
 from casino_server.engines import craps as cr
@@ -342,7 +342,7 @@ class NpcDirector:
             score = 0
             if game in prof.favourite_games or (prof.card_counter and game == bj.GAME_KEY):
                 score -= 2
-            if prof.superstitious and table_id == prof.avoid_table:
+            if prof.superstitious and casinos.qualify(self.casino.id, table_id) == prof.avoid_table:
                 score += 5
             if game == cr.GAME_KEY and self.npcs_at(table_id) < MIN_CRAPS_NPCS:
                 score -= 10   # the craps table wants a couple of NPCs at it
@@ -390,7 +390,7 @@ class NpcDirector:
         if reason == "bust" and npc.prof.superstitious and npc.table:
             rec = self.casino.store.npc(npc.npc_id)
             if rec:
-                self.casino.store.update_npc(npc.npc_id, {"settings": {**rec["settings"], "avoid_table": npc.table}})
+                self.casino.store.update_npc(npc.npc_id, {"settings": {**rec["settings"], "avoid_table": casinos.qualify(self.casino.id, npc.table)}})
         self.casino.store.record_npc_visit(npc.npc_id, {
             "arrived": npc.arrived, "left_at": now, "budget": npc.prof.budget, "end_bankroll": npc.bankroll,
             "wagered": npc.wagered, "returned": npc.returned, "rounds": npc.rounds, "games": npc.games,

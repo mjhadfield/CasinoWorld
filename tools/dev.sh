@@ -12,7 +12,7 @@
 #   tools/dev.sh port                  print this checkout's HTTP port (HTTPS is port + 1)
 #   tools/dev.sh server [--live-data] [--classic]
 #                                      run it (foreground; log in .dev/server.log); CASINO_WEB_DIR=dir serves that
-#                                      export; --classic puts the classic floor and pit live (else the plan in .dev/data:
+#                                      export; --classic puts the classic floor and pit live as Demo's plan (else the plans in .dev/data:
 #                                      first time, just the lobby)
 #   tools/dev.sh list                  every checkout's port, and whether it is running
 #
@@ -106,10 +106,11 @@ server() {
         echo "dev.sh: no build/web here, so serving the main checkout's client; run 'tools/dev.sh export' to test client changes"
     fi
     mkdir -p "$DEV/data"
-    if [[ -n "$classic" ]]; then   # the classic floor and pit, placed and live (the tests' floor), over any plan here
-        mkdir -p "$DEV/data/plan"
-        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$DEV/data/plan/live.json"
-        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$DEV/data/plan/draft.json"
+    if [[ -n "$classic" ]]; then   # the classic floor and pit, placed and live (the tests' floor), as Demo's plan
+        local demo="$DEV/data/casinos/demo/plan"
+        mkdir -p "$demo"
+        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$demo/live.json"
+        cp "$ROOT/server/tests/fixtures/plan_classic.json" "$demo/draft.json"
     fi
     # The Slot design board writes into its design folders, so the dev instance works on its own copy.
     [[ -d "$DEV/slot_designs" ]] || cp -a --reflink=auto "$ROOT/server/slot_designs" "$DEV/slot_designs"

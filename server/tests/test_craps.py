@@ -677,7 +677,7 @@ def test_npcs_play_craps_and_only_leave_when_nothing_is_stuck(tmp_path):
 
 # ---------------------------------------------------------------- over the wire
 def test_a_roll_over_the_wire(client):
-    from conftest import classic_floor, recv_until
+    from conftest import recv_until
     from test_ws import join
     client.app.state.casino.tables["crp_1"].machine.dice = Dice((3, 4))
     with client.websocket_connect("/ws") as ws:

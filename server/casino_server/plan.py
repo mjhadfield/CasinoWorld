@@ -3,7 +3,7 @@ The floor plan: the casino's rooms, side by side on one plan, and everything pla
 cabinets, the furniture and decor, and the paths NPCs take. Designed on the admin page's Floor plan tab as blueprints
 (a draft), tried out in the game's preview, then published to the live floor.
 
-<data dir>/plan/ holds it:
+Each casino has its own (casinos.py): <data dir>/casinos/<id>/plan/ holds it, plan_dir() of that casino's folder:
   draft.json      what the Floor plan tab edits
   live.json       what the casino runs (published from the draft)
   history/*.json  the last HISTORY publishes, to roll back to

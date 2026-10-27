@@ -442,8 +442,10 @@ existing Modern/Vegas assets, the Casino Floor source blueprint and the Dark Mod
     Slot design wizard (designs, its steps, the Scene step's skins, Build, and the image-model/keying/frame pipeline;
     designs in `server/slot_designs/`), its
     UI in `admin_web/design/` (with the design-driven mockup), and `slot_builds.py`: built slots joining at startup.
+  - `casinos.py`: the casinos (`<data>/casinos.json`, each one's plan in `<data>/casinos/<id>/plan/`), moving a
+    single-casino data dir to Demo, and the settings kept by qualified table id (`<casino>/<table>`).
   - `plan.py`: the floor plan (rooms, doors, everything placed, NPC paths; draft, publish, history, checks), the
-    Floor plan tab's API; its UI in `admin_web/plan/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
+    Floor plan tab's API (each call takes `?casino=<id>`, default `demo`); its UI in `admin_web/plan/`. `plan_catalogue.json` (written by `tools/plan_catalogue.gd`) has the
     tables' and cabinet's shapes; `plan_classic.json` is the old hand-built floor as blueprints. `plan_assets.py`:
     the furniture library (built-ins in `server/plan_assets/`, uploads in `<data>/plan_assets/`).
 - **client/**

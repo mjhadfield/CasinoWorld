@@ -27,7 +27,7 @@ def test_editing_a_style_reaches_the_floor(client):
 def test_a_second_style_for_some_tables(client):
     r = client.put("/api/seating/styles/lounge_red", json={"name": "Lounge red", "chair": "lounge", "upholstery": "#a3201c"})
     assert r.status_code == 200 and r.json()["styles"]["lounge_red"]["sit"] == "swivel"
-    assert client.put("/api/seating/tables", json={"tcp_1": "lounge_red"}).json()["tables"] == {"tcp_1": "lounge_red"}
+    assert client.put("/api/seating/tables", json={"demo/tcp_1": "lounge_red"}).json()["tables"] == {"demo/tcp_1": "lounge_red"}
     assert client.put("/api/seating/tables", json={"tcp_1": "nope"}).status_code == 400
     assert client.delete("/api/seating/styles/default").status_code == 400
     assert client.delete("/api/seating/styles/lounge_red").json()["tables"] == {}   # its tables go back to the default

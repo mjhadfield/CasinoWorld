@@ -14,8 +14,8 @@ def test_every_card_table_starts_on_house(client):
     assert data["default"] == "house" and data["tables"] == {}
     assert data["styles"]["house"]["design"] == table_styles.HOUSE and not data["styles"]["house"]["builtin"]
     assert {"grand", "monte", "deco", "vegas"} <= {k for k, s in data["styles"].items() if s["builtin"]}
-    assert "rou_1" not in data["games"] and "crp_1" not in data["games"]
-    assert data["games"]["tcp_1"]["layout"] == "tcp" and data["games"]["pgu_1"]["layout"] == "pgu"
+    assert "demo/rou_1" not in data["games"] and "demo/crp_1" not in data["games"]
+    assert data["games"]["demo/tcp_1"]["layout"] == "tcp" and data["games"]["demo/pgu_1"]["layout"] == "pgu"
     with client.websocket_connect("/ws") as ws:
         welcome = enter(ws)[1]["table_styles"]
         assert welcome["cards"]["styles"]["house"]["design"]["rail"]["armrest"] == "all"
@@ -89,26 +89,26 @@ def test_card_and_roulette_styles_colour_their_chairs():
 def test_new_styles_go_on_some_tables_and_the_built_ins_stay(client):
     r = client.put("/api/table-styles/styles/pit_blue", json={"name": "Pit blue", "design": table_styles.BUILT_IN["vegas"]["design"]})
     assert r.status_code == 200, r.text
-    r = client.put("/api/table-styles/tables", json={"tables": {"bj_2": "pit_blue", "bj_3": "monte"}})
-    assert r.json()["tables"] == {"bj_2": "pit_blue", "bj_3": "monte"}
-    assert client.put("/api/table-styles/tables", json={"tables": {"rou_1": "pit_blue"}}).status_code == 400
-    assert client.put("/api/table-styles/tables", json={"tables": {"bj_2": "nope"}}).status_code == 400
+    r = client.put("/api/table-styles/tables", json={"tables": {"demo/bj_2": "pit_blue", "demo/bj_3": "monte"}})
+    assert r.json()["tables"] == {"demo/bj_2": "pit_blue", "demo/bj_3": "monte"}
+    assert client.put("/api/table-styles/tables", json={"tables": {"demo/rou_1": "pit_blue"}}).status_code == 400
+    assert client.put("/api/table-styles/tables", json={"tables": {"demo/bj_2": "nope"}}).status_code == 400
     assert client.put("/api/table-styles/tables", json={"default": "pit_blue"}).json()["default"] == "pit_blue"
     assert client.put("/api/table-styles/styles/vegas", json={"name": "Mine"}).status_code == 400
     assert client.delete("/api/table-styles/styles/vegas").status_code == 400
     assert client.delete("/api/table-styles/styles/house").status_code == 400
     after = client.delete("/api/table-styles/styles/pit_blue").json()
-    assert after["tables"] == {"bj_3": "monte"} and after["default"] == "house"   # its tables and the default go back to House
-    assert client.put("/api/table-styles/tables", json={"tables": {"bj_3": None}}).json()["tables"] == {}
+    assert after["tables"] == {"demo/bj_3": "monte"} and after["default"] == "house"   # its tables and the default go back to House
+    assert client.put("/api/table-styles/tables", json={"tables": {"demo/bj_3": None}}).json()["tables"] == {}
     assert client.put("/api/table-styles/styles/Bad Id", json={"name": "x"}).status_code == 400
 
 
 def test_roulette_and_craps_have_their_own_styles_and_placement(client):
     rou = client.get("/api/table-styles?kind=roulette").json()
-    assert rou["kind"] == "roulette" and list(rou["games"]) == ["rou_1"] and rou["games"]["rou_1"]["layout"] == "rou"
+    assert rou["kind"] == "roulette" and list(rou["games"]) == ["demo/rou_1"] and rou["games"]["demo/rou_1"]["layout"] == "rou"
     assert rou["styles"]["house"]["design"] == table_styles.ROULETTE_HOUSE
     assert {"grand", "monte", "deco", "vegas", "cards"} <= {k for k, s in rou["styles"].items() if s["builtin"]}
-    assert list(client.get("/api/table-styles?kind=craps").json()["games"]) == ["crp_1"]
+    assert list(client.get("/api/table-styles?kind=craps").json()["games"]) == ["demo/crp_1"]
     assert client.get("/api/table-styles?kind=slots").status_code == 404
     with client.websocket_connect("/ws") as ws:
         enter(ws)
@@ -119,15 +119,15 @@ def test_roulette_and_craps_have_their_own_styles_and_placement(client):
         assert r.status_code == 200, r.text
         assert r.json()["styles"]["green_room"]["design"]["numbers"]["red"] == "#c8283a"
         recv_until(ws, "table_styles")
-        assert client.put("/api/table-styles/tables?kind=roulette", json={"tables": {"rou_1": "green_room"}}).status_code == 200
+        assert client.put("/api/table-styles/tables?kind=roulette", json={"tables": {"demo/rou_1": "green_room"}}).status_code == 200
         sent = recv_until(ws, "table_styles")["table_styles"]
         assert sent["roulette"]["tables"] == {"rou_1": "green_room"} and sent["cards"]["tables"] == {}
     # Each kind's own parts: a craps design has dice, a roulette one doesn't take a card table's choices.
     assert client.put("/api/table-styles/styles/x?kind=craps", json={"name": "X", "design": {"dice": "plaid"}}).status_code == 400
     assert client.put("/api/table-styles/styles/x?kind=craps", json={"name": "X", "design": {"rail": {"armrest": "player"}}}).status_code == 400
-    assert client.put("/api/table-styles/tables?kind=roulette", json={"tables": {"crp_1": "house"}}).status_code == 400
-    assert client.put("/api/table-styles/tables?kind=craps", json={"tables": {"crp_1": "green_room"}}).status_code == 400   # (Roulette's)
-    assert client.put("/api/table-styles/tables", json={"tables": {"rou_1": "house"}}).status_code == 400
+    assert client.put("/api/table-styles/tables?kind=roulette", json={"tables": {"demo/crp_1": "house"}}).status_code == 400
+    assert client.put("/api/table-styles/tables?kind=craps", json={"tables": {"demo/crp_1": "green_room"}}).status_code == 400   # (Roulette's)
+    assert client.put("/api/table-styles/tables", json={"tables": {"demo/rou_1": "house"}}).status_code == 400
     assert "green_room" not in client.get("/api/table-styles").json()["styles"]
     assert client.delete("/api/table-styles/styles/green_room?kind=roulette").json()["tables"] == {}
 
