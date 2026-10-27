@@ -1,0 +1,2217 @@
+<title>Resort Floor Blockouts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+:root{
+  /* Layout: an architect's drawing set. Sheet header, then one sheet per variation (plan + room schedule). */
+  --paper:#f2f3ee; --sheet:#fbfbf8; --ink:#1c2420; --muted:#5b6862; --rule:#cfd5ce; --accent:#0e6a52; --gold:#a8822a;
+  --wall:#36403b; --signink:#f3ecd8; --band:#5a645f; --gridline:#e2e6df;
+  --z-floor:#d3e3d7; --z-high:#cfd6ec; --z-food:#f0dfc6; --z-feature:#e4d8ec; --z-entry:#e7e5dd; --z-service:#dedfd8; --z-circ:#ece4cc;
+  --aisle:#eadfbc; --pitcarpet:#bcd2c3; --hlcarpet:#b5c0e0; --garden:#c6dcc0; --boards:#e3cfae;
+  --felt-card:#2e7b59; --felt-wheel:#8c2f2f; --felt-dice:#2c5d8a; --felt-master:#6a4f9e; --felt-bac:#9b762b;
+  --cab:#c8901f; --furn:#948d7b; --bar:#6c4b2f; --npc:#cf4a2f; --seat:#1c2420; --flat:#7b7468;
+  --display:"Josefin Sans", "Futura", "Century Gothic", system-ui, sans-serif;
+  --body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#101614; --sheet:#151c19; --ink:#e3e9e5; --muted:#9aa8a1; --rule:#2c3632; --accent:#4fc39d; --gold:#d9b25a;
+  --wall:#7d8a84; --signink:#0f1513; --band:#56625c; --gridline:#1d2522;
+  --z-floor:#1f3a2d; --z-high:#232d4d; --z-food:#43341f; --z-feature:#382c45; --z-entry:#2b2e2b; --z-service:#262a28; --z-circ:#3a3422;
+  --aisle:#4a4128; --pitcarpet:#2a4a3a; --hlcarpet:#2f3c66; --garden:#2b4a2c; --boards:#4d3d26;
+  --felt-card:#3fa274; --felt-wheel:#c04b4b; --felt-dice:#4a86c0; --felt-master:#9478d0; --felt-bac:#c99d45;
+  --cab:#e0aa3a; --furn:#7d7767; --bar:#a07250; --npc:#ff7a5c; --seat:#e3e9e5; --flat:#a39b8c; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#101614; --sheet:#151c19; --ink:#e3e9e5; --muted:#9aa8a1; --rule:#2c3632; --accent:#4fc39d; --gold:#d9b25a;
+  --wall:#7d8a84; --signink:#0f1513; --band:#56625c; --gridline:#1d2522;
+  --z-floor:#1f3a2d; --z-high:#232d4d; --z-food:#43341f; --z-feature:#382c45; --z-entry:#2b2e2b; --z-service:#262a28; --z-circ:#3a3422;
+  --aisle:#4a4128; --pitcarpet:#2a4a3a; --hlcarpet:#2f3c66; --garden:#2b4a2c; --boards:#4d3d26;
+  --felt-card:#3fa274; --felt-wheel:#c04b4b; --felt-dice:#4a86c0; --felt-master:#9478d0; --felt-bac:#c99d45;
+  --cab:#e0aa3a; --furn:#7d7767; --bar:#a07250; --npc:#ff7a5c; --seat:#e3e9e5; --flat:#a39b8c; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 64px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:clamp(30px,4.4vw,46px);line-height:1.05}
+h2{font-size:clamp(24px,3vw,32px);line-height:1.1}
+h3{font-size:18px}
+p{margin:0;max-width:68ch}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 32px;align-items:end;border-bottom:2px solid var(--ink);padding-bottom:18px}
+header.top .intro{display:flex;flex-direction:column;gap:10px;min-width:0}
+.titleblock{font:12px/1.5 var(--mono);border:1.5px solid var(--ink);display:grid;grid-template-columns:auto auto;min-width:0}
+.titleblock div{padding:5px 10px;border-bottom:1px solid var(--rule)}
+.titleblock div:nth-child(odd){color:var(--muted);border-right:1px solid var(--rule)}
+.titleblock div:nth-last-child(-n+2){border-bottom:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:16px;height:12px;border-radius:2px;border:1px solid var(--wall);display:inline-block}
+.sw.dot{width:10px;height:10px;border-radius:50%;border:0}
+.compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{background:var(--sheet);border:1px solid var(--rule);padding:16px 18px;display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit;min-width:0}
+.card:hover,.card:focus-visible{border-color:var(--accent);outline:none}
+.card .letter{font:600 13px/1 var(--mono);color:var(--gold);letter-spacing:.1em}
+.card h3{font-size:22px}
+.card p{font-size:14px;color:var(--muted)}
+.nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;border-top:1px solid var(--rule);padding-top:10px;margin-top:auto}
+.nums div{display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
+.nums b{font:600 20px/1.1 var(--mono)}
+.nums small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.chk{font:12px/1.3 var(--mono);color:var(--accent)}
+.chk.bad{color:var(--npc)}
+section.sheet{background:var(--sheet);border:1px solid var(--rule);display:flex;flex-direction:column;gap:18px;padding:22px 22px 26px;scroll-margin-top:16px}
+.sheethead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 18px;align-items:start}
+.sheethead .big{font:600 64px/0.85 var(--display);color:var(--gold);grid-row:span 3}
+.sheethead .insp{font-size:13px;color:var(--muted);font-style:italic}
+.sheethead p{margin-top:6px}
+.walks{display:flex;flex-wrap:wrap;gap:6px 10px;font:12px/1.4 var(--mono);color:var(--muted)}
+.walks span{border:1px solid var(--rule);padding:3px 8px;border-radius:999px}
+.walks b{color:var(--ink);font-weight:600}
+figure{margin:0;overflow-x:auto;border:1px solid var(--rule);background:var(--paper)}
+figure svg{display:block;width:100%;min-width:760px;height:auto}
+.plan .grid line{stroke:var(--gridline);stroke-width:3}
+.plan .wall{fill:var(--wall)}
+.plan .band{fill:var(--band);opacity:.55}
+.plan .k-floor .fl{fill:var(--z-floor)} .plan .k-high .fl{fill:var(--z-high)} .plan .k-food .fl{fill:var(--z-food)}
+.plan .k-feature .fl{fill:var(--z-feature)} .plan .k-entry .fl{fill:var(--z-entry)} .plan .k-service .fl{fill:var(--z-service)}
+.plan .k-circ .fl{fill:var(--z-circ)}
+.plan .hatchline{stroke:var(--muted);stroke-width:3;opacity:.45}
+.plan .patch.aisle{fill:var(--aisle)} .plan .patch.pitcarpet{fill:var(--pitcarpet)} .plan .patch.hlcarpet{fill:var(--hlcarpet)}
+.plan .patch.garden{fill:var(--garden)} .plan .patch.boards{fill:var(--boards)}
+.plan .leaf{stroke:var(--wall);stroke-width:4;stroke-dasharray:10 8}
+.plan .flat{fill:none;stroke:var(--flat);stroke-width:4;stroke-dasharray:14 10}
+.plan .wallitem{fill:var(--bar);opacity:.8}
+.plan .felt{stroke:var(--wall);stroke-width:3}
+.plan .f-card{fill:var(--felt-card)} .plan .f-wheel{fill:var(--felt-wheel)} .plan .f-dice{fill:var(--felt-dice)}
+.plan .f-master{fill:var(--felt-master)} .plan .f-bac{fill:var(--felt-bac)}
+.plan .sign{fill:var(--wall)}
+.plan .seat{fill:var(--seat)}
+.plan .tl{font:700 40px var(--mono);fill:#fff;text-anchor:middle;pointer-events:none}
+.plan .cab{fill:var(--cab);stroke:var(--wall);stroke-width:2}
+.plan .furn{fill:var(--furn)} .plan .furn.bar{fill:var(--bar)}
+.plan .npc{fill:var(--npc)}
+.plan .rl{font-family:var(--display);font-weight:600;fill:var(--signink);pointer-events:none;letter-spacing:.03em}
+.plan .rl.in{fill:var(--ink)}
+.plan .st.st2{text-anchor:start}
+.plan .rd{font-family:var(--mono);font-weight:400;opacity:.75;letter-spacing:0}
+.plan .existing .wall{fill:var(--muted)}
+.plan .spawn circle{fill:none;stroke:var(--npc);stroke-width:6}
+.plan .spawn .dot{fill:var(--npc);stroke:none}
+.plan .sb0{fill:var(--ink)} .plan .sb1{fill:none;stroke:var(--ink);stroke-width:3}
+.plan .st{font:34px var(--mono);fill:var(--muted);text-anchor:middle}
+.plan .room{cursor:pointer;outline:none}
+.plan .room.hot .fl:not(.gap){filter:brightness(1.07) saturate(1.25)}
+.plan .room.hot .wall{fill:var(--gold)}
+.plan .room:focus-visible .wall{fill:var(--accent)}
+table.sched{width:100%;border-collapse:collapse;font-size:13.5px}
+.schedwrap{overflow-x:auto}
+table.sched th{font:600 11px/1.2 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--ink);white-space:nowrap}
+table.sched td{padding:9px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.sched td.size{font:13px var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+table.sched td.nm{font-weight:600;white-space:nowrap}
+table.sched td.nm i{display:block;font:400 11px var(--mono);color:var(--muted);font-style:normal;text-transform:uppercase;letter-spacing:.06em}
+table.sched tr.hot td{background:color-mix(in srgb, var(--gold) 14%, transparent)}
+table.sched .zsw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;border:1px solid var(--wall);vertical-align:0}
+.notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 28px}
+.notes div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.notes h3{font-size:16px}
+.notes p{font-size:14px;color:var(--muted)}
+code{font:13px var(--mono)}
+@media (max-width:860px){
+  header.top{grid-template-columns:minmax(0,1fr)}
+  .compare{grid-template-columns:minmax(0,1fr)}
+  .notes{grid-template-columns:minmax(0,1fr)}
+  .sheethead .big{font-size:44px}
+  table.sched td.note{min-width:240px}
+}
+@media (prefers-reduced-motion:no-preference){ .card{transition:border-color .15s} }
+</style>
+<div class="wrap">
+<header class="top">
+  <div class="intro"><span class="eyebrow">CasinoWorld · floor plan blockouts</span>
+  <h1>A medium resort casino, three ways</h1>
+  <p class="muted">Three layouts for a medium casino, drawn at game scale on top of the live Modern lobby. They're blockouts, not a build, but every room, door, table and slot bank was laid out as a real floor plan and run through the server's own floor plan checks, so the sizes are ones the game will take. Hover a room to find it in the schedule.</p></div>
+  <div class="titleblock"><div>Project</div><div>CasinoWorld</div><div>Sheet</div><div>A-101 to A-103</div>
+  <div>Scale</div><div>game px (1:1 plan)</div><div>North</div><div>back wall up</div><div>Date</div><div>27 Oct 2026</div>
+  <div>Checks</div><div>all pass</div></div>
+</header>
+<div class="legend">
+<span><i class="sw" style="background:var(--z-floor)"></i>Gaming floor</span>
+<span><i class="sw" style="background:var(--z-high)"></i>High limit</span>
+<span><i class="sw" style="background:var(--z-food)"></i>Food &amp; drink</span>
+<span><i class="sw" style="background:var(--z-feature)"></i>Feature</span>
+<span><i class="sw" style="background:var(--z-circ)"></i>Circulation</span>
+<span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--z-service) 0 3px,var(--muted) 3px 4px)"></i>NPCs only</span>
+<span><i class="sw" style="background:var(--felt-card)"></i>Card table</span>
+<span><i class="sw" style="background:var(--felt-wheel)"></i>Roulette</span>
+<span><i class="sw" style="background:var(--felt-dice)"></i>Craps</span>
+<span><i class="sw" style="background:var(--felt-bac)"></i>Baccarat</span>
+<span><i class="sw" style="background:var(--felt-master)"></i>Master table</span>
+<span><i class="sw" style="background:var(--cab)"></i>Slot cabinet</span>
+<span><i class="sw dot" style="background:var(--seat)"></i>Seat</span>
+<span><i class="sw dot" style="background:var(--npc)"></i>Staff / spawn</span>
+<span><i class="sw" style="background:none;border-style:dashed"></i>Door (dashed leaf) · gap = archway</span>
+</div>
+<div class="compare"><a class="card" href="#plan_a">
+  <span class="letter">VARIATION A</span>
+  <h3>The Loop</h3>
+  <p>One big open floor. A racetrack aisle circles the pits, slots line the outside, and the centre bar pulls you in.</p>
+  <div class="nums"><div><b>16</b><small>tables</small></div><div><b>152</b><small>slots</small></div>
+  <div><b>249</b><small>seats</small></div><div><b>34s</b><small>far walk</small></div></div>
+  <span class="chk">✓ passes the floor plan checks</span>
+</a><a class="card" href="#plan_b">
+  <span class="letter">VARIATION B</span>
+  <h3>The Promenade</h3>
+  <p>A run of rooms on one axis, each grander than the last. The slots get their own hall and the high rollers sit at the far end.</p>
+  <div class="nums"><div><b>13</b><small>tables</small></div><div><b>112</b><small>slots</small></div>
+  <div><b>191</b><small>seats</small></div><div><b>28s</b><small>far walk</small></div></div>
+  <span class="chk">✓ passes the floor plan checks</span>
+</a><a class="card" href="#plan_c">
+  <span class="letter">VARIATION C</span>
+  <h3>The Boulevard</h3>
+  <p>An indoor street across the front with the venues off it. The casino is behind three archways, with salons off its back.</p>
+  <div class="nums"><div><b>25</b><small>tables</small></div><div><b>108</b><small>slots</small></div>
+  <div><b>260</b><small>seats</small></div><div><b>29s</b><small>far walk</small></div></div>
+  <span class="chk">✓ passes the floor plan checks</span>
+</a></div>
+<section class="sheet" id="plan_a" data-plan="plan_a">
+  <div class="sheethead"><span class="big">A</span><h2>The Loop</h2>
+    <span class="insp">Inspired by Las Vegas Strip resorts: the racetrack aisle and open, high-ceilinged floor</span><p>Everything is in one big room. A ring aisle circles the pits and the slots line the outside, so you can see the whole floor from anywhere on the loop. The centre bar sits at the far end of the entrance aisle and pulls you across the floor. The side rooms open off the floor&#x27;s walls: archways where the noise should carry (lounge, sportsbook), doors where it shouldn&#x27;t (high limit, restaurant).</p></div>
+  <div class="walks"><span>Spawn → High Limit Salon <b>32s</b></span><span>Spawn → Restaurant <b>29s</b></span><span>Spawn → Showroom Lounge <b>34s</b></span><span>5 Blackjack, 3 Roulette, 1 Three Card Poker, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 Pai Gow, 1 Craps, 1 Baccarat, 1 Master table</span></div>
+  <figure><svg class="plan" viewBox="-2224 -2560 5120 3156" role="img" aria-label="The Loop floor plan" xmlns="http://www.w3.org/2000/svg">
+<defs><pattern id="hatch-plan_a" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="24" class="hatchline"/></pattern></defs>
+<g class="grid"><line x1="-2304" y1="-2560" x2="-2304" y2="396"/><line x1="-2048" y1="-2560" x2="-2048" y2="396"/><line x1="-1792" y1="-2560" x2="-1792" y2="396"/><line x1="-1536" y1="-2560" x2="-1536" y2="396"/><line x1="-1280" y1="-2560" x2="-1280" y2="396"/><line x1="-1024" y1="-2560" x2="-1024" y2="396"/><line x1="-768" y1="-2560" x2="-768" y2="396"/><line x1="-512" y1="-2560" x2="-512" y2="396"/><line x1="-256" y1="-2560" x2="-256" y2="396"/><line x1="0" y1="-2560" x2="0" y2="396"/><line x1="256" y1="-2560" x2="256" y2="396"/><line x1="512" y1="-2560" x2="512" y2="396"/><line x1="768" y1="-2560" x2="768" y2="396"/><line x1="1024" y1="-2560" x2="1024" y2="396"/><line x1="1280" y1="-2560" x2="1280" y2="396"/><line x1="1536" y1="-2560" x2="1536" y2="396"/><line x1="1792" y1="-2560" x2="1792" y2="396"/><line x1="2048" y1="-2560" x2="2048" y2="396"/><line x1="2304" y1="-2560" x2="2304" y2="396"/><line x1="2560" y1="-2560" x2="2560" y2="396"/><line x1="2816" y1="-2560" x2="2816" y2="396"/><line x1="-2224" y1="-2560" x2="2896" y2="-2560"/><line x1="-2224" y1="-2304" x2="2896" y2="-2304"/><line x1="-2224" y1="-2048" x2="2896" y2="-2048"/><line x1="-2224" y1="-1792" x2="2896" y2="-1792"/><line x1="-2224" y1="-1536" x2="2896" y2="-1536"/><line x1="-2224" y1="-1280" x2="2896" y2="-1280"/><line x1="-2224" y1="-1024" x2="2896" y2="-1024"/><line x1="-2224" y1="-768" x2="2896" y2="-768"/><line x1="-2224" y1="-512" x2="2896" y2="-512"/><line x1="-2224" y1="-256" x2="2896" y2="-256"/><line x1="-2224" y1="0" x2="2896" y2="0"/><line x1="-2224" y1="256" x2="2896" y2="256"/></g>
+<g class="room k-entry existing" data-room="modern_lobby" tabindex="0">
+<title>Modern lobby · 608 × 400</title>
+<rect class="wall" x="0" y="-64" width="608" height="400"/>
+<rect class="fl" x="8" y="6" width="592" height="320"/>
+<rect class="patch aisle" x="272" y="0" width="64" height="328" rx="0"/>
+<rect class="band" x="0" y="-64" width="608" height="70"/>
+<rect class="fl gap" x="208" y="-65" width="192" height="72"/>
+<rect class="fl gap" x="272" y="325" width="64" height="12"/>
+<line class="leaf" x1="276" y1="331" x2="332" y2="331"/>
+<rect class="fl gap" x="-1" y="92" width="10" height="40"/>
+<rect class="fl gap" x="-1" y="188" width="10" height="40"/>
+<rect class="flat" x="48" y="110" width="180" height="124" rx="24"/>
+<rect class="wallitem" x="86" y="-60" width="108" height="34"/>
+<rect class="furn" x="102" y="98" width="72" height="16" rx="4"/>
+<rect class="furn" x="102" y="222" width="72" height="16" rx="4"/>
+<rect class="furn" x="121" y="177" width="34" height="9" rx="4"/>
+<rect class="furn" x="49" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="201" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="21" y="40" width="18" height="8" rx="4"/>
+<rect class="furn" x="23" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="367" y="12" width="26" height="12" rx="4"/>
+<rect class="furn" x="427" y="28" width="50" height="8" rx="4"/>
+<rect class="furn" x="502" y="94" width="28" height="160" rx="4"/>
+<rect class="furn" x="559" y="46" width="14" height="6" rx="4"/>
+<rect class="furn" x="559" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="397" y="278" width="26" height="14" rx="4"/>
+<circle class="npc" cx="552" cy="151" r="11"/>
+<circle class="npc" cx="552" cy="223" r="11"/>
+<rect class="furn" x="527" y="260" width="66" height="4" rx="4"/>
+<rect class="furn" x="527" y="60" width="66" height="4" rx="4"/>
+<text class="rl" x="412" y="-22.5" font-size="18">Modern lobby</text>
+</g>
+<g class="room k-service existing" data-room="lift" tabindex="0">
+<title>Lift · 96 × 96</title>
+<rect class="wall" x="-96" y="64" width="96" height="96"/>
+<rect class="fl" x="-88" y="72" width="80" height="78"/>
+<rect class="" x="-88" y="72" width="80" height="78" fill="url(#hatch-plan_a)"/>
+<rect class="band" x="-96" y="64" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="92" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="96" x2="-4" y2="128"/>
+<text class="rl in" x="-70" y="118" font-size="40">Lift<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-service existing" data-room="lift_copy" tabindex="0">
+<title>Lift 2 · 96 × 96</title>
+<rect class="wall" x="-96" y="160" width="96" height="96"/>
+<rect class="fl" x="-88" y="168" width="80" height="78"/>
+<rect class="" x="-88" y="168" width="80" height="78" fill="url(#hatch-plan_a)"/>
+<rect class="band" x="-96" y="160" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="188" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="192" x2="-4" y2="224"/>
+<text class="rl in" x="-70" y="214" font-size="40">Lift 2<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-floor" data-room="floor" tabindex="0">
+<title>Casino Floor · 2688 × 1600</title>
+<rect class="wall" x="-1040" y="-1664" width="2688" height="1600"/>
+<rect class="fl" x="-1032" y="-1594" width="2672" height="1520"/>
+<rect class="patch aisle" x="-728" y="-1364" width="2064" height="1100" rx="96"/>
+<rect class="patch pitcarpet" x="-600" y="-1236" width="1808" height="844" rx="48"/>
+<rect class="patch aisle" x="240" y="-1236" width="128" height="844" rx="0"/>
+<rect class="patch aisle" x="240" y="-264" width="128" height="190" rx="0"/>
+<rect class="band" x="-1040" y="-1664" width="2688" height="70"/>
+<rect class="fl gap" x="208" y="-75" width="192" height="12"/>
+<rect class="fl gap" x="-1041" y="-1512" width="10" height="96"/>
+<line class="leaf" x1="-1036" y1="-1508" x2="-1036" y2="-1420"/>
+<rect class="fl gap" x="-1041" y="-462" width="10" height="96"/>
+<line class="leaf" x1="-1036" y1="-458" x2="-1036" y2="-370"/>
+<rect class="fl gap" x="1639" y="-1560" width="10" height="192"/>
+<rect class="fl gap" x="1639" y="-692" width="10" height="256"/>
+<rect class="fl gap" x="812" y="-1665" width="96" height="72"/>
+<rect class="fl gap" x="-364" y="-1665" width="48" height="72"/>
+<rect class="wallitem" x="154" y="-1660" width="300" height="66"/>
+<rect class="felt f-card" x="-515.5" y="-1166.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-474.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-425.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-376.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-327.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-278.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-229.5" cy="-1220" r="9"/>
+<text class="tl" x="-352" y="-1071.5">BJ</text>
+<rect class="felt f-card" x="-171.5" y="-1166.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-130.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-81.5" cy="-1220" r="9"/>
+<circle class="seat" cx="-32.5" cy="-1220" r="9"/>
+<circle class="seat" cx="16.5" cy="-1220" r="9"/>
+<circle class="seat" cx="65.5" cy="-1220" r="9"/>
+<circle class="seat" cx="114.5" cy="-1220" r="9"/>
+<text class="tl" x="-8" y="-1071.5">BJ</text>
+<rect class="felt f-card" x="-515.5" y="-931.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-229.5" cy="-720" r="9"/>
+<circle class="seat" cx="-278.5" cy="-720" r="9"/>
+<circle class="seat" cx="-327.5" cy="-720" r="9"/>
+<circle class="seat" cx="-376.5" cy="-720" r="9"/>
+<circle class="seat" cx="-425.5" cy="-720" r="9"/>
+<circle class="seat" cx="-474.5" cy="-720" r="9"/>
+<text class="tl" x="-352" y="-836.5">BJ</text>
+<rect class="felt f-card" x="-171.5" y="-931.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="114.5" cy="-720" r="9"/>
+<circle class="seat" cx="65.5" cy="-720" r="9"/>
+<circle class="seat" cx="16.5" cy="-720" r="9"/>
+<circle class="seat" cx="-32.5" cy="-720" r="9"/>
+<circle class="seat" cx="-81.5" cy="-720" r="9"/>
+<circle class="seat" cx="-130.5" cy="-720" r="9"/>
+<text class="tl" x="-8" y="-836.5">3CP</text>
+<rect class="furn" x="-195" y="-975" width="30" height="10" rx="4"/>
+<rect class="felt f-card" x="452.5" y="-1166.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="493.5" cy="-1220" r="9"/>
+<circle class="seat" cx="542.5" cy="-1220" r="9"/>
+<circle class="seat" cx="591.5" cy="-1220" r="9"/>
+<circle class="seat" cx="640.5" cy="-1220" r="9"/>
+<circle class="seat" cx="689.5" cy="-1220" r="9"/>
+<circle class="seat" cx="738.5" cy="-1220" r="9"/>
+<text class="tl" x="616" y="-1071.5">UTH</text>
+<rect class="felt f-card" x="796.5" y="-1166.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="837.5" cy="-1220" r="9"/>
+<circle class="seat" cx="886.5" cy="-1220" r="9"/>
+<circle class="seat" cx="935.5" cy="-1220" r="9"/>
+<circle class="seat" cx="984.5" cy="-1220" r="9"/>
+<circle class="seat" cx="1033.5" cy="-1220" r="9"/>
+<circle class="seat" cx="1082.5" cy="-1220" r="9"/>
+<text class="tl" x="960" y="-1071.5">MS</text>
+<rect class="felt f-card" x="452.5" y="-931.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="736" cy="-720" r="9"/>
+<circle class="seat" cx="676" cy="-720" r="9"/>
+<circle class="seat" cx="616" cy="-720" r="9"/>
+<circle class="seat" cx="556" cy="-720" r="9"/>
+<circle class="seat" cx="496" cy="-720" r="9"/>
+<text class="tl" x="616" y="-836.5">LIR</text>
+<rect class="felt f-card" x="796.5" y="-931.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="1082.5" cy="-720" r="9"/>
+<circle class="seat" cx="1033.5" cy="-720" r="9"/>
+<circle class="seat" cx="984.5" cy="-720" r="9"/>
+<circle class="seat" cx="935.5" cy="-720" r="9"/>
+<circle class="seat" cx="886.5" cy="-720" r="9"/>
+<circle class="seat" cx="837.5" cy="-720" r="9"/>
+<text class="tl" x="960" y="-836.5">PG</text>
+<rect class="furn" x="773" y="-975" width="30" height="10" rx="4"/>
+<rect class="felt f-wheel" x="-587.5" y="-667.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="-215" y="-531" width="18" height="18"/>
+<circle class="seat" cx="-270" cy="-482" r="9"/>
+<circle class="seat" cx="-326" cy="-482" r="9"/>
+<circle class="seat" cx="-382" cy="-482" r="9"/>
+<circle class="seat" cx="-438" cy="-482" r="9"/>
+<circle class="seat" cx="-494" cy="-482" r="9"/>
+<circle class="seat" cx="-550" cy="-482" r="9"/>
+<text class="tl" x="-410" y="-585">R</text>
+<rect class="felt f-wheel" x="-167.5" y="-667.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="205" y="-531" width="18" height="18"/>
+<circle class="seat" cx="150" cy="-482" r="9"/>
+<circle class="seat" cx="94" cy="-482" r="9"/>
+<circle class="seat" cx="38" cy="-482" r="9"/>
+<circle class="seat" cx="-18" cy="-482" r="9"/>
+<circle class="seat" cx="-74" cy="-482" r="9"/>
+<circle class="seat" cx="-130" cy="-482" r="9"/>
+<text class="tl" x="10" y="-585">R</text>
+<rect class="felt f-dice" x="589.5" y="-644.5" width="397" height="140" rx="34"/>
+<rect class="sign" x="1001" y="-502" width="18" height="18"/>
+<circle class="seat" cx="952" cy="-448" r="9"/>
+<circle class="seat" cx="916" cy="-448" r="9"/>
+<circle class="seat" cx="880" cy="-448" r="9"/>
+<circle class="seat" cx="844" cy="-448" r="9"/>
+<circle class="seat" cx="732" cy="-448" r="9"/>
+<circle class="seat" cx="696" cy="-448" r="9"/>
+<circle class="seat" cx="660" cy="-448" r="9"/>
+<circle class="seat" cx="624" cy="-448" r="9"/>
+<text class="tl" x="788" y="-558.5">C</text>
+<rect class="furn bar" x="164" y="-1490" width="280" height="26" rx="4"/>
+<rect class="furn" x="173" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="201" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="229" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="257" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="285" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="313" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="341" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="369" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="397" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="425" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="-7" y="-1419" width="14" height="5" rx="4"/>
+<rect class="furn" x="63" y="-1419" width="14" height="5" rx="4"/>
+<rect class="furn" x="531" y="-1419" width="14" height="5" rx="4"/>
+<rect class="furn" x="601" y="-1419" width="14" height="5" rx="4"/>
+<rect class="furn" x="60" y="-1522" width="20" height="8" rx="4"/>
+<rect class="furn" x="528" y="-1522" width="20" height="8" rx="4"/>
+<rect class="cab" x="-913" y="-1282" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-1282" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-1256" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-1256" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-1267" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-1267" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-1282" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-1282" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-1256" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-1256" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-1267" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-1267" width="22" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-1090" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-1090" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-1064" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-1064" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-1075" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-1075" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-1090" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-1090" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-1064" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-1064" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-1075" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-1075" width="22" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-898" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-898" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-872" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-872" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-883" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-883" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-898" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-898" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-872" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-872" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-883" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-883" width="22" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-706" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-706" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-680" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-680" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-691" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-691" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-706" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-706" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-680" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-680" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-691" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-691" width="22" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-514" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-514" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-488" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-488" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-499" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-499" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-514" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-514" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-488" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-488" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-499" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-499" width="22" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-322" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-322" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-296" width="32" height="28" rx="4"/>
+<rect class="cab" x="-879" y="-296" width="32" height="28" rx="4"/>
+<rect class="cab" x="-949" y="-307" width="22" height="28" rx="4"/>
+<rect class="cab" x="-833" y="-307" width="22" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-322" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-322" width="32" height="28" rx="4"/>
+<rect class="cab" x="1455" y="-296" width="32" height="28" rx="4"/>
+<rect class="cab" x="1489" y="-296" width="32" height="28" rx="4"/>
+<rect class="cab" x="1419" y="-307" width="22" height="28" rx="4"/>
+<rect class="cab" x="1535" y="-307" width="22" height="28" rx="4"/>
+<rect class="cab" x="-669" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="-633" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-599" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-553" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="-429" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="-393" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-359" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-313" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="-189" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="-153" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-119" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="-73" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="51" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="87" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="121" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="167" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="831" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="867" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="901" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="947" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="1071" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="1107" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="1141" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="1187" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="1311" y="-105" width="22" height="28" rx="4"/>
+<rect class="cab" x="1347" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="1381" y="-105" width="32" height="28" rx="4"/>
+<rect class="cab" x="1427" y="-105" width="22" height="28" rx="4"/>
+<rect class="furn bar" x="490" y="-188" width="260" height="24" rx="4"/>
+<circle class="npc" cx="620" cy="-225" r="11"/>
+<rect class="furn" x="-995" y="-1373" width="30" height="10" rx="4"/>
+<circle class="npc" cx="-1000" cy="-1415" r="11"/>
+<text class="rl" x="-1020" y="-1614.6" font-size="40">Casino Floor<tspan class="rd" dx="28" font-size="24.8">2688 × 1600</tspan></text>
+</g>
+<g class="room k-high" data-room="salon" tabindex="0">
+<title>High Limit Salon · 1088 × 900</title>
+<rect class="wall" x="-2128" y="-1664" width="1088" height="900"/>
+<rect class="fl" x="-2120" y="-1594" width="1072" height="820"/>
+<rect class="band" x="-2128" y="-1664" width="1088" height="70"/>
+<rect class="fl gap" x="-1049" y="-1512" width="10" height="96"/>
+<rect class="fl gap" x="-1276" y="-775" width="96" height="12"/>
+<line class="leaf" x1="-1272" y1="-769" x2="-1184" y2="-769"/>
+<rect class="wallitem" x="-2018" y="-1660" width="300" height="66"/>
+<rect class="felt f-card" x="-2087.5" y="-1393.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-1801.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1850.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1899.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1948.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1997.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-2046.5" cy="-1182" r="9"/>
+<text class="tl" x="-1924" y="-1298.5">BJ</text>
+<rect class="felt f-bac" x="-1747.5" y="-1393.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-1461.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1510.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1559.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1608.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1657.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1706.5" cy="-1182" r="9"/>
+<text class="tl" x="-1584" y="-1298.5">BAC</text>
+<rect class="felt f-card" x="-1407.5" y="-1393.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-1121.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1170.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1219.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1268.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1317.5" cy="-1182" r="9"/>
+<circle class="seat" cx="-1366.5" cy="-1182" r="9"/>
+<text class="tl" x="-1244" y="-1298.5">BJ</text>
+<rect class="felt f-wheel" x="-2005.5" y="-1007.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="-1633" y="-871" width="18" height="18"/>
+<circle class="seat" cx="-1688" cy="-822" r="9"/>
+<circle class="seat" cx="-1744" cy="-822" r="9"/>
+<circle class="seat" cx="-1800" cy="-822" r="9"/>
+<circle class="seat" cx="-1856" cy="-822" r="9"/>
+<circle class="seat" cx="-1912" cy="-822" r="9"/>
+<circle class="seat" cx="-1968" cy="-822" r="9"/>
+<text class="tl" x="-1828" y="-925">R</text>
+<rect class="felt f-master" x="-1531.5" y="-1033.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-1245.5" cy="-822" r="9"/>
+<circle class="seat" cx="-1294.5" cy="-822" r="9"/>
+<circle class="seat" cx="-1343.5" cy="-822" r="9"/>
+<circle class="seat" cx="-1392.5" cy="-822" r="9"/>
+<circle class="seat" cx="-1441.5" cy="-822" r="9"/>
+<circle class="seat" cx="-1490.5" cy="-822" r="9"/>
+<text class="tl" x="-1368" y="-938.5">M</text>
+<rect class="furn bar" x="-2008" y="-1510" width="280" height="26" rx="4"/>
+<rect class="furn" x="-1999" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1963" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1927" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1891" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1855" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1819" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1783" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1747" y="-1448" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1546" y="-1480" width="76" height="15" rx="4"/>
+<rect class="furn" x="-1602" y="-1476" width="28" height="11" rx="4"/>
+<rect class="furn" x="-1442" y="-1476" width="28" height="11" rx="4"/>
+<circle class="npc" cx="-1088" cy="-1465" r="11"/>
+<circle class="npc" cx="-1088" cy="-1065" r="11"/>
+<text class="rl" x="-1706" y="-1614.6" font-size="40">High Limit Salon<tspan class="rd" dx="28" font-size="24.8">1088 × 900</tspan></text>
+</g>
+<g class="room k-high" data-room="hl_slots" tabindex="0">
+<title>High Limit Slots · 1088 × 700</title>
+<rect class="wall" x="-2128" y="-764" width="1088" height="700"/>
+<rect class="fl" x="-2120" y="-694" width="1072" height="620"/>
+<rect class="band" x="-2128" y="-764" width="1088" height="70"/>
+<rect class="fl gap" x="-1049" y="-462" width="10" height="96"/>
+<rect class="fl gap" x="-1276" y="-765" width="96" height="72"/>
+<rect class="cab" x="-2047" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-2011" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1977" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1931" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1807" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1771" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1737" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1691" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1567" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1531" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1497" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1451" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1327" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1291" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1257" y="-655" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1211" y="-655" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1941" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1907" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1941" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1907" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1977" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1861" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1941" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1907" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1941" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1907" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1977" y="-195" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1861" y="-195" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1617" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1583" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1617" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1583" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1653" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1537" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1617" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1583" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1617" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1583" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1653" y="-195" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1537" y="-195" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1293" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1259" y="-402" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1293" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1259" y="-376" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1329" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1213" y="-387" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1293" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1259" y="-210" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1293" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1259" y="-184" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1329" y="-195" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1213" y="-195" width="22" height="28" rx="4"/>
+<text class="rl" x="-2108" y="-714.6" font-size="40">High Limit Slots<tspan class="rd" dx="28" font-size="24.8">1088 × 700</tspan></text>
+</g>
+<g class="room k-food" data-room="restaurant" tabindex="0">
+<title>Restaurant · 1136 × 800</title>
+<rect class="wall" x="448" y="-2464" width="1136" height="800"/>
+<rect class="fl" x="456" y="-2394" width="1120" height="720"/>
+<rect class="band" x="448" y="-2464" width="1136" height="70"/>
+<rect class="fl gap" x="812" y="-1675" width="96" height="12"/>
+<line class="leaf" x1="816" y1="-1669" x2="904" y2="-1669"/>
+<rect class="fl gap" x="1575" y="-2188" width="10" height="48"/>
+<rect class="furn" x="571.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="543.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="635.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="571.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="543.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="635.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="571.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="543.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="635.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="571.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="543.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="635.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="687.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="659.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="751.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="687.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="659.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="751.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="687.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="659.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="751.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="687.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="659.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="751.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="803.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="775.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="867.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="803.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="775.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="867.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="803.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="775.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="867.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="803.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="775.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="867.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="919.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="891.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="983.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="919.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="891.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="983.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="919.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="891.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="983.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="919.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="891.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="983.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1035.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="1007.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1099.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1035.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1007.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1099.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1035.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="1007.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1099.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1035.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="1007.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1099.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1151.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="1123.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1215.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1151.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1123.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1215.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1151.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="1123.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1215.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1151.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="1123.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1215.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1267.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="1239.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1331.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1267.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1239.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1331.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1267.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="1239.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1331.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1267.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="1239.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1331.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1383.5" y="-2230" width="53" height="26" rx="4"/>
+<rect class="furn" x="1355.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1447.5" y="-2214" width="17" height="14" rx="4"/>
+<rect class="furn" x="1383.5" y="-2120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1355.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1447.5" y="-2104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1383.5" y="-2010" width="53" height="26" rx="4"/>
+<rect class="furn" x="1355.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1447.5" y="-1994" width="17" height="14" rx="4"/>
+<rect class="furn" x="1383.5" y="-1900" width="53" height="26" rx="4"/>
+<rect class="furn" x="1355.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="1447.5" y="-1884" width="17" height="14" rx="4"/>
+<rect class="furn" x="833" y="-1762" width="54" height="18" rx="4"/>
+<circle class="npc" cx="918" cy="-1765" r="11"/>
+<rect class="furn" x="576" y="-2334" width="64" height="20" rx="4"/>
+<rect class="furn" x="676" y="-2334" width="64" height="20" rx="4"/>
+<rect class="furn" x="774" y="-2334" width="68" height="20" rx="4"/>
+<rect class="furn" x="1461" y="-2192" width="54" height="28" rx="4"/>
+<text class="rl" x="468" y="-2414.6" font-size="40">Restaurant<tspan class="rd" dx="28" font-size="24.8">1136 × 800</tspan></text>
+</g>
+<g class="room k-service" data-room="kitchen" tabindex="0">
+<title>Kitchen · 128 × 160</title>
+<rect class="wall" x="1584" y="-2264" width="128" height="160"/>
+<rect class="fl" x="1592" y="-2194" width="112" height="80"/>
+<rect class="" x="1592" y="-2194" width="112" height="80" fill="url(#hatch-plan_a)"/>
+<rect class="band" x="1584" y="-2264" width="128" height="70"/>
+<rect class="fl gap" x="1583" y="-2188" width="10" height="48"/>
+<line class="leaf" x1="1588" y1="-2184" x2="1588" y2="-2144"/>
+<text class="rl" x="1604" y="-2222.5" font-size="18">Kitchen</text>
+</g>
+<g class="room k-service" data-room="staff" tabindex="0">
+<title>Staff · 128 × 128</title>
+<rect class="wall" x="-404" y="-1792" width="128" height="128"/>
+<rect class="fl" x="-396" y="-1722" width="112" height="48"/>
+<rect class="" x="-396" y="-1722" width="112" height="48" fill="url(#hatch-plan_a)"/>
+<rect class="band" x="-404" y="-1792" width="128" height="70"/>
+<rect class="fl gap" x="-364" y="-1675" width="48" height="12"/>
+<line class="leaf" x1="-360" y1="-1669" x2="-320" y2="-1669"/>
+<text class="rl" x="-384" y="-1748.4" font-size="24">Staff</text>
+</g>
+<g class="room k-food" data-room="lounge" tabindex="0">
+<title>Showroom Lounge · 1024 × 800</title>
+<rect class="wall" x="1648" y="-1664" width="1024" height="800"/>
+<rect class="fl" x="1656" y="-1594" width="1008" height="720"/>
+<rect class="band" x="1648" y="-1664" width="1024" height="70"/>
+<rect class="fl gap" x="1647" y="-1560" width="10" height="192"/>
+<rect class="fl gap" x="2663" y="-1328" width="10" height="48"/>
+<rect class="flat" x="2038" y="-1546" width="500" height="376" rx="24"/>
+<rect class="wallitem" x="1678" y="-1660" width="300" height="66"/>
+<rect class="furn bar" x="1688" y="-1490" width="280" height="26" rx="4"/>
+<rect class="furn" x="1697" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1733" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1769" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1805" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1841" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1877" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1913" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="1949" y="-1428" width="10" height="4" rx="4"/>
+<rect class="furn" x="2083" y="-1049" width="130" height="24" rx="4"/>
+<rect class="furn" x="2083" y="-929" width="130" height="24" rx="4"/>
+<rect class="furn" x="2363" y="-1049" width="130" height="24" rx="4"/>
+<rect class="furn" x="2363" y="-929" width="130" height="24" rx="4"/>
+<rect class="furn" x="1987" y="-977" width="42" height="13" rx="4"/>
+<rect class="furn" x="2547" y="-977" width="42" height="13" rx="4"/>
+<rect class="furn" x="1976" y="-1254" width="24" height="10" rx="4"/>
+<rect class="furn" x="2576" y="-1254" width="24" height="10" rx="4"/>
+<text class="rl" x="1990" y="-1614.6" font-size="40">Showroom Lounge<tspan class="rd" dx="28" font-size="24.8">1024 × 800</tspan></text>
+</g>
+<g class="room k-service" data-room="restrooms" tabindex="0">
+<title>Restrooms · 128 × 160</title>
+<rect class="wall" x="2672" y="-1404" width="128" height="160"/>
+<rect class="fl" x="2680" y="-1334" width="112" height="80"/>
+<rect class="" x="2680" y="-1334" width="112" height="80" fill="url(#hatch-plan_a)"/>
+<rect class="band" x="2672" y="-1404" width="128" height="70"/>
+<rect class="fl gap" x="2671" y="-1328" width="10" height="48"/>
+<line class="leaf" x1="2676" y1="-1324" x2="2676" y2="-1284"/>
+<text class="rl" x="2692" y="-1362.8" font-size="17.2">Restrooms</text>
+</g>
+<g class="room k-feature" data-room="sportsbook" tabindex="0">
+<title>Sportsbook · 1024 × 800</title>
+<rect class="wall" x="1648" y="-864" width="1024" height="800"/>
+<rect class="fl" x="1656" y="-794" width="1008" height="720"/>
+<rect class="band" x="1648" y="-864" width="1024" height="70"/>
+<rect class="fl gap" x="1647" y="-692" width="10" height="256"/>
+<rect class="wallitem" x="1778" y="-852" width="340" height="58"/>
+<rect class="wallitem" x="2202" y="-852" width="340" height="58"/>
+<rect class="furn" x="1814" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="1814" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="1886" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="1886" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="1958" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="1958" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2030" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2030" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2102" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2102" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2174" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2174" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2246" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2246" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2318" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2318" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2390" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2390" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2462" y="-456" width="28" height="11" rx="4"/>
+<rect class="furn" x="2462" y="-356" width="28" height="11" rx="4"/>
+<rect class="furn" x="2001" y="-182" width="54" height="18" rx="4"/>
+<rect class="furn" x="2133" y="-182" width="54" height="18" rx="4"/>
+<rect class="furn" x="2265" y="-182" width="54" height="18" rx="4"/>
+<circle class="npc" cx="2160" cy="-225" r="11"/>
+<rect class="furn" x="1801" y="-569" width="14" height="5" rx="4"/>
+<rect class="furn" x="2501" y="-569" width="14" height="5" rx="4"/>
+<text class="rl" x="1668" y="-822.8" font-size="17.1">Sportsbook</text>
+</g>
+<g class="spawn"><circle cx="304" cy="296" r="22"/><circle cx="304" cy="296" r="8" class="dot"/></g>
+<g class="scale">
+<rect class="sb0" x="-2128" y="466" width="256" height="22"/>
+<rect class="sb1" x="-1872" y="466" width="256" height="22"/>
+<rect class="sb0" x="-1616" y="466" width="256" height="22"/>
+<rect class="sb1" x="-1360" y="466" width="256" height="22"/>
+<text x="-2128" y="538" class="st">0</text>
+<text x="-1616" y="538" class="st">512</text>
+<text x="-1104" y="538" class="st">1024</text>
+<text x="-1048" y="488" class="st st2">game px · 1024 px ≈ 10 s walk · grid 256</text>
+</g></svg></figure>
+  <div class="schedwrap"><table class="sched"><thead><tr><th>Room</th><th>Size (px)</th><th>Joined by</th><th>Holds</th><th>Notes</th></tr></thead>
+  <tbody><tr data-room="modern_lobby"><td class="nm"><span class="zsw" style="background:var(--z-entry)"></span>Modern lobby<i>Entrance · live now</i></td>
+<td class="size">608 × 400</td><td>archway to Casino Floor, door to Lift, door to Lift 2</td><td>—</td><td class="note"></td></tr><tr data-room="lift"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="lift_copy"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift 2<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="floor"><td class="nm"><span class="zsw" style="background:var(--z-floor)"></span>Casino Floor<i>Gaming floor</i></td>
+<td class="size">2688 × 1600</td><td>archway to Modern lobby, door to High Limit Salon, door to High Limit Slots, archway to Showroom Lounge, archway to Sportsbook, door to Restaurant, door to Staff</td><td>3 Blackjack, 1 Three Card Poker, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 Pai Gow, 2 Roulette, 1 Craps, 100 slots</td><td class="note">2688 × 1600. 8 card tables in two pits, 2 roulette, 1 craps inside a 128 px racetrack aisle; 72 slots in bank-of-6 columns down both sides, 28 more against the front wall; centre bar on the back wall at the head of the entrance axis; cashier cage facing the entrance.</td></tr><tr data-room="salon"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>High Limit Salon<i>High limit</i></td>
+<td class="size">1088 × 900</td><td>door to Casino Floor, door to High Limit Slots</td><td>2 Blackjack, 1 Baccarat, 1 Roulette, 1 Master table</td><td class="note">1088 × 900, door off the floor with a host. Five tables with high limits, a private bar and a lounge. A second door drops into the High Limit Slots below.</td></tr><tr data-room="hl_slots"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>High Limit Slots<i>High limit</i></td>
+<td class="size">1088 × 700</td><td>door to Casino Floor, door to High Limit Salon</td><td>52 slots</td><td class="note">1088 × 700. 52 high-denomination cabinets; doors to the floor and up into the salon.</td></tr><tr data-room="restaurant"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Restaurant<i>Food &amp; drink</i></td>
+<td class="size">1136 × 800</td><td>door to Casino Floor, door to Kitchen</td><td>—</td><td class="note">1136 × 800, door at the back of the floor. 32 tables for NPC diners, a maître d&#x27; at the door, piano and wine wall; the kitchen is an NPCs-only room behind it.</td></tr><tr data-room="kitchen"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Kitchen<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to Restaurant</td><td>—</td><td class="note">NPCs only: waiters and diners come and go here.</td></tr><tr data-room="staff"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Staff<i>NPCs only</i></td>
+<td class="size">128 × 128</td><td>door to Casino Floor</td><td>—</td><td class="note">NPCs only: dealers&#x27; shift changes walk in and out behind the pits.</td></tr><tr data-room="lounge"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Showroom Lounge<i>Food &amp; drink</i></td>
+<td class="size">1024 × 800</td><td>archway to Casino Floor, door to Restrooms</td><td>—</td><td class="note">1024 × 800, a wide archway so the music carries onto the floor. Stage, bar, banquettes.</td></tr><tr data-room="restrooms"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Restrooms<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to Showroom Lounge</td><td>—</td><td class="note">NPCs only: somewhere for people to pop off to.</td></tr><tr data-room="sportsbook"><td class="nm"><span class="zsw" style="background:var(--z-feature)"></span>Sportsbook<i>Feature</i></td>
+<td class="size">1024 × 800</td><td>archway to Casino Floor</td><td>—</td><td class="note">1024 × 800, archway off the floor. Video walls and rows of seats NPCs linger in; a betting counter for when there&#x27;s something to bet on.</td></tr></tbody></table></div>
+</section><section class="sheet" id="plan_b" data-plan="plan_b">
+  <div class="sheethead"><span class="big">B</span><h2>The Promenade</h2>
+    <span class="insp">Inspired by the grand European casinos: an enfilade of salons, slots kept apart from the tables</span><p>You walk in a straight line from the lobby through the Grand Hall and the Grand Salon to the Salle Privée, and each doorway shows the next room only once you reach it. The tables stay on the axis while the slots get their own hall, with a terrace linking it back to the salon so there&#x27;s a loop to wander. It has the fewest tables of the three and the most sense of arrival.</p></div>
+  <div class="walks"><span>Spawn → Salle Privée <b>28s</b></span><span>Spawn → Restaurant <b>24s</b></span><span>Spawn → Slot Hall <b>22s</b></span><span>4 Blackjack, 1 Three Card Poker, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 Pai Gow Face Up, 1 Roulette, 1 Craps, 1 Baccarat, 1 Master table</span></div>
+  <figure><svg class="plan" viewBox="-1840 -2528 4096 3124" role="img" aria-label="The Promenade floor plan" xmlns="http://www.w3.org/2000/svg">
+<defs><pattern id="hatch-plan_b" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="24" class="hatchline"/></pattern></defs>
+<g class="grid"><line x1="-2048" y1="-2528" x2="-2048" y2="396"/><line x1="-1792" y1="-2528" x2="-1792" y2="396"/><line x1="-1536" y1="-2528" x2="-1536" y2="396"/><line x1="-1280" y1="-2528" x2="-1280" y2="396"/><line x1="-1024" y1="-2528" x2="-1024" y2="396"/><line x1="-768" y1="-2528" x2="-768" y2="396"/><line x1="-512" y1="-2528" x2="-512" y2="396"/><line x1="-256" y1="-2528" x2="-256" y2="396"/><line x1="0" y1="-2528" x2="0" y2="396"/><line x1="256" y1="-2528" x2="256" y2="396"/><line x1="512" y1="-2528" x2="512" y2="396"/><line x1="768" y1="-2528" x2="768" y2="396"/><line x1="1024" y1="-2528" x2="1024" y2="396"/><line x1="1280" y1="-2528" x2="1280" y2="396"/><line x1="1536" y1="-2528" x2="1536" y2="396"/><line x1="1792" y1="-2528" x2="1792" y2="396"/><line x1="2048" y1="-2528" x2="2048" y2="396"/><line x1="-1840" y1="-2560" x2="2256" y2="-2560"/><line x1="-1840" y1="-2304" x2="2256" y2="-2304"/><line x1="-1840" y1="-2048" x2="2256" y2="-2048"/><line x1="-1840" y1="-1792" x2="2256" y2="-1792"/><line x1="-1840" y1="-1536" x2="2256" y2="-1536"/><line x1="-1840" y1="-1280" x2="2256" y2="-1280"/><line x1="-1840" y1="-1024" x2="2256" y2="-1024"/><line x1="-1840" y1="-768" x2="2256" y2="-768"/><line x1="-1840" y1="-512" x2="2256" y2="-512"/><line x1="-1840" y1="-256" x2="2256" y2="-256"/><line x1="-1840" y1="0" x2="2256" y2="0"/><line x1="-1840" y1="256" x2="2256" y2="256"/></g>
+<g class="room k-entry existing" data-room="modern_lobby" tabindex="0">
+<title>Modern lobby · 608 × 400</title>
+<rect class="wall" x="0" y="-64" width="608" height="400"/>
+<rect class="fl" x="8" y="6" width="592" height="320"/>
+<rect class="patch aisle" x="272" y="0" width="64" height="328" rx="0"/>
+<rect class="band" x="0" y="-64" width="608" height="70"/>
+<rect class="fl gap" x="208" y="-65" width="192" height="72"/>
+<rect class="fl gap" x="272" y="325" width="64" height="12"/>
+<line class="leaf" x1="276" y1="331" x2="332" y2="331"/>
+<rect class="fl gap" x="-1" y="92" width="10" height="40"/>
+<rect class="fl gap" x="-1" y="188" width="10" height="40"/>
+<rect class="flat" x="48" y="110" width="180" height="124" rx="24"/>
+<rect class="wallitem" x="86" y="-60" width="108" height="34"/>
+<rect class="furn" x="102" y="98" width="72" height="16" rx="4"/>
+<rect class="furn" x="102" y="222" width="72" height="16" rx="4"/>
+<rect class="furn" x="121" y="177" width="34" height="9" rx="4"/>
+<rect class="furn" x="49" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="201" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="21" y="40" width="18" height="8" rx="4"/>
+<rect class="furn" x="23" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="367" y="12" width="26" height="12" rx="4"/>
+<rect class="furn" x="427" y="28" width="50" height="8" rx="4"/>
+<rect class="furn" x="502" y="94" width="28" height="160" rx="4"/>
+<rect class="furn" x="559" y="46" width="14" height="6" rx="4"/>
+<rect class="furn" x="559" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="397" y="278" width="26" height="14" rx="4"/>
+<circle class="npc" cx="552" cy="151" r="11"/>
+<circle class="npc" cx="552" cy="223" r="11"/>
+<rect class="furn" x="527" y="260" width="66" height="4" rx="4"/>
+<rect class="furn" x="527" y="60" width="66" height="4" rx="4"/>
+<text class="rl" x="412" y="-22.5" font-size="18">Modern lobby</text>
+</g>
+<g class="room k-service existing" data-room="lift" tabindex="0">
+<title>Lift · 96 × 96</title>
+<rect class="wall" x="-96" y="64" width="96" height="96"/>
+<rect class="fl" x="-88" y="72" width="80" height="78"/>
+<rect class="" x="-88" y="72" width="80" height="78" fill="url(#hatch-plan_b)"/>
+<rect class="band" x="-96" y="64" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="92" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="96" x2="-4" y2="128"/>
+<text class="rl in" x="-70" y="118" font-size="40">Lift<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-service existing" data-room="lift_copy" tabindex="0">
+<title>Lift 2 · 96 × 96</title>
+<rect class="wall" x="-96" y="160" width="96" height="96"/>
+<rect class="fl" x="-88" y="168" width="80" height="78"/>
+<rect class="" x="-88" y="168" width="80" height="78" fill="url(#hatch-plan_b)"/>
+<rect class="band" x="-96" y="160" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="188" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="192" x2="-4" y2="224"/>
+<text class="rl in" x="-70" y="214" font-size="40">Lift 2<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-circ" data-room="atrium" tabindex="0">
+<title>Grand Hall · 1536 × 640</title>
+<rect class="wall" x="-464" y="-704" width="1536" height="640"/>
+<rect class="fl" x="-456" y="-634" width="1520" height="560"/>
+<rect class="patch aisle" x="112" y="-634" width="384" height="560" rx="0"/>
+<rect class="band" x="-464" y="-704" width="1536" height="70"/>
+<rect class="fl gap" x="208" y="-75" width="192" height="12"/>
+<rect class="fl gap" x="112" y="-705" width="384" height="72"/>
+<rect class="fl gap" x="-465" y="-424" width="10" height="160"/>
+<rect class="fl gap" x="1063" y="-440" width="10" height="192"/>
+<rect class="fl gap" x="-360" y="-75" width="48" height="12"/>
+<rect class="flat" x="212" y="-350" width="184" height="132" rx="24"/>
+<rect class="wallitem" x="722" y="-668" width="108" height="34"/>
+<rect class="furn" x="278" y="-334" width="52" height="30" rx="4"/>
+<rect class="furn" x="86" y="-416" width="20" height="12" rx="4"/>
+<rect class="furn" x="502" y="-416" width="20" height="12" rx="4"/>
+<rect class="furn bar" x="-294" y="-554" width="260" height="24" rx="4"/>
+<circle class="npc" cx="-164" cy="-585" r="11"/>
+<rect class="furn" x="763" y="-556" width="26" height="12" rx="4"/>
+<rect class="furn" x="813" y="-556" width="26" height="12" rx="4"/>
+<rect class="furn" x="62" y="-178" width="68" height="14" rx="4"/>
+<rect class="furn" x="478" y="-178" width="68" height="14" rx="4"/>
+<rect class="furn" x="-294" y="-152" width="20" height="8" rx="4"/>
+<rect class="furn" x="882" y="-152" width="20" height="8" rx="4"/>
+<text class="rl" x="-444" y="-654.6" font-size="40">Grand Hall<tspan class="rd" dx="28" font-size="24.8">1536 × 640</tspan></text>
+</g>
+<g class="room k-floor" data-room="slots" tabindex="0">
+<title>Slot Hall · 1280 × 1280</title>
+<rect class="wall" x="-1744" y="-1344" width="1280" height="1280"/>
+<rect class="fl" x="-1736" y="-1274" width="1264" height="1200"/>
+<rect class="patch aisle" x="-1736" y="-644" width="1264" height="96" rx="0"/>
+<rect class="band" x="-1744" y="-1344" width="1280" height="70"/>
+<rect class="fl gap" x="-473" y="-424" width="10" height="160"/>
+<rect class="fl gap" x="-1184" y="-1345" width="160" height="72"/>
+<line class="leaf" x1="-1180" y1="-1309" x2="-1028" y2="-1309"/>
+<rect class="cab" x="-1673" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1637" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1603" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1557" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1433" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1397" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1363" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1317" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1193" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1157" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1123" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1077" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-953" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-917" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-883" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-837" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-713" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-677" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-643" y="-1235" width="32" height="28" rx="4"/>
+<rect class="cab" x="-597" y="-1235" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1553" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1437" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1553" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1437" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1553" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1437" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1517" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1483" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1553" y="-315" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1437" y="-315" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1233" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1117" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1233" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1117" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1233" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1117" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1197" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1163" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1233" y="-315" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1117" y="-315" width="22" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-1002" width="32" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-976" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-797" y="-987" width="22" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-810" width="32" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-784" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-797" y="-795" width="22" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-522" width="32" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-496" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-797" y="-507" width="22" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-330" width="32" height="28" rx="4"/>
+<rect class="cab" x="-877" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-304" width="32" height="28" rx="4"/>
+<rect class="cab" x="-913" y="-315" width="22" height="28" rx="4"/>
+<rect class="cab" x="-797" y="-315" width="22" height="28" rx="4"/>
+<rect class="furn" x="-573" y="-650" width="18" height="6" rx="4"/>
+<rect class="furn" x="-557" y="-136" width="26" height="12" rx="4"/>
+<text class="rl" x="-1724" y="-1294.6" font-size="40">Slot Hall<tspan class="rd" dx="28" font-size="24.8">1280 × 1280</tspan></text>
+</g>
+<g class="room k-feature" data-room="terrace" tabindex="0">
+<title>Garden Terrace · 1280 × 384</title>
+<rect class="wall" x="-1744" y="-1728" width="1280" height="384"/>
+<rect class="fl" x="-1736" y="-1720" width="1264" height="366"/>
+<rect class="patch garden" x="-1736" y="-1720" width="1264" height="366" rx="0"/>
+<rect class="band" x="-1744" y="-1728" width="1280" height="8"/>
+<rect class="fl gap" x="-1184" y="-1355" width="160" height="12"/>
+<rect class="fl gap" x="-473" y="-1592" width="10" height="128"/>
+<rect class="furn" x="-1130" y="-1538" width="52" height="30" rx="4"/>
+<rect class="furn" x="-1635" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1515" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1395" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1275" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1155" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1035" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-915" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-795" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-675" y="-1678" width="22" height="10" rx="4"/>
+<rect class="furn" x="-1610.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1638.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1546.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1480.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1508.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1416.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1350.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1378.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1286.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-870.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-898.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-806.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-740.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-768.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-676.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-610.5" y="-1554" width="53" height="26" rx="4"/>
+<rect class="furn" x="-638.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-546.5" y="-1538" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1138" y="-1402" width="68" height="14" rx="4"/>
+<rect class="furn" x="-1287" y="-1438" width="26" height="10" rx="4"/>
+<rect class="furn" x="-947" y="-1438" width="26" height="10" rx="4"/>
+<text class="rl in" x="-1718" y="-1674" font-size="40">Garden Terrace<tspan class="rd" dx="28" font-size="25">1280 × 384</tspan></text>
+</g>
+<g class="room k-floor" data-room="salon" tabindex="0">
+<title>Grand Salon · 1536 × 1024</title>
+<rect class="wall" x="-464" y="-1728" width="1536" height="1024"/>
+<rect class="fl" x="-456" y="-1658" width="1520" height="944"/>
+<rect class="patch aisle" x="244" y="-1658" width="120" height="944" rx="0"/>
+<rect class="patch aisle" x="-456" y="-1088" width="1520" height="64" rx="0"/>
+<rect class="band" x="-464" y="-1728" width="1536" height="70"/>
+<rect class="fl gap" x="112" y="-715" width="384" height="12"/>
+<rect class="fl gap" x="256" y="-1729" width="96" height="72"/>
+<line class="leaf" x1="260" y1="-1693" x2="348" y2="-1693"/>
+<rect class="fl gap" x="-465" y="-1592" width="10" height="128"/>
+<line class="leaf" x1="-460" y1="-1588" x2="-460" y2="-1468"/>
+<rect class="fl gap" x="1063" y="-1092" width="10" height="128"/>
+<line class="leaf" x1="1068" y1="-1088" x2="1068" y2="-968"/>
+<rect class="fl gap" x="-360" y="-1729" width="48" height="72"/>
+<rect class="flat" x="244" y="-1446" width="120" height="96" rx="24"/>
+<rect class="flat" x="244" y="-1186" width="120" height="96" rx="24"/>
+<rect class="felt f-card" x="-427.5" y="-1586.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-386.5" cy="-1640" r="9"/>
+<circle class="seat" cx="-337.5" cy="-1640" r="9"/>
+<circle class="seat" cx="-288.5" cy="-1640" r="9"/>
+<circle class="seat" cx="-239.5" cy="-1640" r="9"/>
+<circle class="seat" cx="-190.5" cy="-1640" r="9"/>
+<circle class="seat" cx="-141.5" cy="-1640" r="9"/>
+<text class="tl" x="-264" y="-1491.5">BJ</text>
+<rect class="felt f-card" x="-83.5" y="-1586.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-42.5" cy="-1640" r="9"/>
+<circle class="seat" cx="6.5" cy="-1640" r="9"/>
+<circle class="seat" cx="55.5" cy="-1640" r="9"/>
+<circle class="seat" cx="104.5" cy="-1640" r="9"/>
+<circle class="seat" cx="153.5" cy="-1640" r="9"/>
+<circle class="seat" cx="202.5" cy="-1640" r="9"/>
+<text class="tl" x="80" y="-1491.5">BJ</text>
+<rect class="felt f-card" x="-427.5" y="-1351.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-141.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-190.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-239.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-288.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-337.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-386.5" cy="-1140" r="9"/>
+<text class="tl" x="-264" y="-1256.5">BJ</text>
+<rect class="felt f-card" x="-83.5" y="-1351.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="202.5" cy="-1140" r="9"/>
+<circle class="seat" cx="153.5" cy="-1140" r="9"/>
+<circle class="seat" cx="104.5" cy="-1140" r="9"/>
+<circle class="seat" cx="55.5" cy="-1140" r="9"/>
+<circle class="seat" cx="6.5" cy="-1140" r="9"/>
+<circle class="seat" cx="-42.5" cy="-1140" r="9"/>
+<text class="tl" x="80" y="-1256.5">3CP</text>
+<rect class="furn" x="-107" y="-1395" width="30" height="10" rx="4"/>
+<rect class="felt f-card" x="364.5" y="-1586.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="405.5" cy="-1640" r="9"/>
+<circle class="seat" cx="454.5" cy="-1640" r="9"/>
+<circle class="seat" cx="503.5" cy="-1640" r="9"/>
+<circle class="seat" cx="552.5" cy="-1640" r="9"/>
+<circle class="seat" cx="601.5" cy="-1640" r="9"/>
+<circle class="seat" cx="650.5" cy="-1640" r="9"/>
+<text class="tl" x="528" y="-1491.5">UTH</text>
+<rect class="felt f-card" x="708.5" y="-1586.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="749.5" cy="-1640" r="9"/>
+<circle class="seat" cx="798.5" cy="-1640" r="9"/>
+<circle class="seat" cx="847.5" cy="-1640" r="9"/>
+<circle class="seat" cx="896.5" cy="-1640" r="9"/>
+<circle class="seat" cx="945.5" cy="-1640" r="9"/>
+<circle class="seat" cx="994.5" cy="-1640" r="9"/>
+<text class="tl" x="872" y="-1491.5">MS</text>
+<rect class="felt f-card" x="364.5" y="-1351.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="648" cy="-1140" r="9"/>
+<circle class="seat" cx="588" cy="-1140" r="9"/>
+<circle class="seat" cx="528" cy="-1140" r="9"/>
+<circle class="seat" cx="468" cy="-1140" r="9"/>
+<circle class="seat" cx="408" cy="-1140" r="9"/>
+<text class="tl" x="528" y="-1256.5">LIR</text>
+<rect class="felt f-card" x="708.5" y="-1351.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="994.5" cy="-1140" r="9"/>
+<circle class="seat" cx="945.5" cy="-1140" r="9"/>
+<circle class="seat" cx="896.5" cy="-1140" r="9"/>
+<circle class="seat" cx="847.5" cy="-1140" r="9"/>
+<circle class="seat" cx="798.5" cy="-1140" r="9"/>
+<circle class="seat" cx="749.5" cy="-1140" r="9"/>
+<text class="tl" x="872" y="-1256.5">PGF</text>
+<rect class="furn" x="685" y="-1395" width="30" height="10" rx="4"/>
+<rect class="felt f-wheel" x="-269.5" y="-991.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="103" y="-855" width="18" height="18"/>
+<circle class="seat" cx="48" cy="-806" r="9"/>
+<circle class="seat" cx="-8" cy="-806" r="9"/>
+<circle class="seat" cx="-64" cy="-806" r="9"/>
+<circle class="seat" cx="-120" cy="-806" r="9"/>
+<circle class="seat" cx="-176" cy="-806" r="9"/>
+<circle class="seat" cx="-232" cy="-806" r="9"/>
+<text class="tl" x="-92" y="-909">R</text>
+<rect class="felt f-dice" x="501.5" y="-998.5" width="397" height="140" rx="34"/>
+<rect class="sign" x="913" y="-856" width="18" height="18"/>
+<circle class="seat" cx="864" cy="-802" r="9"/>
+<circle class="seat" cx="828" cy="-802" r="9"/>
+<circle class="seat" cx="792" cy="-802" r="9"/>
+<circle class="seat" cx="756" cy="-802" r="9"/>
+<circle class="seat" cx="644" cy="-802" r="9"/>
+<circle class="seat" cx="608" cy="-802" r="9"/>
+<circle class="seat" cx="572" cy="-802" r="9"/>
+<circle class="seat" cx="536" cy="-802" r="9"/>
+<text class="tl" x="700" y="-912.5">C</text>
+<rect class="furn" x="293.5" y="-1536" width="21" height="8" rx="4"/>
+<circle class="npc" cx="236" cy="-1029" r="11"/>
+<text class="rl" x="-300" y="-1678.6" font-size="40">Grand Salon<tspan class="rd" dx="28" font-size="24.8">1536 × 1024</tspan></text>
+</g>
+<g class="room k-high" data-room="privee" tabindex="0">
+<title>Salle Privée · 1088 × 704</title>
+<rect class="wall" x="-240" y="-2432" width="1088" height="704"/>
+<rect class="fl" x="-232" y="-2362" width="1072" height="624"/>
+<rect class="patch hlcarpet" x="-232" y="-2362" width="1072" height="624" rx="0"/>
+<rect class="band" x="-240" y="-2432" width="1088" height="70"/>
+<rect class="fl gap" x="256" y="-1739" width="96" height="12"/>
+<rect class="fl gap" x="839" y="-2080" width="10" height="96"/>
+<line class="leaf" x1="844" y1="-2076" x2="844" y2="-1988"/>
+<rect class="wallitem" x="104" y="-2422" width="400" height="60"/>
+<rect class="felt f-bac" x="-203.5" y="-2181.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="82.5" cy="-1970" r="9"/>
+<circle class="seat" cx="33.5" cy="-1970" r="9"/>
+<circle class="seat" cx="-15.5" cy="-1970" r="9"/>
+<circle class="seat" cx="-64.5" cy="-1970" r="9"/>
+<circle class="seat" cx="-113.5" cy="-1970" r="9"/>
+<circle class="seat" cx="-162.5" cy="-1970" r="9"/>
+<text class="tl" x="-40" y="-2086.5">BAC</text>
+<rect class="felt f-card" x="140.5" y="-2181.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="426.5" cy="-1970" r="9"/>
+<circle class="seat" cx="377.5" cy="-1970" r="9"/>
+<circle class="seat" cx="328.5" cy="-1970" r="9"/>
+<circle class="seat" cx="279.5" cy="-1970" r="9"/>
+<circle class="seat" cx="230.5" cy="-1970" r="9"/>
+<circle class="seat" cx="181.5" cy="-1970" r="9"/>
+<text class="tl" x="304" y="-2086.5">BJ</text>
+<rect class="felt f-master" x="484.5" y="-2181.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="770.5" cy="-1970" r="9"/>
+<circle class="seat" cx="721.5" cy="-1970" r="9"/>
+<circle class="seat" cx="672.5" cy="-1970" r="9"/>
+<circle class="seat" cx="623.5" cy="-1970" r="9"/>
+<circle class="seat" cx="574.5" cy="-1970" r="9"/>
+<circle class="seat" cx="525.5" cy="-1970" r="9"/>
+<text class="tl" x="648" y="-2086.5">M</text>
+<rect class="furn" x="-118" y="-1828" width="76" height="15" rx="4"/>
+<rect class="furn" x="-174" y="-1824" width="28" height="11" rx="4"/>
+<rect class="furn" x="-14" y="-1824" width="28" height="11" rx="4"/>
+<rect class="furn" x="53" y="-1817" width="14" height="5" rx="4"/>
+<rect class="furn bar" x="480" y="-1838" width="280" height="26" rx="4"/>
+<circle class="npc" cx="620" cy="-1873" r="11"/>
+<circle class="npc" cx="380" cy="-1773" r="11"/>
+<circle class="npc" cx="230" cy="-1773" r="11"/>
+<text class="rl" x="-220" y="-2382.6" font-size="40">Salle Privée</text>
+</g>
+<g class="room k-high" data-room="hl_slots" tabindex="0">
+<title>High Limit Slots · 512 × 512</title>
+<rect class="wall" x="848" y="-2240" width="512" height="512"/>
+<rect class="fl" x="856" y="-2170" width="496" height="432"/>
+<rect class="patch hlcarpet" x="856" y="-2170" width="496" height="432" rx="0"/>
+<rect class="band" x="848" y="-2240" width="512" height="70"/>
+<rect class="fl gap" x="847" y="-2080" width="10" height="96"/>
+<rect class="cab" x="919" y="-2131" width="22" height="28" rx="4"/>
+<rect class="cab" x="955" y="-2131" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-2131" width="32" height="28" rx="4"/>
+<rect class="cab" x="1035" y="-2131" width="22" height="28" rx="4"/>
+<rect class="cab" x="1159" y="-2131" width="22" height="28" rx="4"/>
+<rect class="cab" x="1195" y="-2131" width="32" height="28" rx="4"/>
+<rect class="cab" x="1229" y="-2131" width="32" height="28" rx="4"/>
+<rect class="cab" x="1275" y="-2131" width="22" height="28" rx="4"/>
+<rect class="cab" x="955" y="-1948" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-1948" width="32" height="28" rx="4"/>
+<rect class="cab" x="955" y="-1922" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-1922" width="32" height="28" rx="4"/>
+<rect class="cab" x="919" y="-1933" width="22" height="28" rx="4"/>
+<rect class="cab" x="1035" y="-1933" width="22" height="28" rx="4"/>
+<rect class="cab" x="1195" y="-1948" width="32" height="28" rx="4"/>
+<rect class="cab" x="1229" y="-1948" width="32" height="28" rx="4"/>
+<rect class="cab" x="1195" y="-1922" width="32" height="28" rx="4"/>
+<rect class="cab" x="1229" y="-1922" width="32" height="28" rx="4"/>
+<rect class="cab" x="1159" y="-1933" width="22" height="28" rx="4"/>
+<rect class="cab" x="1275" y="-1933" width="22" height="28" rx="4"/>
+<text class="rl" x="868" y="-2190.6" font-size="40">High Limit Slots</text>
+</g>
+<g class="room k-food" data-room="lounge" tabindex="0">
+<title>Lounge Bar · 960 × 640</title>
+<rect class="wall" x="1072" y="-704" width="960" height="640"/>
+<rect class="fl" x="1080" y="-634" width="944" height="560"/>
+<rect class="band" x="1072" y="-704" width="960" height="70"/>
+<rect class="fl gap" x="1071" y="-440" width="10" height="192"/>
+<rect class="fl gap" x="1504" y="-705" width="96" height="72"/>
+<line class="leaf" x1="1508" y1="-669" x2="1596" y2="-669"/>
+<rect class="flat" x="1522" y="-586" width="500" height="376" rx="24"/>
+<rect class="wallitem" x="1222" y="-700" width="300" height="66"/>
+<rect class="furn bar" x="1232" y="-530" width="280" height="26" rx="4"/>
+<rect class="furn" x="1241" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1269" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1297" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1325" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1353" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1381" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1409" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1437" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1465" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1493" y="-468" width="10" height="4" rx="4"/>
+<rect class="furn" x="1745" y="-432" width="54" height="28" rx="4"/>
+<rect class="furn" x="1207" y="-169" width="130" height="24" rx="4"/>
+<rect class="furn" x="1427" y="-169" width="130" height="24" rx="4"/>
+<rect class="furn" x="1361" y="-237" width="42" height="13" rx="4"/>
+<rect class="furn" x="1905" y="-149" width="14" height="5" rx="4"/>
+<rect class="furn" x="1965" y="-149" width="14" height="5" rx="4"/>
+<text class="rl" x="1612" y="-654.6" font-size="40">Lounge Bar</text>
+</g>
+<g class="room k-food" data-room="restaurant" tabindex="0">
+<title>Restaurant · 960 × 640</title>
+<rect class="wall" x="1072" y="-1344" width="960" height="640"/>
+<rect class="fl" x="1080" y="-1274" width="944" height="560"/>
+<rect class="band" x="1072" y="-1344" width="960" height="70"/>
+<rect class="fl gap" x="1071" y="-1092" width="10" height="128"/>
+<rect class="fl gap" x="1504" y="-715" width="96" height="12"/>
+<rect class="fl gap" x="2023" y="-1114" width="10" height="48"/>
+<rect class="furn" x="1265.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1237.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1329.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1265.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1237.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1329.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1265.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1237.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1329.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1265.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1237.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1329.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1377.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1349.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1441.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1377.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1349.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1441.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1377.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1349.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1441.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1377.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1349.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1441.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1489.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1461.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1553.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1489.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1461.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1553.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1489.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1461.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1553.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1489.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1461.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1553.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1601.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1573.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1665.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1601.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1573.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1665.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1601.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1573.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1665.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1601.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1573.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1665.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1713.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1685.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1777.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1713.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1685.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1777.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1713.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1685.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1777.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1713.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1685.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1777.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1825.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1797.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1889.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1825.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1797.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1889.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1825.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1797.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1889.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1825.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1797.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1889.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1937.5" y="-1120" width="53" height="26" rx="4"/>
+<rect class="furn" x="1909.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="2001.5" y="-1104" width="17" height="14" rx="4"/>
+<rect class="furn" x="1937.5" y="-1020" width="53" height="26" rx="4"/>
+<rect class="furn" x="1909.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="2001.5" y="-1004" width="17" height="14" rx="4"/>
+<rect class="furn" x="1937.5" y="-920" width="53" height="26" rx="4"/>
+<rect class="furn" x="1909.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="2001.5" y="-904" width="17" height="14" rx="4"/>
+<rect class="furn" x="1937.5" y="-820" width="53" height="26" rx="4"/>
+<rect class="furn" x="1909.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="2001.5" y="-804" width="17" height="14" rx="4"/>
+<rect class="furn" x="1340" y="-1214" width="64" height="20" rx="4"/>
+<rect class="furn" x="1440" y="-1214" width="64" height="20" rx="4"/>
+<rect class="furn" x="1538" y="-1214" width="68" height="20" rx="4"/>
+<circle class="npc" cx="1132" cy="-925" r="11"/>
+<text class="rl" x="1092" y="-1294.6" font-size="40">Restaurant<tspan class="rd" dx="28" font-size="24.8">960 × 640</tspan></text>
+</g>
+<g class="room k-service" data-room="kitchen" tabindex="0">
+<title>Kitchen · 128 × 160</title>
+<rect class="wall" x="2032" y="-1200" width="128" height="160"/>
+<rect class="fl" x="2040" y="-1130" width="112" height="80"/>
+<rect class="" x="2040" y="-1130" width="112" height="80" fill="url(#hatch-plan_b)"/>
+<rect class="band" x="2032" y="-1200" width="128" height="70"/>
+<rect class="fl gap" x="2031" y="-1114" width="10" height="48"/>
+<line class="leaf" x1="2036" y1="-1110" x2="2036" y2="-1070"/>
+<text class="rl" x="2052" y="-1158.5" font-size="18">Kitchen</text>
+</g>
+<g class="room k-service" data-room="staff" tabindex="0">
+<title>Staff · 128 × 128</title>
+<rect class="wall" x="-400" y="-1856" width="128" height="128"/>
+<rect class="fl" x="-392" y="-1786" width="112" height="48"/>
+<rect class="" x="-392" y="-1786" width="112" height="48" fill="url(#hatch-plan_b)"/>
+<rect class="band" x="-400" y="-1856" width="128" height="70"/>
+<rect class="fl gap" x="-360" y="-1739" width="48" height="12"/>
+<line class="leaf" x1="-356" y1="-1733" x2="-316" y2="-1733"/>
+<text class="rl" x="-380" y="-1812.4" font-size="24">Staff</text>
+</g>
+<g class="room k-service" data-room="restrooms" tabindex="0">
+<title>Restrooms · 128 × 160</title>
+<rect class="wall" x="-400" y="-64" width="128" height="160"/>
+<rect class="fl" x="-392" y="6" width="112" height="80"/>
+<rect class="" x="-392" y="6" width="112" height="80" fill="url(#hatch-plan_b)"/>
+<rect class="band" x="-400" y="-64" width="128" height="70"/>
+<rect class="fl gap" x="-360" y="-65" width="48" height="72"/>
+<line class="leaf" x1="-356" y1="-29" x2="-316" y2="-29"/>
+<text class="rl" x="-380" y="-25.4" font-size="10">Restrooms</text>
+</g>
+<g class="spawn"><circle cx="304" cy="296" r="22"/><circle cx="304" cy="296" r="8" class="dot"/></g>
+<g class="scale">
+<rect class="sb0" x="-1744" y="466" width="256" height="22"/>
+<rect class="sb1" x="-1488" y="466" width="256" height="22"/>
+<rect class="sb0" x="-1232" y="466" width="256" height="22"/>
+<rect class="sb1" x="-976" y="466" width="256" height="22"/>
+<text x="-1744" y="538" class="st">0</text>
+<text x="-1232" y="538" class="st">512</text>
+<text x="-720" y="538" class="st">1024</text>
+<text x="-664" y="488" class="st st2">game px · 1024 px ≈ 10 s walk · grid 256</text>
+</g></svg></figure>
+  <div class="schedwrap"><table class="sched"><thead><tr><th>Room</th><th>Size (px)</th><th>Joined by</th><th>Holds</th><th>Notes</th></tr></thead>
+  <tbody><tr data-room="modern_lobby"><td class="nm"><span class="zsw" style="background:var(--z-entry)"></span>Modern lobby<i>Entrance · live now</i></td>
+<td class="size">608 × 400</td><td>archway to Grand Hall, door to Lift, door to Lift 2</td><td>—</td><td class="note"></td></tr><tr data-room="lift"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="lift_copy"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift 2<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="atrium"><td class="nm"><span class="zsw" style="background:var(--z-circ)"></span>Grand Hall<i>Circulation</i></td>
+<td class="size">1536 × 640</td><td>archway to Modern lobby, archway to Grand Salon, archway to Slot Hall, archway to Lounge Bar, door to Restrooms</td><td>—</td><td class="note">1536 × 640, the lobby&#x27;s archway opens onto it. Fountain on the axis, cashier cage and ATMs, archways out to the slots on one side and the bar on the other. Nobody gambles here, it&#x27;s where people meet.</td></tr><tr data-room="slots"><td class="nm"><span class="zsw" style="background:var(--z-floor)"></span>Slot Hall<i>Gaming floor</i></td>
+<td class="size">1280 × 1280</td><td>archway to Grand Hall, door to Garden Terrace</td><td>92 slots</td><td class="note">1280 × 1280, an archway off the Grand Hall. 92 slots: banks of 4 along the back wall and a grid of banks of 6 split by a cross aisle. A door at the back leads out to the terrace.</td></tr><tr data-room="terrace"><td class="nm"><span class="zsw" style="background:var(--z-feature)"></span>Garden Terrace<i>Feature</i></td>
+<td class="size">1280 × 384</td><td>door to Slot Hall, door to Grand Salon</td><td>—</td><td class="note">1280 × 384, open air (a thin back wall). Doors from the Slot Hall and the Grand Salon make a loop. A fountain, café tables, somewhere for NPCs to step out.</td></tr><tr data-room="salon"><td class="nm"><span class="zsw" style="background:var(--z-floor)"></span>Grand Salon<i>Gaming floor</i></td>
+<td class="size">1536 × 1024</td><td>archway to Grand Hall, door to Salle Privée, door to Garden Terrace, door to Restaurant, door to Staff</td><td>3 Blackjack, 1 Three Card Poker, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 Pai Gow Face Up, 1 Roulette, 1 Craps</td><td class="note">1536 × 1024, through the big archway on the axis. Two pits of four card tables either side of the axis aisle, with roulette and craps at the front. Doors out to the terrace, the restaurant and, straight ahead, the Salle Privée.</td></tr><tr data-room="privee"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>Salle Privée<i>High limit</i></td>
+<td class="size">1088 × 704</td><td>door to Grand Salon, door to High Limit Slots</td><td>1 Baccarat, 1 Blackjack, 1 Master table</td><td class="note">1088 × 704, a door at the head of the axis. Three tables with high limits (a Master table gives them every game), a lounge and a butler&#x27;s bar. A side door leads to the High Limit Slots.</td></tr><tr data-room="hl_slots"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>High Limit Slots<i>High limit</i></td>
+<td class="size">512 × 512</td><td>door to Salle Privée</td><td>20 slots</td><td class="note">512 × 512, through the Salle Privée only. 20 cabinets at the top denominations.</td></tr><tr data-room="lounge"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Lounge Bar<i>Food &amp; drink</i></td>
+<td class="size">960 × 640</td><td>archway to Grand Hall, door to Restaurant</td><td>—</td><td class="note">960 × 640, an archway off the Grand Hall. Long bar, piano stage and banquettes, with a door up to the restaurant.</td></tr><tr data-room="restaurant"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Restaurant<i>Food &amp; drink</i></td>
+<td class="size">960 × 640</td><td>door to Grand Salon, door to Lounge Bar, door to Kitchen</td><td>—</td><td class="note">960 × 640. Two ways in, from the Grand Salon and up from the Lounge Bar. 28 tables, a wine wall, and the kitchen behind it.</td></tr><tr data-room="kitchen"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Kitchen<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to Restaurant</td><td>—</td><td class="note">NPCs only: waiters and diners.</td></tr><tr data-room="staff"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Staff<i>NPCs only</i></td>
+<td class="size">128 × 128</td><td>door to Grand Salon</td><td>—</td><td class="note">NPCs only: dealers coming on shift into the salon.</td></tr><tr data-room="restrooms"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Restrooms<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to Grand Hall</td><td>—</td><td class="note">NPCs only, off the Grand Hall.</td></tr></tbody></table></div>
+</section><section class="sheet" id="plan_c" data-plan="plan_c">
+  <div class="sheethead"><span class="big">C</span><h2>The Boulevard</h2>
+    <span class="insp">Inspired by integrated resorts with indoor shopping streets, plus the Macau habit of separate baccarat salons</span><p>The spawn opens onto a street rather than the casino. The restaurant, show lounge, café, sportsbook and shop doors all open off it, so there&#x27;s life before you place a bet. Three archways lead north onto a big floor with tight slot clusters at the front, then the pits round an island bar. The Vault, the Jade Room and the High Limit Slots open off its back and sides. It&#x27;s the biggest of the three and has the most to wander through.</p></div>
+  <div class="walks"><span>Spawn → The Vault <b>29s</b></span><span>Spawn → Restaurant <b>29s</b></span><span>Spawn → Show Lounge <b>29s</b></span><span>7 Blackjack, 3 Roulette, 3 Baccarat, 2 Three Card Poker, 2 Pai Gow, 2 Craps, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 High Card Flush, 1 Master table, 1 Pai Gow Face Up</span></div>
+  <figure><svg class="plan" viewBox="-2480 -2736 5440 3572" role="img" aria-label="The Boulevard floor plan" xmlns="http://www.w3.org/2000/svg">
+<defs><pattern id="hatch-plan_c" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="24" class="hatchline"/></pattern></defs>
+<g class="grid"><line x1="-2560" y1="-2736" x2="-2560" y2="636"/><line x1="-2304" y1="-2736" x2="-2304" y2="636"/><line x1="-2048" y1="-2736" x2="-2048" y2="636"/><line x1="-1792" y1="-2736" x2="-1792" y2="636"/><line x1="-1536" y1="-2736" x2="-1536" y2="636"/><line x1="-1280" y1="-2736" x2="-1280" y2="636"/><line x1="-1024" y1="-2736" x2="-1024" y2="636"/><line x1="-768" y1="-2736" x2="-768" y2="636"/><line x1="-512" y1="-2736" x2="-512" y2="636"/><line x1="-256" y1="-2736" x2="-256" y2="636"/><line x1="0" y1="-2736" x2="0" y2="636"/><line x1="256" y1="-2736" x2="256" y2="636"/><line x1="512" y1="-2736" x2="512" y2="636"/><line x1="768" y1="-2736" x2="768" y2="636"/><line x1="1024" y1="-2736" x2="1024" y2="636"/><line x1="1280" y1="-2736" x2="1280" y2="636"/><line x1="1536" y1="-2736" x2="1536" y2="636"/><line x1="1792" y1="-2736" x2="1792" y2="636"/><line x1="2048" y1="-2736" x2="2048" y2="636"/><line x1="2304" y1="-2736" x2="2304" y2="636"/><line x1="2560" y1="-2736" x2="2560" y2="636"/><line x1="2816" y1="-2736" x2="2816" y2="636"/><line x1="-2480" y1="-2816" x2="2960" y2="-2816"/><line x1="-2480" y1="-2560" x2="2960" y2="-2560"/><line x1="-2480" y1="-2304" x2="2960" y2="-2304"/><line x1="-2480" y1="-2048" x2="2960" y2="-2048"/><line x1="-2480" y1="-1792" x2="2960" y2="-1792"/><line x1="-2480" y1="-1536" x2="2960" y2="-1536"/><line x1="-2480" y1="-1280" x2="2960" y2="-1280"/><line x1="-2480" y1="-1024" x2="2960" y2="-1024"/><line x1="-2480" y1="-768" x2="2960" y2="-768"/><line x1="-2480" y1="-512" x2="2960" y2="-512"/><line x1="-2480" y1="-256" x2="2960" y2="-256"/><line x1="-2480" y1="0" x2="2960" y2="0"/><line x1="-2480" y1="256" x2="2960" y2="256"/><line x1="-2480" y1="512" x2="2960" y2="512"/></g>
+<g class="room k-entry existing" data-room="modern_lobby" tabindex="0">
+<title>Modern lobby · 608 × 400</title>
+<rect class="wall" x="0" y="-64" width="608" height="400"/>
+<rect class="fl" x="8" y="6" width="592" height="320"/>
+<rect class="patch aisle" x="272" y="0" width="64" height="328" rx="0"/>
+<rect class="band" x="0" y="-64" width="608" height="70"/>
+<rect class="fl gap" x="208" y="-65" width="192" height="72"/>
+<rect class="fl gap" x="272" y="325" width="64" height="12"/>
+<line class="leaf" x1="276" y1="331" x2="332" y2="331"/>
+<rect class="fl gap" x="-1" y="92" width="10" height="40"/>
+<rect class="fl gap" x="-1" y="188" width="10" height="40"/>
+<rect class="flat" x="48" y="110" width="180" height="124" rx="24"/>
+<rect class="wallitem" x="86" y="-60" width="108" height="34"/>
+<rect class="furn" x="102" y="98" width="72" height="16" rx="4"/>
+<rect class="furn" x="102" y="222" width="72" height="16" rx="4"/>
+<rect class="furn" x="121" y="177" width="34" height="9" rx="4"/>
+<rect class="furn" x="49" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="201" y="176" width="26" height="11" rx="4"/>
+<rect class="furn" x="21" y="40" width="18" height="8" rx="4"/>
+<rect class="furn" x="23" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="367" y="12" width="26" height="12" rx="4"/>
+<rect class="furn" x="427" y="28" width="50" height="8" rx="4"/>
+<rect class="furn" x="502" y="94" width="28" height="160" rx="4"/>
+<rect class="furn" x="559" y="46" width="14" height="6" rx="4"/>
+<rect class="furn" x="559" y="310" width="18" height="8" rx="4"/>
+<rect class="furn" x="397" y="278" width="26" height="14" rx="4"/>
+<circle class="npc" cx="552" cy="151" r="11"/>
+<circle class="npc" cx="552" cy="223" r="11"/>
+<rect class="furn" x="527" y="260" width="66" height="4" rx="4"/>
+<rect class="furn" x="527" y="60" width="66" height="4" rx="4"/>
+<text class="rl" x="412" y="-22.5" font-size="18">Modern lobby</text>
+</g>
+<g class="room k-service existing" data-room="lift" tabindex="0">
+<title>Lift · 96 × 96</title>
+<rect class="wall" x="-96" y="64" width="96" height="96"/>
+<rect class="fl" x="-88" y="72" width="80" height="78"/>
+<rect class="" x="-88" y="72" width="80" height="78" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-96" y="64" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="92" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="96" x2="-4" y2="128"/>
+<text class="rl in" x="-70" y="118" font-size="40">Lift<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-service existing" data-room="lift_copy" tabindex="0">
+<title>Lift 2 · 96 × 96</title>
+<rect class="wall" x="-96" y="160" width="96" height="96"/>
+<rect class="fl" x="-88" y="168" width="80" height="78"/>
+<rect class="" x="-88" y="168" width="80" height="78" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-96" y="160" width="96" height="8"/>
+<rect class="fl gap" x="-9" y="188" width="10" height="40"/>
+<line class="leaf" x1="-4" y1="192" x2="-4" y2="224"/>
+<text class="rl in" x="-70" y="214" font-size="40">Lift 2<tspan class="rd" dx="28" font-size="25"></tspan></text>
+</g>
+<g class="room k-circ" data-room="boulevard" tabindex="0">
+<title>The Boulevard · 3200 × 448</title>
+<rect class="wall" x="-1296" y="-512" width="3200" height="448"/>
+<rect class="fl" x="-1288" y="-442" width="3184" height="368"/>
+<rect class="patch aisle" x="-1288" y="-312" width="3184" height="120" rx="0"/>
+<rect class="band" x="-1296" y="-512" width="3200" height="70"/>
+<rect class="fl gap" x="208" y="-75" width="192" height="12"/>
+<rect class="fl gap" x="-692" y="-513" width="192" height="72"/>
+<rect class="fl gap" x="144" y="-513" width="320" height="72"/>
+<rect class="fl gap" x="1108" y="-513" width="192" height="72"/>
+<rect class="fl gap" x="-1008" y="-75" width="256" height="12"/>
+<rect class="fl gap" x="976" y="-75" width="256" height="12"/>
+<rect class="fl gap" x="-416" y="-75" width="64" height="12"/>
+<line class="leaf" x1="-412" y1="-69" x2="-356" y2="-69"/>
+<rect class="fl gap" x="-224" y="-75" width="64" height="12"/>
+<line class="leaf" x1="-220" y1="-69" x2="-164" y2="-69"/>
+<rect class="fl gap" x="-1297" y="-322" width="10" height="128"/>
+<line class="leaf" x1="-1292" y1="-318" x2="-1292" y2="-198"/>
+<rect class="fl gap" x="1895" y="-386" width="10" height="256"/>
+<rect class="wallitem" x="-1008" y="-482" width="24" height="40"/>
+<rect class="wallitem" x="-208" y="-482" width="24" height="40"/>
+<rect class="wallitem" x="792" y="-482" width="24" height="40"/>
+<rect class="wallitem" x="1592" y="-482" width="24" height="40"/>
+<rect class="furn" x="-1056" y="-310" width="20" height="8" rx="4"/>
+<rect class="furn" x="-156" y="-310" width="20" height="8" rx="4"/>
+<rect class="furn" x="744" y="-310" width="20" height="8" rx="4"/>
+<rect class="furn" x="1644" y="-310" width="20" height="8" rx="4"/>
+<rect class="furn" x="-880" y="-196" width="68" height="14" rx="4"/>
+<rect class="furn" x="-180" y="-196" width="68" height="14" rx="4"/>
+<rect class="furn" x="720" y="-196" width="68" height="14" rx="4"/>
+<rect class="furn" x="1420" y="-196" width="68" height="14" rx="4"/>
+<rect class="furn" x="297" y="-238" width="14" height="6" rx="4"/>
+<rect class="furn" x="288" y="-326" width="32" height="14" rx="4"/>
+<rect class="furn" x="591" y="-384" width="26" height="12" rx="4"/>
+<rect class="furn" x="-9" y="-384" width="26" height="12" rx="4"/>
+<text class="rl" x="-972" y="-465.5" font-size="32">The Boulevard</text>
+</g>
+<g class="room k-floor" data-room="floor" tabindex="0">
+<title>Casino Floor · 2688 × 1280</title>
+<rect class="wall" x="-1040" y="-1792" width="2688" height="1280"/>
+<rect class="fl" x="-1032" y="-1722" width="2672" height="1200"/>
+<rect class="patch pitcarpet" x="-1032" y="-922" width="2672" height="400" rx="0"/>
+<rect class="patch aisle" x="144" y="-1722" width="320" height="1200" rx="0"/>
+<rect class="band" x="-1040" y="-1792" width="2688" height="70"/>
+<rect class="fl gap" x="-692" y="-523" width="192" height="12"/>
+<rect class="fl gap" x="144" y="-523" width="320" height="12"/>
+<rect class="fl gap" x="1108" y="-523" width="192" height="12"/>
+<rect class="fl gap" x="256" y="-1793" width="96" height="72"/>
+<line class="leaf" x1="260" y1="-1757" x2="348" y2="-1757"/>
+<rect class="fl gap" x="-1041" y="-1540" width="10" height="96"/>
+<line class="leaf" x1="-1036" y1="-1536" x2="-1036" y2="-1448"/>
+<rect class="fl gap" x="1639" y="-1540" width="10" height="96"/>
+<line class="leaf" x1="1644" y1="-1536" x2="1644" y2="-1448"/>
+<rect class="fl gap" x="-960" y="-1793" width="48" height="72"/>
+<rect class="flat" x="212" y="-718" width="184" height="132" rx="24"/>
+<rect class="felt f-card" x="-867.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-826.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-777.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-728.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-679.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-630.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-581.5" cy="-1704" r="9"/>
+<text class="tl" x="-704" y="-1555.5">BJ</text>
+<rect class="felt f-card" x="-523.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-482.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-433.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-384.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-335.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-286.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-237.5" cy="-1704" r="9"/>
+<text class="tl" x="-360" y="-1555.5">BJ</text>
+<rect class="felt f-card" x="-179.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-138.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-89.5" cy="-1704" r="9"/>
+<circle class="seat" cx="-40.5" cy="-1704" r="9"/>
+<circle class="seat" cx="8.5" cy="-1704" r="9"/>
+<circle class="seat" cx="57.5" cy="-1704" r="9"/>
+<circle class="seat" cx="106.5" cy="-1704" r="9"/>
+<text class="tl" x="-16" y="-1555.5">BJ</text>
+<rect class="felt f-card" x="-867.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-581.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-630.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-679.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-728.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-777.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-826.5" cy="-1204" r="9"/>
+<text class="tl" x="-704" y="-1320.5">BJ</text>
+<rect class="felt f-card" x="-523.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="-237.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-286.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-335.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-384.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-433.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-482.5" cy="-1204" r="9"/>
+<text class="tl" x="-360" y="-1320.5">3CP</text>
+<rect class="felt f-card" x="-179.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="106.5" cy="-1204" r="9"/>
+<circle class="seat" cx="57.5" cy="-1204" r="9"/>
+<circle class="seat" cx="8.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-40.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-89.5" cy="-1204" r="9"/>
+<circle class="seat" cx="-138.5" cy="-1204" r="9"/>
+<text class="tl" x="-16" y="-1320.5">UTH</text>
+<rect class="furn" x="-375" y="-1459" width="30" height="10" rx="4"/>
+<rect class="felt f-card" x="460.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="501.5" cy="-1704" r="9"/>
+<circle class="seat" cx="550.5" cy="-1704" r="9"/>
+<circle class="seat" cx="599.5" cy="-1704" r="9"/>
+<circle class="seat" cx="648.5" cy="-1704" r="9"/>
+<circle class="seat" cx="697.5" cy="-1704" r="9"/>
+<circle class="seat" cx="746.5" cy="-1704" r="9"/>
+<text class="tl" x="624" y="-1555.5">MS</text>
+<rect class="felt f-card" x="804.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="848" cy="-1704" r="9"/>
+<circle class="seat" cx="908" cy="-1704" r="9"/>
+<circle class="seat" cx="968" cy="-1704" r="9"/>
+<circle class="seat" cx="1028" cy="-1704" r="9"/>
+<circle class="seat" cx="1088" cy="-1704" r="9"/>
+<text class="tl" x="968" y="-1555.5">LIR</text>
+<rect class="felt f-card" x="1148.5" y="-1650.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="1192" cy="-1704" r="9"/>
+<circle class="seat" cx="1252" cy="-1704" r="9"/>
+<circle class="seat" cx="1312" cy="-1704" r="9"/>
+<circle class="seat" cx="1372" cy="-1704" r="9"/>
+<circle class="seat" cx="1432" cy="-1704" r="9"/>
+<text class="tl" x="1312" y="-1555.5">HCF</text>
+<rect class="felt f-card" x="460.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="746.5" cy="-1204" r="9"/>
+<circle class="seat" cx="697.5" cy="-1204" r="9"/>
+<circle class="seat" cx="648.5" cy="-1204" r="9"/>
+<circle class="seat" cx="599.5" cy="-1204" r="9"/>
+<circle class="seat" cx="550.5" cy="-1204" r="9"/>
+<circle class="seat" cx="501.5" cy="-1204" r="9"/>
+<text class="tl" x="624" y="-1320.5">PG</text>
+<rect class="felt f-card" x="804.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="1090.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1041.5" cy="-1204" r="9"/>
+<circle class="seat" cx="992.5" cy="-1204" r="9"/>
+<circle class="seat" cx="943.5" cy="-1204" r="9"/>
+<circle class="seat" cx="894.5" cy="-1204" r="9"/>
+<circle class="seat" cx="845.5" cy="-1204" r="9"/>
+<text class="tl" x="968" y="-1320.5">3CP</text>
+<rect class="felt f-card" x="1148.5" y="-1415.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="1434.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1385.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1336.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1287.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1238.5" cy="-1204" r="9"/>
+<circle class="seat" cx="1189.5" cy="-1204" r="9"/>
+<text class="tl" x="1312" y="-1320.5">BJ</text>
+<rect class="furn" x="953" y="-1459" width="30" height="10" rx="4"/>
+<rect class="felt f-wheel" x="-697.5" y="-1115.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="-325" y="-979" width="18" height="18"/>
+<circle class="seat" cx="-380" cy="-930" r="9"/>
+<circle class="seat" cx="-436" cy="-930" r="9"/>
+<circle class="seat" cx="-492" cy="-930" r="9"/>
+<circle class="seat" cx="-548" cy="-930" r="9"/>
+<circle class="seat" cx="-604" cy="-930" r="9"/>
+<circle class="seat" cx="-660" cy="-930" r="9"/>
+<text class="tl" x="-520" y="-1033">R</text>
+<rect class="felt f-wheel" x="-257.5" y="-1115.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="115" y="-979" width="18" height="18"/>
+<circle class="seat" cx="60" cy="-930" r="9"/>
+<circle class="seat" cx="4" cy="-930" r="9"/>
+<circle class="seat" cx="-52" cy="-930" r="9"/>
+<circle class="seat" cx="-108" cy="-930" r="9"/>
+<circle class="seat" cx="-164" cy="-930" r="9"/>
+<circle class="seat" cx="-220" cy="-930" r="9"/>
+<text class="tl" x="-80" y="-1033">R</text>
+<rect class="felt f-dice" x="561.5" y="-1122.5" width="397" height="140" rx="34"/>
+<rect class="sign" x="973" y="-980" width="18" height="18"/>
+<circle class="seat" cx="924" cy="-926" r="9"/>
+<circle class="seat" cx="888" cy="-926" r="9"/>
+<circle class="seat" cx="852" cy="-926" r="9"/>
+<circle class="seat" cx="816" cy="-926" r="9"/>
+<circle class="seat" cx="704" cy="-926" r="9"/>
+<circle class="seat" cx="668" cy="-926" r="9"/>
+<circle class="seat" cx="632" cy="-926" r="9"/>
+<circle class="seat" cx="596" cy="-926" r="9"/>
+<text class="tl" x="760" y="-1036.5">C</text>
+<rect class="felt f-dice" x="1021.5" y="-1122.5" width="397" height="140" rx="34"/>
+<rect class="sign" x="1433" y="-980" width="18" height="18"/>
+<circle class="seat" cx="1384" cy="-926" r="9"/>
+<circle class="seat" cx="1348" cy="-926" r="9"/>
+<circle class="seat" cx="1312" cy="-926" r="9"/>
+<circle class="seat" cx="1276" cy="-926" r="9"/>
+<circle class="seat" cx="1164" cy="-926" r="9"/>
+<circle class="seat" cx="1128" cy="-926" r="9"/>
+<circle class="seat" cx="1092" cy="-926" r="9"/>
+<circle class="seat" cx="1056" cy="-926" r="9"/>
+<text class="tl" x="1220" y="-1036.5">C</text>
+<rect class="furn bar" x="164" y="-1418" width="280" height="26" rx="4"/>
+<rect class="furn" x="173" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="201" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="229" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="257" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="285" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="313" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="341" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="369" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="397" y="-1356" width="10" height="4" rx="4"/>
+<rect class="furn" x="425" y="-1356" width="10" height="4" rx="4"/>
+<circle class="npc" cx="304" cy="-1473" r="11"/>
+<rect class="cab" x="-923" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-889" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-923" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-889" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-959" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-923" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-889" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-923" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-889" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-959" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="-843" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="-413" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-379" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-413" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-379" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-449" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-333" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-413" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-379" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-413" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-379" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-449" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="-333" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="-173" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-139" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="-173" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-139" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="-209" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-93" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="-173" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-139" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="-173" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-139" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="-209" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="-93" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="715" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="749" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="715" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="749" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="679" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="795" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="715" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="749" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="715" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="749" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="679" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="795" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="955" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="955" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="919" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="1035" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="955" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="955" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="989" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="919" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="1035" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="1465" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="1499" y="-870" width="32" height="28" rx="4"/>
+<rect class="cab" x="1465" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="1499" y="-844" width="32" height="28" rx="4"/>
+<rect class="cab" x="1429" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="1545" y="-855" width="22" height="28" rx="4"/>
+<rect class="cab" x="1465" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="1499" y="-678" width="32" height="28" rx="4"/>
+<rect class="cab" x="1465" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="1499" y="-652" width="32" height="28" rx="4"/>
+<rect class="cab" x="1429" y="-663" width="22" height="28" rx="4"/>
+<rect class="cab" x="1545" y="-663" width="22" height="28" rx="4"/>
+<rect class="furn" x="151" y="-738" width="18" height="6" rx="4"/>
+<rect class="furn" x="439" y="-738" width="18" height="6" rx="4"/>
+<text class="rl" x="-900" y="-1742.6" font-size="40">Casino Floor<tspan class="rd" dx="28" font-size="24.8">2688 × 1280</tspan></text>
+</g>
+<g class="room k-high" data-room="vault" tabindex="0">
+<title>The Vault · 1088 × 848</title>
+<rect class="wall" x="-240" y="-2640" width="1088" height="848"/>
+<rect class="fl" x="-232" y="-2570" width="1072" height="768"/>
+<rect class="patch hlcarpet" x="-232" y="-2570" width="1072" height="768" rx="0"/>
+<rect class="band" x="-240" y="-2640" width="1088" height="70"/>
+<rect class="fl gap" x="256" y="-1803" width="96" height="12"/>
+<rect class="wallitem" x="-130" y="-2636" width="300" height="66"/>
+<rect class="felt f-card" x="-199.5" y="-2369.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="86.5" cy="-2158" r="9"/>
+<circle class="seat" cx="37.5" cy="-2158" r="9"/>
+<circle class="seat" cx="-11.5" cy="-2158" r="9"/>
+<circle class="seat" cx="-60.5" cy="-2158" r="9"/>
+<circle class="seat" cx="-109.5" cy="-2158" r="9"/>
+<circle class="seat" cx="-158.5" cy="-2158" r="9"/>
+<text class="tl" x="-36" y="-2274.5">BJ</text>
+<rect class="felt f-bac" x="140.5" y="-2369.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="426.5" cy="-2158" r="9"/>
+<circle class="seat" cx="377.5" cy="-2158" r="9"/>
+<circle class="seat" cx="328.5" cy="-2158" r="9"/>
+<circle class="seat" cx="279.5" cy="-2158" r="9"/>
+<circle class="seat" cx="230.5" cy="-2158" r="9"/>
+<circle class="seat" cx="181.5" cy="-2158" r="9"/>
+<text class="tl" x="304" y="-2274.5">BAC</text>
+<rect class="felt f-card" x="480.5" y="-2369.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="766.5" cy="-2158" r="9"/>
+<circle class="seat" cx="717.5" cy="-2158" r="9"/>
+<circle class="seat" cx="668.5" cy="-2158" r="9"/>
+<circle class="seat" cx="619.5" cy="-2158" r="9"/>
+<circle class="seat" cx="570.5" cy="-2158" r="9"/>
+<circle class="seat" cx="521.5" cy="-2158" r="9"/>
+<text class="tl" x="644" y="-2274.5">BJ</text>
+<rect class="felt f-wheel" x="-117.5" y="-2003.5" width="355" height="133" rx="34"/>
+<rect class="sign" x="255" y="-1867" width="18" height="18"/>
+<circle class="seat" cx="200" cy="-1818" r="9"/>
+<circle class="seat" cx="144" cy="-1818" r="9"/>
+<circle class="seat" cx="88" cy="-1818" r="9"/>
+<circle class="seat" cx="32" cy="-1818" r="9"/>
+<circle class="seat" cx="-24" cy="-1818" r="9"/>
+<circle class="seat" cx="-80" cy="-1818" r="9"/>
+<text class="tl" x="60" y="-1921">R</text>
+<rect class="felt f-master" x="356.5" y="-2029.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="642.5" cy="-1818" r="9"/>
+<circle class="seat" cx="593.5" cy="-1818" r="9"/>
+<circle class="seat" cx="544.5" cy="-1818" r="9"/>
+<circle class="seat" cx="495.5" cy="-1818" r="9"/>
+<circle class="seat" cx="446.5" cy="-1818" r="9"/>
+<circle class="seat" cx="397.5" cy="-1818" r="9"/>
+<text class="tl" x="520" y="-1934.5">M</text>
+<rect class="furn bar" x="-120" y="-2486" width="280" height="26" rx="4"/>
+<rect class="furn" x="-111" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="-75" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="-39" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="-3" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="33" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="69" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="105" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="141" y="-2424" width="10" height="4" rx="4"/>
+<rect class="furn" x="362" y="-2466" width="76" height="15" rx="4"/>
+<rect class="furn" x="306" y="-2462" width="28" height="11" rx="4"/>
+<rect class="furn" x="466" y="-2462" width="28" height="11" rx="4"/>
+<circle class="npc" cx="760" cy="-1841" r="11"/>
+<circle class="npc" cx="800" cy="-2041" r="11"/>
+<text class="rl" x="182" y="-2590.6" font-size="40">The Vault<tspan class="rd" dx="28" font-size="24.8">1088 × 848</tspan></text>
+</g>
+<g class="room k-high" data-room="jade" tabindex="0">
+<title>Jade Room · 960 × 800</title>
+<rect class="wall" x="1648" y="-1792" width="960" height="800"/>
+<rect class="fl" x="1656" y="-1722" width="944" height="720"/>
+<rect class="band" x="1648" y="-1792" width="960" height="70"/>
+<rect class="fl gap" x="1647" y="-1540" width="10" height="96"/>
+<rect class="felt f-bac" x="1744.5" y="-1561.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="2030.5" cy="-1350" r="9"/>
+<circle class="seat" cx="1981.5" cy="-1350" r="9"/>
+<circle class="seat" cx="1932.5" cy="-1350" r="9"/>
+<circle class="seat" cx="1883.5" cy="-1350" r="9"/>
+<circle class="seat" cx="1834.5" cy="-1350" r="9"/>
+<circle class="seat" cx="1785.5" cy="-1350" r="9"/>
+<text class="tl" x="1908" y="-1466.5">BAC</text>
+<rect class="felt f-bac" x="2184.5" y="-1561.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="2470.5" cy="-1350" r="9"/>
+<circle class="seat" cx="2421.5" cy="-1350" r="9"/>
+<circle class="seat" cx="2372.5" cy="-1350" r="9"/>
+<circle class="seat" cx="2323.5" cy="-1350" r="9"/>
+<circle class="seat" cx="2274.5" cy="-1350" r="9"/>
+<circle class="seat" cx="2225.5" cy="-1350" r="9"/>
+<text class="tl" x="2348" y="-1466.5">BAC</text>
+<rect class="felt f-card" x="1744.5" y="-1251.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="2030.5" cy="-1040" r="9"/>
+<circle class="seat" cx="1981.5" cy="-1040" r="9"/>
+<circle class="seat" cx="1932.5" cy="-1040" r="9"/>
+<circle class="seat" cx="1883.5" cy="-1040" r="9"/>
+<circle class="seat" cx="1834.5" cy="-1040" r="9"/>
+<circle class="seat" cx="1785.5" cy="-1040" r="9"/>
+<text class="tl" x="1908" y="-1156.5">PG</text>
+<rect class="felt f-card" x="2184.5" y="-1251.5" width="327" height="158" rx="34"/>
+<circle class="seat" cx="2470.5" cy="-1040" r="9"/>
+<circle class="seat" cx="2421.5" cy="-1040" r="9"/>
+<circle class="seat" cx="2372.5" cy="-1040" r="9"/>
+<circle class="seat" cx="2323.5" cy="-1040" r="9"/>
+<circle class="seat" cx="2274.5" cy="-1040" r="9"/>
+<circle class="seat" cx="2225.5" cy="-1040" r="9"/>
+<text class="tl" x="2348" y="-1156.5">PGF</text>
+<rect class="furn" x="2058" y="-1654" width="140" height="12" rx="4"/>
+<rect class="furn" x="1715" y="-1650" width="26" height="8" rx="4"/>
+<rect class="furn" x="2515" y="-1650" width="26" height="8" rx="4"/>
+<rect class="furn" x="1995.5" y="-1680" width="25" height="8" rx="4"/>
+<rect class="furn" x="2235.5" y="-1680" width="25" height="8" rx="4"/>
+<circle class="npc" cx="1708" cy="-1413" r="11"/>
+<text class="rl" x="1668" y="-1742.6" font-size="40">Jade Room<tspan class="rd" dx="28" font-size="24.8">960 × 800</tspan></text>
+</g>
+<g class="room k-high" data-room="hl_slots" tabindex="0">
+<title>High Limit Slots · 928 × 640</title>
+<rect class="wall" x="-1968" y="-1792" width="928" height="640"/>
+<rect class="fl" x="-1960" y="-1722" width="912" height="560"/>
+<rect class="patch hlcarpet" x="-1960" y="-1722" width="912" height="560" rx="0"/>
+<rect class="band" x="-1968" y="-1792" width="928" height="70"/>
+<rect class="fl gap" x="-1049" y="-1540" width="10" height="96"/>
+<rect class="cab" x="-1887" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1851" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1817" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1771" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1647" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1611" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1577" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1531" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1407" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1371" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1337" y="-1683" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1291" y="-1683" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1761" y="-1470" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1727" y="-1470" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1761" y="-1444" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1727" y="-1444" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1797" y="-1455" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1681" y="-1455" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1761" y="-1278" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1727" y="-1278" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1761" y="-1252" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1727" y="-1252" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1797" y="-1263" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1681" y="-1263" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1441" y="-1470" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1407" y="-1470" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1441" y="-1444" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1407" y="-1444" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1477" y="-1455" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1361" y="-1455" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1441" y="-1278" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1407" y="-1278" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1441" y="-1252" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1407" y="-1252" width="32" height="28" rx="4"/>
+<rect class="cab" x="-1477" y="-1263" width="22" height="28" rx="4"/>
+<rect class="cab" x="-1361" y="-1263" width="22" height="28" rx="4"/>
+<text class="rl" x="-1948" y="-1742.6" font-size="40">High Limit Slots<tspan class="rd" dx="28" font-size="24.8">928 × 640</tspan></text>
+</g>
+<g class="room k-food" data-room="restaurant" tabindex="0">
+<title>Restaurant · 960 × 768</title>
+<rect class="wall" x="-2256" y="-832" width="960" height="768"/>
+<rect class="fl" x="-2248" y="-762" width="944" height="688"/>
+<rect class="band" x="-2256" y="-832" width="960" height="70"/>
+<rect class="fl gap" x="-1305" y="-322" width="10" height="128"/>
+<rect class="fl gap" x="-2257" y="-514" width="10" height="48"/>
+<rect class="furn" x="-2122.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2150.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2058.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2122.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2150.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2058.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2122.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2150.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2058.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2122.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2150.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2058.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2014.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2042.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1950.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2014.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2042.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1950.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2014.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2042.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1950.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2014.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-2042.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1950.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1906.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1934.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1842.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1906.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1934.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1842.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1906.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1934.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1842.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1906.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1934.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1842.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1798.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1826.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1734.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1798.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1826.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1734.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1798.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1826.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1734.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1798.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1826.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1734.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1690.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1718.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1626.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1690.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1718.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1626.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1690.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1718.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1626.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1690.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1718.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1626.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1582.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1610.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1518.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1582.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1610.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1518.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1582.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1610.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1518.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1582.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1610.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1518.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1474.5" y="-578" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1502.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1410.5" y="-562" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1474.5" y="-468" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1502.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1410.5" y="-452" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1474.5" y="-358" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1502.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1410.5" y="-342" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1474.5" y="-248" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1502.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1410.5" y="-232" width="17" height="14" rx="4"/>
+<rect class="furn" x="-2088" y="-702" width="64" height="20" rx="4"/>
+<rect class="furn" x="-1988" y="-702" width="64" height="20" rx="4"/>
+<rect class="furn" x="-1463" y="-660" width="54" height="28" rx="4"/>
+<rect class="furn" x="-1403" y="-330" width="54" height="18" rx="4"/>
+<circle class="npc" cx="-1376" cy="-373" r="11"/>
+<text class="rl" x="-2236" y="-782.6" font-size="40">Restaurant<tspan class="rd" dx="28" font-size="24.8">960 × 768</tspan></text>
+</g>
+<g class="room k-food" data-room="show" tabindex="0">
+<title>Show Lounge · 960 × 768</title>
+<rect class="wall" x="1904" y="-832" width="960" height="768"/>
+<rect class="fl" x="1912" y="-762" width="944" height="688"/>
+<rect class="band" x="1904" y="-832" width="960" height="70"/>
+<rect class="fl gap" x="1903" y="-386" width="10" height="256"/>
+<rect class="flat" x="2254" y="-714" width="500" height="376" rx="24"/>
+<rect class="wallitem" x="1914" y="-828" width="300" height="66"/>
+<rect class="furn bar" x="1924" y="-658" width="280" height="26" rx="4"/>
+<rect class="furn" x="1933" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="1983.5" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="2034" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="2084" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="2134.5" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="2185" y="-596" width="10" height="4" rx="4"/>
+<rect class="furn" x="2259" y="-257" width="130" height="24" rx="4"/>
+<rect class="furn" x="2259" y="-137" width="130" height="24" rx="4"/>
+<rect class="furn" x="2539" y="-257" width="130" height="24" rx="4"/>
+<rect class="furn" x="2539" y="-137" width="130" height="24" rx="4"/>
+<rect class="furn" x="2222" y="-422" width="24" height="10" rx="4"/>
+<rect class="furn" x="2762" y="-422" width="24" height="10" rx="4"/>
+<text class="rl" x="2226" y="-782.6" font-size="40">Show Lounge<tspan class="rd" dx="28" font-size="24.8">960 × 768</tspan></text>
+</g>
+<g class="room k-food" data-room="cafe" tabindex="0">
+<title>Café · 816 × 512</title>
+<rect class="wall" x="-1296" y="-64" width="816" height="512"/>
+<rect class="fl" x="-1288" y="6" width="800" height="432"/>
+<rect class="band" x="-1296" y="-64" width="816" height="70"/>
+<rect class="fl gap" x="-1008" y="-65" width="256" height="72"/>
+<rect class="wallitem" x="-1038" y="-60" width="300" height="66"/>
+<rect class="furn bar" x="-1028" y="100" width="280" height="26" rx="4"/>
+<rect class="furn" x="-1019" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-968.5" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-918" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-868" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-817.5" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-767" y="162" width="10" height="4" rx="4"/>
+<rect class="furn" x="-1162.5" y="240" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1190.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1098.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-1042.5" y="240" width="53" height="26" rx="4"/>
+<rect class="furn" x="-1070.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-978.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-922.5" y="240" width="53" height="26" rx="4"/>
+<rect class="furn" x="-950.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-858.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-802.5" y="240" width="53" height="26" rx="4"/>
+<rect class="furn" x="-830.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-738.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-682.5" y="240" width="53" height="26" rx="4"/>
+<rect class="furn" x="-710.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-618.5" y="256" width="17" height="14" rx="4"/>
+<rect class="furn" x="-644" y="396" width="96" height="10" rx="4"/>
+<text class="rl" x="-1276" y="-14.6" font-size="40">Café</text>
+</g>
+<g class="room k-feature" data-room="sportsbook" tabindex="0">
+<title>Sportsbook &amp; Bar · 1296 × 640</title>
+<rect class="wall" x="608" y="-64" width="1296" height="640"/>
+<rect class="fl" x="616" y="6" width="1280" height="560"/>
+<rect class="band" x="608" y="-64" width="1296" height="70"/>
+<rect class="fl gap" x="976" y="-65" width="256" height="72"/>
+<rect class="wallitem" x="698" y="-52" width="340" height="58"/>
+<rect class="wallitem" x="1086" y="-52" width="340" height="58"/>
+<rect class="wallitem" x="1474" y="-52" width="340" height="58"/>
+<rect class="furn" x="774" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="774" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="846" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="846" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="918" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="918" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="990" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="990" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1062" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1062" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1134" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1134" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1206" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1206" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1278" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1278" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1350" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1350" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1422" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1422" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1494" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1494" y="334" width="28" height="11" rx="4"/>
+<rect class="furn" x="1566" y="244" width="28" height="11" rx="4"/>
+<rect class="furn" x="1566" y="334" width="28" height="11" rx="4"/>
+<rect class="furn bar" x="1548" y="430" width="280" height="26" rx="4"/>
+<rect class="furn" x="1557" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1593" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1629" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1665" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1701" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1737" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1773" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="1809" y="492" width="10" height="4" rx="4"/>
+<rect class="furn" x="801" y="471" width="14" height="5" rx="4"/>
+<rect class="furn" x="901" y="471" width="14" height="5" rx="4"/>
+<rect class="furn" x="1001" y="471" width="14" height="5" rx="4"/>
+<rect class="furn" x="1181" y="438" width="54" height="18" rx="4"/>
+<rect class="furn" x="1301" y="438" width="54" height="18" rx="4"/>
+<circle class="npc" cx="1268" cy="405" r="11"/>
+<text class="rl" x="628" y="-25.4" font-size="10">Sportsbook &amp; Bar</text>
+</g>
+<g class="room k-service" data-room="boutique" tabindex="0">
+<title>Boutique · 160 × 160</title>
+<rect class="wall" x="-448" y="-64" width="160" height="160"/>
+<rect class="fl" x="-440" y="6" width="144" height="80"/>
+<rect class="" x="-440" y="6" width="144" height="80" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-448" y="-64" width="160" height="70"/>
+<rect class="fl gap" x="-416" y="-65" width="64" height="72"/>
+<text class="rl" x="-340" y="-25.4" font-size="10">Boutique</text>
+</g>
+<g class="room k-service" data-room="restrooms" tabindex="0">
+<title>Restrooms · 128 × 160</title>
+<rect class="wall" x="-256" y="-64" width="128" height="160"/>
+<rect class="fl" x="-248" y="6" width="112" height="80"/>
+<rect class="" x="-248" y="6" width="112" height="80" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-256" y="-64" width="128" height="70"/>
+<rect class="fl gap" x="-224" y="-65" width="64" height="72"/>
+<text class="rl" x="-236" y="-25.4" font-size="10">Restrooms</text>
+</g>
+<g class="room k-service" data-room="kitchen" tabindex="0">
+<title>Kitchen · 128 × 160</title>
+<rect class="wall" x="-2384" y="-600" width="128" height="160"/>
+<rect class="fl" x="-2376" y="-530" width="112" height="80"/>
+<rect class="" x="-2376" y="-530" width="112" height="80" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-2384" y="-600" width="128" height="70"/>
+<rect class="fl gap" x="-2265" y="-514" width="10" height="48"/>
+<line class="leaf" x1="-2260" y1="-510" x2="-2260" y2="-470"/>
+<text class="rl" x="-2364" y="-558.5" font-size="18">Kitchen</text>
+</g>
+<g class="room k-service" data-room="staff" tabindex="0">
+<title>Staff · 128 × 128</title>
+<rect class="wall" x="-1000" y="-1920" width="128" height="128"/>
+<rect class="fl" x="-992" y="-1850" width="112" height="48"/>
+<rect class="" x="-992" y="-1850" width="112" height="48" fill="url(#hatch-plan_c)"/>
+<rect class="band" x="-1000" y="-1920" width="128" height="70"/>
+<rect class="fl gap" x="-960" y="-1803" width="48" height="12"/>
+<line class="leaf" x1="-956" y1="-1797" x2="-916" y2="-1797"/>
+<text class="rl" x="-980" y="-1876.4" font-size="24">Staff</text>
+</g>
+<g class="spawn"><circle cx="304" cy="296" r="22"/><circle cx="304" cy="296" r="8" class="dot"/></g>
+<g class="scale">
+<rect class="sb0" x="-2384" y="706" width="256" height="22"/>
+<rect class="sb1" x="-2128" y="706" width="256" height="22"/>
+<rect class="sb0" x="-1872" y="706" width="256" height="22"/>
+<rect class="sb1" x="-1616" y="706" width="256" height="22"/>
+<text x="-2384" y="778" class="st">0</text>
+<text x="-1872" y="778" class="st">512</text>
+<text x="-1360" y="778" class="st">1024</text>
+<text x="-1304" y="728" class="st st2">game px · 1024 px ≈ 10 s walk · grid 256</text>
+</g></svg></figure>
+  <div class="schedwrap"><table class="sched"><thead><tr><th>Room</th><th>Size (px)</th><th>Joined by</th><th>Holds</th><th>Notes</th></tr></thead>
+  <tbody><tr data-room="modern_lobby"><td class="nm"><span class="zsw" style="background:var(--z-entry)"></span>Modern lobby<i>Entrance · live now</i></td>
+<td class="size">608 × 400</td><td>archway to The Boulevard, door to Lift, door to Lift 2</td><td>—</td><td class="note"></td></tr><tr data-room="lift"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="lift_copy"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Lift 2<i>NPCs only · live now</i></td>
+<td class="size">96 × 96</td><td>door to Modern lobby</td><td>—</td><td class="note"></td></tr><tr data-room="boulevard"><td class="nm"><span class="zsw" style="background:var(--z-circ)"></span>The Boulevard<i>Circulation</i></td>
+<td class="size">3200 × 448</td><td>archway to Modern lobby, archway to Casino Floor, archway to Café, archway to Sportsbook &amp;amp; Bar, door to Boutique, door to Restrooms, door to Restaurant, archway to Show Lounge</td><td>—</td><td class="note">3200 × 448, an indoor street across the front. The lobby opens onto its middle. Three archways lead north into the casino and the venues line the other three sides, with shop doors between them.</td></tr><tr data-room="floor"><td class="nm"><span class="zsw" style="background:var(--z-floor)"></span>Casino Floor<i>Gaming floor</i></td>
+<td class="size">2688 × 1280</td><td>archway to The Boulevard, door to The Vault, door to High Limit Slots, door to Jade Room, door to Staff</td><td>5 Blackjack, 2 Three Card Poker, 1 Ultimate Texas, 1 Mississippi Stud, 1 Let It Ride, 1 High Card Flush, 1 Pai Gow, 2 Roulette, 2 Craps, 72 slots</td><td class="note">2688 × 1280. Slots across the front by the archways, laid out tight so the sightlines stay short. Behind them are two pits of six card tables round an island bar, then roulette and craps. Doors lead out to the Vault, the Jade Room and the High Limit Slots.</td></tr><tr data-room="vault"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>The Vault<i>High limit</i></td>
+<td class="size">1088 × 848</td><td>door to Casino Floor</td><td>2 Blackjack, 1 Baccarat, 1 Roulette, 1 Master table</td><td class="note">1088 × 848, a guarded door straight up the middle of the floor. Five tables with high limits, a private bar and a lounge.</td></tr><tr data-room="jade"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>Jade Room<i>High limit</i></td>
+<td class="size">960 × 800</td><td>door to Casino Floor</td><td>2 Baccarat, 1 Pai Gow, 1 Pai Gow Face Up</td><td class="note">960 × 800, a door off the floor. Baccarat and Pai Gow in a quieter salon of their own, the way Macau resorts give these games their own rooms.</td></tr><tr data-room="hl_slots"><td class="nm"><span class="zsw" style="background:var(--z-high)"></span>High Limit Slots<i>High limit</i></td>
+<td class="size">928 × 640</td><td>door to Casino Floor</td><td>36 slots</td><td class="note">928 × 640, a door off the floor&#x27;s west wall. 36 cabinets at the top denominations.</td></tr><tr data-room="restaurant"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Restaurant<i>Food &amp; drink</i></td>
+<td class="size">960 × 768</td><td>door to The Boulevard, door to Kitchen</td><td>—</td><td class="note">960 × 768, a door at the boulevard&#x27;s west end. 28 tables for NPC diners, with the kitchen behind.</td></tr><tr data-room="show"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Show Lounge<i>Food &amp; drink</i></td>
+<td class="size">960 × 768</td><td>archway to The Boulevard</td><td>—</td><td class="note">960 × 768, a wide archway at the boulevard&#x27;s east end so the show spills out. Stage, bar, booths.</td></tr><tr data-room="cafe"><td class="nm"><span class="zsw" style="background:var(--z-food)"></span>Café<i>Food &amp; drink</i></td>
+<td class="size">816 × 512</td><td>archway to The Boulevard</td><td>—</td><td class="note">816 × 512, an archway off the boulevard. Quick food and coffee, open all hours.</td></tr><tr data-room="sportsbook"><td class="nm"><span class="zsw" style="background:var(--z-feature)"></span>Sportsbook &amp; Bar<i>Feature</i></td>
+<td class="size">1296 × 640</td><td>archway to The Boulevard</td><td>—</td><td class="note">1296 × 640, an archway off the boulevard. Video walls, rows of seats, a sports bar and a betting counter for later.</td></tr><tr data-room="boutique"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Boutique<i>NPCs only</i></td>
+<td class="size">160 × 160</td><td>door to The Boulevard</td><td>—</td><td class="note">NPCs only: a shop door off the boulevard that shoppers come out of.</td></tr><tr data-room="restrooms"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Restrooms<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to The Boulevard</td><td>—</td><td class="note">NPCs only.</td></tr><tr data-room="kitchen"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Kitchen<i>NPCs only</i></td>
+<td class="size">128 × 160</td><td>door to Restaurant</td><td>—</td><td class="note">NPCs only: behind the restaurant.</td></tr><tr data-room="staff"><td class="nm"><span class="zsw" style="background:var(--z-service)"></span>Staff<i>NPCs only</i></td>
+<td class="size">128 × 128</td><td>door to Casino Floor</td><td>—</td><td class="note">NPCs only: dealers on shift.</td></tr></tbody></table></div>
+</section>
+<section class="sheet"><h2>Building it in CasinoWorld</h2><div class="notes">
+<div><h3>Doors or archways</h3><p>Rooms joined by an archway draw together, so archways carry the floor's noise and bustle into the bar, lounge and sportsbook. A room behind a door stays hidden until you reach the doorway, which is right for the high limit rooms and the restaurant. They feel private, and each door gets a named tab on the minimap.</p></div>
+<div><h3>Lobby kept as is</h3><p>All three plans build north of the live Modern lobby (608 × 400) and keep the two lifts. The only change is turning the lobby's 64 px top door into a 192 px archway, so you can see the casino from the spawn point.</p></div>
+<div><h3>NPCs-only rooms</h3><p>Kitchen, staff, restrooms and the lifts are dead ends in the same way the lifts are now. NPCs arrive there and walk back in, so the restaurant gets waiters, the pits get dealers walking in for a shift change, and people pop off to the restrooms, with none of it costing any art.</p></div>
+<div><h3>Table count and performance</h3><p>These plans have 13 to 25 tables. Every room is built on every client, and the architecture notes say that past a few dozen tables the server should only send each player the tables in rooms they can see. That cut-off is worth doing before the biggest of these goes live.</p></div>
+<div><h3>High limit tools you already have</h3><p>Table limits and the limits sign set the high-limit rooms apart (the labels like "Blackjack £500" are only suggestions). A Master table gives a small salon every game without adding tables, and the cashier cage and ATMs tie in with the Bank.</p></div>
+<div><h3>Walking distances</h3><p>At 105 px a second, the furthest rooms are about half a minute from spawn in every plan (route lengths from the server's own walk timer). If that feels long in play, shrink the main floor rather than the side rooms, or add a second spawn point nearer the action.</p></div>
+<div><h3>Mixing them</h3><p>The parts swap between plans: A's racetrack aisle would fit inside C's floor, B's terrace loop could hang off A's slot side, and C's Jade Room works as a side room in any of them. Each room is its own blueprint, so a hybrid is mostly moving rooms around on the Floor plan tab.</p></div>
+<div><h3>What's a placeholder</h3><p>Restaurant tables are round tables with armchairs, the sportsbook counter is reception desks, and every slot is set to Armadillo so the checker passes. The real art would come from the Vegas, Modern and Nocturne sets or new uploads.</p></div>
+</div></section>
+</div>
+<script>
+document.querySelectorAll('[data-plan]').forEach(sec=>{
+  const set=(id,on)=>sec.querySelectorAll(`[data-room="${id}"]`).forEach(el=>el.classList.toggle('hot',on));
+  sec.querySelectorAll('[data-room]').forEach(el=>{
+    const id=el.dataset.room;
+    el.addEventListener('mouseenter',()=>set(id,true));
+    el.addEventListener('mouseleave',()=>set(id,false));
+    el.addEventListener('focus',()=>set(id,true));
+    el.addEventListener('blur',()=>set(id,false));
+    if(el.tagName==='g') el.addEventListener('click',()=>{
+      const row=sec.querySelector(`tr[data-room="${id}"]`); if(row) row.scrollIntoView({block:'nearest',behavior:'smooth'});
+    });
+  });
+});
+</script>
