@@ -53,7 +53,7 @@ def test_card_tables_carry_their_limits_to_the_floor_and_the_clients():
 
 
 def test_a_published_change_of_limits_reaches_the_table(client):
-    casino = client.app.state.casino
+    casino = client.app.state.resort.casinos["demo"]
     table_id = next(t for t, cfg in casino.floor.tables.items() if cfg["game"] == "three_card_poker")
     casino.floor.tables[table_id]["limits"] = {"main": [2_500, 10_000], "side": [500, 1_000]}
     casino.broadcast_world(casino.floor)

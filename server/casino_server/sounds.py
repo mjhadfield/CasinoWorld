@@ -446,9 +446,9 @@ class SoundBoard:
                 "changed": key in self.saved.get(set_key, {}) and not set_key.startswith(PRESET),   # (a preset came empty)
                 "can_inherit": set_key != MOMENTS[key]["home"]}
 
-    def manifest(self, tables: dict | None = None) -> dict:
-        """What the game loads: each set's own moments (files as URLs, and the volume trim), each
-        set's parent, and which set each table plays from. A moment a set doesn't have comes from
+    def manifest(self) -> dict:
+        """What the game loads: each set's own moments (files as URLs, and the volume trim) and each
+        set's parent (which set each table plays from comes in the welcome: Floor.sound_sets). A moment a set doesn't have comes from
         the nearest set above it that does. Every machine plays the bonus games' sets, so their moments go in
         Default's ("slots"), which every machine's chain ends in."""
         def url(f):  # the file's change time on the end, so a replaced upload isn't served stale
@@ -464,7 +464,7 @@ class SoundBoard:
                 sets["slots"]["moments"].update(moments)
             else:
                 sets[s] = {"parent": info["parent"], "moments": moments}
-        return {"version": self.version, "sets": sets, "tables": tables or {}}
+        return {"version": self.version, "sets": sets}
 
     def overview(self) -> dict:
         """Everything the admin page shows. A machine's set says which preset it follows ("preset"), and Default's

@@ -49,7 +49,8 @@ A bank's size is fixed (another size is another asset, so a new id); everything 
 
 install() makes the live plan's placed rooms into a floor (floor.Floor, the Casino's): their tables and cabinets are its
 tables, and their points, seats and doors give the NPCs somewhere to go. Publishing changes the floor at once when only places
-changed; adding or removing tables or cabinets restarts the casino (as the old Floor tab's Apply did).
+changed; adding or removing tables or cabinets reopens that casino with its new tables (Resort.reload: the others carry on),
+or restarts the server when a slot it needs was built since it started (only a start loads a built slot).
 
 The shapes come from plan_catalogue.json, measured from the client's scenes by tools/plan_catalogue.gd.
 """
@@ -1063,7 +1064,8 @@ class Routes:
 # ------------------------------------------------------------------ the page
 class PlanBoard:
     """The admin page's Floor plan tab: the draft, its problems, publishing, history. `floor` is the live plan's
-    Floor (the casino's); `on_draft(plan)` and `on_publish(floor)` let the app tell previews and players."""
+    Floor (the casino's); `on_draft(plan)` and `on_publish(floor)` let the Resort tell previews and players, and
+    `on_reload(floor)` reopens the casino on a floor with other tables (None: only a restart can)."""
 
     def __init__(self, data_dir: Path, builds_dir: Path | None = None, floor: Floor | None = None):
         self.data_dir, self.builds_dir = data_dir, builds_dir
@@ -1071,6 +1073,7 @@ class PlanBoard:
         self.floor = floor or install(load_live(data_dir))
         self.on_draft = None
         self.on_publish = None
+        self.on_reload = None
         self._note_draft(load_draft(data_dir))
 
     def _note_draft(self, draft: dict):
@@ -1139,7 +1142,13 @@ class PlanBoard:
             stale.unlink(missing_ok=True)
         _write(self.dir / "live.json", draft)
         message = "Published."
-        if restart:
+        unloaded = {i["props"].get("variant") for r in draft["rooms"] if r["placed"] for i in flat_items(r)
+                    if asset_kind(i["asset"]) == "slot"} - set(VARIANTS)
+        if restart and self.on_reload is not None and not unloaded:
+            self.floor = install(draft)
+            self.on_reload(self.floor)
+            message = "Published: the casino reopened with the new tables (anyone in it was moved across)."
+        elif restart:
             if slot_builds.is_live():
                 try:
                     slot_builds.restart_live("plan")
@@ -1153,7 +1162,7 @@ class PlanBoard:
             if self.on_publish:
                 self.on_publish(self.floor)
             message = "Published: the floor has changed."
-        return {"message": message, "restart": restart, **self.view()}
+        return {**self.view(), "message": message, "restart": restart}
 
     def discard(self) -> dict:
         live_plan = load_live(self.data_dir)

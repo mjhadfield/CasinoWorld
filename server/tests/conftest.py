@@ -78,8 +78,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))  # nor the real built slots
     monkeypatch.setenv("CASINO_NPCS", "0")
     with TestClient(app) as c:
-        c.app.state.casino.store.set_json("bank_settings", {"start_hand": 1000})
-        for runner in c.app.state.casino.tables.values():
+        c.app.state.resort.casinos["demo"].store.set_json("bank_settings", {"start_hand": 1000})
+        for runner in c.app.state.resort.casinos["demo"].tables.values():
             t = type(runner.machine.timings).instant()
             t.betting = t.betting_npc_only = 30.0  # Ready closes betting (min_betting is 0)
             for name in ("decide", "insurance", "turn", "setting", "human_roll"):  # long windows, so tests can act
@@ -94,9 +94,10 @@ LOOK = {"body": "female", "skin": "light", "hair": ["bob", "chestnut"], "top": [
         "bottom": ["pants", "navy"], "shoes": ["shoes", "black"]}
 
 
-def enter(ws, token="", name="Tester", difficulty="normal", look=None, hello=False):
-    """Onto the floor: `join` with the token, make a character if the account has none, and pick its first one.
-    Returns (account, welcome) -- `account` as it was before the pick. With `hello`, reads the server's hello first."""
+def enter(ws, token="", name="Tester", difficulty="normal", look=None, hello=False, casino="demo"):
+    """Onto a casino's floor: `join` with the token, make a character if the account has none, pick its first one
+    and enter the casino. Returns (account, welcome) -- `account` as it was before the pick. With `hello`, reads the
+    server's hello first."""
     if hello:
         assert ws.receive_json()["type"] == "hello"
     ws.send_json({"type": "join", "token": token})
@@ -105,11 +106,13 @@ def enter(ws, token="", name="Tester", difficulty="normal", look=None, hello=Fal
         ws.send_json({"type": "create_character", "name": name, "look": look or LOOK, "difficulty": difficulty})
         account = recv_until(ws, "account")
     ws.send_json({"type": "pick_character", "id": account["characters"][0]["id"]})
+    recv_until(ws, "casinos")
+    ws.send_json({"type": "enter_casino", "casino": casino})
     return account, recv_until(ws, "welcome")
 
 
 def rig(client, *codes, table="tcp_1"):
-    client.app.state.casino.tables[table].machine.deck_factory = lambda: RiggedDeck(list(codes))
+    client.app.state.resort.casinos["demo"].tables[table].machine.deck_factory = lambda: RiggedDeck(list(codes))
 
 
 def recv_until(ws, kind, event=None, where=None):

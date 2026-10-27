@@ -21,6 +21,7 @@ class Session:
         self._loop_thread = threading.get_ident()
         self.account: dict | None = None  # {id, token}: set by `join`
         self.player: Player | None = None  # the character they're playing: set by `pick_character`
+        self.casino = None  # the Casino they've entered (`enter_casino`), or a preview's; None at the chooser
         self.entity_id: str = ""
         self.table: str | None = None  # table id while seated
         self.seat: int | None = None

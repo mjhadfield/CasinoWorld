@@ -2,8 +2,9 @@
 FastAPI app: serves the Godot web export from build/web, runs the /ws socket,
 and serves the admin page (/admin, admin_web/) and its APIs.
 
-The Casino (casino.py) holds every table, the store and the jackpot, and lives
-on app.state for the app's lifespan. Each socket gets a Session; handlers push
+The Resort (resort.py) holds the casinos (casino.py: each one's tables, floor and
+NPCs), the store and the jackpots, and lives on app.state for the app's lifespan.
+Each socket gets a Session; handlers push
 messages onto session queues and a per-connection sender task delivers them.
 The client never decides a hand -- it sends intents and renders what this sends.
 
@@ -23,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 
 from casino_server.art import LookCache
-from casino_server.casino import Casino
+from casino_server.resort import Resort
 from casino_server.session import Session
 from casino_server import bank, casinos, plan, plan_assets, slot_builds, slot_design_art
 from casino_server.slot_art import SlotArtBoard
@@ -73,42 +74,37 @@ async def lifespan(app: FastAPI):
         print("built slots: " + ", ".join(built))
     library = plan_assets.AssetLibrary(data_dir)   # (first: the plan's checks know the furniture)
     store = Store(data_dir / "casino.sqlite")
-    registry = casinos.migrate(data_dir, store)
-    boards = {c["id"]: plan.PlanBoard(casinos.casino_dir(data_dir, c["id"]), builds_dir) for c in registry}
-    plan_board = boards[casinos.DEMO]
     for p in store.players():
         if p["stored_as"] != "integer":
             print(f"WARNING: {p['name']}'s balance is {p['balance']!r}, which isn't a number of pence; "
                   f"they'll be disconnected when they bet. Fix it with: "
                   f".venv/bin/python -m casino_server.admin set-balance {p['id']} <pounds>")
     # CASINO_SPEED < 1 speeds every table timer and NPC up (handy for demos/tests);
-    # CASINO_NPCS sets how many NPCs roam the floor.
+    # CASINO_NPCS sets how many NPCs roam each floor (unset: each casino's population, on the admin page).
     speed = float(os.environ.get("CASINO_SPEED", "1"))
-    npcs = os.environ.get("CASINO_NPCS")   # unset: the admin page's floor population
+    npcs = os.environ.get("CASINO_NPCS")
     looks = LookCache(data_dir)
-    casino = Casino(store, plan_board.floor, speed=speed, npc_population=int(npcs) if npcs else None, npc_pace=speed,
-                    looks=looks, board=plan_board)
-    app.state.casino = casino
+    resort = Resort(store, data_dir, builds_dir, speed=speed, npc_population=int(npcs) if npcs else None,
+                    npc_pace=speed, looks=looks)
+    app.state.resort = resort
+    app.state.boards = resort.boards
     app.state.sounds = SoundBoard(data_dir)
     app.state.slot_art = SlotArtBoard(data_dir)
-    app.state.boards = boards
     app.state.plan_assets = library
-    plan_board.on_draft = lambda _draft: casino.preview_changed()
-    plan_board.on_publish = casino.broadcast_world
     # CASINO_DESIGNS_DIR points the Slot design board elsewhere (tests and the dev instance use a copy).
     app.state.slot_design = DesignBoard(Path(os.environ.get("CASINO_DESIGNS_DIR") or DEFAULT_DESIGNS_DIR))
     app.state.slot_design.sounds = app.state.sounds
     app.state.slot_design.builds_dir = builds_dir
-    app.state.slot_design.cabinets_on_floor = lambda variant: casino.floor.cabinets(variant)
+    app.state.slot_design.cabinets_on_floor = lambda variant: sum(c.floor.cabinets(variant) for c in resort.casinos.values())
     design_worker = asyncio.create_task(app.state.slot_design.run())
     app.state.looks = looks
     await asyncio.to_thread(_build_roster_looks, store, looks)   # so nobody waits for a sheet on the floor
-    await casino.start()
+    await resort.start()
     try:
         yield
     finally:
         design_worker.cancel()
-        await casino.stop()
+        await resort.stop()
         store.close()
 
 
@@ -130,10 +126,10 @@ async def _sender(ws: WebSocket, session: Session):
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
-    casino: Casino = ws.app.state.casino
+    resort: Resort = ws.app.state.resort
     session = Session()
     sender = asyncio.create_task(_sender(ws, session))
-    casino.connect(session)
+    resort.connect(session)
     try:
         while True:
             try:
@@ -144,11 +140,11 @@ async def ws_endpoint(ws: WebSocket):
             if not isinstance(msg, dict):
                 session.error("Expected a JSON object")
                 continue
-            casino.handle(session, msg)
+            resort.handle(session, msg)
     except WebSocketDisconnect:
         pass
     finally:
-        casino.disconnect(session)
+        resort.disconnect(session)
         sender.cancel()
 
 
@@ -210,7 +206,7 @@ NO_STORE = {"Cache-Control": "no-store"}
 
 def _sounds_changed(request: Request):
     board: SoundBoard = request.app.state.sounds
-    request.app.state.casino.broadcast_all({"type": "sounds_changed", "version": board.version})
+    request.app.state.resort.broadcast_all({"type": "sounds_changed", "version": board.version})
 
 
 def _sound_call(fn, *args):
@@ -254,7 +250,7 @@ def sounds_overview(request: Request):
 
 @app.get("/api/sounds/manifest")
 def sounds_manifest(request: Request):
-    return JSONResponse(request.app.state.sounds.manifest(request.app.state.casino.floor.sound_sets), headers=NO_STORE)
+    return JSONResponse(request.app.state.sounds.manifest(), headers=NO_STORE)
 
 
 async def _json_body(request: Request, shape: str) -> dict:
@@ -371,29 +367,29 @@ def sound_file(sound_id: str, request: Request):
 @app.get("/api/slots")
 def slots_overview(request: Request):
     """The shared meters, each cabinet (who's on it, what it's doing) and what slots have returned."""
-    casino = request.app.state.casino
+    resort = request.app.state.resort
     cabinets = []
-    for table_id, runner in casino.tables.items():
+    for table_id, runner in ((t, r) for c in resort.casinos.values() for t, r in c.tables.items()):
         m = runner.machine
         if m.game != "slots":
             continue
         p = m.seats[0].participant
-        cabinets.append({"table": table_id, "variant": m.variant.id, "name": m.variant.name, "phase": m.phase,
+        cabinets.append({"table": table_id, "casino": runner.casino.id, "variant": m.variant.id, "name": m.variant.name, "phase": m.phase,
                          "player": p.name if p else None, "human": bool(p and p.is_human), "bet": m.bet,
                          "pending": [f[0] for f in m.pending]})
     wagered = returned = 0
-    for player in casino.store.player_stats():
+    for player in resort.store.player_stats():
         g = player["games"].get("slots")
         if g:
             wagered, returned = wagered + g["wagered"], returned + g["returned"]
-    pg = casino.slot_jackpots
+    pg = resort.slot_jackpots
     tiers = [{**t, **pg.settings[t["id"]], "amount": pg.amount(t["id"])} for t in slot_jackpots.TIERS]
     return JSONResponse({"tiers": tiers, "cabinets": cabinets, "players": {"wagered": wagered, "returned": returned},
-                         "jackpot_rtp": 100 * pg.rtp(), "machines": _slot_machines(casino, cabinets),
-                         "stats_since": casino.slot_stats.since()}, headers=NO_STORE)
+                         "jackpot_rtp": 100 * pg.rtp(), "machines": _slot_machines(resort, cabinets),
+                         "stats_since": resort.slot_stats.since()}, headers=NO_STORE)
 
 
-def _slot_machines(casino, cabinets: list) -> list:
+def _slot_machines(resort, cabinets: list) -> list:
     """Each slot machine on the floor or with figures: its cabinets, and its spins, stakes, returns, bonuses and
     jackpots in all and split between humans and NPCs (slots/stats.py)."""
     blank = dict.fromkeys(slot_stats.FIELDS, 0)
@@ -406,7 +402,7 @@ def _slot_machines(casino, cabinets: list) -> list:
         return out[variant]
     for c in cabinets:
         machine(c["variant"])["cabinets"] += 1
-    for r in casino.slot_stats.rows():
+    for r in resort.slot_stats.rows():
         m = machine(r["variant"])
         for k in slot_stats.FIELDS:
             m[k] += r[k]
@@ -421,20 +417,20 @@ async def slots_jackpot_settings(request: Request):
         changes = slot_jackpots.clean_settings(await request.json())
     except ValueError as e:
         raise HTTPException(400, str(e))
-    casino = request.app.state.casino
-    settings = casino.slot_jackpots.configure(changes)
-    casino.broadcast_all(casino.slot_jackpots.snapshot())   # the games' meters pick up the new speed
-    return {"settings": settings, "jackpot_rtp": 100 * casino.slot_jackpots.rtp()}
+    resort = request.app.state.resort
+    settings = resort.slot_jackpots.configure(changes)
+    resort.broadcast_all(resort.slot_jackpots.snapshot())   # the games' meters pick up the new speed
+    return {"settings": settings, "jackpot_rtp": 100 * resort.slot_jackpots.rtp()}
 
 
 @app.post("/api/slots/reset-meter/{tier}")
 def slots_reset_meter(tier: str, request: Request):
-    casino = request.app.state.casino
+    resort = request.app.state.resort
     if tier not in slot_jackpots.TIER_IDS:
         raise HTTPException(400, f"There's no {tier!r} meter.")
-    casino.slot_jackpots.reset(tier)
-    casino.broadcast_all(casino.slot_jackpots.snapshot())
-    return {"ok": True, "amount": casino.slot_jackpots.amount(tier)}
+    resort.slot_jackpots.reset(tier)
+    resort.broadcast_all(resort.slot_jackpots.snapshot())
+    return {"ok": True, "amount": resort.slot_jackpots.amount(tier)}
 
 
 @app.get("/api/slots/art/manifest")
@@ -514,7 +510,7 @@ def _asset_call(request: Request, fn, *args):
     except plan_assets.AssetError as e:
         raise HTTPException(400, str(e))
     lib = request.app.state.plan_assets
-    for s in request.app.state.casino.sessions:   # (previews too)
+    for s in request.app.state.resort.sessions:   # (previews too)
         if s.player is not None:
             s.push({"type": "plan_art_changed", "version": lib.version})
     return out
@@ -952,13 +948,13 @@ from casino_server import art, roster, seating, staff, table_styles  # noqa: E40
 
 
 def _npc_view(request: Request, rec: dict) -> dict:
-    casino = request.app.state.casino
+    casino = request.app.state.resort.npc_casino(rec["id"])   # (the one they're in, if any)
     looks: LookCache = request.app.state.looks
     lid = art.look_id(rec["look"])
-    status = casino.npcs.status().get(rec["id"])
-    dealing = casino.dealers.status().get(rec["id"])
+    status = casino.npcs.status().get(rec["id"]) if casino else None
+    dealing = casino.dealers.status().get(rec["id"]) if casino else None
     return {**rec, "look_id": lid, "look_url": f"/looks/{lid}.png" if looks.path(lid) else None,
-            "on_floor": status, "dealing": dealing}
+            "on_floor": status, "dealing": dealing, "casino": casino.id if casino and (status or dealing) else None}
 
 
 async def _body(request: Request) -> dict:
@@ -973,11 +969,12 @@ async def _body(request: Request) -> dict:
 
 @app.get("/api/npc-options")
 def npc_options(request: Request):
-    crew = staff.load(request.app.state.casino.store)
+    crew = staff.load(request.app.state.resort.store)
     return {**art.catalogue(), "roles": {k: r["label"] for k, r in crew["roles"].items()}, "staff": crew["roles"],
             "uniforms": crew["uniforms"], "uniform_slots": list(staff.UNIFORM_SLOTS), "on_the_floor": list(roster.ON_THE_FLOOR),
             "archetypes": roster.ARCHETYPES, "modifiers": roster.MODIFIERS, "games": roster.GAMES,
-            "tables": {tid: cfg["name"] for tid, cfg in request.app.state.casino.floor.tables.items()}}
+            "tables": {casinos.qualify(c.id, tid): cfg["name"] for c in request.app.state.resort.casinos.values()
+                       for tid, cfg in c.floor.tables.items()}}
 
 
 @app.get("/api/look-options")
@@ -1008,13 +1005,13 @@ def look_sheet(look: str, request: Request):
 
 @app.get("/api/npcs")
 async def npcs_list(request: Request):
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     return {"npcs": [_npc_view(request, r) for r in store.npcs()],
             "archived": [_npc_view(request, r) for r in store.npcs(archived=True)], "settings": roster.settings(store)}
 
 
 def _roles(request: Request) -> dict:
-    return staff.roles(request.app.state.casino.store)
+    return staff.roles(request.app.state.resort.store)
 
 
 @app.post("/api/npcs")
@@ -1025,7 +1022,7 @@ async def npcs_create(request: Request):
     except ValueError as e:
         raise HTTPException(400, str(e))
     await run_in_threadpool(request.app.state.looks.ensure, rec["look"])
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     return _npc_view(request, store.npc(store.create_npc(rec)))
 
 
@@ -1038,7 +1035,7 @@ async def npcs_generate(request: Request):
     """Bulk creation, step one: random drafts to review (nothing's saved). `taken` is the
     names already in the review, so a second batch doesn't repeat them."""
     data = await _body(request)
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     taken = {n["name"] for n in store.npcs(archived=None)} | {str(n) for n in data.get("taken") or []}
     role = data.get("role") or "punter"
     try:
@@ -1059,7 +1056,7 @@ async def npcs_bulk(request: Request):
     items = data.get("npcs")
     if not isinstance(items, list) or not 1 <= len(items) <= roster.MAX_BULK:
         raise HTTPException(400, f"Send 1-{roster.MAX_BULK} NPCs.")
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     seen = {n["name"].lower() for n in store.npcs(archived=None)}
     roles = _roles(request)
     recs = []
@@ -1077,7 +1074,7 @@ async def npcs_bulk(request: Request):
 
 
 def _get_npc(request: Request, npc_id: int) -> dict:
-    rec = request.app.state.casino.store.npc(npc_id)
+    rec = request.app.state.resort.store.npc(npc_id)
     if rec is None:
         raise HTTPException(404, "No such NPC.")
     return rec
@@ -1086,7 +1083,7 @@ def _get_npc(request: Request, npc_id: int) -> dict:
 @app.get("/api/npcs/{npc_id}")
 async def npcs_get(npc_id: int, request: Request):
     rec = _get_npc(request, npc_id)
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     return {**_npc_view(request, rec), "visits": store.npc_visits(npc_id, 25)}
 
 
@@ -1099,12 +1096,11 @@ async def npcs_update(npc_id: int, request: Request):
     except ValueError as e:
         raise HTTPException(400, str(e))
     await run_in_threadpool(request.app.state.looks.ensure, rec["look"])
-    casino = request.app.state.casino
-    casino.store.update_npc(npc_id, rec)
-    new = casino.store.npc(npc_id)
+    resort = request.app.state.resort
+    resort.store.update_npc(npc_id, rec)
+    new = resort.store.npc(npc_id)
     if new["look"] != old["look"] or new["name"] != old["name"]:   # on the floor now: they change in front of you
-        casino.npcs.restyle(npc_id, new)
-        casino.dealers.restyle(new)
+        resort.restyle(new)
     return _npc_view(request, new)
 
 
@@ -1113,7 +1109,7 @@ async def npcs_delete(npc_id: int, request: Request):
     """For good: only from the archive."""
     if not _get_npc(request, npc_id)["archived_at"]:
         raise HTTPException(400, "Archive them first: only archived NPCs can be deleted for good.")
-    request.app.state.casino.store.delete_npc(npc_id)
+    request.app.state.resort.store.delete_npc(npc_id)
     return {"deleted": npc_id}
 
 
@@ -1122,29 +1118,34 @@ async def npcs_archive(npc_id: int, request: Request):
     """Into the archive: off the floor (a punter finishes their round and leaves, a dealer is relieved at the next
     betting window), out of the roster, and not picked for visits or shifts until restored."""
     _get_npc(request, npc_id)
-    casino = request.app.state.casino
-    casino.npcs.send_home(npc_id, casino.clock())
-    casino.dealers.stand_down(npc_id)
-    casino.store.set_archived(npc_id, True)
+    resort = request.app.state.resort
+    for casino in resort.casinos.values():
+        casino.npcs.send_home(npc_id, casino.clock())
+        casino.dealers.stand_down(npc_id)
+    resort.store.set_archived(npc_id, True)
     return _npc_view(request, _get_npc(request, npc_id))
 
 
 @app.post("/api/npcs/{npc_id}/restore")
 async def npcs_restore(npc_id: int, request: Request):
     rec = _get_npc(request, npc_id)
-    casino = request.app.state.casino
+    resort = request.app.state.resort
     if rec["role"] not in _roles(request):
         raise HTTPException(400, "Their role's been deleted: give them another one first.")
-    casino.store.set_archived(npc_id, False)
-    casino.dealers.dismissed.discard(npc_id)
+    resort.store.set_archived(npc_id, False)
+    for casino in resort.casinos.values():
+        casino.dealers.dismissed.discard(npc_id)
     return _npc_view(request, _get_npc(request, npc_id))
 
 
 @app.post("/api/npcs/{npc_id}/bring-in")
-async def npcs_bring_in(npc_id: int, request: Request):
+async def npcs_bring_in(npc_id: int, request: Request, casino: str = casinos.DEMO):
+    """In through a casino's door now (?casino=<id>: Demo if unset)."""
     if _get_npc(request, npc_id)["archived_at"]:
         raise HTTPException(400, "They're archived: restore them first.")
-    casino = request.app.state.casino
+    casino = request.app.state.resort.casinos.get(casino)
+    if casino is None:
+        raise HTTPException(404, "There's no such casino.")
     try:
         casino.npcs.bring_in(npc_id, casino.clock())
     except ValueError as e:
@@ -1155,28 +1156,28 @@ async def npcs_bring_in(npc_id: int, request: Request):
 @app.post("/api/npcs/{npc_id}/send-home")
 async def npcs_send_home(npc_id: int, request: Request):
     _get_npc(request, npc_id)
-    casino = request.app.state.casino
-    if not casino.npcs.send_home(npc_id, casino.clock()):
-        raise HTTPException(400, "They're not in the casino.")
+    casino = request.app.state.resort.npc_casino(npc_id)
+    if casino is None or not casino.npcs.send_home(npc_id, casino.clock()):
+        raise HTTPException(400, "They're not in a casino.")
     return _npc_view(request, _get_npc(request, npc_id))
 
 
 @app.post("/api/npcs/{npc_id}/reset-stats")
 async def npcs_reset(npc_id: int, request: Request):
     _get_npc(request, npc_id)
-    request.app.state.casino.store.reset_npc_stats(npc_id)
+    request.app.state.resort.store.reset_npc_stats(npc_id)
     return _npc_view(request, _get_npc(request, npc_id))
 
 
 @app.get("/api/npc-settings")
 async def npc_settings_get(request: Request):
-    return roster.settings(request.app.state.casino.store)
+    return roster.settings(request.app.state.resort.store)
 
 
 @app.put("/api/npc-settings")
 async def npc_settings_put(request: Request):
     data = await _body(request)
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     try:
         new = roster.clean_settings(data)
     except (ValueError, TypeError) as e:
@@ -1197,58 +1198,58 @@ def _staff_call(fn, *args):
 
 @app.get("/api/staff")
 async def staff_get(request: Request):
-    return staff.load(request.app.state.casino.store)
+    return staff.load(request.app.state.resort.store)
 
 
 @app.post("/api/staff/roles")
 async def staff_role_add(request: Request):
-    key = _staff_call(staff.save_role, request.app.state.casino.store, None, await _body(request))
-    return {"key": key, **staff.load(request.app.state.casino.store)}
+    key = _staff_call(staff.save_role, request.app.state.resort.store, None, await _body(request))
+    return {"key": key, **staff.load(request.app.state.resort.store)}
 
 
 @app.put("/api/staff/roles/{key}")
 async def staff_role_put(key: str, request: Request):
-    _staff_call(staff.save_role, request.app.state.casino.store, key, await _body(request))
-    return {"key": key, **staff.load(request.app.state.casino.store)}
+    _staff_call(staff.save_role, request.app.state.resort.store, key, await _body(request))
+    return {"key": key, **staff.load(request.app.state.resort.store)}
 
 
 @app.delete("/api/staff/roles/{key}")
 async def staff_role_delete(key: str, request: Request):
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     _staff_call(staff.delete_role, store, key, sum(n["role"] == key for n in store.npcs(archived=None)))
     return staff.load(store)
 
 
 @app.post("/api/staff/uniforms")
 async def staff_uniform_add(request: Request):
-    key = _staff_call(staff.save_uniform, request.app.state.casino.store, None, await _body(request))
-    return {"key": key, **staff.load(request.app.state.casino.store)}
+    key = _staff_call(staff.save_uniform, request.app.state.resort.store, None, await _body(request))
+    return {"key": key, **staff.load(request.app.state.resort.store)}
 
 
 @app.put("/api/staff/uniforms/{key}")
 async def staff_uniform_put(key: str, request: Request):
-    _staff_call(staff.save_uniform, request.app.state.casino.store, key, await _body(request))
-    return {"key": key, **staff.load(request.app.state.casino.store)}
+    _staff_call(staff.save_uniform, request.app.state.resort.store, key, await _body(request))
+    return {"key": key, **staff.load(request.app.state.resort.store)}
 
 
 @app.delete("/api/staff/uniforms/{key}")
 async def staff_uniform_delete(key: str, request: Request):
-    _staff_call(staff.delete_uniform, request.app.state.casino.store, key)
-    return staff.load(request.app.state.casino.store)
+    _staff_call(staff.delete_uniform, request.app.state.resort.store, key)
+    return staff.load(request.app.state.resort.store)
 
 
 @app.post("/api/staff/uniforms/{key}/dress")
 async def staff_uniform_dress(key: str, request: Request):
     """Put everyone (on the roster) whose role wears this uniform into it as it is now; on the floor, they change
     in front of you."""
-    casino = request.app.state.casino
-    crew = staff.load(casino.store)
+    resort = request.app.state.resort
+    crew = staff.load(resort.store)
     if key not in crew["uniforms"]:
         raise HTTPException(404, "No such uniform.")
     uniform = crew["uniforms"][key]
     roles = {k for k, r in crew["roles"].items() if r["uniform"] == key}
     changed = []
-    for rec in casino.store.npcs():
+    for rec in resort.store.npcs():
         if rec["role"] not in roles:
             continue
         look = staff.dress(rec["look"], uniform[rec["look"]["body"]])
@@ -1260,22 +1261,20 @@ async def staff_uniform_dress(key: str, request: Request):
             changed.append((rec, look))
     await run_in_threadpool(_ensure_looks, request.app.state.looks, [{"look": look} for _, look in changed])
     for rec, look in changed:
-        casino.store.update_npc(rec["id"], {"look": look})
-        new = casino.store.npc(rec["id"])
-        casino.npcs.restyle(rec["id"], new)
-        casino.dealers.restyle(new)
+        resort.store.update_npc(rec["id"], {"look": look})
+        resort.restyle(resort.store.npc(rec["id"]))
     return {"dressed": [rec["name"] for rec, _ in changed]}
 
 
 @app.get("/api/bank-settings")
 async def bank_settings_get(request: Request):
-    return bank.settings(request.app.state.casino.store)
+    return bank.settings(request.app.state.resort.store)
 
 
 @app.put("/api/bank-settings")
 async def bank_settings_put(request: Request):
     data = await _body(request)
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     try:
         new = bank.clean_settings(data)
     except (ValueError, TypeError) as e:
@@ -1287,21 +1286,22 @@ async def bank_settings_put(request: Request):
 # ------------------------------------------------------------------ seating
 def _seating_changed(request: Request) -> dict:
     """Every client redraws its chairs from the new styles."""
-    casino = request.app.state.casino
-    casino.broadcast_all({"type": "seating", "seating": casino.seating_view()})
-    return seating.load(casino.store)
+    resort = request.app.state.resort
+    for casino in resort.casinos.values():
+        casino.broadcast_all({"type": "seating", "seating": casino.seating_view()})
+    return seating.load(resort.store)
 
 
 @app.get("/api/seating")
 async def seating_get(request: Request):
-    return {**seating.load(request.app.state.casino.store), "choices": seating.CHOICES, "ranges": seating.RANGES}
+    return {**seating.load(request.app.state.resort.store), "choices": seating.CHOICES, "ranges": seating.RANGES}
 
 
 @app.put("/api/seating/styles/{style_id}")
 async def seating_style_put(style_id: str, request: Request):
     data = await _body(request)
     try:
-        seating.save_style(request.app.state.casino.store, style_id, data)
+        seating.save_style(request.app.state.resort.store, style_id, data)
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e) or "That style doesn't make sense.")
     return _seating_changed(request)
@@ -1310,7 +1310,7 @@ async def seating_style_put(style_id: str, request: Request):
 @app.delete("/api/seating/styles/{style_id}")
 async def seating_style_delete(style_id: str, request: Request):
     try:
-        seating.delete_style(request.app.state.casino.store, style_id)
+        seating.delete_style(request.app.state.resort.store, style_id)
     except KeyError:
         raise HTTPException(404, "No such style.")
     except ValueError as e:
@@ -1321,7 +1321,7 @@ async def seating_style_delete(style_id: str, request: Request):
 @app.put("/api/seating/tables")
 async def seating_tables_put(request: Request):
     try:
-        seating.assign(request.app.state.casino.store, await _body(request))
+        seating.assign(request.app.state.resort.store, await _body(request))
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _seating_changed(request)
@@ -1330,9 +1330,10 @@ async def seating_tables_put(request: Request):
 # ------------------------------------------------------------------ table styles
 def _table_styles_changed(request: Request, kind: str) -> dict:
     """Every client restyles its tables; the admin page gets the kind it changed back."""
-    casino = request.app.state.casino
-    casino.broadcast_all({"type": "table_styles", "table_styles": casino.styles_view()})
-    return table_styles.load(casino.store, kind, casinos.every_table(request.app.state.boards))
+    resort = request.app.state.resort
+    for casino in resort.casinos.values():
+        casino.broadcast_all({"type": "table_styles", "table_styles": casino.styles_view()})
+    return table_styles.load(resort.store, kind, casinos.every_table(request.app.state.boards))
 
 
 def _style_kind(kind: str) -> str:
@@ -1346,7 +1347,7 @@ def _style_kind(kind: str) -> str:
 async def table_styles_get(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     every = casinos.every_table(request.app.state.boards)
-    return JSONResponse({**table_styles.load(request.app.state.casino.store, kind, every), "kind": kind,
+    return JSONResponse({**table_styles.load(request.app.state.resort.store, kind, every), "kind": kind,
                          "games": table_styles.styled_tables(every, kind), "choices": table_styles.KINDS[kind]["choices"]},
                         headers=NO_STORE)
 
@@ -1355,7 +1356,7 @@ async def table_styles_get(request: Request, kind: str = "cards"):
 async def table_style_put(style_id: str, request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     try:
-        table_styles.save_style(request.app.state.casino.store, style_id, await _body(request), kind)
+        table_styles.save_style(request.app.state.resort.store, style_id, await _body(request), kind)
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e) or "That style doesn't make sense.")
     return _table_styles_changed(request, kind)
@@ -1365,7 +1366,7 @@ async def table_style_put(style_id: str, request: Request, kind: str = "cards"):
 async def table_style_delete(style_id: str, request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     try:
-        table_styles.delete_style(request.app.state.casino.store, style_id, kind)
+        table_styles.delete_style(request.app.state.resort.store, style_id, kind)
     except KeyError:
         raise HTTPException(404, "No such style.")
     except ValueError as e:
@@ -1377,7 +1378,7 @@ async def table_style_delete(style_id: str, request: Request, kind: str = "cards
 async def table_styles_tables_put(request: Request, kind: str = "cards"):
     kind = _style_kind(kind)
     try:
-        table_styles.assign(request.app.state.casino.store, await _body(request), casinos.every_table(request.app.state.boards), kind)
+        table_styles.assign(request.app.state.resort.store, await _body(request), casinos.every_table(request.app.state.boards), kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _table_styles_changed(request, kind)
@@ -1385,12 +1386,13 @@ async def table_styles_tables_put(request: Request, kind: str = "cards"):
 
 @app.get("/api/players")
 async def players_stats(request: Request):
-    casino = request.app.state.casino
-    online = casino.online_players()
+    resort = request.app.state.resort
+    online = resort.online_players()
     now = time.time()
-    players = casino.store.player_stats()
+    players = resort.store.player_stats()
     for p in players:
         p["online"] = p["id"] in online
+        p["casino"] = resort.where(p["id"])
         if p["timeout_until"] and p["timeout_until"] <= now:   # (a timeout that's run out)
             p["timeout_until"] = None
     return {"players": players, "games": roster.GAMES, "now": now}
@@ -1403,7 +1405,7 @@ MAX_TIMEOUT_MIN = 60 * 24 * 365
 
 
 def _player(request: Request, player_id: int, change: bool = True) -> dict:
-    p = request.app.state.casino.store.player(player_id)
+    p = request.app.state.resort.store.player(player_id)
     if p is None:
         raise HTTPException(404, "No such player.")
     if change and p["protected"]:
@@ -1419,18 +1421,18 @@ def _reason(data: dict) -> str:
 async def players_protect(player_id: int, request: Request):
     data = await _body(request)
     p = _player(request, player_id, change=False)
-    request.app.state.casino.store.set_protected(p["account_id"], bool(data.get("on", True)))
-    return request.app.state.casino.store.player(player_id)
+    request.app.state.resort.store.set_protected(p["account_id"], bool(data.get("on", True)))
+    return request.app.state.resort.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/ban")
 async def players_ban(player_id: int, request: Request):
     data = await _body(request)
     p = _player(request, player_id)
-    casino = request.app.state.casino
-    casino.store.set_bar(p["account_id"], banned=True, reason=_reason(data))
-    casino.send_off(p["account_id"], "ban", reason=_reason(data))
-    return casino.store.player(player_id)
+    resort = request.app.state.resort
+    resort.store.set_bar(p["account_id"], banned=True, reason=_reason(data))
+    resort.send_off(p["account_id"], "ban", reason=_reason(data))
+    return resort.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/timeout")
@@ -1443,19 +1445,19 @@ async def players_timeout(player_id: int, request: Request):
         minutes = 0
     if not 1 <= minutes <= MAX_TIMEOUT_MIN:
         raise HTTPException(400, "A timeout is a minute to a year.")
-    casino = request.app.state.casino
+    resort = request.app.state.resort
     until = time.time() + minutes * 60
-    casino.store.set_bar(p["account_id"], until=until, reason=_reason(data))
-    casino.send_off(p["account_id"], "timeout", until=until, reason=_reason(data))
-    return casino.store.player(player_id)
+    resort.store.set_bar(p["account_id"], until=until, reason=_reason(data))
+    resort.send_off(p["account_id"], "timeout", until=until, reason=_reason(data))
+    return resort.store.player(player_id)
 
 
 @app.post("/api/players/{player_id}/lift")
 async def players_lift(player_id: int, request: Request):
     """Let their account back in (a ban or a timeout)."""
     p = _player(request, player_id)
-    request.app.state.casino.store.set_bar(p["account_id"])
-    return request.app.state.casino.store.player(player_id)
+    request.app.state.resort.store.set_bar(p["account_id"])
+    return request.app.state.resort.store.player(player_id)
 
 
 @app.delete("/api/players/{player_id}")
@@ -1463,9 +1465,9 @@ async def players_delete(player_id: int, request: Request):
     """One character gone for good, ledger and all (the account keeps its others). If it's playing, that session
     is hung up on."""
     p = _player(request, player_id)
-    casino = request.app.state.casino
-    casino.send_off(p["account_id"], "removed", player_id=player_id)
-    casino.store.delete_player(player_id)
+    resort = request.app.state.resort
+    resort.send_off(p["account_id"], "removed", player_id=player_id)
+    resort.store.delete_player(player_id)
     return {"deleted": p["id"], "name": p["name"]}
 
 
@@ -1473,14 +1475,14 @@ async def players_delete(player_id: int, request: Request):
 async def accounts_delete(account_id: int, request: Request):
     """An account and every character on it gone for good. Anyone on it is hung up on; the device comes back as a
     new account with no characters."""
-    store = request.app.state.casino.store
+    store = request.app.state.resort.store
     a = store.account(account_id)
     if a is None:
         raise HTTPException(404, "No such account.")
     if a["protected"]:
         raise HTTPException(400, "That account is protected: unprotect it first.")
     names = [p.name for p in store.characters(account_id)]
-    request.app.state.casino.send_off(account_id, "removed")
+    request.app.state.resort.send_off(account_id, "removed")
     store.delete_account(account_id)
     return {"deleted": account_id, "names": names}
 

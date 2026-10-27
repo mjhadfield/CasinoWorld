@@ -59,7 +59,7 @@ def test_overview_and_manifest(client):
     assert arm["click"]["from"] == "casino"
     assert len(data["library"]) > 500 and data["folders"]["western"]["label"]
     manifest = client.get("/api/sounds/manifest").json()
-    assert manifest["tables"]["slot_3"] == ARM and manifest["sets"][ARM]["parent"] == "slots"
+    assert "tables" not in manifest and manifest["sets"][ARM]["parent"] == "slots"   # (each casino's welcome says)
     assert "reel_tease" not in manifest["sets"][ARM]["moments"]          # it comes from the set above
     url = manifest["sets"]["casino"]["moments"]["flip"]["files"][0]
     assert url.startswith("/sound-files/kenney-casino/card-place-2.ogg?v=")

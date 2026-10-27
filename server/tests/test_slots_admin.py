@@ -33,7 +33,7 @@ def test_jackpot_settings_change_the_rate_and_grow_by_the_second(client):
 
 
 def test_overview_lists_each_machine_with_its_figures(client):
-    casino = client.app.state.casino
+    casino = client.app.state.resort.casinos["demo"]
     casino.slot_stats.record("armadillo", True, spins=3, staked=300, returned=120, bonuses=1)
     casino.slot_stats.record("armadillo", False, spins=1, staked=100, returned=0)
     [m] = client.get("/api/slots").json()["machines"]

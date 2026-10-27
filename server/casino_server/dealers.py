@@ -42,8 +42,20 @@ class DealerRoster:
         return {"id": record["id"], "name": record["name"], "look": look}
 
     def _off_duty(self) -> list[dict]:
+        """Dealers free to take a table here: not dealing here, or in another casino."""
         busy = {d["id"] for d in self.on_duty.values()}
-        return [r for r in self.casino.store.npcs("dealer") if r["enabled"] and r["id"] not in busy]
+        claims, cid = self.casino.claims, self.casino.id
+        return [r for r in self.casino.store.npcs("dealer")
+                if r["enabled"] and r["id"] not in busy and not claims.elsewhere(r["id"], cid)]
+
+    def _put_on(self, table_id: str, record: dict | None):
+        """`record` deals at the table (None: the house's generic Dealer); whoever was there is free again."""
+        old = self.on_duty.get(table_id, DEFAULT)["id"]
+        self.on_duty[table_id] = self._dealer(record) if record else dict(DEFAULT)
+        if record:
+            self.casino.claims.take(record["id"], self.casino.id)
+        if old is not None and old not in {d["id"] for d in self.on_duty.values()}:
+            self.casino.claims.release(old, self.casino.id)
 
     def start(self, now: float):
         free = self._off_duty()
@@ -51,7 +63,7 @@ class DealerRoster:
         shift, stagger = self._shift()
         staffed = [t for t, runner in self.casino.tables.items() if getattr(runner.machine, "DEALER", True)]
         for i, table_id in enumerate(staffed):   # (slot cabinets have no dealer)
-            self.on_duty[table_id] = self._dealer(free.pop()) if free else dict(DEFAULT)
+            self._put_on(table_id, free.pop() if free else None)
             self.relief_at[table_id] = now + shift + i * stagger
         self.started = True
 
@@ -75,7 +87,7 @@ class DealerRoster:
             if free:
                 self.relieve(table_id, self.rng.choice(free))
             elif self.on_duty.get(table_id, DEFAULT)["id"] in self.dismissed:
-                self.on_duty[table_id] = dict(DEFAULT)
+                self._put_on(table_id, None)
                 runner.publish([{"kind": "dealer_change", "dealer": self.on_table(table_id)}])
 
     def stand_down(self, npc_id: int):
@@ -87,7 +99,7 @@ class DealerRoster:
                 self.dismissed.add(npc_id)
 
     def relieve(self, table_id: str, record: dict):
-        self.on_duty[table_id] = self._dealer(record)
+        self._put_on(table_id, record)
         self.casino.tables[table_id].publish([{"kind": "dealer_change", "dealer": self.on_table(table_id)}])
 
     def restyle(self, record: dict):

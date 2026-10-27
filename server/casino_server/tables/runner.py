@@ -115,6 +115,6 @@ class TableRunner:
         elif kind == "master_change":   # a Master Table's new game: everyone keeps their order, maybe in another seat
             self.casino.on_reseated(self.table_id, event["_remap"], event["map"])
         elif kind == "jackpot_won":   # (naming the table, whose sign holds the old amount until the win's shown there)
-            self.casino.broadcast_all({**self.casino.jackpot.snapshot(), "table": self.table_id})
+            self.casino.broadcast_resort(self.casino.jackpot.snapshot(), table=self.table_id)
         elif kind == "slot_jackpot_won":
-            self.casino.broadcast_all(self.casino.slot_jackpots.snapshot())
+            self.casino.broadcast_resort(self.casino.slot_jackpots.snapshot())

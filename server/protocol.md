@@ -1,4 +1,4 @@
-# Casino World protocol (v6)
+# Casino World protocol (v7)
 
 Messages are JSON objects with a `type` field, carried over a WebSocket at `/ws`.
 The server is authoritative, so the client sends intents and renders what comes back.
@@ -7,37 +7,46 @@ Money is always an integer number of **pence**. Cards are codes like `"Qs"` or `
 
 ## Connecting
 A device has an **account** (its token), and an account has up to three **characters**: each with its own name,
-look, difficulty, money and stats. Bans, timeouts and the admin page's Protected are the account's.
+look, difficulty, money and stats. Bans, timeouts and the admin page's Protected are the account's. There are
+several **casinos** (server/casino_server/resort.py): each its own floor, tables and people, and you only see and
+hear the casino you're in. A character's money and the jackpots are the same in all of them.
 
 1. The server sends `hello` {`protocol`}.
 2. The client replies `join` {`token`}. On a device's first visit the token is `""`; after that it's the one saved
    from `account`. The reply is `account`: the character select. Nobody is on the floor yet. A banned or timed-out
    account gets `barred` instead.
 3. The client makes, changes or deletes characters (`create_character`, `edit_character`, `delete_character`, each
-   answered with a fresh `account`) and picks one with `pick_character`. The server then sends, in order:
+   answered with a fresh `account`) and picks one with `pick_character`. The reply is `casinos`: the casino chooser.
+4. The client enters one with `enter_casino`. The server then sends, in order:
    - `welcome`
    - `wallet`
    - `jackpot`, `slot_jackpots`
    - `world_snapshot`
    - one `table_state` per table
    - your own `entity_spawn`, which everyone receives
-4. `leave_character` takes you off the floor (standing you up first) and back to the select: `character_left`, then
-   `account`. Picking a character that's playing in another window takes it over: that window gets
+5. `leave_casino` takes you off the floor (standing you up first) and back to the chooser: `casino_left`, then
+   `casinos`. `leave_character` takes you off the floor, or the chooser, and back to the select: `character_left`,
+   then `account`. Picking a character that's playing in another window takes it over: that window gets
    `character_left` {`reason`: `elsewhere`} and `account`. A reconnect asks with `resume`, which gives way instead.
+   `pick_character` with `casino` (a reconnect's, or a `?casino=` link's) skips the chooser and enters that casino,
+   hidden or not; a `resume` without one goes back to the character's last casino.
 
-A floor-plan preview (the admin page's Preview button, `/?preview=<room>`) sends `join` {`token`, `preview`: room id}
-instead: it gets only `welcome` (with the draft's floor) and `wallet`, has no body on the floor, isn't sent the
-casino's goings-on, and everything else it sends is ignored.
+A floor-plan preview (the admin page's Preview button, `/?preview=<room>&casino=<id>`) sends `join` {`token`,
+`preview`: room id, `casino`} instead: it gets only `welcome` (with that casino's draft floor) and `wallet`, has no
+body on the floor, isn't sent the casino's goings-on, and everything else it sends is ignored.
 
 ## Client → server
 | type | fields | meaning |
 |---|---|---|
-| `join` | `token`, `preview` (optional room id) | Identify the device's account, or make a new one (an empty or unknown token). Must come first. The reply is `account`. With `preview`, a look round the floor plan's draft instead (see Connecting). |
+| `join` | `token`, `preview` (optional room id), `casino` (with `preview`; default `demo`) | Identify the device's account, or make a new one (an empty or unknown token). Must come first. The reply is `account`. With `preview`, a look round that casino's floor plan draft instead (see Connecting). |
 | `create_character` | `name`, `look`, `difficulty` | A new character (at most `account.max`). `name`: up to 16 characters, spaces squashed, not the same as another of yours. `look`: a look spec (art.py: `body`, `skin`, and each slot's [option, colour] or null). `difficulty`: `easy`, `normal` or `hard`, which sets the starting bank (`account.difficulties`). The reply is `character_made` {`id`} and `account`, or an `error` saying what's wrong. |
 | `edit_character` | `id`, `name`, `look` | Change one of your characters' name and look (checked as above). Refused while it's on the floor. The reply is `account`. |
 | `delete_character` | `id` | Delete one of your characters, its money and history. Refused while it's on the floor. The reply is `account`. |
-| `pick_character` | `id`, `resume` (optional bool) | Onto the floor as that character (see Connecting). If it's playing in another window it's taken over from there; with `resume` (a reconnect) the reply is `character_left` {`reason`: `elsewhere`} and `account` instead. |
-| `leave_character` | | Off the floor and back to the character select (standing you up first). A hand you're in plays out for that character. The reply is `character_left` {`reason`: `switch`} and `account`. |
+| `pick_character` | `id`, `resume` (optional bool), `casino` (optional id) | Play as that character (see Connecting). The reply is `casinos`, or with `casino` (or `resume`, which falls back to the character's last casino) the `welcome` of that casino. If it's playing in another window it's taken over from there; with `resume` (a reconnect) the reply is `character_left` {`reason`: `elsewhere`} and `account` instead. |
+| `enter_casino` | `casino` | Onto that casino's floor (any casino by its id, hidden ones too). The reply is `welcome` and the rest (see Connecting). An `error` if you're in one already or there's no such casino. |
+| `list_casinos` | | The chooser's list again (opening it from the floor to switch casino). The reply is `casinos`. |
+| `leave_casino` | | Off the floor and back to the chooser (standing you up first). A hand you're in plays out. The reply is `casino_left` {`reason`: `leave`} and `casinos`. |
+| `leave_character` | | Off the floor (or the chooser) and back to the character select (standing you up first). A hand you're in plays out for that character. The reply is `character_left` {`reason`: `switch`} and `account`. |
 | `move` | `x`, `y`, `dir`, `anim` | Your avatar's position on the floor, sent about 10 times a second while moving. It's ignored while you're seated. |
 | `sit` | `table`, `seat` | Sit at a seat (0–5; seat 0 is first base, the dealer's left). |
 | `kick` | `table`, `seat` | Ask the NPC in that seat to give it up (the client asks if you're sure first). With nothing of theirs riding they get up now and you're `seated`; otherwise `kick_waiting`, and you're `seated` once they're up. Sitting anywhere, or `kick_cancel`, ends the wait (they keep the seat). |
@@ -73,10 +82,12 @@ casino's goings-on, and everything else it sends is ignored.
 | `account` | `token`, `characters` [{`id`, `name`, `look`, `spec`, `difficulty`, `balance`, `bank`, `online`}], `max`, `difficulties` {`easy`, `normal`, `hard`: starting bank, pence}, `last` (id last played, or null) | The character select: the reply to `join` and to every character message, and what a resync sends before you've picked. Save `token`. A character's `look` is its sheet's id (`x_…`, or `player_default` for one with no look of its own) and `spec` the look spec it was built from (null for none); `online` means it's on the floor somewhere. |
 | `character_made` | `id` | The character `create_character` made (an `account` follows). |
 | `character_left` | `reason` (`switch` \| `elsewhere`), `name` | You're off the floor (you left, or the character was picked in another window), or a `resume` gave way. An `account` follows. |
-| `welcome` | `player` {`id`, `name`, `difficulty`}, `entity_id`, `look`, `world`, `preview`, `seating`, `table_styles` | The reply to `pick_character`. `look` is the character's sheet. `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
+| `casinos` | `list` [{`id`, `name`, `blurb`, `players`, `npcs`, `tables`}], `last` (the casino this character was last in, or null) | The casino chooser: the reply to `pick_character`, `list_casinos` and `leave_casino`, what a resync sends while you're on it, and sent again whenever the casinos change on the admin page. It lists the open casinos (and `last`, even if it's hidden), in order: `players` and `npcs` on its floor now, and its table count (slot cabinets aside). |
+| `casino_left` | `reason` (`leave` \| `reload`) | You're off the floor: you left (`casinos` follows), or the casino is reloading with new tables after a floor-plan publish (`welcome` and the rest follow straight away). |
+| `welcome` | `player` {`id`, `name`, `difficulty`}, `entity_id`, `look`, `world`, `casino` {`id`, `name`}, `sound_sets`, `preview`, `seating`, `table_styles` | The reply to `enter_casino` (or `pick_character` with a casino). `look` is the character's sheet. `casino` is the one you're in. `sound_sets` is {table id: sound set} for its tables (each plays from its game's set, a slot cabinet from its machine's, a Master Table from `casino` until it has a game). `world` is the floor to build (the floor plan's placed rooms, plan.py `world()`; see "The world" below). `preview` is the room id a preview shows, else null. `seating` is {`styles` {id: style}, `tables` {table id: style id}}: how the chairs look, how people sit down and the craps standing spots (seating.py lists a style's fields). A table not in `tables` uses the `default` style. `table_styles` is {`cards`, `roulette`, `craps`}, each {`styles` {id: {`name`, `design`, `builtin`}}, `tables` {table id: style id}, `default`}: how each kind of table looks (table_styles.py KINDS lists each kind's design choices). A table not in its kind's `tables` uses that kind's `default` style (House unless the admin page changes it). |
 | `wallet` | `balance` | Your cash in hand (what you bet with; your bank balance is only on the ATM's `atm`). Sent on join, after each money-moving table event (straight after that event), and after an ATM withdrawal or deposit. |
 | `atm` | `bank`, `can`, `why` (`""`, `carrying`, `overdrawn`), `cap`, `wait` (seconds), `big`, `big_wait` (seconds), `threshold`, `hand_under`, `cooldown_min`, `big_wait_min`, `history` [{`kind` withdraw/deposit, `amount`, `t` (unix)}], `done` {`kind`, `amount`}, `error` | The reply to `atm_open`, `atm_withdraw` and `atm_deposit`: your bank balance (pence, negative when overdrawn); whether you can withdraw now and, if not, why (holding `hand_under` or more, or overdrawn and `wait` seconds from the next); the most a withdrawal can be (`cap`: the usual limit, or with `big` the bigger one, half the bank rounded down, which a bank at `threshold` or more allows once every `big_wait_min` minutes; `big_wait` is how long until it's back, while the usual limit applies in between); the overdrawn wait in minutes; your last four ATM moves, newest first. `done` comes after a withdrawal or deposit went through, `error` when it didn't. |
-| `jackpot` | `amount`, `rate` (pence/s), `ceiling`, `table` | Sent on join and after a jackpot win. The client extrapolates the meter between updates. After a win, `table` is the table it was won at: that table's jackpot sign keeps showing the old amount until its `jackpot_won` event plays (then celebrates), while every other table's sign takes the new amount straight away. |
+| `jackpot` | `amount`, `rate` (pence/s), `ceiling`, `table` | Sent on entering and after a jackpot win (in any casino: the pool is shared). The client extrapolates the meter between updates. After a win, `table` is the table it was won at (only in the casino it was won in): that table's jackpot sign keeps showing the old amount until its `jackpot_won` event plays (then celebrates), while every other table's sign takes the new amount straight away. |
 | `world_snapshot` | `entities[]` | Everyone already on the floor. Each has `id`, `kind`, `name`, `look`, `x`, `y`, `dir`, `anim`, `seat`, and an NPC on the move `walk` {`target`, `duration`, `remaining`}. An NPC's `x`, `y` is where its walk set off from (or where it is, when it isn't walking): the client starts it that far along its path (`duration` − `remaining`) and walks the rest in `remaining`. A player's is null until their first move. |
 | `entity_spawn` | `entity`, `at` | Someone arrived. `at` is where, as a walk target (`point:<room>/<name>`: a player at the spawn point, an NPC at the arrival point it came in by), used while `x` is null (a player's, until they first move). |
 | `entity_move` | `id`, `x`, `y`, `dir`, `anim` | Another player moved. |
@@ -90,8 +101,8 @@ casino's goings-on, and everything else it sends is ignored.
 | `notice` / `error` | `message` | Information, or a rejected action. |
 | `barred` | `kind` (`ban` \| `timeout` \| `removed`), `reason`, `retry_in` (seconds, or null) | The admin page has shut this account out: the reply to `join` (or `pick_character`) from a banned or timed-out account, or sent to anyone on it when it happens, at the character select too (`removed`: the account, or the character being played, was deleted). The server hangs up straight after. The client shows why and doesn't reconnect until `retry_in` has passed (never, without a reload, when it's null). |
 | `pong` | `t` | The reply to `ping`. |
-| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `welcome`, `wallet`, `jackpot`, `slot_jackpots`, `world_snapshot` and one `table_state` per table, as on picking. At the character select it's followed by `account`, and before joining by `hello`. |
-| `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables restarts the server instead), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
+| `resync` | `table`, `seat` | The reply to `resync`: where you're seated now (null if you were stood up while away). Then `welcome`, `wallet`, `jackpot`, `slot_jackpots`, `world_snapshot` and one `table_state` per table, as on picking. At the chooser it's followed by `casinos`, at the character select by `account`, and before joining by `hello`. |
+| `world` | `world` | The floor plan changed: a publish that moved things but added or removed no tables (adding or removing tables reopens the casino instead: `casino_left` {`reload`}, then a fresh `welcome`), or, to a preview, the draft was saved. The client rebuilds the floor (once its player stands up). |
 | `plan_art_changed` | `version` | The floor plan's asset library changed (an upload, an edit, a delete). The client refetches `GET /api/plan/art`. Previews get it too. |
 | `sounds_changed` | `version` | The sound choices changed on the admin page. The client refetches `GET /api/sounds/manifest`. |
 | `seating` | `seating` | The seating styles changed on the admin page (as in `welcome`). The client redraws every chair. |
@@ -356,18 +367,18 @@ The admin page: Sounds, NPCs, Players, Settings. There's no password: it's LAN-o
 
 | method & path | does |
 |---|---|
-| `GET /api/npcs` | The roster, plus each NPC's `look_id`/`look_url`, `on_floor` {`state`, `table`, `bankroll`, `budget`, `rounds`} or null, and `dealing` (a table id) or null. Also `settings`. |
+| `GET /api/npcs` | The roster, plus each NPC's `look_id`/`look_url`, `on_floor` {`state`, `table`, `bankroll`, `budget`, `rounds`} or null, `dealing` (a table id) or null, and `casino` (the casino they're in, or null). Also `settings`. |
 | `POST /api/npcs` | Create from {`name`, `role`, `look`, `archetype`, `traits`, `settings`, `enabled`}. Checked by `roster.clean`; a 400 says what's wrong. |
 | `GET /api/npcs/{id}` | One NPC, plus `visits` (the last 25). |
 | `PUT /api/npcs/{id}` | Change any of those fields. A new look or name shows on the floor at once (`entity_update` / `dealer_change`). |
 | `DELETE /api/npcs/{id}` | Sends them home if they're here, then deletes them and their visits. |
-| `POST /api/npcs/{id}/bring-in`, `/send-home`, `/reset-stats` | In through the door now (cooldown or not), out now, or clear their lifetime figures. |
+| `POST /api/npcs/{id}/bring-in`, `/send-home`, `/reset-stats` | In through a casino's door now (`?casino=<id>`, default `demo`; cooldown or not, but not while they're in another casino), out now, or clear their lifetime figures. |
 | `GET /api/look-options` | The game's character designer's catalogue: `bodies`, `skins`, and `slots` [{`slot`, `label`, `required`, `options` [{`id`, `label`, `bodies`, `colours`}]}]. |
 | `GET /api/npc-options` | The look designer's catalogue (bodies, skins, each slot's options with the bodies they fit and their colours, uniforms), plus the roles, archetypes, modifiers, games and tables. |
 | `POST /api/looks/preview` | {`look`} → {`id`, `url`}: builds the sheet (cached). |
 | `GET /looks/{id}.png` | A built sheet: immutable, cache it. |
 | `GET` / `PUT /api/npc-settings` | Floor `population`, `cooldown_min` and `bust_cooldown_min` ([lo, hi] minutes), `regular_cooldown` (a multiplier), `dealer_shift_min`, `dealer_stagger_min`. |
-| `GET /api/players` | Every character: `account_id`, `difficulty`, `balance`, `bank`, its account's `protected`, `banned`, `timeout_until`, `bar_reason`, `online`, and its lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
+| `GET /api/players` | Every character: `account_id`, `difficulty`, `balance`, `bank`, its account's `protected`, `banned`, `timeout_until`, `bar_reason`, `online`, `casino` (the casino it's in, or null), and its lifetime `wagered`, `returned`, `net`, `bets` and `last_at`, with the same per game, from the ledger. |
 | `POST /api/players/{id}/protect` | {`on`}: protect (or not) the character's account: nothing here can ban, time out or delete it, or any character on it. |
 | `POST /api/players/{id}/ban`, `/timeout`, `/lift` | Ban the character's account ({`reason`}), time it out ({`minutes` 1 to a year, `reason`}), or let it back in. Anyone on it is sent `barred` and hung up on. Refused (400) while protected. |
 | `DELETE /api/players/{id}` | Delete that character, its money and its ledger. Refused while protected. |
@@ -400,14 +411,15 @@ top-left corner.
 - `zones`: {`x`, `y`, `w`, `h`, `kind`}: `block` keeps everyone out, `npc_block` only NPCs (their paths).
 
 ## Floor plan HTTP API (the admin page's Floor plan tab)
-See `casino_server/plan.py`. Errors are 400 with the reason (409 when the draft was saved from another tab since).
+See `casino_server/plan.py`. Every call takes `?casino=<id>` (default `demo`; 404 for no such casino): each casino has its
+own plan. Errors are 400 with the reason (409 when the draft was saved from another tab since).
 
 | method & path | does |
 |---|---|
-| `GET /api/plan` | `draft` (the whole plan), `problems` [{`room`, `item`, `message`, `placed`}], `live_rev`, `pending` (the placed rooms the draft changes, by name), `restart` (publishing would restart the casino), `can_publish`, `live`. |
+| `GET /api/plan` | `draft` (the whole plan), `problems` [{`room`, `item`, `message`, `placed`}], `live_rev`, `pending` (the placed rooms the draft changes, by name), `restart` (publishing would reopen the casino with other tables), `can_publish`, `live`. |
 | `GET /api/plan/catalogue` | What can be placed: `games` (each with its `rotations` and its shapes `at` each turn: `rect`, `body`, `stands`), `cabinet` (shapes by facing), `pieces`, `assets`, `walls`, `floors`, `slots`, and the kinds of point, zone and door. |
 | `PUT /api/plan/draft` | The draft `{rooms, spawn, base_rev}`. New rooms, doors and things come without ids and are given them. Saved even with problems. Previews are sent the new draft. Returns as `GET`. |
-| `POST /api/plan/publish` | The draft goes live, if its placed rooms have no problems. Without new or removed tables everyone gets `world`; otherwise the casino restarts (only the live server; a dev instance says to restart it). `{message, restart, ...view}`. |
+| `POST /api/plan/publish` | The draft goes live, if its placed rooms have no problems. Without new or removed tables everyone in that casino gets `world`; otherwise that casino reopens with its new tables and its players are moved across (`casino_left` {`reload`}, a new `welcome`), while the other casinos carry on. Only a cabinet of a slot built since the server started needs a restart (the live server restarts; a dev instance says to restart it). `{message, restart, ...view}`. |
 | `POST /api/plan/discard` | The draft goes back to the live plan. |
 | `GET /api/plan/history` | The last 20 publishes: [{`id`, `rooms`, `tables`}], newest first. |
 | `POST /api/plan/rollback/{id}` | Puts that publish back in the draft (publish it to use it). |
@@ -434,7 +446,7 @@ change sends `sounds_changed` to every joined player.
 | method & path | does |
 |---|---|
 | `GET /api/sounds` | `sections` (page order); `moments` (`{key: {title, when, section, home, loop}}`; `home` is the set it's defined in); `sets` (each `key`, `name`, `parent`, `group`, and its `moments`: rows of `key`, `own`, `from` (the set whose sounds it plays), `files`, `gain_db`, `changed`, `can_inherit`); `folders` (`{folder: {label, sections}}`); the whole `library` (`id`, `group`, `name`, `bytes`). |
-| `GET /api/sounds/manifest` | What the game loads: `{version, sets: {set: {parent, moments: {key: {files: [url], gain_db}}}}, tables: {table id: set}}`. A set lists only its own moments; the rest come from the nearest set above. Each URL ends in `?v=<change time>`, so it can be cached for good. |
+| `GET /api/sounds/manifest` | What the game loads: `{version, sets: {set: {parent, moments: {key: {files: [url], gain_db}}}}}` (which set each table plays from is the welcome's `sound_sets`). A set lists only its own moments; the rest come from the nearest set above. Each URL ends in `?v=<change time>`, so it can be cached for good. |
 | `PUT /api/sounds/{set}/{key}` | JSON `{files: [sound id], gain_db}`. Gives the moment its own sounds in that set (deduplicated; gain clamped to -30..+12 dB); `files: []` silences it there, without the set above filling in. Returns its row. |
 | `POST /api/sounds/{set}/{key}/inherit` | The moment plays the set above's sounds. Refused in its home set. |
 | `DELETE /api/sounds/{set}/{key}` | Puts one moment in one set back to how it came. `POST /api/sounds-reset` with `{set}` resets that set, with `{}` everything. |

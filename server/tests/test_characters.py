@@ -32,11 +32,11 @@ def test_a_new_device_gets_an_empty_account_and_nobody_on_the_floor(client):
         assert account["difficulties"] == {"easy": 500_000, "normal": 100_000, "hard": 25_000}
         ws.send_json({"type": "sit", "table": "tcp_1", "seat": 0})
         assert recv_until(ws, "error")["message"] == "Pick a character first."
-    assert client.app.state.casino.world.entities == {}
+    assert client.app.state.resort.casinos["demo"].world.entities == {}
 
 
 def test_difficulty_sets_the_starting_bank_and_three_is_the_most(client):
-    client.app.state.casino.store.set_json("bank_settings", {"start_hand": 0, "start_bank_hard": 300})
+    client.app.state.resort.casinos["demo"].store.set_json("bank_settings", {"start_hand": 0, "start_bank_hard": 300})
     with client.websocket_connect("/ws") as ws:
         _account(ws)
         for name, difficulty in (("Easy Ed", "easy"), ("Norm", "normal"), ("Hard Hal", "hard")):
@@ -65,7 +65,7 @@ def test_switching_characters_moves_you_off_and_back_on(client):
         first = _make(a, "Mike")["characters"][0]["id"]
         second = [c for c in _make(a, "Mo")["characters"] if c["name"] == "Mo"][0]["id"]
         enter(b, hello=True)
-        a.send_json({"type": "pick_character", "id": first})
+        a.send_json({"type": "pick_character", "id": first, "casino": "demo"})
         w1 = recv_until(a, "welcome")
         assert w1["player"]["name"] == "Mike"
         assert recv_until(b, "entity_spawn", where=lambda m: m["entity"]["id"] == w1["entity_id"])["entity"]["name"] == "Mike"
@@ -75,8 +75,8 @@ def test_switching_characters_moves_you_off_and_back_on(client):
         assert recv_until(a, "character_left")["reason"] == "switch"
         assert recv_until(a, "account")["last"] == first
         assert recv_until(b, "entity_despawn")["id"] == w1["entity_id"]
-        assert client.app.state.casino.tables["tcp_1"].machine.seats[0].participant is None
-        a.send_json({"type": "pick_character", "id": second})
+        assert client.app.state.resort.casinos["demo"].tables["tcp_1"].machine.seats[0].participant is None
+        a.send_json({"type": "pick_character", "id": second, "casino": "demo"})
         w2 = recv_until(a, "welcome")
         assert w2["player"]["name"] == "Mo" and w2["entity_id"] != w1["entity_id"]
         assert recv_until(b, "entity_spawn", where=lambda m: m["entity"]["id"] == w2["entity_id"])["entity"]["name"] == "Mo"
@@ -94,11 +94,11 @@ def test_picking_a_character_playing_elsewhere_takes_it_over_unless_resuming(cli
             assert recv_until(b, "account")["characters"][0]["online"]
             b.send_json({"type": "edit_character", "id": pid, "name": "Mick", "look": LOOK})
             assert "on the floor" in recv_until(b, "error")["message"]
-            b.send_json({"type": "pick_character", "id": pid})
+            b.send_json({"type": "pick_character", "id": pid, "casino": "demo"})
             recv_until(b, "welcome")
             assert recv_until(a, "character_left")["reason"] == "elsewhere"
             assert recv_until(a, "account")
-            assert client.app.state.casino.online_players() == {pid}
+            assert client.app.state.resort.casinos["demo"].online_players() == {pid}
 
 
 def test_edit_and_delete_from_the_select(client):
@@ -114,7 +114,7 @@ def test_edit_and_delete_from_the_select(client):
         assert [c["name"] for c in recv_until(ws, "account")["characters"]] == ["Other"]
         ws.send_json({"type": "delete_character", "id": 999})
         assert recv_until(ws, "error")["message"] == "No such character."
-    store = client.app.state.casino.store
+    store = client.app.state.resort.casinos["demo"].store
     assert store.character(pid) is None
     assert not store.db.execute("SELECT 1 FROM ledger WHERE player_id = ?", (pid,)).fetchone()
 
@@ -133,7 +133,7 @@ def test_a_ban_covers_every_character_on_the_account(client):
     account = _account(ws)
     ids = [c["id"] for c in _make(ws, "Mo")["characters"]]
     _make(ws, "Mike")
-    ws.send_json({"type": "pick_character", "id": ids[0]})
+    ws.send_json({"type": "pick_character", "id": ids[0], "casino": "demo"})
     recv_until(ws, "welcome")
     assert client.post(f"/api/players/{ids[0]}/ban", json={"reason": "Card marking"}).status_code == 200
     assert recv_until(ws, "barred")["kind"] == "ban"
@@ -151,11 +151,11 @@ def test_deleting_an_account_takes_all_its_characters(client):
     with client.websocket_connect("/ws") as ws:
         account = _account(ws)
         _make(ws, "Mo")
-        aid = client.app.state.casino.store.account_by_token(account["token"])["id"]
+        aid = client.app.state.resort.casinos["demo"].store.account_by_token(account["token"])["id"]
         r = client.delete(f"/api/accounts/{aid}")
         assert r.status_code == 200 and r.json()["names"] == ["Mo"]
         assert recv_until(ws, "barred")["kind"] == "removed"
-    assert client.app.state.casino.store.account_by_token(account["token"]) is None
+    assert client.app.state.resort.casinos["demo"].store.account_by_token(account["token"]) is None
     assert client.delete(f"/api/accounts/{aid}").status_code == 404
 
 

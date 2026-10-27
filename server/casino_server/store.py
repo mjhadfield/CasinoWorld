@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS players (      -- the characters
     last_big_at      REAL,                 -- and of the last one over the usual limit (bank.py)
     look       TEXT,                       -- JSON look spec (art.py); NULL: the stock player_default sheet
     difficulty TEXT    NOT NULL DEFAULT 'normal',   -- 'easy' | 'normal' | 'hard': what the bank started with
-    last_played_at REAL                    -- unix time it was last picked
+    last_played_at REAL,                   -- unix time it was last picked
+    last_casino TEXT                       -- the casino it last entered (casinos.py)
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id            INTEGER PRIMARY KEY,
@@ -157,6 +158,8 @@ class Store:
                     self.db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
         self.db.commit()
         self._add_accounts(path)
+        if "last_casino" not in self._columns("players"):   # (came with several casinos)
+            self.db.execute("ALTER TABLE players ADD COLUMN last_casino TEXT")
         self.db.execute("CREATE INDEX IF NOT EXISTS players_account ON players(account_id)")
         self.db.commit()
 
@@ -278,6 +281,14 @@ class Store:
     def played(self, player_id: int, now: float):
         with self.db:
             self.db.execute("UPDATE players SET last_played_at = ? WHERE id = ?", (now, player_id))
+
+    def entered(self, player_id: int, casino_id: str):
+        with self.db:
+            self.db.execute("UPDATE players SET last_casino = ? WHERE id = ?", (casino_id, player_id))
+
+    def last_casino(self, player_id: int) -> str | None:
+        row = self.db.execute("SELECT last_casino FROM players WHERE id = ?", (player_id,)).fetchone()
+        return row["last_casino"] if row else None
 
     # A player deleted on the admin page may still have a hand finishing at a table: their balance reads 0 and
     # money moves for them are dropped (adjust), rather than failing the table.

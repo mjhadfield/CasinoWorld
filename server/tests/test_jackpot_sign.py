@@ -1,5 +1,6 @@
 """The jackpot's new amount after a win names the table it was won at, so that table's sign can hold the old
-amount until the win is shown there while every other sign just takes the new one."""
+amount until the win is shown there while every other sign just takes the new one. The pool is shared: every
+casino hears, but only the one it was won in is told the table (casino.py's broadcast_resort)."""
 from casino_server.tables.runner import TableRunner
 
 
@@ -11,8 +12,8 @@ class _Casino:
     def snapshot(self):
         return {"type": "jackpot", "amount": 500_000, "rate": 1.0, "ceiling": 5_000_000}
 
-    def broadcast_all(self, msg):
-        self.sent.append(msg)
+    def broadcast_resort(self, msg, table=None):
+        self.sent.append({**msg, "table": table} if table else msg)
 
 
 def test_the_new_jackpot_after_a_win_names_the_table():

@@ -24,7 +24,7 @@ def test_archived_npcs_leave_the_roster_and_come_back(client):
     assert r.status_code == 200 and r.json()["archived_at"]
     data = client.get("/api/npcs").json()
     assert npc["id"] not in [n["id"] for n in data["npcs"]] and [n["id"] for n in data["archived"]] == [npc["id"]]
-    store = client.app.state.casino.store
+    store = client.app.state.resort.casinos["demo"].store
     assert npc["id"] not in [n["id"] for n in store.npcs("punter")]          # the director never picks them
     assert client.post(f"/api/npcs/{npc['id']}/bring-in").status_code == 400
     assert client.post(f"/api/npcs/{npc['id']}/restore").status_code == 200
@@ -32,7 +32,7 @@ def test_archived_npcs_leave_the_roster_and_come_back(client):
 
 
 def test_an_archived_dealer_on_duty_is_relieved(client):
-    casino = client.app.state.casino
+    casino = client.app.state.resort.casinos["demo"]
     table_id, on = next((t, d) for t, d in casino.dealers.on_duty.items() if d["id"])
     for other in casino.store.npcs("dealer"):   # nobody free to take over: the house's generic Dealer does
         if other["id"] != on["id"] and other["id"] not in {d["id"] for d in casino.dealers.on_duty.values()}:
@@ -135,7 +135,7 @@ def test_a_timeout_runs_out(client):
         again.send_json({"type": "join", "token": token})
         msg = recv_until(again, "barred")
         assert msg["kind"] == "timeout" and 590 <= msg["retry_in"] <= 600
-    store = client.app.state.casino.store
+    store = client.app.state.resort.casinos["demo"].store
     store.set_bar(store.character(pid).account_id, until=time.time() - 1)
     ws, welcome = _join(client, token)
     assert welcome["player"]["id"] == pid
@@ -162,6 +162,6 @@ def test_deleting_a_player_who_is_playing(client):
     assert client.delete(f"/api/players/{pid}").status_code == 200
     assert recv_until(ws, "barred")["kind"] == "removed"
     ws.__exit__(None, None, None)
-    store = client.app.state.casino.store
+    store = client.app.state.resort.casinos["demo"].store
     assert store.adjust(pid, 500, "payout") == 0 and store.balance(pid) == 0   # a hand finishing after: dropped
     assert store.db.execute("SELECT COUNT(*) FROM ledger WHERE player_id = ?", (pid,)).fetchone()[0] == 0

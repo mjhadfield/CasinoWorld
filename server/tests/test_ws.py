@@ -38,7 +38,7 @@ def test_join_sends_everything_and_token_remembers_player(client):
         token = account["token"]
         ws.send_json({"type": "create_character", "name": "Tester", "look": LOOK, "difficulty": "normal"})
         made = recv_until(ws, "character_made")["id"]
-        ws.send_json({"type": "pick_character", "id": made})
+        ws.send_json({"type": "pick_character", "id": made, "casino": "demo"})
         welcome = recv_until(ws, "welcome")
         wallet = recv_until(ws, "wallet")
         jackpot = recv_until(ws, "jackpot")
@@ -136,7 +136,7 @@ def test_blackjack_round_over_the_wire(client):
 
 def test_pai_gow_round_over_the_wire(client):
     from test_pai_gow_machine import FixedRng, Hands, NOTHING
-    m = client.app.state.casino.tables["pgf_1"].machine
+    m = client.app.state.resort.casinos["demo"].tables["pgf_1"].machine
     m.deck_factory = lambda: Hands([NOTHING, ["As", "Ad", "Kc", "Kd", "9h", "5s", "3c"]])
     m.rng = FixedRng(1)
     with client.websocket_connect("/ws") as ws:
@@ -205,7 +205,7 @@ def test_disconnect_mid_hand_stands_you_up_and_table_carries_on(client):
         stood = recv_until(watcher, "table_event", "stood")["event"]
         assert stood["seat"] == 0
         recv_until(watcher, "table_event", "betting_open")
-        machine = client.app.state.casino.tables[TABLE].machine
+        machine = client.app.state.resort.casinos["demo"].tables[TABLE].machine
         assert machine.phase == "betting" and machine.free_seats() == list(range(6))
 
 

@@ -5,7 +5,7 @@ How the casino is put together. The rules of each game are in `docs/games/`, the
 
 ## The idea
 
-One continuous casino. Real players and NPCs walk the same floor, and sitting down happens in that world:
+A resort of casinos, each one continuous. Real players and NPCs walk the same floor, and sitting down happens in that world:
 the camera glides onto the table, your avatar sits down in a chair, and a dealer opposite deals, calls and pays
 at a real table's pace. Every step is animated, and anyone walking past can watch a table live.
 
@@ -21,10 +21,21 @@ Mike's decisions that shape everything else (2026-10-16):
 A FastAPI app (`app.py`) serves the web export, the admin page and one WebSocket per player at `/ws`. Every
 game result and every penny is decided on the server; the client only renders and sends intents.
 
-- **`Casino` (`casino.py`)** holds the sessions, the world, the tables, the NPCs, the store and the jackpot.
-  It lives on `app.state` for the app's lifespan, and `start()`/`stop()` own its background tasks: one runner
-  per table plus the NPC director. Messages are handled one at a time on the event loop, so no state needs
-  locks.
+- **`Resort` (`resort.py`)** is on `app.state` for the app's lifespan. It holds every connected session and the
+  casinos (`casinos.py`'s registry, `<data>/casinos.json`: Mike's decisions, 2026-10-27), and what they share,
+  made once and handed to each: the store (a character's cash and bank), the card progressive and the slots'
+  progressives and figures, and the NPC cast with its **claims** (`casinos.Claims`, npc id -> casino id: a punter
+  is claimed from coming in until they've walked out, a dealer for their shift, and the other casinos' directors
+  and rosters skip anyone claimed, so nobody is in two at once; the house's generic Dealer fills any gap). It
+  handles everything before a floor: `join`, characters, bans, and the casino chooser (`casinos`,
+  `enter_casino`, `leave_casino`); a session that has entered a casino (`session.casino`) has the rest handled
+  by that casino. Every casino in the registry runs all the time, players or not.
+- **`Casino` (`casino.py`)** is one casino: its floor (`floor.Floor`), its sessions, the world, the tables, its
+  NPC director (counting its own visitors, up to the registry's `population`) and dealer roster. Its broadcasts
+  go to its own sessions only, so you only see and hear the casino you're in; a jackpot win is the exception
+  (`broadcast_resort`: every casino hears the new pool, and only the one it was won in is told the table).
+  `start()`/`stop()` own its background tasks: one runner per table plus the NPC director. Messages are handled
+  one at a time on the event loop, so no state needs locks.
 - **The Slot design board (`slot_design.py`)** is on `app.state` too, with one background task of its own
   (`run()`, cancelled when the app stops) that works through its generate queue, one picture from the image model (whichever Odysseus has loaded) at a time
   in a worker thread. The board is the only shared state touched from threads (request handlers in the
@@ -161,7 +172,10 @@ A Godot 4.7 project exported to the web.
   cabinets, `<bank id>_<n>`, are what everything past the plan sees), the points, each seat's
   standing spot, the doorways (`plan.Routes`, for how long an NPC's walk takes) and each table's sound set. A
   publish that only moves things installs a new Floor at once (`Casino.broadcast_world` takes it) and sends everyone
-  `world`; one that adds or removes tables restarts the server. The checks
+  `world`; one that adds or removes tables reopens just that casino in-process (`Resort.reload`: the old Casino stops
+  as at shutdown, a new one starts on the new Floor, and its players get `casino_left` {`reload`} and a fresh
+  welcome; the other casinos carry on). Only a slot built since the server started still needs a restart (a start
+  is what loads a built slot). The checks
   (`plan.problems`: things off the floor or in each other's way, doors that don't line up, seats and points nobody
   can walk to, by a flood fill over the plan) use the tables' and cabinet's shapes in `plan_catalogue.json`,
   measured from the client's scenes by `tools/plan_catalogue.gd`. The first run seeds the lobby (live) and the

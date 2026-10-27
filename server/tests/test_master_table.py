@@ -263,9 +263,9 @@ def master_client(tmp_path, monkeypatch):
     monkeypatch.setenv("CASINO_SLOT_BUILDS_DIR", str(tmp_path / "slot_builds"))
     monkeypatch.setenv("CASINO_NPCS", "0")
     with TestClient(app) as c:
-        m = c.app.state.casino.tables["mt_1"].machine
+        m = c.app.state.resort.casinos["demo"].tables["mt_1"].machine
         m.timings = master.Timings(vote=10.0, revert=60.0, hold=0.0)
-        m.make = lambda g, n, _m=m: _fast(c.app.state.casino._make_machine("mt_1", g, n))
+        m.make = lambda g, n, _m=m: _fast(c.app.state.resort.casinos["demo"]._make_machine("mt_1", g, n))
         yield c
 
 
@@ -290,7 +290,7 @@ def test_choosing_over_the_websocket(master_client):
         assert state["game"] == "let_it_ride" and state["master"]["game"] == "let_it_ride"
         mine = state["my_seat"]
         assert state["seats"][mine]["name"] and len(state["seats"]) == 5
-        fl = master_client.app.state.casino.floor
+        fl = master_client.app.state.resort.casinos["demo"].floor
         assert fl.seats["mt_1"] == plan.tables_of(fl.plan)["mt_1"]["stands"]["5"]
         ws.send_json({"type": "choose_game", "game": "craps"})
         assert "can't set" in recv_until(ws, "error")["message"]

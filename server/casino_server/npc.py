@@ -162,7 +162,11 @@ class NpcDirector:
     def population(self) -> int:
         if self._population is not None:
             return self._population
-        return int(roster.settings(self.casino.store)["population"])
+        return self.casino.population()
+
+    def here(self) -> int:
+        """How many are on the floor (not counting anyone on their way out)."""
+        return sum(1 for n in self.npcs.values() if not n.ended)
 
     def on_floor(self, npc_id: int) -> Npc | None:
         return next((n for n in self.npcs.values() if n.npc_id == npc_id), None)
@@ -182,8 +186,7 @@ class NpcDirector:
             for npc in list(self.npcs.values()):
                 if not npc.ended and npc.state != "seated":
                     self._send_off(npc, now)
-        here = sum(1 for n in self.npcs.values() if not n.ended)
-        if self.on and here < self.population and now >= self._next_spawn and self._room_to_play():
+        if self.on and self.here() < self.population and now >= self._next_spawn and self._room_to_play():
             record = self._pick_visitor()
             if record:
                 self.spawn(record, now)
@@ -240,11 +243,13 @@ class NpcDirector:
         return prof.archetype if prof.archetype in ("grinder", "casual", "gambler") else "casual"
 
     def _pick_visitor(self) -> dict | None:
-        """An enabled punter who isn't here and isn't cooling down (Regulars more often)."""
+        """An enabled punter who isn't here or in another casino, and isn't cooling down (Regulars more often)."""
         wall = self.wall()
         here = {n.npc_id for n in self.npcs.values()}
+        claims, cid = self.casino.claims, self.casino.id
         free = [r for r in self.casino.store.npcs("punter")
-                if r["enabled"] and r["id"] not in here and (r["cooldown_until"] or 0) <= wall]
+                if r["enabled"] and r["id"] not in here and not claims.elsewhere(r["id"], cid)
+                and (r["cooldown_until"] or 0) <= wall]
         if not free:
             return None
         weights = [3.0 if "regular" in r["traits"] else 1.0 for r in free]
@@ -257,7 +262,9 @@ class NpcDirector:
         self._serial += 1
         prof = roster.profile(record, self.rng)
         look = self._look(record)
-        npc = Npc(f"n{record['id']}_{self._serial}", record["id"], record["name"], look, prof, bankroll=prof.budget)
+        npc = Npc(f"n{record['id']}_{self.casino.id}_{self._serial}", record["id"], record["name"], look, prof,
+                  bankroll=prof.budget)
+        self.casino.claims.take(record["id"], self.casino.id)
         npc.participant = NpcParticipant(npc)
         npc.arrived = self.wall()
         npc.habit = self._roulette_habit(prof)
@@ -292,6 +299,8 @@ class NpcDirector:
     def _despawn(self, npc: Npc):
         self.npcs.pop(npc.entity_id, None)
         self.casino.world.remove(npc.entity_id)
+        if self.on_floor(npc.npc_id) is None:
+            self.casino.claims.release(npc.npc_id, self.casino.id)
 
     def _walk(self, npc: Npc, target: str, now: float, state: str = "walking"):
         """Send them walking: as long as the walk takes at an easy pace, through the doorways (each client paths it)."""
@@ -409,6 +418,8 @@ class NpcDirector:
         record = self.casino.store.npc(npc_id)
         if record is None or record["role"] != "punter":
             raise ValueError("Only punters can be brought in.")
+        if self.casino.claims.elsewhere(npc_id, self.casino.id):
+            raise ValueError("They're in another casino.")
         if not self.on:
             raise ValueError("NPCs are switched off (Settings).")
         return self.spawn(record, now)

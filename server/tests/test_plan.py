@@ -394,7 +394,7 @@ def test_a_preview_shows_the_draft_and_has_no_body(client):
         welcome = recv_until(ws, "welcome")
         assert welcome["preview"] == "bar" and [r["id"] for r in welcome["world"]["rooms"]] == ["bar"]
         assert welcome["world"]["start"] == {"x": 400, "y": -200}
-        assert client.app.state.casino.joined_sessions() == [] and client.app.state.casino.world.entities == {}
+        assert client.app.state.resort.casinos["demo"].joined_sessions() == [] and client.app.state.resort.casinos["demo"].world.entities == {}
         # saving the draft shows it again
         draft = client.get("/api/plan").json()["draft"]
         room(draft, "bar")["w"] = 900
@@ -439,7 +439,7 @@ def test_npcs_wander_to_one_point_and_walk_as_far_as_the_doors_take_them(tmp_pat
 
 
 def test_a_tables_style_outlives_its_room_leaving_the_floor(client):
-    store, boards = client.app.state.casino.store, client.app.state.boards
+    store, boards = client.app.state.resort.casinos["demo"].store, client.app.state.boards
     board = boards["demo"]
     table_styles.assign(store, {"tables": {"demo/tcp_1": "grand"}}, casinos.every_table(boards))
     draft = client.get("/api/plan").json()["draft"]

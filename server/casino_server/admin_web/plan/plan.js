@@ -241,7 +241,7 @@ function refreshBar() {
     hist,
     el("button", { className: "ghost", textContent: "Discard draft", disabled: !pending, onclick: discard }),
     el("button", { className: "primary", textContent: pending ? `Publish (${pending})` : "Published",
-                   title: pending ? "Changed: " + m.pending.join(", ") + (m.restart ? ". Tables come or go: the casino restarts." : "") : "The floor is the draft",
+                   title: pending ? "Changed: " + m.pending.join(", ") + (m.restart ? ". Tables come or go: the casino reopens with them." : "") : "The floor is the draft",
                    disabled: !pending || !m.can_publish || S.saving || S.error !== "", onclick: publish }));
 }
 
@@ -256,7 +256,7 @@ async function preview() {
 
 async function publish() {
   const m = S.meta;
-  if (m.restart && !confirm("This adds or takes away tables or slot cabinets, so the casino restarts (everyone playing reconnects in a few seconds). Publish now?")) return;
+  if (m.restart && !confirm("This adds or takes away tables or slot cabinets, so this casino reopens with them (everyone in it is moved across in a moment; the other casinos carry on). Publish now?")) return;
   try {
     const r = await api("POST", "/api/plan/publish");
     take(r, true);

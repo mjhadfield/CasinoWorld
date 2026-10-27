@@ -679,7 +679,7 @@ def test_npcs_play_craps_and_only_leave_when_nothing_is_stuck(tmp_path):
 def test_a_roll_over_the_wire(client):
     from conftest import recv_until
     from test_ws import join
-    client.app.state.casino.tables["crp_1"].machine.dice = Dice((3, 4))
+    client.app.state.resort.casinos["demo"].tables["crp_1"].machine.dice = Dice((3, 4))
     with client.websocket_connect("/ws") as ws:
         join(ws)
         ws.send_json({"type": "sit", "table": "crp_1", "seat": 2})
