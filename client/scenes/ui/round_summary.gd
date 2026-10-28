@@ -2,13 +2,15 @@ class_name RoundSummary
 extends PanelContainer
 ## Top left, under your wallet, while you're seated: the whole table's results for the last round (the round_end's
 ## `summary`; at Craps the come-out's after a seven-out, for the shooter's hand). Each player's net (a second box in
-## with its player's), best first and yours in brass, with the side bets, bonuses and jackpots that paid them listed
-## under them (Roulette: the inside bets that hit). It stays up
-## while the next round's bets go down and fades as they close. Settings › Round summary turns it off.
+## with its player's), best first and yours in brass. At a card table, a player whose side bet, bonus or jackpot won
+## gets their net bet by bet in small print under it, adding up; at Roulette and Craps the inside hits, hardways and
+## props that won are listed there instead. It stays up while the next round's bets go down and fades as they close.
+## Settings › Round summary turns it off.
 
 const WIDTH := 290.0
 const PAD := Vector4(18, 12, 18, 14)
-const BONUS_INDENT := 14.0
+const LINE_INDENT := 14.0
+const LINE_SIZE := 13   # (a breakdown, smaller than the player's row above it)
 
 var _column: VBoxContainer
 var _tween: Tween
@@ -18,7 +20,7 @@ func _ready() -> void:
 	UiKit.make_card(self, PAD)
 	mouse_filter = MOUSE_FILTER_IGNORE   # (it's not a dialog: clicks go through to the table)
 	custom_minimum_size.x = WIDTH
-	_column = UiKit.column(self, 7.0)   # (between players; a player's bonuses sit close under them)
+	_column = UiKit.column(self, 7.0)   # (between players; a player's lines sit close under them)
 	hide()
 	Settings.changed.connect(func(key: String, on):
 		if key == "show_round_summary" and not on:
@@ -37,10 +39,12 @@ func show_summary(summary: Dictionary, mine: Array) -> void:
 		var player := UiKit.column(_column, 1.0)
 		var me := int(r.seat) in mine
 		_row(player, str(r.name), BettingBar.BRASS_HI if me else UiKit.INK, _net(int(r.net)), 18, 0.0)
-		for b in r.get("bonuses", []):   # what their side bets, bonuses and jackpot won, indented under them
-			var jackpot: bool = b.get("jackpot", false)
-			_row(player, str(b.text), BettingBar.BRASS_HI if jackpot else UiKit.MUTED,
-				["+" + Money.format(int(b.amount), true), BettingBar.BRASS_HI if jackpot else BettingBar.WIN], 15, BONUS_INDENT)
+		for b in r.get("lines", []):   # their breakdown (or wins), indented under them
+			var amount := _net(int(b.amount))
+			if b.get("jackpot", false):
+				amount[1] = BettingBar.BRASS_HI
+			_row(player, str(b.text), BettingBar.BRASS_HI if b.get("jackpot", false) else UiKit.MUTED, amount,
+				LINE_SIZE, LINE_INDENT)
 	reset_size()
 	if _tween:
 		_tween.kill()

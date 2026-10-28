@@ -26,21 +26,27 @@ def test_three_card_poker_nets_every_seat_best_first_and_calls_out_side_bets():
     assert [r["name"] for r in summary["rows"]] == ["Ann", "Cat", "Bob"]
     assert [r["net"] for r in summary["rows"]] == [m.round_net(0), m.round_net(4), m.round_net(2)]
     assert summary["rows"][0]["net"] == 1_100 and summary["rows"][-1]["net"] == -1_000
-    assert summary["rows"][0]["bonuses"] == [{"text": "Pair Plus · Pair", "amount": 100, "jackpot": False}]
-    assert summary["rows"][1]["bonuses"] == [] and summary["rows"][2]["bonuses"] == []
+    # Ann's Pair Plus won: her net bet by bet, adding up. Cat's Jackpot lost and Bob had none: just their nets.
+    assert summary["rows"][0]["lines"] == [{"text": "Ante & Play", "amount": 1_000, "jackpot": False},
+                                           {"text": "Pair Plus · Pair", "amount": 100, "jackpot": False}]
+    assert summary["rows"][1]["lines"] == [] and summary["rows"][2]["lines"] == []
 
 
-def test_several_credits_add_up_and_a_jackpot_comes_first():
+def test_the_breakdown_adds_up_with_losing_side_bets_and_a_jackpot_first():
     m = machine(CODES)
     ann, _, _ = seat_three(m)
-    m.round_start = {0: (ann, ann.balance)}
+    m.round_start = {0: (ann, ann.balance + 800)}   # (her stakes: ante, Pair Plus, Prime, Jackpot)
+    m._credit(ann, 0, "side bets", returns_detail([("prime", 100, 0)]))
     m._credit(ann, 600, "side bets", returns_detail([("pair_plus", 100, 600)], hand="Straight"))
     m._credit(ann, 100_000, "jackpot", returns_detail([("jackpot", 100, 100_000)], hand="Mini Royal"))
     m._credit(ann, 1_000, "win", returns_detail([("ante", 500, 1_000)]))
     summary = m.round_summary()
-    assert summary["rows"] == [{"seat": 0, "name": "Ann", "net": 101_600, "bonuses": [
-        {"text": "Jackpot · Mini Royal", "amount": 100_000, "jackpot": True},
-        {"text": "Pair Plus · Straight", "amount": 500, "jackpot": False}]}]   # (the Ante's no highlight)
+    assert summary["rows"] == [{"seat": 0, "name": "Ann", "net": 100_800, "lines": [
+        {"text": "Ante & Play", "amount": 500, "jackpot": False},
+        {"text": "Jackpot · Mini Royal", "amount": 99_900, "jackpot": True},
+        {"text": "Pair Plus · Straight", "amount": 500, "jackpot": False},
+        {"text": "Prime", "amount": -100, "jackpot": False}]}]
+    assert sum(b["amount"] for b in summary["rows"][0]["lines"]) == 100_800
 
 
 def test_a_second_box_is_one_entry_with_its_player():
@@ -52,9 +58,9 @@ def test_a_second_box_is_one_entry_with_its_player():
     summary = m._summary([{"seat": 1, "participant": box, "net": 1_500}, {"seat": 0, "participant": ann, "net": -500},
                           {"seat": 2, "participant": bob, "net": 200}], "Last hand")
     assert summary["rows"] == [
-        {"seat": 0, "name": "Ann", "net": 1_000, "bonuses": [{"text": "Pair Plus · Straight", "amount": 500, "jackpot": False},
-                                                             {"text": "Pair Plus · Pair", "amount": 100, "jackpot": False}]},
-        {"seat": 2, "name": "Bob", "net": 200, "bonuses": []}]
+        {"seat": 0, "name": "Ann", "net": 1_000, "lines": [{"text": "Ante & Play", "amount": 400, "jackpot": False},
+                                                           {"text": "Pair Plus · Straight", "amount": 600, "jackpot": False}]},
+        {"seat": 2, "name": "Bob", "net": 200, "lines": []}]
 
 
 def test_nobody_played_means_no_summary():
@@ -78,7 +84,7 @@ def test_roulette_titles_the_number_and_calls_out_inside_hits():
     assert m.number is None   # (betting's open again by the time the runner asks)
     summary = m.round_summary()
     assert summary["title"] == "17 Black"
-    assert [(r["name"], r["net"], [(b["text"], b["amount"]) for b in r["bonuses"]]) for r in summary["rows"]] == [
+    assert [(r["name"], r["net"], [(b["text"], b["amount"]) for b in r["lines"]]) for r in summary["rows"]] == [
         ("Mike", 16_500, [("Straight up 17", 17_500)]),
         ("Nora", 3_700, [("Split 14/17", 1_700)])]   # (Black's even money: not called out)
     assert find(events, "round_end")
@@ -102,8 +108,8 @@ def test_craps_sums_up_a_shooters_hand_at_the_next_come_out():
     assert summary["title"] == "Nora's hand · 4 rolls · 1 point"
     # Nora: the line won £10 and lost £10; the hard 8 won £9 and then lost its £1.
     assert summary["rows"] == [
-        {"seat": 2, "name": "Nora", "net": 800, "bonuses": [{"text": "Hard 8", "amount": 900, "jackpot": False}]},
-        {"seat": 5, "name": "Ray", "net": -500, "bonuses": []}]
+        {"seat": 2, "name": "Nora", "net": 800, "lines": [{"text": "Hard 8", "amount": 900, "jackpot": False}]},
+        {"seat": 5, "name": "Ray", "net": -500, "lines": []}]
     assert nora.balance == 100_000 + 800
     now, ev = roll(m, now)                  # the next hand's first roll: no summary of its own yet
     assert not any(e.get("summary") for e in ev)

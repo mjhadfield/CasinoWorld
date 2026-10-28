@@ -84,6 +84,7 @@ class MississippiStudMachine(TableMachine):
     game = ms.GAME_KEY
     label = ms.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Ante & Streets"
     BONUS_SPOTS = ("bonus", "jackpot")
     SPOT_NAMES = {"bonus": "3 Card Bonus"}
     SPOT_HANDS = {"bonus": "bonus_hand"}

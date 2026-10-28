@@ -87,6 +87,7 @@ class UltimateTexasHoldemMachine(TableMachine):
     game = uth.GAME_KEY
     label = uth.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Ante, Blind & Play"
     BONUS_SPOTS = ("trips", "jackpot")
     MAIN_SPOT = "ante"
     LIMITED = True

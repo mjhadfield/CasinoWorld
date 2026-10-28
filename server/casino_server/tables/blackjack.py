@@ -150,6 +150,7 @@ class BlackjackMachine(TableMachine):
     game = bj.GAME_KEY
     label = bj.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Hand"
     BONUS_SPOTS = bj.SIDE_BETS
     SPOT_NAMES = {"twenty_one_plus_three": "21+3", "top_three": "Top 3"}
     MAIN_SPOT = "bet"

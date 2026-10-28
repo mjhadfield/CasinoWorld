@@ -89,7 +89,9 @@ class TableMachine:
     SPOT_NAMES: dict = {}           # spot -> its name in the summary (else the id, title-cased)
     SPOT_HANDS: dict = {}           # spot -> the ledger detail's key naming the hand it paid on (else "hand")
     SUMMARY_TITLE = "Last hand"
-    SUMMARY_BONUSES = 3             # a player's highlights listed under them in the summary, at most
+    SUMMARY_BONUSES = 3             # a player's highlights listed under them in the summary, at most (no BREAKDOWN)
+    BREAKDOWN = True                # a player whose bonus won is shown bet by bet, adding up to their net (card games)
+    MAIN_NAME = "Main bet"          # ...the breakdown's line for everything bar the BONUS_SPOTS
 
     def __init__(self, table_id: str, seats: int, timings, jackpot, lines):
         self.table_id = table_id
@@ -101,7 +103,7 @@ class TableMachine:
         self.deadline: float | None = None  # when the current phase/step is due
         self.betting_opened_at = 0.0
         self.round_start: dict = {}   # seat -> (participant, their balance -- a second box: its flow -- before this hand)
-        self.round_book: dict = {}    # id(participant) -> {spot: {won, hits, hand}}: what this hand's bets won
+        self.round_book: dict = {}    # id(participant) -> {spot: {stake, returned, won, hits, hand}}: this hand's bets
         self._shown_boxes: set = set()  # second boxes in this hand whose cards their player has been shown
         self.limits = DEFAULT_LIMITS  # {"main": (min, max), "side": (min, max)}: the floor plan's, set by the casino
 
@@ -132,9 +134,11 @@ class TableMachine:
         if detail:
             book = self.round_book.setdefault(id(participant), {})
             for spot, d in detail.get("spots", {}).items():
+                entry = book.setdefault(spot, {"stake": 0, "returned": 0, "won": 0, "hits": 0, "hand": None})
+                entry["stake"] += d["stake"]
+                entry["returned"] += d["returned"]
                 won = self._won(spot, d)
                 if won:
-                    entry = book.setdefault(spot, {"won": 0, "hits": 0, "hand": None})
                     entry["won"] += won
                     entry["hits"] += 1
                     entry["hand"] = detail.get(self.SPOT_HANDS.get(spot, "hand")) or entry["hand"]
@@ -155,7 +159,7 @@ class TableMachine:
         """The highlight bets this participant won this round, from the round's book."""
         out = []
         for spot, e in self.round_book.get(id(participant), {}).items():
-            if not self._is_highlight(spot):
+            if not self._is_highlight(spot) or not e["won"]:
                 continue
             text = self.spot_name(spot) + (f" ×{e["hits"]}" if e["hits"] > 1 else "")
             if e["hand"]:
@@ -163,22 +167,49 @@ class TableMachine:
             out.append({"text": text, "amount": e["won"], "jackpot": spot == "jackpot"})
         return out
 
+    def _breakdown(self, participants: list, net: int) -> list:
+        """A player's net bet by bet, when one of their bonus bets won (else []): each bonus bet they had down, won or
+        lost, then the main bets as whatever's left, so the lines add up to the net. A second box's are in with
+        their player's, spot by spot."""
+        spots = {}
+        for p in participants:
+            for spot, e in self.round_book.get(id(p), {}).items():
+                if spot not in self.BONUS_SPOTS:
+                    continue
+                line = spots.setdefault(spot, {"amount": 0, "won": 0, "hand": None})
+                line["amount"] += e["returned"] - e["stake"]
+                line["won"] += e["won"]
+                line["hand"] = line["hand"] or e["hand"]
+        if not any(line["won"] for line in spots.values()):
+            return []
+        lines = [{"text": self.spot_name(spot) + (f" · {line['hand']}" if line["won"] and line["hand"] else ""),
+                  "amount": line["amount"], "jackpot": spot == "jackpot" and line["amount"] > 0}
+                 for spot, line in spots.items()]
+        lines.sort(key=lambda b: (not b["jackpot"], -b["amount"]))
+        return [{"text": self.MAIN_NAME, "amount": net - sum(b["amount"] for b in lines), "jackpot": False}] + lines
+
     def _summary(self, rows: list, title: str) -> dict | None:
         """The round summary from its rows ({seat, participant, net}): one per player, a second box folded into its
-        player's, best first, each with the bonuses it won under it."""
+        player's, best first, each with its lines under it: a card game's breakdown when a bonus won (BREAKDOWN),
+        else the bonuses that won."""
         players = {}
         for r in rows:
             p = r["participant"]
             owner = p.owner if isinstance(p, BoxParticipant) else p
-            entry = players.setdefault(id(owner), {"seat": r["seat"], "name": owner.name, "net": 0, "bonuses": []})
+            entry = players.setdefault(id(owner), {"seat": r["seat"], "name": owner.name, "net": 0, "of": []})
             if p is owner:
                 entry["seat"] = r["seat"]   # (their own seat, not the box's)
             entry["net"] += r["net"]
-            entry["bonuses"] += self._bonuses(p)
+            entry["of"].append(p)
         if not players:
             return None
         for entry in players.values():
-            entry["bonuses"] = sorted(entry["bonuses"], key=lambda b: (not b["jackpot"], -b["amount"]))[:self.SUMMARY_BONUSES]
+            of = entry.pop("of")
+            if self.BREAKDOWN:
+                entry["lines"] = self._breakdown(of, entry["net"])
+            else:
+                won = [b for p in of for b in self._bonuses(p)]
+                entry["lines"] = sorted(won, key=lambda b: (not b["jackpot"], -b["amount"]))[:self.SUMMARY_BONUSES]
         return {"title": title, "rows": sorted(players.values(), key=lambda e: -e["net"])}
 
     def _summary_title(self) -> str:

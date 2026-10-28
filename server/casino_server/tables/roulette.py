@@ -65,6 +65,7 @@ class RouletteMachine(TableMachine):
     game = rou.GAME_KEY
     label = rou.GAME_LABEL
     SPOTS = rou.SPOTS
+    BREAKDOWN = False   # (the inside hits that won are called out instead)
     BETTING_PHASES = ("betting", "spinning")
     QUEUE_BETS = False   # Mike: at the wheel you wait for the next spin (late bets cover the spin itself)
     CANT_COVER = "Not enough balance for that."

@@ -110,6 +110,7 @@ class ThreeCardPokerMachine(TableMachine):
     game = tcp.GAME_KEY
     label = tcp.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Ante & Play"
     BONUS_SPOTS = ("pair_plus", "prime", "jackpot", "ante_bonus")
     SPOT_NAMES = {"pair_plus": "Pair Plus", "ante_bonus": "Ante Bonus"}
     MAIN_SPOT = "ante"

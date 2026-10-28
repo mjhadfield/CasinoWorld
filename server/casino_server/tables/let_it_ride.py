@@ -70,6 +70,7 @@ class LetItRideMachine(TableMachine):
     game = lir.GAME_KEY
     label = lir.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Bets"
     BONUS_SPOTS = ("three_card", "bonus", "jackpot")
     SPOT_NAMES = {"three_card": "3 Card Bonus"}
     SPOT_HANDS = {"three_card": "three_card"}

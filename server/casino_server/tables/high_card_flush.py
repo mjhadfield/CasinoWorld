@@ -98,6 +98,7 @@ class HighCardFlushMachine(TableMachine):
     game = hcf.GAME_KEY
     label = hcf.GAME_LABEL
     SPOTS = SPOTS
+    MAIN_NAME = "Ante & Raise"
     BONUS_SPOTS = ("flush", "straight_flush", "jackpot")
     MAIN_SPOT = "ante"
     LIMITED = True

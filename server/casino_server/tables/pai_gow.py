@@ -118,6 +118,7 @@ def _labels(front, back) -> dict:
 class PaiGowMachine(TableMachine):
     game = pg.FORTUNE
     SPOTS = SPOTS
+    MAIN_NAME = "Hand"
     BONUS_SPOTS = ("fortune", "envy", "jackpot")
     SPOT_NAMES = {"envy": "Envy Bonus"}
     MAIN_SPOT = "ante"

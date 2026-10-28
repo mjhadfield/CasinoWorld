@@ -68,6 +68,7 @@ class CrapsMachine(TableMachine):
     game = cr.GAME_KEY
     label = cr.GAME_LABEL
     SPOTS = cr.SPOTS
+    BREAKDOWN = False   # (the hardways and props that won are called out instead)
     BONUS_SPOTS = cr.HARDWAYS + cr.PROPS   # (the shooter's-hand summary's highlights)
     SPOT_NAMES = {"hard4": "Hard 4", "hard6": "Hard 6", "hard8": "Hard 8", "hard10": "Hard 10", "any7": "Any 7",
                   "two": "Aces", "three": "Ace-Deuce", "eleven": "Yo", "twelve": "Midnight", "ce": "C & E"}
