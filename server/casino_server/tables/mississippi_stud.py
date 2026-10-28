@@ -84,6 +84,9 @@ class MississippiStudMachine(TableMachine):
     game = ms.GAME_KEY
     label = ms.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("bonus", "jackpot")
+    SPOT_NAMES = {"bonus": "3 Card Bonus"}
+    SPOT_HANDS = {"bonus": "bonus_hand"}
     MAIN_SPOT = "ante"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": ms.JACKPOT_BET}
@@ -275,7 +278,7 @@ class MississippiStudMachine(TableMachine):
             h = self.round[seat]
             h.settled = True
             h.paid = h.result.bonus_return
-            h.participant.credit(h.paid, "bonus", returns_detail(
+            self._credit(h.participant, h.paid, "bonus", returns_detail(
                 self._stakes(h, h.result, 0), bonus_hand=ms.bonus_label(h.result.bonus_eval) if h.result.bonus_eval else None))
             entries.append({"seat": seat, "steps": self._steps(h, h.result, 0), "total_returned": h.paid})
             paid.append(h.participant)
@@ -302,7 +305,7 @@ class MississippiStudMachine(TableMachine):
             jackpot_pool = self.jackpot.win() if r.jackpot_share >= 1.0 else self.jackpot.take(r.jackpot_share)
             events.append({"kind": "jackpot_won", "seat": seat, "amount": jackpot_pool, "name": h.participant.name})
         h.paid = r.total_returned + jackpot_pool
-        h.participant.credit(h.paid, r.outcome, returns_detail(
+        self._credit(h.participant, h.paid, r.outcome, returns_detail(
             self._stakes(h, r, jackpot_pool), hand=ms.hand_label(r.final_eval) if r.final_eval else None,
             bonus_hand=ms.bonus_label(r.bonus_eval) if r.bonus_eval else None))
         steps = self._steps(h, r, jackpot_pool)

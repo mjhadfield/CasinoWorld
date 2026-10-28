@@ -37,6 +37,7 @@ var _prompt_feet := Vector2.ZERO   # where your feet are on screen (place_prompt
 var master: MasterPanel   # a Master Table's game menu, the card asking you to agree, the next game
 var settings_button: BettingBar.BarButton
 var wallet: WalletPill
+var round_summary: RoundSummary   # the whole table's last round, under the wallet while you're seated
 var minimap: Minimap
 var front_door: FrontDoor  # the loading screen, character select and designer: over the floor till you're on it
 var barred: BarredScreen   # banned, timed out or removed by the casino: over everything
@@ -75,6 +76,9 @@ func _ready() -> void:
 	wallet = WalletPill.new()
 	add_child(wallet)
 	move_child(wallet, bar.get_index() + 1)
+	round_summary = RoundSummary.new()
+	add_child(round_summary)
+	move_child(round_summary, wallet.get_index() + 1)
 	minimap = Minimap.new()
 	add_child(minimap)
 	move_child(minimap, wallet.get_index() + 1)
@@ -148,12 +152,13 @@ func _style_popups() -> void:
 	UiTheme.hug_edge(%Text, 18)
 
 
-## Top left, with your wallet to its right.
+## Top left, with your wallet to its right and the round summary under them.
 func _place_settings_button() -> void:
 	var w := settings_button.get_combined_minimum_size().x
 	settings_button.size = Vector2(w, 40)
 	settings_button.position = BettingBar.CORNER_INSET
 	wallet.position = BettingBar.CORNER_INSET + Vector2(w + 8.0, 0)
+	round_summary.position = BettingBar.CORNER_INSET + Vector2(0, 40 + 12)
 
 
 ## Round the minimap, top right: the betting bar's Paytable to its left, the paytable itself under it.

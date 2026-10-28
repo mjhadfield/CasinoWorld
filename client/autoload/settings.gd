@@ -27,6 +27,7 @@ const DEFAULTS := {
 	"resolution": "sharp",  # "sharp": the screen's own pixels; "fast": drawn at 720p and scaled up
 	"seat_glow": true,      # free chairs breathe while you walk (else they glow steadily)
 	"slot_effects": "full", # "reduced": half the coins, no screen shake
+	"show_round_summary": true, # the whole table's results after each round, top left (RoundSummary)
 	"show_minimap": true,       # the minimap, top right (off: nothing there at all)
 	"minimap_collapsed": true,  # folded to its map button until opened
 	"minimap_size": "small",    # small, medium or large

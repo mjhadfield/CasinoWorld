@@ -118,6 +118,8 @@ def _labels(front, back) -> dict:
 class PaiGowMachine(TableMachine):
     game = pg.FORTUNE
     SPOTS = SPOTS
+    BONUS_SPOTS = ("fortune", "envy", "jackpot")
+    SPOT_NAMES = {"envy": "Envy Bonus"}
     MAIN_SPOT = "ante"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": pg.JACKPOT_BET}
@@ -445,7 +447,7 @@ class PaiGowMachine(TableMachine):
             steps.append({"spot": "envy", "action": "pay", "amount": 0, "payout": envy})
             stakes.append(("envy", 0, envy))
             returned += envy
-        hand.participant.credit(returned, outcome, returns_detail(stakes, commission=fee))
+        self._credit(hand.participant, returned, outcome, returns_detail(stakes, commission=fee))
         steps.sort(key=lambda s: s["action"] != "collect")
         t = self.timings
         self.deadline = now + (t.fold_sweep if mucked else t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps))

@@ -110,6 +110,8 @@ class ThreeCardPokerMachine(TableMachine):
     game = tcp.GAME_KEY
     label = tcp.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("pair_plus", "prime", "jackpot", "ante_bonus")
+    SPOT_NAMES = {"pair_plus": "Pair Plus", "ante_bonus": "Ante Bonus"}
     MAIN_SPOT = "ante"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": tcp.JACKPOT_BET}
@@ -298,7 +300,7 @@ class ThreeCardPokerMachine(TableMachine):
             self.jackpot.win()
             events.append({"kind": "jackpot_won", "seat": seat, "amount": result.jackpot_return,
                            "name": rs.participant.name})
-        rs.participant.credit(result.total_returned, result.outcome, returns_detail(
+        self._credit(rs.participant, result.total_returned, result.outcome, returns_detail(
             self._stakes(rs, result) + [("ante_bonus", 0, result.ante_bonus_return)],
             hand=tcp.hand_label(result.player_eval)))
         steps = self._steps(rs, result)

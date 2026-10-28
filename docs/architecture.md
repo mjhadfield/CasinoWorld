@@ -141,8 +141,10 @@ touch the store.
 A game's bet and payout rows carry `ledger.detail`, JSON for the stats: a bet row has what went on each spot
 (`{"spots": {"bet": 1000, "super_pairs": 300}}`), a payout row each bet it settled with its stake and what came back
 (stake and winnings, 0 if lost: `{"spots": {"top_three": {"stake": 300, "returned": 81300}}, "hand": "..."}`), so
-side bets can be counted one by one. Every game passes it through `Participant.debit`/`credit` (`stakes_detail` and
-`returns_detail` in `tables/base.py`), and a settlement with a detail is written even when it returned nothing.
+side bets can be counted one by one. Every game passes it through `Participant.debit` and `TableMachine._credit`
+(`stakes_detail` and `returns_detail` in `tables/base.py`), and a settlement with a detail is written even when it
+returned nothing. `_credit` also tallies each winning spot in the machine's `round_book` (cleared as the next hand's
+bets are taken; at Craps at each seven-out), which the round summary's highlights come from.
 Blackjack adds each hand on the box (`hands`), Craps marks a win whose stake stays up (`stays`) and any `vig`, and a
 slot row just names its `machine`. Rows from before the column have none (`Store.adjust` has the full shape).
 
@@ -270,7 +272,8 @@ A Godot 4.7 project exported to the web.
   you were. A page opened with `?casino=<id>` goes straight into that casino on picking (a hidden one too).
 - **The HUD (`scenes/ui/hud.tscn`)** keeps Settings and then your name, connection and cash in hand top left
   (`wallet_pill.gd`, with a round's result flashing beside it; clicking it opens the front door's casino chooser to switch
-  casino or character), and the minimap top right, walking or seated. The
+  casino or character), under them while seated the whole table's last round (`round_summary.gd`, from the
+  `summary` in server/protocol.md; Settings › Round summary), and the minimap top right, walking or seated. The
   minimap (`scenes/ui/minimap.gd`, signed off on `docs/minimap/mockup/`) draws your room and every room one doorway
   on (an archway's rooms count as one; a room the plan marks off the minimap is left out), with the tables, slot banks and ATM (a square saying ATM) in their kinds'
   colours, full tables faint, other real players as dots and you as an arrow; past a readable scale it pans with you,

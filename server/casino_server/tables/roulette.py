@@ -92,6 +92,17 @@ class RouletteMachine(TableMachine):
     def _has_main(self, bets: dict) -> bool:
         return any(amount > 0 for amount in bets.values())
 
+    # The round summary: the inside bets that hit (four numbers or fewer) are its highlights, under the number.
+    def _is_highlight(self, spot: str) -> bool:
+        return len(rou.BETS[spot].numbers) <= 4
+
+    def spot_name(self, spot: str) -> str:
+        return rou.BETS[spot].name
+
+    def _summary_title(self) -> str:
+        n = self.history[0]   # (the round's number: by the time the runner asks, betting's open and it's cleared)
+        return "Zero" if n == 0 else f"{n} {rou.colour(n).title()}"
+
     def _validate_bets(self, bets: dict):
         for spot, amount in bets.items():
             if not amount:
@@ -196,7 +207,7 @@ class RouletteMachine(TableMachine):
         s.settled = True
         s.paid = sum(s.returns.values())
         net = s.paid - sum(s.bets.values())
-        s.participant.credit(s.paid, "win" if net > 0 else "lose", returns_detail(
+        self._credit(s.participant, s.paid, "win" if net > 0 else "lose", returns_detail(
             [(spot, stake, s.returns[spot]) for spot, stake in s.bets.items()]))
         steps = []
         for spot, stake in s.bets.items():

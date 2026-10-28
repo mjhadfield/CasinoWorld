@@ -70,6 +70,9 @@ class LetItRideMachine(TableMachine):
     game = lir.GAME_KEY
     label = lir.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("three_card", "bonus", "jackpot")
+    SPOT_NAMES = {"three_card": "3 Card Bonus"}
+    SPOT_HANDS = {"three_card": "three_card"}
     MAIN_SPOT = "ante"
     LIMITED = True
     PRIMARY_SPOTS = ("bet1", "bet2", "ante")
@@ -135,7 +138,7 @@ class LetItRideMachine(TableMachine):
             event["reason"] = reason
         if not ride:  # pulled back: the bet goes straight back to its owner
             setattr(h.bets, spot, False)
-            h.participant.credit(h.bets.unit, "pull_back", returns_detail([(spot, h.bets.unit, h.bets.unit)]))
+            self._credit(h.participant, h.bets.unit, "pull_back", returns_detail([(spot, h.bets.unit, h.bets.unit)]))
             event.update(amount=h.bets.unit, _paid=[h.participant])
         return [event] + self._all_decided(now)
 
@@ -244,7 +247,7 @@ class LetItRideMachine(TableMachine):
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
         hand = lir.hand_label(lir.evaluate_five_card_hand(h.cards + self.community))
-        h.participant.credit(h.paid, "win" if r.qualified else "lose", returns_detail(
+        self._credit(h.participant, h.paid, "win" if r.qualified else "lose", returns_detail(
             self._stakes(h, r, pool), hand=hand, three_card=self._three_card_label(r.three_tier)))
         steps = self._steps(h, r, pool)
         t = self.timings

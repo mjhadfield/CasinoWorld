@@ -68,6 +68,9 @@ class CrapsMachine(TableMachine):
     game = cr.GAME_KEY
     label = cr.GAME_LABEL
     SPOTS = cr.SPOTS
+    BONUS_SPOTS = cr.HARDWAYS + cr.PROPS   # (the shooter's-hand summary's highlights)
+    SPOT_NAMES = {"hard4": "Hard 4", "hard6": "Hard 6", "hard8": "Hard 8", "hard10": "Hard 10", "any7": "Any 7",
+                  "two": "Aces", "three": "Ace-Deuce", "eleven": "Yo", "twelve": "Midnight", "ce": "C & E"}
     BETTING_PHASES = ("betting",)
     QUEUE_BETS = False
 
@@ -86,6 +89,12 @@ class CrapsMachine(TableMachine):
         self.roll: dict | None = None         # {dice, plan, at} while the dice are out
         self.rest: list | None = None         # where the dice lie after the last throw (until they're fetched)
         self.rolls_this_hand = 0
+        # The shooter's-hand summary (shown as the next come-out opens): each player's worth -- balance and paid-for
+        # bets on the layout -- when they first had chips riding this hand, and the hand's rolls and points made.
+        self.hand_marks: dict = {}            # seat -> [participant, worth, played]
+        self.hand_rolls = 0
+        self.hand_points = 0
+        self._pending_summary: dict | None = None
         # A table that's been running all day: the sign starts with twelve rolls.
         self.history = [[self.rng.randint(1, 6), self.rng.randint(1, 6)] for _ in range(HISTORY)]
 
@@ -318,8 +327,11 @@ class CrapsMachine(TableMachine):
         self.betting_opened_at = now
         self.shoot_called = False
         self.deadline = now + length
-        return events + [{"kind": "roll_open", "shooter": self.shooter, "point": self.point, "seconds": length,
-                          "human_shooter": human}]
+        events.append({"kind": "roll_open", "shooter": self.shooter, "point": self.point, "seconds": length,
+                       "human_shooter": human})
+        if self._pending_summary:   # the come-out after a seven-out: how the last shooter's hand went
+            events[-1]["summary"], self._pending_summary = self._pending_summary, None
+        return events
 
     # ------------------------------------------------------------------ the clock
     def _advance(self, now: float) -> list:
@@ -350,6 +362,9 @@ class CrapsMachine(TableMachine):
         events, paid, vigs = [], [], {}
         for i in self.occupied():
             s = self.seats[i]
+            mark = self.hand_marks.get(i)
+            if mark is None or mark[0] is not s.participant:
+                self.hand_marks[i] = mark = [s.participant, self._worth(i), False]
             vig = cr.vig_up_front(s.bets) - cr.vig_up_front(self.locked[i])
             owed = sum(max(0, a - self.locked[i].get(spot, 0)) for spot, a in s.bets.items()) + vig
             new = {spot: a - self.locked[i].get(spot, 0) for spot, a in s.bets.items()}
@@ -365,6 +380,7 @@ class CrapsMachine(TableMachine):
                     vigs[str(i)] = {spot: v for spot, a in s.bets.items() if spot.startswith("lay_") and
                                     (v := cr.vig_up_front({spot: a}) - cr.vig_up_front({spot: self.locked[i].get(spot, 0)}))}
             self.locked[i] = {spot: a for spot, a in s.bets.items() if a}
+            mark[2] = mark[2] or bool(self.locked[i])
             if s.participant.is_human:
                 self.idle_rolls[i] = 0 if self.locked[i] else self.idle_rolls[i] + 1
         for i in self.humans_seated():
@@ -437,7 +453,7 @@ class CrapsMachine(TableMachine):
             if ledger:
                 won = sum(o.win for o in outcomes.values())
                 lost = sum(st["amount"] for st in steps if st["kind"] == "lose")
-                s.participant.credit(credit, "win" if won > lost else "lose", {"spots": ledger})
+                self._credit(s.participant, credit, "win" if won > lost else "lose", {"spots": ledger})
                 if credit:
                     paid.append(s.participant)
             s.bets = bets
@@ -447,10 +463,13 @@ class CrapsMachine(TableMachine):
         self.point, what = cr.advance_point(before, total)
         self.history = ([[d1, d2]] + self.history)[:HISTORY]
         self.rolls_this_hand += 1
+        self.hand_rolls += 1
+        self.hand_points += what == "point_made"
         self.rest = cr.resting(self.roll["plan"])
         self.roll = None
         old_shooter = self.shooter
         if what == "seven_out":
+            self._pending_summary = self._hand_summary(old_shooter)
             self.shooter = self.next_shooter(self.shooter)
             self.rolls_this_hand = 0
         if what in ("point_made", "seven_out"):
@@ -468,6 +487,26 @@ class CrapsMachine(TableMachine):
         if self.shooter != old_shooter and self.shooter is not None:
             events += say(self.lines.say("craps", "new_shooter", name=self._name(self.shooter)))
         return events
+
+    def _worth(self, seat: int) -> int:
+        """A player's balance and the paid-for bets they have on the layout."""
+        return self.seats[seat].participant.balance + sum(self.locked[seat].values())
+
+    def _hand_summary(self, shooter: int | None) -> dict | None:
+        """A seven-out: the shooter's hand's summary (TableMachine._summary), each player's net the change in their
+        worth since they joined it. Then the next hand starts afresh."""
+        rows = []
+        for i, (participant, worth, played) in self.hand_marks.items():
+            if self.seats[i].participant is participant and played:
+                rows.append({"seat": i, "participant": participant, "net": self._worth(i) - worth})
+        rolls, points = self.hand_rolls, self.hand_points
+        name = self._name(shooter)
+        title = (f"{name}'s hand" if name else "Last hand") + \
+            f" · {rolls} roll{'s' if rolls != 1 else ''} · {points} point{'s' if points != 1 else ''}"
+        summary = self._summary(rows, title)
+        self.hand_marks, self.round_book = {}, {}
+        self.hand_rolls = self.hand_points = 0
+        return summary
 
     def _hand_dice_to_waiting(self, what: str, old_shooter: int | None):
         """The point's decided: a player waiting for the dice gets them (from an NPC shooter

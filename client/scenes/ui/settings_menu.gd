@@ -65,6 +65,7 @@ func _ready() -> void:
 	_switch_row(box, "Free seats glow and breathe", "seat_glow", true, false)
 	_switch_row(box, "Fewer coins, no shaking", "slot_effects", "reduced", "full", "At the slot machines")
 	_switch_row(box, "Show the frame rate", "show_fps", true, false, "Also F3")
+	_switch_row(box, "Round summary", "show_round_summary", true, false, "The whole table's results after each round, top left")
 
 	_heading(box, "Minimap")
 	_switch_row(box, "Show the minimap", "show_minimap", true, false, "Your room and the rooms next to it, top right")

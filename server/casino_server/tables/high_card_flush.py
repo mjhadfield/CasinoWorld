@@ -98,6 +98,7 @@ class HighCardFlushMachine(TableMachine):
     game = hcf.GAME_KEY
     label = hcf.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("flush", "straight_flush", "jackpot")
     MAIN_SPOT = "ante"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": hcf.JACKPOT_BET}
@@ -309,7 +310,7 @@ class HighCardFlushMachine(TableMachine):
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
         label = hcf.flush_label(*r.flush)
-        h.participant.credit(h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=label))
+        self._credit(h.participant, h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=label))
         steps = self._steps(h, r, pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)

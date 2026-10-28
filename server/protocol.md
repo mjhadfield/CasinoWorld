@@ -249,7 +249,7 @@ they seven out), `working` {`on`} (place/buy bets, hardways and come odds work o
 
 | kind | fields | when |
 |---|---|---|
-| `roll_open` | `shooter`, `point`, `seconds`, `human_shooter` | Bets are open; the shooter rolls when ready (a human within `seconds`, else the dice pass on). |
+| `roll_open` | `shooter`, `point`, `seconds`, `human_shooter`, `summary`? | Bets are open; the shooter rolls when ready (a human within `seconds`, else the dice pass on). After a seven-out it carries the last shooter's hand's `summary` (see The round summary). |
 | `throw` | `shooter`, `dice` [d1, d2], `plan` (each die's path: segments {`k` air/slide, `t0`, `t1`, `x0`, `y0`, `x1`, `y1`, `h`, `f`, `r0`, `r1`} in table coordinates), `out` (seconds the stickman takes to push the dice out first), `vig` {seat: {lay spot: pence}} (the vig each player handed over with their lay bets) | Dice are out: no more bets. |
 | `roll_result` | `dice`, `total`, `words`, `was` (the point before), `point`, `what` (point_set, point_made, seven_out, natural, craps, roll), `seats` {seat: [{`spot`, `kind` win/lose/return/move, `amount`, `win` (what's paid, after any vig), `vig` (taken off a buy or lay bet's win), `stays`, `to`}]}, `after` {seat: bets}, `shooter`, `rolls`, `history`, `rest` | The roll's decided and paid (wallets follow). |
 | `shooter_change` | `shooter`, `reason` (taken, passed, timeout, no_line_bet, left), `point` | The dice move outside the normal rotation. |
@@ -363,6 +363,21 @@ The runner (`tables/runner.py`) adds what the hand won or lost each seat's playe
 |---|---|---|
 | `settle_seat` | `round_net` | The seat's net for the hand, in pence (+ won, − lost). |
 | `round_end` | `round_nets[]` {`seat`, `net`} | The seats that played but had no `settle_seat` of their own: a bust or folded hand, a Blackjack paid early, a losing Roulette seat. |
+| `round_end` | `summary` | The whole table's results for the hand (below), when anyone played. |
+
+### The round summary
+`round_end` carries `summary` at every table but Craps (`TableMachine.round_summary()`), and at Craps the `roll_open`
+after a seven-out carries one for the shooter's whole hand. The client shows it under the wallet while you're seated
+(`scenes/ui/round_summary.gd`) until the next round's bets close (`bets_closed`, `no_more_bets`, Craps' `throw`).
+
+`{"title", "rows": [{"seat", "name", "net", "box"}], "highlights": [{"seat", "name", "text", "amount", "jackpot"}]}`
+- `title`: "Last hand"; at Roulette the number ("17 Black", "Zero"); at Craps "Nora's hand · 9 rolls · 2 points".
+- `rows`: each seat that played, biggest win first; `net` in pence as `round_net` counts it (at Craps, the change in
+  balance and paid-for bets on the layout since the player's first roll of the hand). `box` marks a second box.
+- `highlights`: at most four wins on a game's `BONUS_SPOTS` (side bets, bonuses, the Jackpot; Craps' hardways and
+  props) or, at Roulette, inside bets of four numbers or fewer. Jackpots come first, then the biggest. `text` names the bet,
+  with "×N" for repeat hits and the hand it paid on when the game names one ("Pair Plus · Straight"); `amount` is
+  the winnings in pence. They're tallied from each settle's ledger detail as it's paid (`TableMachine._credit`).
 
 
 ### Tables near you

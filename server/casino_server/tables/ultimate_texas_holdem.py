@@ -87,6 +87,7 @@ class UltimateTexasHoldemMachine(TableMachine):
     game = uth.GAME_KEY
     label = uth.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("trips", "jackpot")
     MAIN_SPOT = "ante"
     LIMITED = True
     PRIMARY_SPOTS = ("ante", "blind")
@@ -304,7 +305,7 @@ class UltimateTexasHoldemMachine(TableMachine):
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
         name, hand = h.participant.name, uth.hand_label(r.player_eval)
-        h.participant.credit(h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=hand))
+        self._credit(h.participant, h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=hand))
         steps = self._steps(h, r, pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)

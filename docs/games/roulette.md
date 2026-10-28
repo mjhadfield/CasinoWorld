@@ -39,6 +39,9 @@ or dozen, £2,000 an even chance.
 
 35, 17, 11, 8, 5, 2 and 1 to 1. The house edge is 2.70% (1.35% on the even chances).
 
+The round summary under your wallet is titled with the number and calls out the inside bets that hit (straight up,
+splits, streets, trios, corners and the first four), biggest first.
+
 ## NPCs
 
 Each has a habit: lucky numbers, the even chances, dozens and columns, or a sprinkle of splits, corners,

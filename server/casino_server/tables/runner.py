@@ -124,6 +124,9 @@ class TableRunner:
             nets = [{"seat": i, "net": round_net(i)} for i in range(len(self.machine.seats)) if i not in self._netted]
             event["round_nets"] = [n for n in nets if n["net"] is not None]
             self._netted.clear()
+            summary = self.machine.round_summary()   # the whole table's results, under the wallet (round_summary.gd)
+            if summary:
+                event["summary"] = summary
 
     def _side_effects(self, event: dict):
         kind = event["kind"]

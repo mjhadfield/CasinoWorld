@@ -150,6 +150,8 @@ class BlackjackMachine(TableMachine):
     game = bj.GAME_KEY
     label = bj.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = bj.SIDE_BETS
+    SPOT_NAMES = {"twenty_one_plus_three": "21+3", "top_three": "Top 3"}
     MAIN_SPOT = "bet"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": bj.JACKPOT_BET}
@@ -309,7 +311,7 @@ class BlackjackMachine(TableMachine):
                     steps.append({"spot": spot, "action": "collect", "amount": bet})
             steps.sort(key=lambda s: s["action"] != "collect")
             won = sum(box.side.returns.values())
-            box.participant.credit(won, "side bets", returns_detail(
+            self._credit(box.participant, won, "side bets", returns_detail(
                 [(spot, box.bets[spot], box.side.returns.get(spot, 0)) for spot in bj.SIDE_BETS if box.bets[spot]],
                 hand=box.side.hand))
             if box in pool_boxes:
@@ -377,7 +379,7 @@ class BlackjackMachine(TableMachine):
         steps = []
         for seat, box in insured:
             ret = bj.insurance_return(box.insurance, self.dealer_blackjack)
-            box.participant.credit(ret, "insurance", returns_detail([("insurance", box.insurance, ret)]))
+            self._credit(box.participant, ret, "insurance", returns_detail([("insurance", box.insurance, ret)]))
             steps.append({"seat": seat, "action": "pay" if ret else "collect", "amount": box.insurance,
                           "payout": ret - box.insurance if ret else 0})
         if self.dealer_blackjack:
@@ -408,7 +410,7 @@ class BlackjackMachine(TableMachine):
             hand = box.hands[0]
             if len(box.hands) == 1 and hand.natural and hand.outcome is None:
                 hand.outcome, hand.returned = "Blackjack", bj.blackjack_return(hand.bet)
-                box.participant.credit(hand.returned, "blackjack",
+                self._credit(box.participant, hand.returned, "blackjack",
                                        returns_detail([("bet", hand.bet, hand.returned)], hand="Blackjack"))
                 seats.append({"seat": seat, "hand": 0, "amount": hand.bet, "payout": hand.returned - hand.bet})
         if not seats:
@@ -615,7 +617,7 @@ class BlackjackMachine(TableMachine):
         detail = None
         if ledger_hands:
             detail = returns_detail([("bet", sum(h["stake"] for h in ledger_hands), returned)], hands=ledger_hands)
-        box.participant.credit(returned, "blackjack", detail)
+        self._credit(box.participant, returned, "blackjack", detail)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * steps_total
         outcomes = {h["outcome"] for h in hands}

@@ -1111,6 +1111,7 @@ func _leave_table() -> void:
 	my_seat = -1
 	active_table = null
 	_actions = []
+	hud.round_summary.clear()
 	hud.set_mode("walking")
 	hud.clear_my_hand()
 	my_hand = ""
@@ -1413,6 +1414,7 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 				my_ready = true
 		"bets_closed", "no_more_bets":
 			if mine:
+				hud.round_summary.fade()
 				my_ready = false
 				_placed.clear()
 				hud.set_pending(0)
@@ -1421,6 +1423,7 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 					_staked = true
 		"throw":  # Craps: dice are out -- the chips you put down are paid for now
 			if mine:
+				hud.round_summary.fade()
 				_staked = _staked or _total(my_bets) > 0
 				_placed.clear()
 				hud.set_pending(0)
@@ -1434,9 +1437,14 @@ func _on_table_event(t: CasinoTable, ev: Dictionary) -> void:
 		"spin":  # Roulette: Ready only meant "spin" -- you can add late bets now
 			if mine:
 				my_ready = false
-		"roll_open":  # Craps: the next roll's betting
+		"roll_open":  # Craps: the next roll's betting (after a seven-out, with the shooter's hand's summary)
 			if mine:
 				_flash_round()
+				if ev.has("summary"):
+					hud.round_summary.show_summary(ev.summary, t.my_seats())
+		"round_end":
+			if mine and ev.has("summary"):
+				hud.round_summary.show_summary(ev.summary, t.my_seats())
 		"betting_open":
 			if mine:
 				_flash_round()

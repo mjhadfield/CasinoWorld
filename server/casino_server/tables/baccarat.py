@@ -65,6 +65,7 @@ class BaccaratMachine(TableMachine):
     game = bac.GAME_KEY
     label = bac.GAME_LABEL
     SPOTS = SPOTS
+    BONUS_SPOTS = ("tie",) + bac.DRAGON_SPOTS
     MAIN_SPOT = "player"
     LIMITED = True
     PRIMARY_SPOTS = ("player", "banker")
@@ -148,7 +149,7 @@ class BaccaratMachine(TableMachine):
         s.settled = True
         s.paid = sum(s.returns.values())
         net = s.paid - sum(s.bets.values())
-        s.participant.credit(s.paid, "win" if net > 0 else "lose", returns_detail(
+        self._credit(s.participant, s.paid, "win" if net > 0 else "lose", returns_detail(
             [(spot, s.bets.get(spot, 0), s.returns.get(spot, 0)) for spot in SPOTS]))
         steps = []
         for spot in SPOTS:

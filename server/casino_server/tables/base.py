@@ -85,6 +85,11 @@ class TableMachine:
     LIMITED = False                 # a card table: its main and side bets keep within `limits` (not Roulette or Craps)
     PRIMARY_SPOTS: tuple = ()       # the main bets the limits' "main" covers (just MAIN_SPOT when empty); the rest,
                                     # bar FLAT_SPOTS, are side bets
+    BONUS_SPOTS: tuple = ()         # the bets whose wins the round summary calls out (side bets, bonuses, the Jackpot)
+    SPOT_NAMES: dict = {}           # spot -> its name in the summary (else the id, title-cased)
+    SPOT_HANDS: dict = {}           # spot -> the ledger detail's key naming the hand it paid on (else "hand")
+    SUMMARY_TITLE = "Last hand"
+    SUMMARY_HIGHLIGHTS = 4
 
     def __init__(self, table_id: str, seats: int, timings, jackpot, lines):
         self.table_id = table_id
@@ -96,6 +101,7 @@ class TableMachine:
         self.deadline: float | None = None  # when the current phase/step is due
         self.betting_opened_at = 0.0
         self.round_start: dict = {}   # seat -> (participant, their balance -- a second box: its flow -- before this hand)
+        self.round_book: dict = {}    # id(participant) -> {spot: {won, hits, hand}}: what this hand's bets won
         self._shown_boxes: set = set()  # second boxes in this hand whose cards their player has been shown
         self.limits = DEFAULT_LIMITS  # {"main": (min, max), "side": (min, max)}: the floor plan's, set by the casino
 
@@ -119,6 +125,70 @@ class TableMachine:
         if box is not None and isinstance(box[0], BoxParticipant) and box[0].owner is entry[0]:
             net -= box[0].flow - box[1]   # (the shared wallet moved for both hands)
         return net
+
+    # ------------------------------------------------------------------ the round summary
+    def _credit(self, participant, amount: int, note: str, detail: dict | None = None):
+        """Pay a participant (Participant.credit), noting each spot it settled in the round's book."""
+        if detail:
+            book = self.round_book.setdefault(id(participant), {})
+            for spot, d in detail.get("spots", {}).items():
+                won = self._won(spot, d)
+                if won:
+                    entry = book.setdefault(spot, {"won": 0, "hits": 0, "hand": None})
+                    entry["won"] += won
+                    entry["hits"] += 1
+                    entry["hand"] = detail.get(self.SPOT_HANDS.get(spot, "hand")) or entry["hand"]
+        participant.credit(amount, note, detail)
+
+    def _won(self, spot: str, d: dict) -> int:
+        """What a settled bet ({stake, returned}) won, 0 if it didn't. A flat spot's return is its winnings alone,
+        as is a Craps bet's that stays up."""
+        return max(0, d["returned"] if spot in self.FLAT_SPOTS or d.get("stays") else d["returned"] - d["stake"])
+
+    def _is_highlight(self, spot: str) -> bool:
+        return spot in self.BONUS_SPOTS
+
+    def spot_name(self, spot: str) -> str:
+        return self.SPOT_NAMES.get(spot) or spot.replace("_", " ").title()
+
+    def _highlights(self, seat: int, participant) -> list:
+        out = []
+        for spot, e in self.round_book.get(id(participant), {}).items():
+            if not self._is_highlight(spot):
+                continue
+            text = self.spot_name(spot) + (f" ×{e["hits"]}" if e["hits"] > 1 else "")
+            if e["hand"]:
+                text += f" · {e['hand']}"
+            out.append({"seat": seat, "name": participant.name, "text": text, "amount": e["won"],
+                        "jackpot": spot == "jackpot"})
+        return out
+
+    def _summary(self, rows: list, title: str) -> dict | None:
+        """The round summary from its rows ({seat, participant, net}), with the highlights from the round's book."""
+        if not rows:
+            return None
+        highlights = []
+        for r in rows:
+            highlights += self._highlights(r["seat"], r["participant"])
+        highlights.sort(key=lambda h: (not h["jackpot"], -h["amount"]))
+        rows = sorted(rows, key=lambda r: -r["net"])
+        return {"title": title,
+                "rows": [{"seat": r["seat"], "name": r["participant"].name, "net": r["net"],
+                          "box": isinstance(r["participant"], BoxParticipant)} for r in rows],
+                "highlights": highlights[:self.SUMMARY_HIGHLIGHTS]}
+
+    def _summary_title(self) -> str:
+        return self.SUMMARY_TITLE
+
+    def round_summary(self) -> dict | None:
+        """The whole table's results for the hand just played (the round_end's `summary`): each seat's net, best
+        first, and the side bets, bonuses and jackpots it won. None if nobody played."""
+        rows = []
+        for seat, (participant, _) in self.round_start.items():
+            net = self.round_net(seat)
+            if net is not None:
+                rows.append({"seat": seat, "participant": participant, "net": net})
+        return self._summary(rows, self._summary_title())
 
     @property
     def next_deadline(self) -> float | None:
@@ -497,6 +567,7 @@ class TableMachine:
         events = []
         playing = {}
         self.round_start = {}
+        self.round_book = {}
         self._shown_boxes = set()
         # (everyone's figure before anyone's bets: a player and their second box share a wallet)
         befores = {i: s.participant.flow if isinstance(s.participant, BoxParticipant) else s.participant.balance

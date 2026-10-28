@@ -79,6 +79,12 @@ of the near rail, to seat 7). With **Take dice** (**Space**) on the bar you can 
 the point is decided. If the shooter leaves, the next player takes the dice and the point. A human with
 nothing on the table for 40 rolls is stood up.
 
+**The shooter's hand summary:** when a seven-out ends a hand, the next come-out shows a summary of it under your
+wallet: the rolls thrown and points made, each player's net across the hand, and the hardway and prop wins (with
+"×2" for repeat hits). A player's net is the change in their balance plus the paid-for bets they have on the layout,
+counted from their first roll of the hand, so bets left up between rolls don't count as lost. It fades when the dice go
+out for the next hand.
+
 ## NPCs
 
 Each has a style: a grinder plays the line with full odds and a couple of come bets, a casual player the line
