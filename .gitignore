@@ -30,6 +30,7 @@ server/slot_designs/*/chars/
 
 # Local OpenAI onboarding and external review.
 /AGENTS.md
+/Claude.md
 /docs/openai-review-2026-10-25.md
 /docs/home-hosting-security-plan-2026-10-25.md
 /docs/github-pages-demo-plan-2026-10-25.md

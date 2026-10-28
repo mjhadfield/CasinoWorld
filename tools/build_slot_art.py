@@ -7,7 +7,7 @@ drops), and lays out the art library the admin page's Slots > Art tab offers:
   server/slot_art/<variant>/vector/<id>.png         the candidates: vector...
   server/slot_art/<variant>/flux1|flux2/<id>.png    ...and the two FLUX.2-klein sets
 
-Run with the server venv, which has Playwright (README Setup):
+Run with the server venv, which has Playwright (docs/development.md, Setup):
   server/.venv/bin/python tools/build_slot_art.py [variant]
 """
 import shutil

@@ -19,7 +19,7 @@ How the floor works and what every table has in common. Each game's rules are in
 
 ## The floor
 
-The floor is built on the admin page's Floor plan tab (README, Admin page; `server/casino_server/plan.py`): rooms
+The floor is built on the admin page's Floor plan tab (docs/development.md, Admin page; `server/casino_server/plan.py`): rooms
 side by side on one plan, joined by doors and archways, with the tables and slot cabinets placed in them. A table's
 id is given when it's placed (`bj_6`, `slot_12`) and never used again. Players appear at the plan's spawn point
 (the lobby's, to start); NPCs come in at arrival points and wander between wander points.

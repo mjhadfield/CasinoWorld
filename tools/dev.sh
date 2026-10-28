@@ -41,7 +41,7 @@ setup() {
     local name
     for name in .venv lpc_cache; do
         if [[ ! -e "$ROOT/server/$name" ]]; then
-            [[ -e "$MAIN/server/$name" ]] || die "the main checkout has no server/$name (see README Setup)"
+            [[ -e "$MAIN/server/$name" ]] || die "the main checkout has no server/$name (see docs/development.md, Setup)"
             ln -s "$MAIN/server/$name" "$ROOT/server/$name"
         fi
     done

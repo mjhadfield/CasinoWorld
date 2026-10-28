@@ -1,7 +1,8 @@
 # Casino World
 
 Mike's living 2D multiplayer casino. The client is Godot 4.7 (GDScript, exported to the web) and the server is an authoritative Python FastAPI app.
-- **README.md**: setup, running, the admin page, tests, screenshots and a code map.
+- **docs/development.md**: setup, running, the admin page, tests, screenshots and a code map.
+- **README.md** is the public overview on GitHub, written in Mike's voice. Keep working notes out of it.
 - **docs/games/**: how each game plays, one file per game. Read the one you're working on, not all of them.
 - **docs/architecture.md**: the design.
 - **server/protocol.md**: every WebSocket message.
@@ -35,18 +36,18 @@ The docs drifted badly once (the README missed two games, architecture.md was st
 | If you changed | Update |
 |---|---|
 | A game's rules, bets, payouts, timings or NPC play | its file in `docs/games/` |
-| A new game or table | a new `docs/games/<game>.md`, the table in `docs/games/README.md`, the floor rows there, and the README code map |
+| A new game or table | a new `docs/games/<game>.md`, the table in `docs/games/README.md`, the floor rows there, and the code map in `docs/development.md` |
 | A WebSocket message or event | `server/protocol.md` |
 | How a table is drawn, a shared table piece, the layout rules | `docs/tables.md` |
 | Something structural (a new module, autoload or background task, how state or money flows) | `docs/architecture.md`, and its "Not done yet" list when something on it lands |
-| Setup, `tools/dev.sh`, env vars, the admin page, tests, art scripts, or where code lives | `README.md` |
+| Setup, `tools/dev.sh`, env vars, the admin page, tests, art scripts, or where code lives | `docs/development.md` |
 | How sessions should work | this file |
 
 Write each doc as how things are now: rewrite the section in place rather than adding a dated "Update" note on top, and delete what's no longer true. Git keeps the history. If you notice something stale in passing, fix it or mention it to Mike.
 
 ## Git
 
-- Work on `main`. Commit each finished, working change with a plain message saying what changed and why. There's no remote, so nothing to push.
+- Work on `main`. Commit each finished, working change with a plain message saying what changed and why. The GitHub remote is public: push only when Mike asks.
 - If a session stops partway through something, commit what's there or say what's uncommitted.
 - No `Co-Authored-By: Claude` trailers.
 
