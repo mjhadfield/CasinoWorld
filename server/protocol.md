@@ -370,14 +370,15 @@ The runner (`tables/runner.py`) adds what the hand won or lost each seat's playe
 after a seven-out carries one for the shooter's whole hand. The client shows it under the wallet while you're seated
 (`scenes/ui/round_summary.gd`) until the next round's bets close (`bets_closed`, `no_more_bets`, Craps' `throw`).
 
-`{"title", "rows": [{"seat", "name", "net", "box"}], "highlights": [{"seat", "name", "text", "amount", "jackpot"}]}`
+`{"title", "rows": [{"seat", "name", "net", "bonuses": [{"text", "amount", "jackpot"}]}]}`
 - `title`: "Last hand"; at Roulette the number ("17 Black", "Zero"); at Craps "Nora's hand · 9 rolls · 2 points".
-- `rows`: each seat that played, biggest win first; `net` in pence as `round_net` counts it (at Craps, the change in
-  balance and paid-for bets on the layout since the player's first roll of the hand). `box` marks a second box.
-- `highlights`: at most four wins on a game's `BONUS_SPOTS` (side bets, bonuses, the Jackpot; Craps' hardways and
-  props) or, at Roulette, inside bets of four numbers or fewer. Jackpots come first, then the biggest. `text` names the bet,
-  with "×N" for repeat hits and the hand it paid on when the game names one ("Pair Plus · Straight"); `amount` is
-  the winnings in pence. They're tallied from each settle's ledger detail as it's paid (`TableMachine._credit`).
+- `rows`: one for each player who played, biggest win first. A second box is folded into its player's row (`seat` is
+  their own seat; `net` covers both boxes). `net` is in pence as `round_net` counts it (at Craps, the change in balance
+  and paid-for bets on the layout since the player's first roll of the hand).
+- `bonuses`: listed under the player, at most three: their wins on the game's `BONUS_SPOTS` (side bets, bonuses, the
+  Jackpot; Craps' hardways and props) or, at Roulette, on inside bets of four numbers or fewer. Jackpots come first,
+  then the biggest. `text` names the bet, with "×N" for repeat hits and the hand it paid on when the game names one
+  ("Pair Plus · Straight"); `amount` is the winnings in pence. They're tallied from each settle's ledger detail as it's paid (`TableMachine._credit`).
 
 
 ### Tables near you

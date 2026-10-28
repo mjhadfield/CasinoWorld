@@ -89,7 +89,7 @@ class TableMachine:
     SPOT_NAMES: dict = {}           # spot -> its name in the summary (else the id, title-cased)
     SPOT_HANDS: dict = {}           # spot -> the ledger detail's key naming the hand it paid on (else "hand")
     SUMMARY_TITLE = "Last hand"
-    SUMMARY_HIGHLIGHTS = 4
+    SUMMARY_BONUSES = 3             # a player's highlights listed under them in the summary, at most
 
     def __init__(self, table_id: str, seats: int, timings, jackpot, lines):
         self.table_id = table_id
@@ -151,7 +151,8 @@ class TableMachine:
     def spot_name(self, spot: str) -> str:
         return self.SPOT_NAMES.get(spot) or spot.replace("_", " ").title()
 
-    def _highlights(self, seat: int, participant) -> list:
+    def _bonuses(self, participant) -> list:
+        """The highlight bets this participant won this round, from the round's book."""
         out = []
         for spot, e in self.round_book.get(id(participant), {}).items():
             if not self._is_highlight(spot):
@@ -159,30 +160,33 @@ class TableMachine:
             text = self.spot_name(spot) + (f" ×{e["hits"]}" if e["hits"] > 1 else "")
             if e["hand"]:
                 text += f" · {e['hand']}"
-            out.append({"seat": seat, "name": participant.name, "text": text, "amount": e["won"],
-                        "jackpot": spot == "jackpot"})
+            out.append({"text": text, "amount": e["won"], "jackpot": spot == "jackpot"})
         return out
 
     def _summary(self, rows: list, title: str) -> dict | None:
-        """The round summary from its rows ({seat, participant, net}), with the highlights from the round's book."""
-        if not rows:
-            return None
-        highlights = []
+        """The round summary from its rows ({seat, participant, net}): one per player, a second box folded into its
+        player's, best first, each with the bonuses it won under it."""
+        players = {}
         for r in rows:
-            highlights += self._highlights(r["seat"], r["participant"])
-        highlights.sort(key=lambda h: (not h["jackpot"], -h["amount"]))
-        rows = sorted(rows, key=lambda r: -r["net"])
-        return {"title": title,
-                "rows": [{"seat": r["seat"], "name": r["participant"].name, "net": r["net"],
-                          "box": isinstance(r["participant"], BoxParticipant)} for r in rows],
-                "highlights": highlights[:self.SUMMARY_HIGHLIGHTS]}
+            p = r["participant"]
+            owner = p.owner if isinstance(p, BoxParticipant) else p
+            entry = players.setdefault(id(owner), {"seat": r["seat"], "name": owner.name, "net": 0, "bonuses": []})
+            if p is owner:
+                entry["seat"] = r["seat"]   # (their own seat, not the box's)
+            entry["net"] += r["net"]
+            entry["bonuses"] += self._bonuses(p)
+        if not players:
+            return None
+        for entry in players.values():
+            entry["bonuses"] = sorted(entry["bonuses"], key=lambda b: (not b["jackpot"], -b["amount"]))[:self.SUMMARY_BONUSES]
+        return {"title": title, "rows": sorted(players.values(), key=lambda e: -e["net"])}
 
     def _summary_title(self) -> str:
         return self.SUMMARY_TITLE
 
     def round_summary(self) -> dict | None:
-        """The whole table's results for the hand just played (the round_end's `summary`): each seat's net, best
-        first, and the side bets, bonuses and jackpots it won. None if nobody played."""
+        """The whole table's results for the hand just played (the round_end's `summary`): each player's net, best
+        first, and the side bets, bonuses and jackpots they won. None if nobody played."""
         rows = []
         for seat, (participant, _) in self.round_start.items():
             net = self.round_net(seat)

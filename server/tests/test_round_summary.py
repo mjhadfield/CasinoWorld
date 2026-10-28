@@ -1,5 +1,6 @@
 """The round summary: the whole table's results after a hand (round_end's `summary`), or after a shooter's hand at
 Craps (the next come-out's roll_open)."""
+from casino_server.participants import BoxParticipant
 from casino_server.tables.base import returns_detail
 
 from test_craps import roll, table as craps_table
@@ -25,8 +26,8 @@ def test_three_card_poker_nets_every_seat_best_first_and_calls_out_side_bets():
     assert [r["name"] for r in summary["rows"]] == ["Ann", "Cat", "Bob"]
     assert [r["net"] for r in summary["rows"]] == [m.round_net(0), m.round_net(4), m.round_net(2)]
     assert summary["rows"][0]["net"] == 1_100 and summary["rows"][-1]["net"] == -1_000
-    assert summary["highlights"] == [{"seat": 0, "name": "Ann", "text": "Pair Plus · Pair", "amount": 100,
-                                      "jackpot": False}]
+    assert summary["rows"][0]["bonuses"] == [{"text": "Pair Plus · Pair", "amount": 100, "jackpot": False}]
+    assert summary["rows"][1]["bonuses"] == [] and summary["rows"][2]["bonuses"] == []
 
 
 def test_several_credits_add_up_and_a_jackpot_comes_first():
@@ -37,9 +38,23 @@ def test_several_credits_add_up_and_a_jackpot_comes_first():
     m._credit(ann, 100_000, "jackpot", returns_detail([("jackpot", 100, 100_000)], hand="Mini Royal"))
     m._credit(ann, 1_000, "win", returns_detail([("ante", 500, 1_000)]))
     summary = m.round_summary()
-    assert summary["rows"] == [{"seat": 0, "name": "Ann", "net": 101_600, "box": False}]
-    assert [(h["text"], h["amount"], h["jackpot"]) for h in summary["highlights"]] == [
-        ("Jackpot · Mini Royal", 100_000, True), ("Pair Plus · Straight", 500, False)]   # (the Ante's no highlight)
+    assert summary["rows"] == [{"seat": 0, "name": "Ann", "net": 101_600, "bonuses": [
+        {"text": "Jackpot · Mini Royal", "amount": 100_000, "jackpot": True},
+        {"text": "Pair Plus · Straight", "amount": 500, "jackpot": False}]}]   # (the Ante's no highlight)
+
+
+def test_a_second_box_is_one_entry_with_its_player():
+    m = machine(CODES)
+    ann, bob, _ = seat_three(m)
+    box = BoxParticipant(ann)
+    m._credit(box, 600, "side bets", returns_detail([("pair_plus", 100, 600)], hand="Straight"))
+    m._credit(ann, 200, "side bets", returns_detail([("pair_plus", 100, 200)], hand="Pair"))
+    summary = m._summary([{"seat": 1, "participant": box, "net": 1_500}, {"seat": 0, "participant": ann, "net": -500},
+                          {"seat": 2, "participant": bob, "net": 200}], "Last hand")
+    assert summary["rows"] == [
+        {"seat": 0, "name": "Ann", "net": 1_000, "bonuses": [{"text": "Pair Plus · Straight", "amount": 500, "jackpot": False},
+                                                             {"text": "Pair Plus · Pair", "amount": 100, "jackpot": False}]},
+        {"seat": 2, "name": "Bob", "net": 200, "bonuses": []}]
 
 
 def test_nobody_played_means_no_summary():
@@ -63,9 +78,9 @@ def test_roulette_titles_the_number_and_calls_out_inside_hits():
     assert m.number is None   # (betting's open again by the time the runner asks)
     summary = m.round_summary()
     assert summary["title"] == "17 Black"
-    assert [(r["name"], r["net"]) for r in summary["rows"]] == [("Mike", 16_500), ("Nora", 3_700)]
-    assert [(h["name"], h["text"], h["amount"]) for h in summary["highlights"]] == [
-        ("Mike", "Straight up 17", 17_500), ("Nora", "Split 14/17", 1_700)]   # (Black's even money: not called out)
+    assert [(r["name"], r["net"], [(b["text"], b["amount"]) for b in r["bonuses"]]) for r in summary["rows"]] == [
+        ("Mike", 16_500, [("Straight up 17", 17_500)]),
+        ("Nora", 3_700, [("Split 14/17", 1_700)])]   # (Black's even money: not called out)
     assert find(events, "round_end")
 
 
@@ -86,8 +101,9 @@ def test_craps_sums_up_a_shooters_hand_at_the_next_come_out():
     summary = opened[-1]["summary"]
     assert summary["title"] == "Nora's hand · 4 rolls · 1 point"
     # Nora: the line won £10 and lost £10; the hard 8 won £9 and then lost its £1.
-    assert [(r["name"], r["net"]) for r in summary["rows"]] == [("Nora", 800), ("Ray", -500)]
+    assert summary["rows"] == [
+        {"seat": 2, "name": "Nora", "net": 800, "bonuses": [{"text": "Hard 8", "amount": 900, "jackpot": False}]},
+        {"seat": 5, "name": "Ray", "net": -500, "bonuses": []}]
     assert nora.balance == 100_000 + 800
-    assert summary["highlights"] == [{"seat": 2, "name": "Nora", "text": "Hard 8", "amount": 900, "jackpot": False}]
     now, ev = roll(m, now)                  # the next hand's first roll: no summary of its own yet
     assert not any(e.get("summary") for e in ev)
