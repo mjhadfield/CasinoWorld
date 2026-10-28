@@ -203,6 +203,16 @@ def test_side_bets_settle_straight_after_the_deal():
     m.play_action(0, "stand", 1)
     m.tick(1)  # 14 loses to 17
     assert p.balance == 100_000 - 1_400 + 95_700
+    # the ledger gets each spot: the stakes up front, each side bet's return, then the hand
+    assert p.details == [
+        ("upfront", {"spots": bets}),
+        ("side bets", {"spots": {"super_pairs": {"stake": 100, "returned": 5_100},
+                                 "twenty_one_plus_three": {"stake": 100, "returned": 1_000},
+                                 "top_three": {"stake": 100, "returned": 27_100},
+                                 "jackpot": {"stake": 100, "returned": 62_500}}, "hand": side["seats"][0]["hand"]}),
+        ("blackjack", {"spots": {"bet": {"stake": 1_000, "returned": 0}},
+                       "hands": [{"stake": 1_000, "returned": 0, "outcome": "Lose", "label": "14"}]}),
+    ]
 
 
 def test_suited_aces_take_the_whole_jackpot_pool():

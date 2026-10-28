@@ -21,6 +21,34 @@ def test_new_player_gets_starting_balance_and_ledger_reconciles(store):
     assert store.characters(p.account_id)[0].id == p.id
 
 
+def test_ledger_keeps_each_spot_as_json(store, tmp_path):
+    import json
+    p = store.create_player(hand=100_000)
+    spots = {"spots": {"ante": {"stake": 500, "returned": 1_000}, "pair_plus": {"stake": 100, "returned": 0}}}
+    store.adjust(p.id, 1_000, "payout", "three_card_poker", "win", spots)
+    store.adjust(p.id, -500, "bet", "three_card_poker", "upfront")
+    rows = store.db.execute("SELECT detail FROM ledger WHERE player_id = ? AND game IS NOT NULL ORDER BY id", (p.id,))
+    assert [r[0] and json.loads(r[0]) for r in rows] == [spots, None]
+    # a database from before the column gets it
+    store.db.execute("ALTER TABLE ledger DROP COLUMN detail")
+    store.close()
+    again = Store(tmp_path / "t.sqlite")
+    assert "detail" in again._columns("ledger")
+    again.close()
+
+
+def test_a_settled_round_that_lost_still_gets_a_row_with_its_detail(store):
+    from casino_server.participants import HumanParticipant
+    p = store.create_player(hand=100_000)
+    session = type("S", (), {"entity_id": "e1", "player": p})()
+    casino = type("C", (), {"store": store, "sessions": {session}})()
+    who = HumanParticipant(session, casino, "roulette")
+    who.credit(0, "lose")   # nothing back and nothing to say: no row
+    who.credit(0, "lose", {"spots": {"red": {"stake": 500, "returned": 0}}})
+    rows = store.db.execute("SELECT kind, amount, note FROM ledger WHERE game = 'roulette'").fetchall()
+    assert [tuple(r) for r in rows] == [("payout", 0, "lose")]
+
+
 def test_balance_never_goes_negative(store):
     p = store.create_player(hand=100_000)
     with pytest.raises(InsufficientFunds):

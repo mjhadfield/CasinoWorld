@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from casino_server.dealer import DealerLines
 from casino_server.engines import pai_gow as pg
 from casino_server.engines.cards import Card, Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say
 
 SPOTS = ("ante", "fortune", "jackpot")
 HANDS = 7  # always dealt: six seats and the dealer
@@ -422,6 +422,7 @@ class PaiGowMachine(TableMachine):
                                commission=self.game == pg.FORTUNE)
             outcome, ante_back, fee, front_win, back_win = r.outcome, r.returned, r.commission, r.front_win, r.back_win
         steps.append(self._step("ante", ante, ante_back))
+        stakes = [("ante", ante, ante_back)]   # (for the ledger)
         returned += ante_back
         b = hand.bonus
         mucked = hand.folded  # folded hands are mucked unseen: every bet on them is simply lost
@@ -429,6 +430,7 @@ class PaiGowMachine(TableMachine):
             b = pg.Bonus()
         if hand.bets["fortune"]:
             steps.append(self._step("fortune", hand.bets["fortune"], b.fortune_return))
+            stakes.append(("fortune", hand.bets["fortune"], b.fortune_return))
             returned += b.fortune_return
         if hand.bets["jackpot"]:
             jackpot_back = b.jackpot_fixed
@@ -436,12 +438,14 @@ class PaiGowMachine(TableMachine):
                 jackpot_back = self.jackpot.win() if b.jackpot_share >= 1.0 else self.jackpot.take(b.jackpot_share)
                 events.append({"kind": "jackpot_won", "seat": seat, "amount": jackpot_back, "name": hand.participant.name})
             steps.append(self._step("jackpot", hand.bets["jackpot"], jackpot_back, flat=True))
+            stakes.append(("jackpot", hand.bets["jackpot"], jackpot_back))
             returned += jackpot_back
         envy = self._envy.get(seat, 0)
         if envy:
             steps.append({"spot": "envy", "action": "pay", "amount": 0, "payout": envy})
+            stakes.append(("envy", 0, envy))
             returned += envy
-        hand.participant.credit(returned, outcome)
+        hand.participant.credit(returned, outcome, returns_detail(stakes, commission=fee))
         steps.sort(key=lambda s: s["action"] != "collect")
         t = self.timings
         self.deadline = now + (t.fold_sweep if mucked else t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps))

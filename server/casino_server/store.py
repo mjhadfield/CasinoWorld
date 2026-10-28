@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS ledger (
     balance_after INTEGER NOT NULL,
     game          TEXT,
     note          TEXT,
-    account       TEXT    NOT NULL DEFAULT 'hand'  -- 'hand' | 'bank'
+    account       TEXT    NOT NULL DEFAULT 'hand', -- 'hand' | 'bank'
+    detail        TEXT               -- JSON, a game's bet and payout rows: what's on each spot (see adjust())
 );
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -147,7 +148,7 @@ class Store:
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
         self._add_bank()
-        added = {"npcs": {"archived_at": "TEXT"}}
+        added = {"npcs": {"archived_at": "TEXT"}, "ledger": {"detail": "TEXT"}}
         if "token" in self._columns("players"):   # (from before accounts: its columns that came later, for the move)
             added["players"] = {"last_big_at": "REAL", "protected": "INTEGER NOT NULL DEFAULT 0",
                                 "banned": "INTEGER NOT NULL DEFAULT 0", "timeout_until": "REAL", "bar_reason": "TEXT"}
@@ -305,9 +306,16 @@ class Store:
         """Unix time of the last withdrawal over the usual limit (bank.py), or None."""
         return self.db.execute("SELECT last_big_at FROM players WHERE id = ?", (player_id,)).fetchone()[0]
 
-    def adjust(self, player_id: int, amount: int, kind: str, game: str | None = None, note: str | None = None) -> int:
+    def adjust(self, player_id: int, amount: int, kind: str, game: str | None = None, note: str | None = None,
+               detail: dict | None = None) -> int:
         """Changes cash in hand by `amount` (signed pence) and records it. Raises
-        InsufficientFunds rather than ever going below zero. Returns the new balance."""
+        InsufficientFunds rather than ever going below zero. Returns the new balance.
+
+        `detail` is a game's breakdown of the row, stored as JSON. A bet row: {"spots": {spot: stake}}. A payout
+        row: {"spots": {spot: {"stake": ..., "returned": ...}}} for the bets it settled, `returned` being stake and
+        winnings (0 if it lost); a settlement that returned nothing is still a row (0) when it has a detail. A stake
+        on a bet row that never turns up on a payout row was lost (a fold, a Roulette sweep). Some games add a
+        "hand" label, Blackjack its "hands", Craps "stays"/"vig" on a spot, and slots just the "machine"."""
         with self.db:
             if self.db.execute("SELECT 1 FROM players WHERE id = ?", (player_id,)).fetchone() is None:
                 return 0   # (deleted)
@@ -316,8 +324,10 @@ class Store:
                 raise InsufficientFunds()
             self.db.execute("UPDATE players SET balance = ? WHERE id = ?", (balance, player_id))
             self.db.execute(
-                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (player_id, _now(), kind, amount, balance, game, note))
+                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note, detail)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (player_id, _now(), kind, amount, balance, game, note,
+                 json.dumps(detail, separators=(",", ":")) if detail else None))
         return balance
 
     def transfer(self, player_id: int, to_hand: int, now: float, big: bool = False) -> tuple[int, int]:

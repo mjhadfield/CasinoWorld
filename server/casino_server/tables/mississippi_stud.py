@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from casino_server.dealer import DealerLines
 from casino_server.engines import mississippi_stud as ms
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say, stakes_detail
 
 SPOTS = ("ante", "bonus", "jackpot")
 ACTIONS = {"fold": 0, "bet1": 1, "bet2": 2, "bet3": 3}
@@ -134,7 +134,7 @@ class MississippiStudMachine(TableMachine):
         if times == 0:
             return self._fold(seat, now)
         amount = h.bets.ante * times
-        if not h.participant.debit(amount, STREET_NAMES[self.street]):
+        if not h.participant.debit(amount, STREET_NAMES[self.street], stakes_detail({ms.STREETS[self.street]: amount})):
             return self._fold(seat, now, reason="funds")
         h.bets.streets[self.street] = amount
         h.decided = True
@@ -275,7 +275,8 @@ class MississippiStudMachine(TableMachine):
             h = self.round[seat]
             h.settled = True
             h.paid = h.result.bonus_return
-            h.participant.credit(h.paid, "bonus")
+            h.participant.credit(h.paid, "bonus", returns_detail(
+                self._stakes(h, h.result, 0), bonus_hand=ms.bonus_label(h.result.bonus_eval) if h.result.bonus_eval else None))
             entries.append({"seat": seat, "steps": self._steps(h, h.result, 0), "total_returned": h.paid})
             paid.append(h.participant)
         bonus_eval = ms.evaluate_three_card_hand(self.community)
@@ -301,7 +302,9 @@ class MississippiStudMachine(TableMachine):
             jackpot_pool = self.jackpot.win() if r.jackpot_share >= 1.0 else self.jackpot.take(r.jackpot_share)
             events.append({"kind": "jackpot_won", "seat": seat, "amount": jackpot_pool, "name": h.participant.name})
         h.paid = r.total_returned + jackpot_pool
-        h.participant.credit(h.paid, r.outcome)
+        h.participant.credit(h.paid, r.outcome, returns_detail(
+            self._stakes(h, r, jackpot_pool), hand=ms.hand_label(r.final_eval) if r.final_eval else None,
+            bonus_hand=ms.bonus_label(r.bonus_eval) if r.bonus_eval else None))
         steps = self._steps(h, r, jackpot_pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
@@ -314,15 +317,21 @@ class MississippiStudMachine(TableMachine):
         return events + [event]
 
     @staticmethod
-    def _steps(h: Hand, r: ms.Result, jackpot_pool: int) -> list:
-        """Losing bets collected first, then pushes and winners paid. A fold has only its Bonus left."""
+    def _stakes(h: Hand, r: ms.Result, jackpot_pool: int) -> list:
+        """(spot, stake, returned) for each bet settled: a fold has only its Bonus left. The flat
+        Jackpot's return is its winnings."""
         stakes = [("bonus", h.bets.bonus, r.bonus_return)]
         if not h.folded:
             stakes = [("ante", h.bets.ante, r.ante_return)] + \
                 [(ms.STREETS[k], h.bets.streets[k], r.street_returns[k]) for k in range(3)] + stakes + \
                 [("jackpot", h.bets.jackpot, r.jackpot_fixed + jackpot_pool)]
+        return stakes
+
+    @staticmethod
+    def _steps(h: Hand, r: ms.Result, jackpot_pool: int) -> list:
+        """Losing bets collected first, then pushes and winners paid."""
         steps = []
-        for spot, bet, ret in stakes:
+        for spot, bet, ret in MississippiStudMachine._stakes(h, r, jackpot_pool):
             if bet <= 0:
                 continue
             if spot == "jackpot":  # a flat £1: the stake is gone either way, winnings are paid beside the light

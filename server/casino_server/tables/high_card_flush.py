@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from casino_server.dealer import DealerLines
 from casino_server.engines import high_card_flush as hcf
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say, stakes_detail
 
 SPOTS = ("ante", "flush", "straight_flush", "jackpot")
 ACTIONS = {"fold": 0, "raise1": 1, "raise2": 2, "raise3": 3}
@@ -152,7 +152,7 @@ class HighCardFlushMachine(TableMachine):
         event = {"kind": "hcf_action", "seat": seat, "times": times}
         if reason:
             event["reason"] = reason
-        if times and not h.participant.debit(h.bets.ante * times, "raise"):
+        if times and not h.participant.debit(h.bets.ante * times, "raise", stakes_detail({"raise": h.bets.ante * times})):
             times, event["times"], event["reason"] = 0, 0, "funds"
         if times:
             h.bets.raise_bet = h.bets.ante * times
@@ -308,11 +308,11 @@ class HighCardFlushMachine(TableMachine):
             pool = self.jackpot.win() if r.jackpot_share >= 1.0 else self.jackpot.take(r.jackpot_share)
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
-        h.participant.credit(h.paid, r.outcome)
+        label = hcf.flush_label(*r.flush)
+        h.participant.credit(h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=label))
         steps = self._steps(h, r, pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
-        label = hcf.flush_label(*r.flush)
         key = "side_bets" if h.folded else {"no_qualify": "no_qualify_win"}.get(r.outcome, r.outcome)
         line = self.lines.say("high_card_flush", key, name=h.participant.name, hand=label,
                               dealer=hcf.flush_label(*r.dealer_flush))
@@ -324,26 +324,30 @@ class HighCardFlushMachine(TableMachine):
         return events
 
     @staticmethod
+    def _stakes(h: Hand, r: hcf.Result, pool: int) -> list:
+        """(spot, stake, returned) for each bet settled; the flat Jackpot's return is its winnings."""
+        stakes = [] if h.folded else [("ante", h.bets.ante, r.ante_return), ("raise", h.bets.raise_bet, r.raise_return),
+                                      ("flush", h.bets.flush, r.flush_return)]
+        return stakes + [("straight_flush", h.bets.straight_flush, r.straight_flush_return),
+                         ("jackpot", h.bets.jackpot, r.jackpot_fixed + pool)]
+
+    @staticmethod
     def _steps(h: Hand, r: hcf.Result, pool: int) -> list:
         """A raised hand: every bet. A fold kept alive by a tucked straight flush:
         just the Straight Flush bet and the Jackpot (the rest went with the fold)."""
-        stakes = [] if h.folded else [("ante", h.bets.ante, r.ante_return), ("raise", h.bets.raise_bet, r.raise_return),
-                                      ("flush", h.bets.flush, r.flush_return)]
-        stakes += [("straight_flush", h.bets.straight_flush, r.straight_flush_return)]
         steps = []
-        for spot, bet, ret in stakes:
+        for spot, bet, ret in HighCardFlushMachine._stakes(h, r, pool):
             if bet <= 0:
                 continue
-            if ret == 0:
+            if spot == "jackpot":
+                steps.append({"spot": spot, "action": "pay", "amount": bet, "payout": ret} if ret
+                             else {"spot": spot, "action": "collect", "amount": bet})
+            elif ret == 0:
                 steps.append({"spot": spot, "action": "collect", "amount": bet})
             elif ret == bet:
                 steps.append({"spot": spot, "action": "push", "amount": bet})
             else:
                 steps.append({"spot": spot, "action": "pay", "amount": bet, "payout": ret - bet})
-        if h.bets.jackpot:
-            win = r.jackpot_fixed + pool
-            steps.append({"spot": "jackpot", "action": "pay", "amount": h.bets.jackpot, "payout": win} if win
-                         else {"spot": "jackpot", "action": "collect", "amount": h.bets.jackpot})
         return sorted(steps, key=lambda s: s["action"] != "collect")
 
     def _open_betting(self, now: float) -> list:

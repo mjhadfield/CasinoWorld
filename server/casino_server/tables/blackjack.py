@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 from casino_server.dealer import DealerLines
 from casino_server.engines import blackjack as bj
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say, stakes_detail
 
 SPOTS = ("bet", "super_pairs", "twenty_one_plus_three", "top_three", "jackpot")
 SHOE_CARDS = 52 * bj.DECK_COUNT
@@ -309,7 +309,9 @@ class BlackjackMachine(TableMachine):
                     steps.append({"spot": spot, "action": "collect", "amount": bet})
             steps.sort(key=lambda s: s["action"] != "collect")
             won = sum(box.side.returns.values())
-            box.participant.credit(won, "side bets")
+            box.participant.credit(won, "side bets", returns_detail(
+                [(spot, box.bets[spot], box.side.returns.get(spot, 0)) for spot in bj.SIDE_BETS if box.bets[spot]],
+                hand=box.side.hand))
             if box in pool_boxes:
                 events.append({"kind": "jackpot_won", "seat": seat, "amount": box.side.returns["jackpot"],
                                "name": box.participant.name})
@@ -349,7 +351,7 @@ class BlackjackMachine(TableMachine):
         event = {"kind": "insurance", "seat": seat, "take": False}
         if take:
             cost = box.bets["bet"] // 2
-            if cost <= 0 or not box.participant.debit(cost, "insurance"):
+            if cost <= 0 or not box.participant.debit(cost, "insurance", stakes_detail({"insurance": cost})):
                 event["reason"] = "funds"
             else:
                 box.insurance = cost
@@ -375,7 +377,7 @@ class BlackjackMachine(TableMachine):
         steps = []
         for seat, box in insured:
             ret = bj.insurance_return(box.insurance, self.dealer_blackjack)
-            box.participant.credit(ret, "insurance")
+            box.participant.credit(ret, "insurance", returns_detail([("insurance", box.insurance, ret)]))
             steps.append({"seat": seat, "action": "pay" if ret else "collect", "amount": box.insurance,
                           "payout": ret - box.insurance if ret else 0})
         if self.dealer_blackjack:
@@ -406,7 +408,8 @@ class BlackjackMachine(TableMachine):
             hand = box.hands[0]
             if len(box.hands) == 1 and hand.natural and hand.outcome is None:
                 hand.outcome, hand.returned = "Blackjack", bj.blackjack_return(hand.bet)
-                box.participant.credit(hand.returned, "blackjack")
+                box.participant.credit(hand.returned, "blackjack",
+                                       returns_detail([("bet", hand.bet, hand.returned)], hand="Blackjack"))
                 seats.append({"seat": seat, "hand": 0, "amount": hand.bet, "payout": hand.returned - hand.bet})
         if not seats:
             return self._start_playing(now)
@@ -482,7 +485,7 @@ class BlackjackMachine(TableMachine):
             if hand.bust or hand.total == 21:
                 hand.done = True
         elif action == "double":
-            if not box.participant.debit(hand.bet, "double"):
+            if not box.participant.debit(hand.bet, "double", stakes_detail({"double": hand.bet})):
                 raise TableError("Not enough balance to double.")
             event.update(amount=hand.bet, _paid=[box.participant])
             hand.bet *= 2
@@ -491,7 +494,7 @@ class BlackjackMachine(TableMachine):
             event["card"] = hand.cards[-1].code
             hand.done = True
         elif action == "split":
-            if not box.participant.debit(hand.bet, "split"):
+            if not box.participant.debit(hand.bet, "split", stakes_detail({"split": hand.bet})):
                 raise TableError("Not enough balance to split.")
             event.update(amount=hand.bet, _paid=[box.participant])
             c1, c2 = hand.cards
@@ -591,7 +594,10 @@ class BlackjackMachine(TableMachine):
         box.settled = True
         total, _ = bj.hand_value(self.dealer_cards)
         hands, returned, steps_total = [], 0, 0
+        ledger_hands = []   # every hand on the box but a Blackjack already paid, busts included
         for idx, hand in enumerate(box.hands):
+            if hand.bust:
+                ledger_hands.append({"stake": hand.bet, "returned": 0, "outcome": "Bust"})
             if hand.bust or hand.outcome is not None:
                 continue  # swept when it bust, or a Blackjack already paid
             outcome, ret = bj.settle_hand(hand, total, total > 21, self.dealer_blackjack)
@@ -604,8 +610,12 @@ class BlackjackMachine(TableMachine):
             else:
                 step = {"action": "pay", "amount": hand.bet, "payout": ret - hand.bet}
             hands.append({"hand": idx, "outcome": outcome, "label": hand.label(), **step})
+            ledger_hands.append({"stake": hand.bet, "returned": ret, "outcome": outcome, "label": hand.label()})
             steps_total += 1
-        box.participant.credit(returned, "blackjack")
+        detail = None
+        if ledger_hands:
+            detail = returns_detail([("bet", sum(h["stake"] for h in ledger_hands), returned)], hands=ledger_hands)
+        box.participant.credit(returned, "blackjack", detail)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * steps_total
         outcomes = {h["outcome"] for h in hands}

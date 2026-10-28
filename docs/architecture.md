@@ -138,6 +138,14 @@ withdrawals while overdrawn. An ATM is any library piece with `"interact": "atm"
 standing at one (by their last `move`) before it'll serve them. NPCs keep their own in-memory bankrolls and never
 touch the store.
 
+A game's bet and payout rows carry `ledger.detail`, JSON for the stats: a bet row has what went on each spot
+(`{"spots": {"bet": 1000, "super_pairs": 300}}`), a payout row each bet it settled with its stake and what came back
+(stake and winnings, 0 if lost: `{"spots": {"top_three": {"stake": 300, "returned": 81300}}, "hand": "..."}`), so
+side bets can be counted one by one. Every game passes it through `Participant.debit`/`credit` (`stakes_detail` and
+`returns_detail` in `tables/base.py`), and a settlement with a detail is written even when it returned nothing.
+Blackjack adds each hand on the box (`hands`), Craps marks a win whose stake stays up (`stays`) and any `vig`, and a
+slot row just names its `machine`. Rows from before the column have none (`Store.adjust` has the full shape).
+
 The table
 games share one progressive jackpot (`jackpot.py`), worked out from elapsed time when read, with no
 background task. Every card table shows it on its own jackpot sign (docs/tables.md); after a win, the new amount

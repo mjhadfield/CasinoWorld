@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from casino_server.dealer import DealerLines
 from casino_server.engines import ultimate_texas_holdem as uth
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say, stakes_detail
 
 SPOTS = ("ante", "blind", "trips", "jackpot")
 STAGES = ("preflop", "flop", "river")
@@ -159,7 +159,7 @@ class UltimateTexasHoldemMachine(TableMachine):
             event["reason"] = reason
         if times > 0:
             amount = h.bets.ante * times
-            if not h.participant.debit(amount, "play"):
+            if not h.participant.debit(amount, "play", stakes_detail({"play": amount})):
                 times, action = 0, ("check" if self.stage < 2 else "fold")
                 event["action"], event["reason"] = action, "funds"
             else:
@@ -303,11 +303,11 @@ class UltimateTexasHoldemMachine(TableMachine):
             pool = self.jackpot.win() if r.jackpot_share >= 1.0 else self.jackpot.take(r.jackpot_share)
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
-        h.participant.credit(h.paid, r.outcome)
+        name, hand = h.participant.name, uth.hand_label(r.player_eval)
+        h.participant.credit(h.paid, r.outcome, returns_detail(self._stakes(h, r, pool), hand=hand))
         steps = self._steps(h, r, pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
-        name, hand = h.participant.name, uth.hand_label(r.player_eval)
         line = self.lines.say("ultimate_texas_holdem", r.outcome, name=name, hand=hand,
                               dealer=uth.hand_label(r.dealer_eval))
         events.append({"kind": "settle_seat", "seat": seat, "outcome": r.outcome, "cards": [c.code for c in h.cards],
@@ -316,23 +316,27 @@ class UltimateTexasHoldemMachine(TableMachine):
         return events
 
     @staticmethod
+    def _stakes(h: Hand, r: uth.Result, pool: int) -> list:
+        """(spot, stake, returned) for each bet; the flat Jackpot's return is its winnings."""
+        return [("ante", h.bets.ante, r.ante_return), ("blind", h.bets.blind, r.blind_return),
+                ("play", h.bets.play, r.play_return), ("trips", h.bets.trips, r.trips_return),
+                ("jackpot", h.bets.jackpot, r.jackpot_fixed + pool)]
+
+    @staticmethod
     def _steps(h: Hand, r: uth.Result, pool: int) -> list:
-        stakes = [("ante", h.bets.ante, r.ante_return), ("blind", h.bets.blind, r.blind_return),
-                  ("play", h.bets.play, r.play_return), ("trips", h.bets.trips, r.trips_return)]
         steps = []
-        for spot, bet, ret in stakes:
+        for spot, bet, ret in UltimateTexasHoldemMachine._stakes(h, r, pool):
             if bet <= 0:
                 continue
-            if ret == 0:
+            if spot == "jackpot":
+                steps.append({"spot": spot, "action": "pay", "amount": bet, "payout": ret} if ret
+                             else {"spot": spot, "action": "collect", "amount": bet})
+            elif ret == 0:
                 steps.append({"spot": spot, "action": "collect", "amount": bet})
             elif ret == bet:
                 steps.append({"spot": spot, "action": "push", "amount": bet})
             else:
                 steps.append({"spot": spot, "action": "pay", "amount": bet, "payout": ret - bet})
-        if h.bets.jackpot:
-            win = r.jackpot_fixed + pool
-            steps.append({"spot": "jackpot", "action": "pay", "amount": h.bets.jackpot, "payout": win} if win
-                         else {"spot": "jackpot", "action": "collect", "amount": h.bets.jackpot})
         return sorted(steps, key=lambda s: s["action"] != "collect")
 
     def _box_private(self, seat: int) -> dict:

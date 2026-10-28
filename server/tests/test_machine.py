@@ -16,21 +16,26 @@ class FakeParticipant:
         self.name, self.entity_id, self.is_human = name, f"e-{name}", human
         self._balance = balance
         self.log = []
+        self.details = []   # (note, the ledger detail) for every debit and credit that brought one
 
     @property
     def balance(self):
         return self._balance
 
-    def debit(self, amount, note):
+    def debit(self, amount, note, detail=None):
         if amount > self._balance:
             return False
         self._balance -= amount
         self.log.append((-amount, note))
+        if detail:
+            self.details.append((note, detail))
         return True
 
-    def credit(self, amount, note):
+    def credit(self, amount, note, detail=None):
         self._balance += amount
         self.log.append((amount, note))
+        if detail:
+            self.details.append((note, detail))
 
     def refund(self, amount, note):
         self._balance += amount

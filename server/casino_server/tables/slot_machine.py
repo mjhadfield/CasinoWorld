@@ -153,6 +153,10 @@ class SlotMachine(TableMachine):
         p = self.seats[0].participant
         self.deadline = now + self.timings.idle_stand if p is not None and p.is_human and self.timings.idle_stand > 0 else None
 
+    def _ledger(self, amount: int) -> dict | None:
+        """The ledger's detail for a money move here: which machine (none on a 0, so a losing spin stays one row)."""
+        return {"machine": self.variant.id} if amount else None
+
     # ------------------------------------------------------------------ actions
     def spin(self, seat: int, bet: int, now: float) -> list:
         p = self._player()
@@ -161,14 +165,14 @@ class SlotMachine(TableMachine):
         if now < self.spun_at + self.timings.min_spin:
             raise TableError("The reels are still spinning.")
         bet = self._check_bet(bet)
-        if not p.debit(bet, "spin"):
+        if not p.debit(bet, "spin", self._ledger(bet)):
             raise TableError("Not enough credit for that bet.")
         self.bet, self.last_action = bet, now
         self.progressives.contribute(bet)
         rig, self.rig = self.rig, {}
         o = spin_outcome(self.variant, bet, self.rng, rig={k: rig[k] for k in ("features", "trigger", "stops") if rig.get(k)})
         tier = rig.get("jackpot") or jackpots.trigger(bet, self.rng)
-        p.credit(o["total"], "spin win")
+        p.credit(o["total"], "spin win", self._ledger(o["total"]))
         self._count(p, spins=1, staked=bet, returned=o["total"])
         self.last, self.spun_at = o, now
         if tier:
@@ -193,7 +197,7 @@ class SlotMachine(TableMachine):
             raise TableError("This machine has no Buy Bonus.")
         bet = self._check_bet(bet)
         cost = bet * self.variant.buy_cost
-        if not p.debit(cost, "buy bonus"):
+        if not p.debit(cost, "buy bonus", self._ledger(cost)):
             raise TableError("Not enough credit to buy the bonus.")
         self._count(p, staked=cost)
         self.bet, self.last_action = bet, now
@@ -374,7 +378,7 @@ class SlotMachine(TableMachine):
         pk["done"] = True
         p = self.seats[0].participant
         amount = self.progressives.win(tier)
-        p.credit(amount, f"{tier} jackpot")
+        p.credit(amount, f"{tier} jackpot", self._ledger(amount))
         self._count(p, returned=amount, jackpots=1)
         rest = list(pk["rest"])
         for i, c in enumerate(pk["coins"]):
@@ -397,7 +401,7 @@ class SlotMachine(TableMachine):
             self.deadline = now + secs + self.timings.trail_auto
             return events
         p = self.seats[0].participant
-        p.credit(st["total"], "trail bonus")
+        p.credit(st["total"], "trail bonus", self._ledger(st["total"]))
         self._count(p, returned=st["total"])
         events.append({"kind": "trail_end", "seat": 0, "total": st["total"], "prizepot": st["pos"] >= len(st["board"]) - 1,
                        "rolls": st["rolls"], "_paid": [p]})
@@ -417,7 +421,7 @@ class SlotMachine(TableMachine):
             self.deadline = now + secs + self.timings.free_gap
             return events
         p = self.seats[0].participant
-        p.credit(fg["total"], "free games")
+        p.credit(fg["total"], "free games", self._ledger(fg["total"]))
         self._count(p, returned=fg["total"])
         events.append({"kind": "free_end", "seat": 0, "total": fg["total"], "_paid": [p]})
         self.phase, self.deadline = "summary", now + secs + self.timings.summary
@@ -435,7 +439,7 @@ class SlotMachine(TableMachine):
             self.deadline = now + secs + self.timings.battle_auto
             return events
         p = self.seats[0].participant
-        p.credit(st["total"], "battle bonus")
+        p.credit(st["total"], "battle bonus", self._ledger(st["total"]))
         self._count(p, returned=st["total"])
         events.append({"kind": "battle_end", "seat": 0, "total": st["total"], "spins": st["spins"], "cleared": st["cleared"],
                        "won": st["won"], "shots": st["shots"], "_paid": [p]})
@@ -456,7 +460,7 @@ class SlotMachine(TableMachine):
             self.deadline = now + secs + self.timings.voyage_auto
             return events
         p = self.seats[0].participant
-        p.credit(st["total"], "voyage bonus")
+        p.credit(st["total"], "voyage bonus", self._ledger(st["total"]))
         self._count(p, returned=st["total"])
         events.append({"kind": "voyage_end", "seat": 0, "total": st["total"], "spins": st["spins"], "sunk": st["sunk"],
                        "treasure": st["treasure"], "steps": st["steps"], "_paid": [p]})
@@ -477,7 +481,7 @@ class SlotMachine(TableMachine):
             self.deadline = now + secs + self.timings.expedition_auto
             return events
         p = self.seats[0].participant
-        p.credit(st["total"], "expedition bonus")
+        p.credit(st["total"], "expedition bonus", self._ledger(st["total"]))
         self._count(p, returned=st["total"])
         events.append({"kind": "expedition_end", "seat": 0, "total": st["total"], "spins": st["spins"], "ended": st["ended"],
                        "wormhole": st["wormhole"], "final": st["final"], "mult": st["mult"], "steps": st["steps"], "_paid": [p]})

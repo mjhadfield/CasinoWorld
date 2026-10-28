@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from casino_server.dealer import DealerLines
 from casino_server.engines import let_it_ride as lir
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say
 
 SPOTS = ("bet1", "bet2", "ante", "bonus", "three_card", "jackpot")
 DECISION_SPOTS = ("bet1", "bet2")
@@ -135,7 +135,7 @@ class LetItRideMachine(TableMachine):
             event["reason"] = reason
         if not ride:  # pulled back: the bet goes straight back to its owner
             setattr(h.bets, spot, False)
-            h.participant.credit(h.bets.unit, "pull_back")
+            h.participant.credit(h.bets.unit, "pull_back", returns_detail([(spot, h.bets.unit, h.bets.unit)]))
             event.update(amount=h.bets.unit, _paid=[h.participant])
         return [event] + self._all_decided(now)
 
@@ -243,11 +243,12 @@ class LetItRideMachine(TableMachine):
             pool = self.jackpot.win() if r.jackpot_share >= 1.0 else self.jackpot.take(r.jackpot_share)
             events.append({"kind": "jackpot_won", "seat": seat, "amount": pool, "name": h.participant.name})
         h.paid = r.total_returned + pool
-        h.participant.credit(h.paid, "win" if r.qualified else "lose")
+        hand = lir.hand_label(lir.evaluate_five_card_hand(h.cards + self.community))
+        h.participant.credit(h.paid, "win" if r.qualified else "lose", returns_detail(
+            self._stakes(h, r, pool), hand=hand, three_card=self._three_card_label(r.three_tier)))
         steps = self._steps(h, r, pool)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
-        hand = lir.hand_label(lir.evaluate_five_card_hand(h.cards + self.community))
         key = "win" if r.qualified else "lose"
         line = self.lines.say("let_it_ride", key, name=h.participant.name, hand=hand, pays=f"{r.multiplier} to 1")
         events.append({"kind": "settle_seat", "seat": seat, "outcome": key, "multiplier": r.multiplier,
@@ -264,21 +265,23 @@ class LetItRideMachine(TableMachine):
         return "Pair" if tier == "pair" else lir.TIER_LABELS[tier]
 
     @staticmethod
-    def _steps(h: Hand, r: lir.Result, pool: int) -> list:
+    def _stakes(h: Hand, r: lir.Result, pool: int) -> list:
+        """(spot, stake, returned) for each bet still riding; the flat Jackpot's return is its winnings."""
         stakes = [(spot, h.bets.unit, r.base_returns[spot]) for spot in lir.BASE_SPOTS if spot in r.base_returns]
-        stakes += [("bonus", h.bets.bonus, r.bonus_return), ("three_card", h.bets.three_card, r.three_card_return)]
+        return stakes + [("bonus", h.bets.bonus, r.bonus_return), ("three_card", h.bets.three_card, r.three_card_return),
+                         ("jackpot", h.bets.jackpot, r.jackpot_fixed + pool)]
+
+    @staticmethod
+    def _steps(h: Hand, r: lir.Result, pool: int) -> list:
         steps = []
-        for spot, bet, ret in stakes:
+        for spot, bet, ret in LetItRideMachine._stakes(h, r, pool):
             if bet <= 0:
                 continue
             if ret == 0:
                 steps.append({"spot": spot, "action": "collect", "amount": bet})
             else:
-                steps.append({"spot": spot, "action": "pay", "amount": bet, "payout": ret - bet})
-        if h.bets.jackpot:
-            win = r.jackpot_fixed + pool
-            steps.append({"spot": "jackpot", "action": "pay", "amount": h.bets.jackpot, "payout": win} if win
-                         else {"spot": "jackpot", "action": "collect", "amount": h.bets.jackpot})
+                steps.append({"spot": spot, "action": "pay", "amount": bet,
+                              "payout": ret if spot == "jackpot" else ret - bet})
         return sorted(steps, key=lambda s: s["action"] != "collect")
 
     def _box_private(self, seat: int) -> dict:

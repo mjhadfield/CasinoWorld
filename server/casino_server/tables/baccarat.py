@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from casino_server.dealer import DealerLines
 from casino_server.engines import baccarat as bac
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, TableMachine, say
+from casino_server.tables.base import CHIPS, TableMachine, returns_detail, say
 
 SPOTS = bac.MAIN_SPOTS + bac.DRAGON_SPOTS
 
@@ -148,7 +148,8 @@ class BaccaratMachine(TableMachine):
         s.settled = True
         s.paid = sum(s.returns.values())
         net = s.paid - sum(s.bets.values())
-        s.participant.credit(s.paid, "win" if net > 0 else "lose")
+        s.participant.credit(s.paid, "win" if net > 0 else "lose", returns_detail(
+            [(spot, s.bets.get(spot, 0), s.returns.get(spot, 0)) for spot in SPOTS]))
         steps = []
         for spot in SPOTS:
             bet, ret = s.bets.get(spot, 0), s.returns.get(spot, 0)

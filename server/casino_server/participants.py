@@ -13,11 +13,13 @@ class Participant:
     def balance(self) -> int:
         raise NotImplementedError
 
-    def debit(self, amount: int, note: str) -> bool:
+    # `detail` is the ledger's breakdown of the move (store.adjust()); only a real player's wallet keeps it.
+    def debit(self, amount: int, note: str, detail: dict | None = None) -> bool:
         """Take `amount` pence; False (and nothing taken) if they can't cover it."""
         raise NotImplementedError
 
-    def credit(self, amount: int, note: str):
+    def credit(self, amount: int, note: str, detail: dict | None = None):
+        """Pay `amount` pence back. With a `detail`, even 0 is recorded (a settled round that lost)."""
         raise NotImplementedError
 
     def refund(self, amount: int, note: str):
@@ -50,19 +52,19 @@ class HumanParticipant(Participant):
     def balance(self) -> int:
         return self.casino.store.balance(self.player_id)
 
-    def debit(self, amount, note):
+    def debit(self, amount, note, detail=None):
         from casino_server.store import InsufficientFunds
         if amount <= 0:
             return True
         try:
-            self.casino.store.adjust(self.player_id, -amount, "bet", self.game, note)
+            self.casino.store.adjust(self.player_id, -amount, "bet", self.game, note, detail)
         except InsufficientFunds:
             return False
         return True
 
-    def credit(self, amount, note):
-        if amount > 0:
-            self.casino.store.adjust(self.player_id, amount, "payout", self.game, note)
+    def credit(self, amount, note, detail=None):
+        if amount > 0 or detail:
+            self.casino.store.adjust(self.player_id, max(0, amount), "payout", self.game, note, detail)
 
     def refund(self, amount, note):
         if amount > 0:   # a "bet" row the other way: it takes the stake back off what they've wagered
@@ -82,14 +84,14 @@ class NpcParticipant(Participant):
     def balance(self) -> int:
         return self.npc.bankroll
 
-    def debit(self, amount, note):
+    def debit(self, amount, note, detail=None):
         if amount > self.npc.bankroll:
             return False
         self.npc.bankroll -= amount
         self.npc.wagered += amount
         return True
 
-    def credit(self, amount, note):
+    def credit(self, amount, note, detail=None):
         self.npc.bankroll += amount
         self.npc.returned += amount
 
@@ -128,14 +130,14 @@ class BoxParticipant(Participant):
     def balance(self) -> int:
         return self.owner.balance
 
-    def debit(self, amount, note):
-        if not self.owner.debit(amount, note):
+    def debit(self, amount, note, detail=None):
+        if not self.owner.debit(amount, note, detail):
             return False
         self.flow -= max(0, amount)
         return True
 
-    def credit(self, amount, note):
-        self.owner.credit(amount, note)
+    def credit(self, amount, note, detail=None):
+        self.owner.credit(amount, note, detail)
         self.flow += max(0, amount)
 
     def refund(self, amount, note):

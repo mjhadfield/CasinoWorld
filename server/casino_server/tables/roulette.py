@@ -25,7 +25,7 @@ from dataclasses import dataclass
 
 from casino_server.dealer import DealerLines
 from casino_server.engines import roulette as rou
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, returns_detail, say
 
 HISTORY = 12
 
@@ -196,7 +196,8 @@ class RouletteMachine(TableMachine):
         s.settled = True
         s.paid = sum(s.returns.values())
         net = s.paid - sum(s.bets.values())
-        s.participant.credit(s.paid, "win" if net > 0 else "lose")
+        s.participant.credit(s.paid, "win" if net > 0 else "lose", returns_detail(
+            [(spot, stake, s.returns[spot]) for spot, stake in s.bets.items()]))
         steps = []
         for spot, stake in s.bets.items():
             ret = s.returns[spot]

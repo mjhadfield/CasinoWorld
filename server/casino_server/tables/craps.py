@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 from casino_server.dealer import DealerLines
 from casino_server.engines import craps as cr
-from casino_server.tables.base import CHIPS, TableError, TableMachine, say
+from casino_server.tables.base import CHIPS, TableError, TableMachine, say, stakes_detail
 
 HISTORY = 12
 INACTIVE_ROLLS = 40   # a human with nothing on the table for this many rolls is stood up
@@ -352,7 +352,11 @@ class CrapsMachine(TableMachine):
             s = self.seats[i]
             vig = cr.vig_up_front(s.bets) - cr.vig_up_front(self.locked[i])
             owed = sum(max(0, a - self.locked[i].get(spot, 0)) for spot, a in s.bets.items()) + vig
-            if owed and not s.participant.debit(owed, "bets"):
+            new = {spot: a - self.locked[i].get(spot, 0) for spot, a in s.bets.items()}
+            detail = stakes_detail(new)
+            if vig:
+                detail["vig"] = vig
+            if owed and not s.participant.debit(owed, "bets", detail):
                 s.bets = {spot: min(a, self.locked[i].get(spot, 0)) for spot, a in s.bets.items()}   # new chips come back
                 events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(s.bets)})
             elif owed:
@@ -394,6 +398,7 @@ class CrapsMachine(TableMachine):
             if not outcomes:
                 continue
             credit, steps, arriving = 0, [], []
+            ledger = {}   # spot -> its stake and return, for the ledger
             bets = dict(s.bets)
             for spot, o in outcomes.items():
                 stake = s.bets[spot]   # (as it was before this roll: see `arriving`)
@@ -402,15 +407,22 @@ class CrapsMachine(TableMachine):
                 if o.kind == "lose":
                     bets[spot] = 0
                     losers += 1
+                    ledger[spot] = {"stake": stake, "returned": 0}
                 elif o.kind == "win":
                     credit += o.win
                     vigs += o.vig > 0
-                    if not o.stays:
+                    ledger[spot] = {"stake": stake, "returned": o.win + (0 if o.stays else stake)}
+                    if o.stays:
+                        ledger[spot]["stays"] = True   # (paid, the stake left up)
+                    else:
                         credit += stake
                         bets[spot] = 0
+                    if o.vig:
+                        ledger[spot]["vig"] = o.vig
                 elif o.kind == "return":
                     credit += stake
                     bets[spot] = 0
+                    ledger[spot] = {"stake": stake, "returned": stake}
                 elif o.kind == "move":
                     bets[spot] = 0
                     arriving.append((o.to, stake))
@@ -422,11 +434,12 @@ class CrapsMachine(TableMachine):
                 bets[to] = bets.get(to, 0) + stake
             if any(st["kind"] in ("win", "return") for st in steps):
                 winners += 1
-            if credit:
+            if ledger:
                 won = sum(o.win for o in outcomes.values())
                 lost = sum(st["amount"] for st in steps if st["kind"] == "lose")
-                s.participant.credit(credit, "win" if won > lost else "lose")
-                paid.append(s.participant)
+                s.participant.credit(credit, "win" if won > lost else "lose", {"spots": ledger})
+                if credit:
+                    paid.append(s.participant)
             s.bets = bets
             self.locked[i] = {spot: a for spot, a in bets.items() if a}
             seats[str(i)] = steps

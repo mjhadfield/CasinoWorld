@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from casino_server.dealer import DealerLines
 from casino_server.engines import three_card_poker as tcp
 from casino_server.engines.cards import Deck
-from casino_server.tables.base import CHIPS, INACTIVE_ROUNDS, Seat, TableError, TableMachine, say  # noqa: F401
+from casino_server.tables.base import CHIPS, INACTIVE_ROUNDS, Seat, TableError, TableMachine, returns_detail, say, stakes_detail  # noqa: F401
 
 SPOTS = ("ante", "pair_plus", "prime", "jackpot")
 
@@ -154,7 +154,7 @@ class ThreeCardPokerMachine(TableMachine):
             raise TableError("You've already decided.")
         self._box_first(seat)
         if play:
-            if not rs.participant.debit(rs.bets.ante, "play"):
+            if not rs.participant.debit(rs.bets.ante, "play", stakes_detail({"play": rs.bets.ante})):
                 return self._fold(seat, now, reason="funds")
             rs.decided, rs.play_bet = True, rs.bets.ante
             event = {"kind": "decision", "seat": seat, "play": True, "amount": rs.bets.ante,
@@ -298,7 +298,9 @@ class ThreeCardPokerMachine(TableMachine):
             self.jackpot.win()
             events.append({"kind": "jackpot_won", "seat": seat, "amount": result.jackpot_return,
                            "name": rs.participant.name})
-        rs.participant.credit(result.total_returned, result.outcome)
+        rs.participant.credit(result.total_returned, result.outcome, returns_detail(
+            self._stakes(rs, result) + [("ante_bonus", 0, result.ante_bonus_return)],
+            hand=tcp.hand_label(result.player_eval)))
         steps = self._steps(rs, result)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * len(steps)
@@ -313,6 +315,15 @@ class ThreeCardPokerMachine(TableMachine):
         return events
 
     @staticmethod
+    def _stakes(rs: RoundSeat, r: tcp.HandResult) -> list:
+        """(spot, stake, returned) for each bet settled now: a fold has only a Prime it was held under."""
+        if rs.folded:
+            return [("prime", rs.bets.prime, r.prime_return)] if rs.held and r.prime_return else []
+        return [("ante", rs.bets.ante, r.ante_return), ("play", rs.play_bet, r.play_return),
+                ("pair_plus", rs.bets.pair_plus, r.pair_plus_return),
+                ("prime", rs.bets.prime, r.prime_return), ("jackpot", rs.bets.jackpot, r.jackpot_return)]
+
+    @staticmethod
     def _steps(rs: RoundSeat, r: tcp.HandResult) -> list:
         """What the dealer does on each spot -- losing bets collected first, then
         pushes and winners paid -- in that order. A fold held under a winning
@@ -321,10 +332,7 @@ class ThreeCardPokerMachine(TableMachine):
             return [{"spot": "prime", "action": "pay", "amount": rs.bets.prime,
                      "payout": r.prime_return - rs.bets.prime}] if rs.held and r.prime_return else []
         steps = []
-        stakes = [("ante", rs.bets.ante, r.ante_return), ("play", rs.play_bet, r.play_return),
-                  ("pair_plus", rs.bets.pair_plus, r.pair_plus_return),
-                  ("prime", rs.bets.prime, r.prime_return), ("jackpot", rs.bets.jackpot, r.jackpot_return)]
-        for spot, bet, ret in stakes:
+        for spot, bet, ret in ThreeCardPokerMachine._stakes(rs, r):
             if bet <= 0:
                 continue
             if ret == 0:

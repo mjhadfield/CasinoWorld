@@ -55,6 +55,20 @@ def say(text: str) -> list:
     return [{"kind": "say", "text": text}] if text else []
 
 
+# The ledger's breakdown of a money move (store.adjust()), for the stats.
+def stakes_detail(bets: dict) -> dict:
+    """A bet row's: what went on each spot."""
+    return {"spots": {spot: amount for spot, amount in bets.items() if amount > 0}}
+
+
+def returns_detail(stakes, **extra) -> dict:
+    """A payout row's, from (spot, stake, returned) for each bet settled: `returned` is stake and winnings, 0 if it
+    lost. A return with no stake of its own (an Ante Bonus, an Envy bonus) is listed with a stake of 0. `extra` adds
+    labels such as the hand."""
+    spots = {spot: {"stake": bet, "returned": ret} for spot, bet, ret in stakes if bet > 0 or ret > 0}
+    return {"spots": spots, **{k: v for k, v in extra.items() if v}}
+
+
 class TableMachine:
     game = ""
     label = ""
@@ -492,7 +506,8 @@ class TableMachine:
                 continue
             before = befores[i]
             events += self._hand_back_short(i, s)
-            if not self._has_main(s.bets) or not s.participant.debit(self.upfront(s.bets), "upfront"):
+            if not self._has_main(s.bets) or not s.participant.debit(self.upfront(s.bets), "upfront",
+                                                                     stakes_detail(s.bets)):
                 if any(s.bets.values()):  # side bets without a main bet go back
                     events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(dict.fromkeys(self.SPOTS, 0))})
                 self._clear_seat_bets(s)
