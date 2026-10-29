@@ -354,7 +354,7 @@ class BlackjackMachine(TableMachine):
         event = {"kind": "insurance", "seat": seat, "take": False}
         if take:
             cost = box.bets["bet"] // 2
-            if cost <= 0 or not box.participant.debit(cost, "insurance", stakes_detail({"insurance": cost})):
+            if cost <= 0 or not self._debit(box.participant, cost, "insurance", stakes_detail({"insurance": cost})):
                 event["reason"] = "funds"
             else:
                 box.insurance = cost
@@ -488,7 +488,7 @@ class BlackjackMachine(TableMachine):
             if hand.bust or hand.total == 21:
                 hand.done = True
         elif action == "double":
-            if not box.participant.debit(hand.bet, "double", stakes_detail({"double": hand.bet})):
+            if not self._debit(box.participant, hand.bet, "double", stakes_detail({"double": hand.bet})):
                 raise TableError("Not enough balance to double.")
             event.update(amount=hand.bet, _paid=[box.participant])
             hand.bet *= 2
@@ -497,7 +497,7 @@ class BlackjackMachine(TableMachine):
             event["card"] = hand.cards[-1].code
             hand.done = True
         elif action == "split":
-            if not box.participant.debit(hand.bet, "split", stakes_detail({"split": hand.bet})):
+            if not self._debit(box.participant, hand.bet, "split", stakes_detail({"split": hand.bet})):
                 raise TableError("Not enough balance to split.")
             event.update(amount=hand.bet, _paid=[box.participant])
             c1, c2 = hand.cards
@@ -515,6 +515,7 @@ class BlackjackMachine(TableMachine):
         events += self._cut_event()
         if action in ("hit", "double") and hand.bust:
             box_hand_bet = hand.bet
+            self._lost(box.participant, hand.bet)
             events.append({"kind": "bust", "seat": seat, "hand": idx, "amount": box_hand_bet})
             events += say(self.lines.say("blackjack", "bust", name=box.participant.name))
             self.turn = None
@@ -618,6 +619,7 @@ class BlackjackMachine(TableMachine):
         detail = None
         if ledger_hands:
             detail = returns_detail([("bet", sum(h["stake"] for h in ledger_hands), returned)], hands=ledger_hands)
+        self._ride(box.participant, sum(h.bet for h in box.hands if h.bust))   # (counted off as they bust)
         self._credit(box.participant, returned, "blackjack", detail)
         t = self.timings
         self.deadline = now + t.settle_base + 2 * t.settle_pause + t.settle_step * steps_total

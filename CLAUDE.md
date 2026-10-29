@@ -14,7 +14,7 @@ Mike's living 2D multiplayer casino. The client is Godot 4.7 (GDScript, exported
 
 The live server is Citadel's unit `hub-proj-casino-world` on 8660 (HTTP) and 8661 (HTTPS). It runs from this folder with `server/data/`.
 
-- **Server changes:** restart it with `tools/dev.sh restart` when they need it. No need to ask first; the worst case is interrupting a hand Mike's playing.
+- **Server changes:** restart it with `tools/dev.sh restart` when they need it. No need to ask first; a hand Mike's playing is void and the stake on it comes back.
 - **Client changes:** `tools/dev.sh export`, then reload the page. No restart is needed.
 - **Browser checks** run against a dev instance (`tools/dev.sh server`, in the background), which is what `tools/shot.py` uses by default. It serves this checkout's export and keeps its data in `.dev/data`, so the live floor and Mike's wallet are untouched.
 - **If a check must use the live server** and needs it to stay up, run `tools/dev.sh hold "what you're testing"` first and `tools/dev.sh release` after. `restart` won't restart a held server. If `restart` says it's held, wait or ask.

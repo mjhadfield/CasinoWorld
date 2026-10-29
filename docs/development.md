@@ -31,7 +31,9 @@ python3 -m venv .venv
 
 ## Run
 The live server is Citadel's unit `hub-proj-casino-world`: HTTP on 8660 (editor), HTTPS on 8661 (browsers),
-run from this folder with `server/data/`. `tools/dev.sh` does the everyday jobs:
+run from this folder with `server/data/`. Stopping or restarting it mid-hand is safe: every stake still riding goes
+back to its player, and after a crash the next start hands it back (docs/architecture.md, "A stop mid-hand").
+`tools/dev.sh` does the everyday jobs:
 
 ```fish
 tools/dev.sh restart        # after server changes

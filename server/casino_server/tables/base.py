@@ -104,6 +104,7 @@ class TableMachine:
         self.betting_opened_at = 0.0
         self.round_start: dict = {}   # seat -> (participant, their balance -- a second box: its flow -- before this hand)
         self.round_book: dict = {}    # id(participant) -> {spot: {stake, returned, won, hits, hand}}: this hand's bets
+        self.stakes: dict = {}        # participant -> pence they've put down here that hasn't been settled (riding())
         self._shown_boxes: set = set()  # second boxes in this hand whose cards their player has been shown
         self.limits = DEFAULT_LIMITS  # {"main": (min, max), "side": (min, max)}: the floor plan's, set by the casino
 
@@ -128,10 +129,40 @@ class TableMachine:
             net -= box[0].flow - box[1]   # (the shared wallet moved for both hands)
         return net
 
+    def riding(self) -> dict:
+        """{participant: pence}: what each has staked here that the table hasn't settled yet -- what they get back if
+        the server stops mid-hand (Casino.halt). A stake comes off as a payout row settles it (even for 0)."""
+        return dict(self.stakes)
+
+    def wind_up(self, now: float) -> list:
+        """The server's stopping: anything owed that needs no decision is paid now (a slot's bonus). What's still
+        riding() after it is handed back."""
+        return []
+
+    def _debit(self, participant, amount: int, note: str, detail: dict | None = None) -> bool:
+        """Take a stake (Participant.debit), counted as riding until a payout settles it."""
+        if not participant.debit(amount, note, detail):
+            return False
+        self._ride(participant, max(0, amount))
+        return True
+
+    def _lost(self, participant, amount: int):
+        """A stake swept with no payout row of its own yet (a fold, a bust): no longer riding."""
+        self._ride(participant, -amount)
+
+    def _ride(self, participant, amount: int):
+        left = self.stakes.get(participant, 0) + amount
+        if left:
+            self.stakes[participant] = left
+        else:
+            self.stakes.pop(participant, None)
+
     # ------------------------------------------------------------------ the round summary
     def _credit(self, participant, amount: int, note: str, detail: dict | None = None):
-        """Pay a participant (Participant.credit), noting each spot it settled in the round's book."""
+        """Pay a participant (Participant.credit), noting each spot it settled in the round's book (and that its
+        stakes are no longer riding)."""
         if detail:
+            self._ride(participant, -sum(d["stake"] for d in detail.get("spots", {}).values() if not d.get("stays")))
             book = self.round_book.setdefault(id(participant), {})
             for spot, d in detail.get("spots", {}).items():
                 entry = book.setdefault(spot, {"stake": 0, "returned": 0, "won": 0, "hits": 0, "hand": None})
@@ -612,7 +643,7 @@ class TableMachine:
                 continue
             before = befores[i]
             events += self._hand_back_short(i, s)
-            if not self._has_main(s.bets) or not s.participant.debit(self.upfront(s.bets), "upfront",
+            if not self._has_main(s.bets) or not self._debit(s.participant, self.upfront(s.bets), "upfront",
                                                                      stakes_detail(s.bets)):
                 if any(s.bets.values()):  # side bets without a main bet go back
                     events.append({"kind": "bet_changed", "seat": i, "bets": self._bets_view(dict.fromkeys(self.SPOTS, 0))})
@@ -689,7 +720,14 @@ class TableMachine:
                 break
             self.deadline = None
             events += self._advance(now)
+        if any(e["kind"] == "round_end" for e in events):
+            self._round_over()
         return events + self._reveal_boxes()
+
+    def _round_over(self):
+        """Nothing rides past a hand's end: whatever wasn't counted off (a bet the game swept without saying) is
+        settled too, so it can't come back at a later stop."""
+        self.stakes = {}
 
     def _advance(self, now: float) -> list:
         raise NotImplementedError

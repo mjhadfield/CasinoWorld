@@ -27,7 +27,7 @@ from casino_server.slots.stats import SlotStats
 from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, let_it_ride, master, mississippi_stud,
                                   pai_gow, roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
 from casino_server.tables.base import TableError
-from casino_server.tables.runner import TableRunner
+from casino_server.tables.runner import TableRunner, returned_message
 from casino_server.world import Entity, World
 
 LOOK_STEP = 64   # walked this far, a player's tables in view are worked out again (Casino.look)
@@ -87,6 +87,7 @@ class Casino:
         self.dealers = DealerRoster(self, rng, clock, pace=npc_pace)
         self._tasks: list[asyncio.Task] = []
         self._serial = 0
+        self.closed = False           # halted: its tables play no more
 
     @property
     def name(self) -> str:
@@ -153,12 +154,18 @@ class Casino:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def halt(self) -> list[asyncio.Task]:
-        """Stop without waiting (a reload, on the event loop): every NPC's visit ends where it is, the tasks are
-        cancelled (returned, to await if you can), its NPCs and dealers are free for other casinos."""
-        self.npcs.close_all("shutdown")
+        """Stop without waiting (the server stopping, or a reload, on the event loop): the tasks are cancelled
+        (returned, to await if you can), every table hands back what's riding on it (TableRunner.hand_back), every
+        NPC's visit ends where it is, and its NPCs and dealers are free for other casinos. Once only."""
+        if self.closed:
+            return []
+        self.closed = True
         tasks, self._tasks = self._tasks, []
         for task in tasks:
             task.cancel()
+        for runner in self.tables.values():
+            runner.hand_back()
+        self.npcs.close_all("shutdown")
         self.claims.release_all(self.id)
         self.jackpot.save()
         self.slot_jackpots.save()
@@ -318,14 +325,20 @@ class Casino:
         self.store.entered(player.id, self.id)
         self._welcome(session)
         self._snapshots(session)
+        for stake in self.store.stakes_returned(player.id):   # (handed back at a stop mid-hand)
+            session.push({"type": "notice", "message": returned_message(stake["game"], stake["amount"])})
         self.world.add(Entity(session.entity_id, "player", player.name, look_of(player)),
                        at=f"point:{self.floor.spawn}")
 
     def leave(self, session: Session):
-        """Off this floor (to the chooser, the character select, or gone): a hand they're in plays out for them."""
+        """Off this floor (to the chooser, the character select, or gone): a hand they're in plays out for them
+        (once it's halted, their stake's already back)."""
         session.kick = None
         if session.table is not None:
-            self._stand(session)
+            if self.closed:
+                session.table = session.seat = None
+            else:
+                self._stand(session)
         if session.entity_id:
             self.world.remove(session.entity_id)
         self.sessions.discard(session)

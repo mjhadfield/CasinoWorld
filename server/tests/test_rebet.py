@@ -153,6 +153,7 @@ def test_npcs_get_their_bets_down_inside_a_rebet_countdown(tmp_path):
         m = runner.machine
         mike = FakeParticipant("Mike")
         mike.session, mike.here = None, False
+        mike.player_id = casino.store.create_player("Mike").id   # (the runner keeps what's riding by character)
         rebet_at = None
         for _ in range(20_000):
             now[0] += 0.2

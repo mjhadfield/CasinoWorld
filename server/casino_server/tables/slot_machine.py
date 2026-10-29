@@ -490,6 +490,13 @@ class SlotMachine(TableMachine):
         self.phase, self.deadline = "summary", now + secs + self.timings.summary
         return events
 
+    def riding(self) -> dict:
+        """A spin's settled as it's made; a bonus to come is paid by wind_up()."""
+        return {}
+
+    def wind_up(self, now: float) -> list:
+        return self._finish_everything(now)
+
     # ------------------------------------------------------------------ walking away mid-feature
     def _finish_everything(self, now: float) -> list:
         """Plays out the feature on screen and everything queued after it, paying as it goes."""

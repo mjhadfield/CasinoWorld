@@ -154,7 +154,7 @@ class HighCardFlushMachine(TableMachine):
         event = {"kind": "hcf_action", "seat": seat, "times": times}
         if reason:
             event["reason"] = reason
-        if times and not h.participant.debit(h.bets.ante * times, "raise", stakes_detail({"raise": h.bets.ante * times})):
+        if times and not self._debit(h.participant, h.bets.ante * times, "raise", stakes_detail({"raise": h.bets.ante * times})):
             times, event["times"], event["reason"] = 0, 0, "funds"
         if times:
             h.bets.raise_bet = h.bets.ante * times
@@ -265,6 +265,7 @@ class HighCardFlushMachine(TableMachine):
                 if not h.held:
                     lost += [("straight_flush", h.bets.straight_flush), ("jackpot", h.bets.jackpot)]
                 steps = [{"spot": s, "amount": a} for s, a in lost if a > 0]
+                self._lost(h.participant, sum(a for _, a in lost))
             seats.append({"seat": seat, "steps": steps, "cards": len(h.unused)})
         t = self.timings
         self.deadline = now + ((t.sweep_pause + t.sweep_each) * len(seats) + 0.4 * t.sweep_each if seats else 0.0)

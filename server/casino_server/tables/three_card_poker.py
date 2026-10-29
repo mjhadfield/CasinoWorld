@@ -158,7 +158,7 @@ class ThreeCardPokerMachine(TableMachine):
             raise TableError("You've already decided.")
         self._box_first(seat)
         if play:
-            if not rs.participant.debit(rs.bets.ante, "play", stakes_detail({"play": rs.bets.ante})):
+            if not self._debit(rs.participant, rs.bets.ante, "play", stakes_detail({"play": rs.bets.ante})):
                 return self._fold(seat, now, reason="funds")
             rs.decided, rs.play_bet = True, rs.bets.ante
             event = {"kind": "decision", "seat": seat, "play": True, "amount": rs.bets.ante,
@@ -270,6 +270,7 @@ class ThreeCardPokerMachine(TableMachine):
             if not rs.held:
                 spots.append(("prime", rs.bets.prime))
             rs.swept = True
+            self._lost(rs.participant, sum(amount for _, amount in spots))
             seats.append({"seat": seat, "muck": not rs.held,
                           "steps": [{"spot": spot, "amount": amount} for spot, amount in spots if amount > 0]})
         t = self.timings

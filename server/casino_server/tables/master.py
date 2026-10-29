@@ -358,6 +358,12 @@ class MasterMachine:
         self.revert_at = None
         return events + self._start_change("", now)
 
+    def riding(self) -> dict:
+        return self.inner.riding() if self.inner is not None else {}
+
+    def wind_up(self, now: float) -> list:
+        return self.inner.wind_up(now) if self.inner is not None else []
+
     # ------------------------------------------------------------------ the clock
     def tick(self, now: float) -> list:
         events = []

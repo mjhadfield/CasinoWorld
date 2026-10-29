@@ -99,6 +99,14 @@ CREATE TABLE IF NOT EXISTS npc_visits (
     games        TEXT    NOT NULL DEFAULT '{}',  -- JSON: game -> rounds
     reason       TEXT    NOT NULL                -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown' | 'npcs_off'
 );
+CREATE TABLE IF NOT EXISTS stakes (     -- money down on a table that it hasn't settled (the table's runner keeps it)
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    table_id  TEXT    NOT NULL,            -- qualified with its casino (casinos.qualify)
+    game      TEXT    NOT NULL,            -- the game's name, for telling them
+    amount    INTEGER NOT NULL,            -- pence
+    returned  INTEGER NOT NULL DEFAULT 0,  -- 1: handed back after a stop, and they've not been told yet
+    PRIMARY KEY (player_id, table_id, returned)
+);
 CREATE TABLE IF NOT EXISTS slot_stats (
     variant  TEXT    NOT NULL,
     who      TEXT    NOT NULL,             -- 'human' | 'npc'
@@ -317,18 +325,63 @@ class Store:
         on a bet row that never turns up on a payout row was lost (a fold, a Roulette sweep). Some games add a
         "hand" label, Blackjack its "hands", Craps "stays"/"vig" on a spot, and slots just the "machine"."""
         with self.db:
-            if self.db.execute("SELECT 1 FROM players WHERE id = ?", (player_id,)).fetchone() is None:
-                return 0   # (deleted)
-            balance = self.balance(player_id) + amount
-            if balance < 0:
-                raise InsufficientFunds()
-            self.db.execute("UPDATE players SET balance = ? WHERE id = ?", (balance, player_id))
-            self.db.execute(
-                "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note, detail)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (player_id, _now(), kind, amount, balance, game, note,
-                 json.dumps(detail, separators=(",", ":")) if detail else None))
+            return self._adjust(player_id, amount, kind, game, note, detail)
+
+    def _adjust(self, player_id, amount, kind, game, note, detail=None) -> int:
+        """adjust() inside a transaction the caller holds."""
+        if self.db.execute("SELECT 1 FROM players WHERE id = ?", (player_id,)).fetchone() is None:
+            return 0   # (deleted)
+        balance = self.balance(player_id) + amount
+        if balance < 0:
+            raise InsufficientFunds()
+        self.db.execute("UPDATE players SET balance = ? WHERE id = ?", (balance, player_id))
+        self.db.execute(
+            "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note, detail)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (player_id, _now(), kind, amount, balance, game, note,
+             json.dumps(detail, separators=(",", ":")) if detail else None))
         return balance
+
+    # ------------------------------------------------------------------ stakes riding (a stop mid-hand)
+    # A table's runner keeps what each player has down on it here as it changes, so a stop -- clean or a crash --
+    # never keeps anyone's money: Casino.halt hands it back (return_stake) and a start hands back whatever a crash
+    # left (return_stakes). Either way it's a "bet" row the other way, like a bet taken down, and the row stays
+    # (returned) until the player's told (stakes_returned).
+    RETURN_NOTE = "handed back: the server stopped mid-hand"
+
+    def set_stakes(self, table_id: str, game: str, riding: dict):
+        """What's riding on a table now, {player_id: pence} (everyone else: nothing)."""
+        with self.db:
+            self.db.execute("DELETE FROM stakes WHERE table_id = ? AND returned = 0", (table_id,))
+            self.db.executemany(
+                "INSERT INTO stakes (player_id, table_id, game, amount) VALUES (?, ?, ?, ?)",
+                [(pid, table_id, game, amount) for pid, amount in riding.items() if amount > 0])
+
+    def return_stake(self, player_id: int, table_id: str, game: str, amount: int):
+        """A stop: what they had riding on a table goes back into their hand, noted to tell them."""
+        with self.db:
+            self.db.execute("DELETE FROM stakes WHERE player_id = ? AND table_id = ? AND returned = 0",
+                            (player_id, table_id))
+            if amount > 0 and self._adjust(player_id, amount, "bet", game, self.RETURN_NOTE):
+                self.db.execute(
+                    "INSERT INTO stakes (player_id, table_id, game, amount, returned) VALUES (?, ?, ?, ?, 1)"
+                    " ON CONFLICT (player_id, table_id, returned) DO UPDATE SET amount = amount + excluded.amount",
+                    (player_id, table_id, game, amount))
+
+    def return_stakes(self) -> int:
+        """At start: whatever a crash left riding goes back. Returns how many stakes."""
+        rows = self.db.execute("SELECT player_id, table_id, game, amount FROM stakes WHERE returned = 0").fetchall()
+        for r in rows:
+            self.return_stake(r["player_id"], r["table_id"], r["game"], r["amount"])
+        return len(rows)
+
+    def stakes_returned(self, player_id: int) -> list[dict]:
+        """The stakes handed back to a character they've not been told about ({game, amount}), now told."""
+        with self.db:
+            rows = self.db.execute("SELECT game, amount FROM stakes WHERE player_id = ? AND returned = 1",
+                                   (player_id,)).fetchall()
+            self.db.execute("DELETE FROM stakes WHERE player_id = ? AND returned = 1", (player_id,))
+        return [dict(r) for r in rows]
 
     def transfer(self, player_id: int, to_hand: int, now: float, big: bool = False) -> tuple[int, int]:
         """The ATM: moves `to_hand` pence from the bank to cash in hand (a withdrawal, which notes the time, and as
@@ -434,12 +487,15 @@ class Store:
         """A character gone for good, with its ledger (the account stays)."""
         with self.db:
             self.db.execute("DELETE FROM ledger WHERE player_id = ?", (player_id,))
+            self.db.execute("DELETE FROM stakes WHERE player_id = ?", (player_id,))
             self.db.execute("DELETE FROM players WHERE id = ?", (player_id,))
 
     def delete_account(self, account_id: int):
         """An account and all its characters gone for good."""
         with self.db:
             self.db.execute("DELETE FROM ledger WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
+                            (account_id,))
+            self.db.execute("DELETE FROM stakes WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
                             (account_id,))
             self.db.execute("DELETE FROM players WHERE account_id = ?", (account_id,))
             self.db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))

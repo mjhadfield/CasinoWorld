@@ -138,7 +138,7 @@ class MississippiStudMachine(TableMachine):
         if times == 0:
             return self._fold(seat, now)
         amount = h.bets.ante * times
-        if not h.participant.debit(amount, STREET_NAMES[self.street], stakes_detail({ms.STREETS[self.street]: amount})):
+        if not self._debit(h.participant, amount, STREET_NAMES[self.street], stakes_detail({ms.STREETS[self.street]: amount})):
             return self._fold(seat, now, reason="funds")
         h.bets.streets[self.street] = amount
         h.decided = True
@@ -244,6 +244,7 @@ class MississippiStudMachine(TableMachine):
             h.swept = True
             spots = [("ante", h.bets.ante), ("jackpot", h.bets.jackpot)] + \
                 [(ms.STREETS[k], h.bets.streets[k]) for k in range(3)]
+            self._lost(h.participant, sum(a for _, a in spots))
             seats.append({"seat": seat, "steps": [{"spot": s, "amount": a} for s, a in spots if a > 0]})
         t = self.timings
         self.deadline = now + ((t.sweep_pause + t.sweep_each) * len(seats) + 0.4 * t.sweep_each if seats else 0.0)

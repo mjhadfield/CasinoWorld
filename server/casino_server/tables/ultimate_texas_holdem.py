@@ -161,7 +161,7 @@ class UltimateTexasHoldemMachine(TableMachine):
             event["reason"] = reason
         if times > 0:
             amount = h.bets.ante * times
-            if not h.participant.debit(amount, "play", stakes_detail({"play": amount})):
+            if not self._debit(h.participant, amount, "play", stakes_detail({"play": amount})):
                 times, action = 0, ("check" if self.stage < 2 else "fold")
                 event["action"], event["reason"] = action, "funds"
             else:
@@ -268,6 +268,7 @@ class UltimateTexasHoldemMachine(TableMachine):
                 continue
             h.swept = True
             spots = [("ante", h.bets.ante), ("blind", h.bets.blind), ("trips", h.bets.trips), ("jackpot", h.bets.jackpot)]
+            self._lost(h.participant, sum(a for _, a in spots))
             seats.append({"seat": seat, "steps": [{"spot": s, "amount": a} for s, a in spots if a > 0]})
         t = self.timings
         self.deadline = now + ((t.sweep_pause + t.sweep_each) * len(seats) + 0.4 * t.sweep_each if seats else 0.0)

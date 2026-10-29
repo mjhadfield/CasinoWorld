@@ -21,6 +21,10 @@ Mike's decisions that shape everything else (2026-10-16):
 A FastAPI app (`app.py`) serves the web export, the admin page and one WebSocket per player at `/ws`. Every
 game result and every penny is decided on the server; the client only renders and sends intents.
 
+- **One lifespan for both ports.** `__main__.py` runs the app's lifespan itself, once, and serves HTTP and HTTPS
+  from the same app with uvicorn's lifespan off (each port running its own had made two whole Resorts). It
+  handles the signals too: on SIGTERM or Ctrl+C every casino halts first (`Resort.close`, while everyone's still
+  connected), then the ports stop. See **A stop mid-hand** below.
 - **`Resort` (`resort.py`)** is on `app.state` for the app's lifespan. It holds every connected session and the
   casinos (`casinos.py`'s registry, `<data>/casinos.json`: Mike's decisions, 2026-10-27), and what they share,
   made once and handed to each: the store (a character's cash and bank), the card progressive and the slots'
@@ -79,6 +83,16 @@ game result and every penny is decided on the server; the client only renders an
 - **Privacy and money.** Event keys starting `_` never leave the server. Cards only one seat may see go under
   `_private` and reach only that seat's session. `_paid` lists whoever's money the event moved, and they get
   a `wallet` straight after it.
+- **A stop mid-hand.** Every machine counts what each participant has down on it that it hasn't settled
+  (`riding()`: in `base.py`, stakes go on through `_debit` and come off as a payout row (`_credit`) or a sweep
+  (`_lost`: a fold, a bust) settles them, and nothing rides past a hand's end; Craps reads its layout instead, and a
+  slot's spin is settled as it's made). The runner keeps the players' figures in the store's `stakes` table as they
+  change. `Casino.halt` (the server stopping, or a reload) cancels the tasks, lets each table pay what needs no
+  decision (`wind_up`: a slot's bonus plays out), and hands back everything still riding (`TableRunner.hand_back`):
+  into a player's hand with a ledger row noted "handed back", told at once with a `notice` if they're there, or
+  when they next enter; into an NPC's bankroll before their visit's logged. A halted casino doesn't stand anyone
+  up, so leaving can't fold a hand that's no longer dealt. After a crash, the next start hands back whatever the
+  `stakes` table still says was riding (`Store.return_stakes`, from `Resort`), before any table deals.
 - **Participants (`participants.py`).** A seat holds a participant, human or NPC, with the same `debit`,
   `credit` and `refund`. The machine never knows which kind it's dealing with, so NPCs play by exactly the
   same rules and money moves.

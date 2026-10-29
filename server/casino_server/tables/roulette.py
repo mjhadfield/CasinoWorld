@@ -193,10 +193,16 @@ class RouletteMachine(TableMachine):
                     for spot, stake in s.bets.items() if s.returns[spot] < stake]
             if gone:
                 lost[i] = gone
+                self._lost(s.participant, self._swept(s))
             if not any(s.returns.values()):
                 s.settled = True
         self.deadline = now + (self.timings.sweep if lost else 0.0)
         return [{"kind": "sweep", "seats": {str(i): g for i, g in lost.items()}}]
+
+    @staticmethod
+    def _swept(s) -> int:
+        """What the sweep took off a seat's bets."""
+        return sum(stake - s.returns[spot] for spot, stake in s.bets.items() if s.returns[spot] < stake)
 
     def _settle_next(self, now: float) -> list:
         if not self._settle_queue:
@@ -208,6 +214,7 @@ class RouletteMachine(TableMachine):
         s.settled = True
         s.paid = sum(s.returns.values())
         net = s.paid - sum(s.bets.values())
+        self._ride(s.participant, self._swept(s))   # (counted off at the sweep: the row below lists every bet)
         self._credit(s.participant, s.paid, "win" if net > 0 else "lose", returns_detail(
             [(spot, stake, s.returns[spot]) for spot, stake in s.bets.items()]))
         steps = []

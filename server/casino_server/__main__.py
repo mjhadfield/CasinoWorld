@@ -8,10 +8,17 @@ Runs the server on two ports:
 The HTTPS certificate is self-signed and generated on first run into data/tls/, so each
 device clicks through a one-time "not private" warning. Delete data/tls/ to regenerate it
 (e.g. if the machine's LAN IP changes).
+
+The two ports share one app, so its lifespan (the Resort and everything else on app.state) runs here once, not once
+per port, and so do the signals: on SIGTERM or Ctrl+C every casino halts first, handing back what's riding on its
+tables (Resort.close), and only then do the ports stop and disconnect everyone. A second Ctrl+C doesn't wait for
+connections to close.
 """
 
 import asyncio
+import contextlib
 import os
+import signal
 import socket
 import subprocess
 from pathlib import Path
@@ -56,15 +63,41 @@ def ensure_cert() -> tuple[Path, Path] | None:
     return cert, key
 
 
+class Server(uvicorn.Server):
+    """One port. serve() below handles the signals for both."""
+
+    @contextlib.contextmanager
+    def capture_signals(self):
+        yield
+
+
 async def serve(host: str, port: int):
-    servers = [uvicorn.Server(uvicorn.Config(app, host=host, port=port))]
+    servers = [Server(uvicorn.Config(app, host=host, port=port, lifespan="off"))]
     if tls := ensure_cert():
         cert, key = tls
         app.state.https_port = port + 1
-        servers.append(uvicorn.Server(uvicorn.Config(
-            app, host=host, port=port + 1, ssl_certfile=str(cert), ssl_keyfile=str(key))))
+        servers.append(Server(uvicorn.Config(
+            app, host=host, port=port + 1, ssl_certfile=str(cert), ssl_keyfile=str(key), lifespan="off")))
         print(f"Browsers: https://{lan_ip() or 'localhost'}:{port + 1}  (accept the certificate warning once per device)", flush=True)
-    await asyncio.gather(*(s.serve() for s in servers))
+    stopping = asyncio.Event()
+
+    def on_signal():
+        if stopping.is_set():
+            for s in servers:
+                s.force_exit = True
+        stopping.set()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, on_signal)
+    async with app.router.lifespan_context(app):
+        tasks = [asyncio.create_task(s.serve()) for s in servers]
+        stop = asyncio.create_task(stopping.wait())
+        await asyncio.wait([stop, *tasks], return_when=asyncio.FIRST_COMPLETED)
+        app.state.resort.close()   # (while everyone's still connected)
+        for s in servers:
+            s.should_exit = True
+        await asyncio.gather(*tasks, return_exceptions=True)
+        stop.cancel()
 
 
 def main():

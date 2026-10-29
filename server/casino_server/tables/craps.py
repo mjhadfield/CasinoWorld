@@ -141,6 +141,19 @@ class CrapsMachine(TableMachine):
             events += self._open_window(now)    # the first player at a quiet table starts it up
         return events
 
+    def riding(self) -> dict:
+        """Craps has no hands: what's riding is every bet paid for and still on the layout (contract bets too), with
+        a lay bet's vig, paid up front."""
+        out = {}
+        for i, s in enumerate(self.seats):
+            paid = sum(self.locked[i].values()) + cr.vig_up_front(self.locked[i]) if s.participant is not None else 0
+            if paid:
+                out[s.participant] = paid
+        return out
+
+    def _ride(self, participant, amount: int):
+        pass   # (riding() reads the layout)
+
     def _leaving_mid_hand(self, seat: int, now: float, reason: str) -> list:
         """Getting up: paid-for bets that can come down are refunded (only while bets are
         open -- once the dice are out, everything rides); contract bets stay with the house."""

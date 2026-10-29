@@ -16,10 +16,17 @@ lists participants whose balance the event changed (they get a wallet update
 straight after it). Each seat's result for the hand goes out once: on its
 settle_seat ("round_net"), or for a seat that had none (bust, folded, paid early)
 on the round_end ("round_nets").
+
+What each player has riding on the table (machine.riding()) is kept in the store as it changes, so a stop never
+keeps their money: Casino.halt calls hand_back(), and after a crash the next start hands it back (store.py).
 """
 import asyncio
 import copy
 import time
+
+from casino_server import casinos
+from casino_server.participants import BoxParticipant
+from casino_server.tables.base import pounds
 
 ## The events that seat or stand someone (or move them, at a Master Table): those far off get `table_seats` after them.
 SEATING = {"seated", "stood", "box_taken", "box_dropped", "master_change"}
@@ -33,6 +40,8 @@ class TableRunner:
         self.clock = clock
         self._wake = asyncio.Event()
         self._netted = set()   # seats whose result for this hand has gone out
+        self._stakes = {}      # {player_id: pence} riding, as last saved
+        self.closed = False    # handed back: the table plays no more
 
     def act(self, method: str, *args, **kwargs):
         """Run a machine action now; raises TableError for a rejected one."""
@@ -110,6 +119,63 @@ class TableRunner:
             for participant in event.get("_paid", []):
                 if participant.is_human and participant.here:
                     self.casino.send_wallet(participant.session)
+        if events:
+            self._save_stakes()
+
+    # ------------------------------------------------------------------ money riding, and a stop
+    @staticmethod
+    def _player_id(participant) -> int:
+        return (participant.owner if isinstance(participant, BoxParticipant) else participant).player_id
+
+    def _riding(self) -> dict:
+        """{player_id: pence} the players have down here (a second box's with its player's)."""
+        out = {}
+        for p, amount in self.machine.riding().items():
+            if p.is_human:
+                pid = self._player_id(p)
+                out[pid] = out.get(pid, 0) + amount
+        return out
+
+    @property
+    def _key(self) -> str:
+        return casinos.qualify(getattr(self.casino, "id", casinos.DEMO), self.table_id)
+
+    def _game_name(self) -> str:
+        machine = getattr(self.machine, "inner", None) or self.machine   # (a Master Table's game)
+        return machine.label or machine.game
+
+    def _save_stakes(self):
+        store = getattr(self.casino, "store", None)
+        if store is None or self.closed:
+            return
+        riding = self._riding()
+        if riding != self._stakes:
+            store.set_stakes(self._key, self._game_name(), riding)
+            self._stakes = riding
+
+    def hand_back(self):
+        """The casino's stopping (Casino.halt, after its tasks are cancelled): anything owed that needs no decision is
+        paid (a slot's bonus), then every stake still riding goes back -- into a player's hand (told now if they're
+        here, else when they next come in), or an NPC's bankroll -- and the table plays no more."""
+        if self.closed:
+            return
+        self.publish(self.machine.wind_up(self.clock()))
+        self.closed = True
+        store, game = self.casino.store, self._game_name()
+        humans = {}
+        for p, amount in self.machine.riding().items():
+            if not p.is_human:
+                p.refund(amount, "the server stopped mid-hand")
+            elif amount > 0:
+                owner = p.owner if isinstance(p, BoxParticipant) else p
+                humans.setdefault(self._player_id(p), [owner, 0])[1] += amount
+        for pid, (owner, amount) in humans.items():
+            store.return_stake(pid, self._key, game, amount)
+            if owner.here:
+                store.stakes_returned(pid)
+                owner.session.push({"type": "notice", "message": returned_message(game, amount, now=True)})
+                self.casino.send_wallet(owner.session)
+        self._stakes = {}
 
     def _add_nets(self, event: dict):
         round_net = getattr(self.machine, "round_net", None)   # (not at Craps, or a blank Master Table)
@@ -141,3 +207,10 @@ class TableRunner:
             self.casino.broadcast_resort(self.casino.jackpot.snapshot(), table=self.table_id)
         elif kind == "slot_jackpot_won":
             self.casino.broadcast_resort(self.casino.slot_jackpots.snapshot())
+
+
+def returned_message(game: str, amount: int, now: bool = False) -> str:
+    """Telling a player their stake came back after a stop mid-hand."""
+    if now:
+        return f"The server's stopping mid-hand, so the {pounds(amount)} you had riding at {game} is back in your hand."
+    return f"The server stopped mid-hand, so the {pounds(amount)} you had riding at {game} was handed back to you."

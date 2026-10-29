@@ -49,6 +49,8 @@ class Resort:
         self.looks = looks            # art.LookCache: builds the characters' and the cast's looks
         self.clock, self.wall = clock, wall
         roster.seed(store)            # the starting cast, the first time
+        if returned := store.return_stakes():   # (a crash left money riding: back before any table deals)
+            print(f"handed back {returned} stake(s) left riding when the server last stopped", flush=True)
         self.jackpot = Jackpot(store)
         self.slot_jackpots = SlotProgressives(store, clock=clock)
         self.slot_stats = SlotStats(store)
@@ -92,6 +94,12 @@ class Resort:
         for casino in self.casinos.values():
             await casino.start()
 
+    def close(self):
+        """The server's stopping (__main__, before anyone's disconnected): every casino halts, handing back what's
+        riding, so a player's leaving can't fold or stand a hand that won't be finished."""
+        for casino in self.casinos.values():
+            casino.halt()
+
     async def stop(self):
         for casino in self.casinos.values():
             await casino.stop()
@@ -103,10 +111,10 @@ class Resort:
         old = self.casinos[cid]
         players = old.joined_sessions()
         previews = [s for s in old.sessions if s.preview is not None]
+        old.halt()   # (first: its hands are void, their stakes handed back, before anyone's stood up)
         for s in players:
             old.leave(s)
             s.push({"type": "casino_left", "reason": "reload"})
-        old.halt()
         new = self._open(cid)
         for s in previews:
             s.casino = new
