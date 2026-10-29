@@ -34,7 +34,7 @@ const DEFAULTS := {
 	"minimap_labels": "all",    # "all": the rooms next door name their tables too; "here": only yours
 	"minimap_zoom": 2,          # its +/- step, from its smallest view (Minimap.ZOOMS)
 	"hcf_four_colour": true,    # High Card Flush's cards in four suit colours, over the table style's
-	"show_card_count": false,   # Blackjack: the Hi-Lo count left of the shoe (count_overlay.gd), a training aid
+	"show_card_count": false,   # Blackjack: the Hi-Lo count above the shoe (count_overlay.gd), a training aid
 }
 const PRESETS := {
 	"high": {"fps_cap": 60, "resolution": "sharp", "seat_glow": true, "slot_effects": "full"},

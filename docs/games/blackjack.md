@@ -74,8 +74,8 @@ true count is the running count over the decks still to come. With it they:
 
 ## The card count
 
-**Settings › Cards › Card count at Blackjack** (off to start with) shows the count left of the shoe, where the
-dealer's rules used to be printed (they're now just right of the shuffler): a smoked-glass panel hovering over the
+**Settings › Cards › Card count at Blackjack** (off to start with) shows the count just above the shoe (the
+dealer's rules are printed just right of the shuffler): a smoked-glass panel hovering over the
 felt with the running count (RC), the true count (TC, green from +2, red from -1) and the decks to come. It's the
 same count the server keeps for the NPCs, sent with the table and every event that shows cards, so it ticks as
 the cards land; it reads SHUFFLING through a shuffle, then starts again at 0.

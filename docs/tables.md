@@ -156,8 +156,8 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   doesn't animate: it redraws when the limits or the style change. The designer draws it too (`limitsSign()` in
   render.js, at the mirror of `sign`), from the signed-off mockup in `docs/limits_sign/mockup/`.
 - **`scenes/table/count_overlay.gd` (`CountOverlay`)** is Blackjack's card count (Settings › Cards): a hovering
-  smoked-glass readout of the server's Hi-Lo `count`, at `BlackjackTable.COUNT_AT` (66, -113.5), left of the shoe
-  and under the limits sign. It's in the Machines layer, above the cards, and deliberately isn't printed in the
+  smoked-glass readout of the server's Hi-Lo `count`, at `BlackjackTable.COUNT_AT` (95, -120.5), just above the
+  shoe. It's in the Machines layer, above the cards, and deliberately isn't printed in the
   table style: the HUD's Barlow lettering, a drop shadow and a breathing hairline edge. Its figures roll to each new
   count and the edge flashes green or red. Blackjack's dealer rules (STANDS ON 17s, INSURANCE 2:1) are printed just
   right of the shuffler, at x -33.

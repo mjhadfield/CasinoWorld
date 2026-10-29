@@ -27,7 +27,7 @@ const SPOTS := ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jac
 const SIDE_SPOTS := ["super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
 const ACTION_KEYS := {"hit": "Space", "stand": "Backspace", "double": "D", "split": "P"}   # Space plays on, Backspace stops, at every table
 const FLANK := {"split": "left", "double": "right"}
-const COUNT_AT := Vector2(66, -113.5)   # the card count: left of the shoe, under the limits sign
+const COUNT_AT := Vector2(95, -120.5)   # the card count: just above the shoe
 
 var _hands := {}          # seat -> [{cards: [Card2D], key, dkey, label, done, gone}]
 var _uid := 0

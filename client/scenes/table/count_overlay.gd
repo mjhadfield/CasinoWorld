@@ -4,7 +4,7 @@ extends Node2D
 ## Hi-Lo running count (RC) and true count (TC) of the cards seen since the shuffle, with the decks still to come,
 ## from the server's `count` (BlackjackMachine.count: the hole card only once it's turned over).
 ##
-## It sits on the felt left of the shoe, where the dealer's rules used to be printed, but it's meant to read as a
+## It sits on the felt just above the shoe, but it's meant to read as a
 ## heads-up display over the table, not part of it: a smoked-glass panel hovering on a soft shadow, a hairline edge
 ## that breathes, the HUD's lettering (not the table style's). The figures roll to each new count as the cards land;
 ## the edge flashes green as the count rises and red as it falls; the true count is green from +2 (a good count) and
