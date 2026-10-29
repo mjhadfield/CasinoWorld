@@ -113,3 +113,13 @@ def test_craps_sums_up_a_shooters_hand_at_the_next_come_out():
     assert nora.balance == 100_000 + 800
     now, ev = roll(m, now)                  # the next hand's first roll: no summary of its own yet
     assert not any(e.get("summary") for e in ev)
+
+
+def test_a_bet_that_pays_on_something_other_than_the_hand_names_no_hand():
+    m = machine(CODES)
+    ann, _, _ = seat_three(m)
+    m.round_start = {0: (ann, ann.balance + 700)}
+    m._credit(ann, 1_100, "win", returns_detail([("ante", 500, 1_000), ("prime", 100, 400), ("pair_plus", 100, 0)],
+                                                 hand="Pair"))
+    lines = m.round_summary()["rows"][0]["lines"]
+    assert [b["text"] for b in lines] == ["Ante & Play", "Prime", "Pair Plus"]   # (Prime pays on colour)

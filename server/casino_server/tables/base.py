@@ -87,7 +87,7 @@ class TableMachine:
                                     # bar FLAT_SPOTS, are side bets
     BONUS_SPOTS: tuple = ()         # the bets whose wins the round summary calls out (side bets, bonuses, the Jackpot)
     SPOT_NAMES: dict = {}           # spot -> its name in the summary (else the id, title-cased)
-    SPOT_HANDS: dict = {}           # spot -> the ledger detail's key naming the hand it paid on (else "hand")
+    SPOT_HANDS: dict = {}           # spot -> the ledger detail's key naming the hand it paid on (else "hand"; None: none)
     SUMMARY_TITLE = "Last hand"
     SUMMARY_BONUSES = 3             # a player's highlights listed under them in the summary, at most (no BREAKDOWN)
     BREAKDOWN = True                # a player whose bonus won is shown bet by bet, adding up to their net (card games)

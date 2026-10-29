@@ -113,6 +113,7 @@ class ThreeCardPokerMachine(TableMachine):
     MAIN_NAME = "Ante & Play"
     BONUS_SPOTS = ("pair_plus", "prime", "jackpot", "ante_bonus")
     SPOT_NAMES = {"pair_plus": "Pair Plus", "ante_bonus": "Ante Bonus"}
+    SPOT_HANDS = {"prime": None}   # (Prime pays on the cards' colour, not the hand)
     MAIN_SPOT = "ante"
     LIMITED = True
     FLAT_SPOTS = {"jackpot": tcp.JACKPOT_BET}
