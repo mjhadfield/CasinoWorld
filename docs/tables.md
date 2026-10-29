@@ -155,6 +155,12 @@ Every game's table is built from shared, reusable pieces, so a new game mostly a
   accent round a panel of the felt, in the printing's font, ink and primary/side colours, dotted leaders). It
   doesn't animate: it redraws when the limits or the style change. The designer draws it too (`limitsSign()` in
   render.js, at the mirror of `sign`), from the signed-off mockup in `docs/limits_sign/mockup/`.
+- **`scenes/table/count_overlay.gd` (`CountOverlay`)** is Blackjack's card count (Settings › Cards): a hovering
+  smoked-glass readout of the server's Hi-Lo `count`, at `BlackjackTable.COUNT_AT` (66, -113.5), left of the shoe
+  and under the limits sign. It's in the Machines layer, above the cards, and deliberately isn't printed in the
+  table style: the HUD's Barlow lettering, a drop shadow and a breathing hairline edge. Its figures roll to each new
+  count and the edge flashes green or red. Blackjack's dealer rules (STANDS ON 17s, INSURANCE 2:1) are printed just
+  right of the shuffler, at x -33.
 - **`scenes/table/card_shoe.gd` (`CardShoe`)** is a dealing shoe with a cut card, in tinted acrylic or wood. Its stack shrinks as cards
   leave its `mouth_point()`, and the cut card is set aside once it's out.
 - **`scenes/table/card_shuffler.gd` (`CardShuffler`)** is an in-table automatic shuffler (brushed metal, gloss with an LED strip, or wood and brass). Hands come out of

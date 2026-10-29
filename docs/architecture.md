@@ -126,6 +126,11 @@ game result and every penny is decided on the server; the client only renders an
   `kicked` while `Session.kick` still names them), and `_leave_table` sits the player straight down. The craps table is kept to at least two NPCs. The admin page's NPC switch
   (`npcs_on`, read each tick) turns them off: they leave at their next round boundary (the same check as being
   done for the day) with no cooldown, and come back one at a time when it's turned on.
+- **Back-off (`heat.py`)**: one `HeatWatch` on the Resort (shared by its casinos, handed to every Blackjack and
+  Master Table machine as `machine.heat`) scores each Blackjack round's main bets against the true count before
+  the deal (`BlackjackMachine.count`), warns, then backs off players and NPCs alike. The machine refuses a
+  backed-off `sit`, stands a backed-off player after the round and sends `heat`; the Master Table won't change to
+  Blackjack for one; the NPC director moves its own on. Held in memory, keyed by character or NPC id.
 - **Dealers (`dealers.py`)** come from the same roster and work staggered shifts, relieved only between
   hands. One archived or deleted while dealing is relieved at the next betting window (`stand_down`), by the house's
   generic Dealer if nobody's free. Their lines are in `dealer_lines.toml` (`dealer.py`), reread on every line.
@@ -324,7 +329,8 @@ A Godot 4.7 project exported to the web.
 ## Not done yet
 
 - Staff other than dealers (waiters, pit bosses, cashiers, bar staff) can be designed but don't work the
-  floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more.
+  floor. A standing figure on the floor plan (the classic pit's pit boss) is decoration, nothing more; the dealer
+  delivers the pit's Blackjack back-off.
 - Every room of a casino is still built on its clients, and everyone on the floor (NPC walks included) goes to
   everyone in it; only the tables are sent by what's near. A Master Table that's far off shows its old game (Find
   too) until it's near.

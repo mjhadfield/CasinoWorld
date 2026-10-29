@@ -311,6 +311,56 @@ def recommend(cards, up: Card, can_double: bool, can_split: bool) -> str:
     return ACTIONS[code]
 
 
+# ---------------------------------------------------------------------- counting
+# Hi-Lo: 2-6 count +1, 7-9 nothing, tens and Aces -1, so a whole shoe sums to 0. The true count is the running
+# count over the decks still to come.
+HILO = {"2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 0, "8": 0, "9": 0, "10": -1, "J": -1, "Q": -1, "K": -1, "A": -1}
+
+# The plays a Hi-Lo counter changes with the count: the Illustrious 18 lines these rules have (stands on all 17s,
+# no surrender; insurance at +3 is the director's, and 11 against an Ace is a double on the chart already).
+# (hard total, up-card value) -> (play, index, above): the play at a true count of `index` or more if `above`,
+# below it if not.
+HARD_DEVIATIONS = {
+    (16, 10): ("stand", 0, True),
+    (15, 10): ("stand", 4, True),
+    (16, 9): ("stand", 5, True),
+    (12, 3): ("stand", 2, True),
+    (12, 2): ("stand", 3, True),
+    (12, 4): ("hit", 0, False),
+    (12, 5): ("hit", -2, False),
+    (12, 6): ("hit", -1, False),
+    (13, 2): ("hit", -1, False),
+    (13, 3): ("hit", -2, False),
+    (10, 10): ("double", 4, True),
+    (10, 11): ("double", 4, True),
+    (9, 2): ("double", 1, True),
+    (9, 7): ("double", 3, True),
+}
+SPLIT_TENS = {5: 5, 6: 4}   # a pair of tens is split against a 5 at +5, a 6 at +4
+
+
+def hilo(card: Card) -> int:
+    return HILO.get(card.rank, 0)
+
+
+def deviation(cards, up: Card, true_count: float, can_double: bool, can_split: bool) -> str | None:
+    """The play a counter makes instead of the chart's at this true count, or None to play the chart."""
+    total, soft = hand_value(cards)
+    upv = card_value(up)
+    pair = len(cards) == 2 and card_value(cards[0]) == card_value(cards[1])
+    if pair and can_split and total == 20 and upv in SPLIT_TENS:
+        return "split" if true_count >= SPLIT_TENS[upv] else None
+    if soft or (pair and can_split and recommend(cards, up, can_double, can_split) == "split"):
+        return None
+    line = HARD_DEVIATIONS.get((total, upv))
+    if line is None:
+        return None
+    play, index, above = line
+    if (true_count >= index) != above or (play == "double" and not can_double):
+        return None
+    return play
+
+
 # ---------------------------------------------------------------------- paytable
 def rules() -> dict:
     return {

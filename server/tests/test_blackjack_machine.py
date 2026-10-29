@@ -235,7 +235,9 @@ def test_out_of_time_stands():
     m = machine(["10h", "6c", "9d", "10s", "2d"], timings=timings(turn=5.0))
     deal(m, p)
     events = m.tick(5.0)
-    assert next(e for e in events if e["kind"] == "action") == {
+    action = next(e for e in events if e["kind"] == "action")
+    action.pop("count")
+    assert action == {
         "kind": "action", "seat": 0, "hand": 0, "action": "stand", "reason": "timeout", "total": "19", "done": True}
 
 

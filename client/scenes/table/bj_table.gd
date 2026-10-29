@@ -27,6 +27,7 @@ const SPOTS := ["bet", "super_pairs", "twenty_one_plus_three", "top_three", "jac
 const SIDE_SPOTS := ["super_pairs", "twenty_one_plus_three", "top_three", "jackpot"]
 const ACTION_KEYS := {"hit": "Space", "stand": "Backspace", "double": "D", "split": "P"}   # Space plays on, Backspace stops, at every table
 const FLANK := {"split": "left", "double": "right"}
+const COUNT_AT := Vector2(66, -113.5)   # the card count: left of the shoe, under the limits sign
 
 var _hands := {}          # seat -> [{cards: [Card2D], key, dkey, label, done, gone}]
 var _uid := 0
@@ -38,6 +39,16 @@ var insurance_seats := {} # seat -> true while they're deciding on insurance
 var insurance_costs := {} # seat -> pence
 
 @onready var shoe: CardShoe = $Felt/Fixtures/Shoe
+var count_overlay: CountOverlay   # the card count left of the shoe, when it's switched on (built in _ready)
+
+
+func _ready() -> void:
+	super._ready()
+	if Engine.is_editor_hint():
+		return
+	count_overlay = CountOverlay.new()
+	count_overlay.position = COUNT_AT
+	$Felt/Machines.add_child(count_overlay)   # (above the cards: an overlay, not the felt's)
 
 
 # ------------------------------------------------------------------ layout
@@ -297,6 +308,7 @@ func _apply_game_snapshot(state: Dictionary) -> void:
 	if not sh.is_empty():
 		shoe.set_state(int(sh.remaining), int(sh.total), int(sh.cut), bool(sh.cut_out))
 	discard_rack.count = int(state.get("discards", 0))
+	count_overlay.set_count(state.get("count", {}), true)
 	var seats: Array = state.get("seats", [])
 	for i in seats.size():
 		var s = seats[i]
@@ -374,6 +386,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			turn_seat = -1
 			if _dealer_cards.size() > 1:
 				_dealer_cards[1].flip_to(ev.cards[1], 0.3 * d)
+			_show_count(ev, 0.3 * d)
 			dealer_label = ev.label
 			return 0.8 * d
 		"turn":
@@ -391,6 +404,7 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			var card := _deal_card(ev.card, dealer_card_pos(_dealer_cards.size()), 0.0, d)
 			_dealer_cards.append(card)
 			_after(0.4 * d).timeout.connect(func(): dealer_label = ev.label)
+			_show_count(ev, 0.4 * d)
 			return 0.7 * d
 		"dealer_done":
 			phase = "settling"
@@ -399,12 +413,20 @@ func _animate_game(ev: Dictionary, d: float) -> float:
 			return _settle(ev, d)
 		"shuffle":
 			phase = "shuffling"
+			count_overlay.shuffling()
 			var left := shoe.remaining
 			shoe.set_state(0, shoe.total, shoe.cut, false)
 			return _feed_shuffler(d, float(ev.seconds) * 0.7, left, shoe.mouth_point()) + 0.3 * d
 		"shoe_loaded":
+			_show_count(ev, 0.9 * d)
 			return _load_shoe(ev, d)
 	return 0.0
+
+
+## The count as it stands after `ev`, once its cards have landed (`at`).
+func _show_count(ev: Dictionary, at: float) -> void:
+	if ev.has("count"):
+		_after(at).timeout.connect(count_overlay.set_count.bind(ev.count))
 
 
 ## One card at a time from the shoe: a card to every box from first base, the
@@ -432,6 +454,7 @@ func _deal(ev: Dictionary, d: float) -> float:
 				hands.append(_new_hand(seat, "bet"))  # the bet already in the circle is this hand's
 			hands[0].cards.append(_deal_card(cards[str(seat)][k], card_pos(seat, 0, 1, k, 2), t, d))
 		t += interval
+	_show_count(ev, t + 0.3 * d)
 	_after(t + 0.3 * d).timeout.connect(func():  # totals once the cards have landed
 		for seat in ev.labels:
 			_hands_for(int(seat))[0].label = ev.labels[seat])
@@ -557,6 +580,7 @@ func _action(ev: Dictionary, d: float) -> float:
 		turn_options = []
 		_timer_end = 0.0
 	var landed := (0.95 if ev.action == "split" else 0.6 if ev.action == "double" else 0.3) * d
+	_show_count(ev, landed)
 	_after(landed).timeout.connect(func():  # the new total once the card has landed
 		if ev.action == "split":
 			hand.label = ev.labels[0]

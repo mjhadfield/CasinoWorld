@@ -96,7 +96,7 @@ body on the floor, isn't sent the casino's goings-on, and everything else it sen
 | `entity_despawn` | `id` | Someone left. |
 | `kick_waiting` | `table`, `seat`, `name` | The NPC you asked (`kick`) is in a hand, or has craps bets out: they get up once it's settled, and you sit straight down if you haven't sat elsewhere or sent `kick_cancel`. |
 | `seated` | `table`, `seat`, `rules` | You sat down. `rules` holds the paytable, `chips`, `min_ante` and `seats`. A `table_state` follows. |
-| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `discards` | The whole table as you may see it. Sent on entering for each table near you, when one comes near as you walk, and when you sit. |
+| `table_state` | `table`, `game`, `phase`, `seats[]`, `dealer` (the game's dealer state), `timer`, `my_seat`, `my_box` (your second box's seat, or null), `second_box` (whether this table offers one), `on_duty` {`id`, `name`, `look`} for who's dealing (from the dealer roster), plus at Blackjack `turn`, `shoe`, `count`, `discards` | The whole table as you may see it. Sent on entering for each table near you, when one comes near as you walk, and when you sit. |
 | `table_event` | `table`, `event` | Something happened at a table near you, or at the table you're at (see below). An event about you (`entity` is yours, say a `stood`) comes wherever the table is. |
 | `table_seats` | `tables` {table id: [per seat {`entity`, `name`, `human`, `box_of`?} or null]} | Who sits where at tables that aren't near you: all of them on entering (and on a `resync`), then a table's again after anything far off seats or stands someone there (`seated`, `stood`, `box_taken`, `box_dropped`, `master_change`). Its other goings-on aren't sent until it's near (a `table_state`). |
 | `notice` / `error` | `message` | Information, or a rejected action. A `notice` also says a stake came back after the server stopped mid-hand (sent as it stops, with a `wallet`, or on entering a casino after it), and when you've been stood up. |
@@ -118,7 +118,7 @@ These are listed in the order a round produces them.
 
 | kind | fields | meaning |
 |---|---|---|
-| `seated` / `stood` | `seat`, `entity`, `name`, `human` / `reason` | Someone sat down or got up. The `reason` for standing can be `inactive` (sat out 3 hands) or `left`. |
+| `seated` / `stood` | `seat`, `entity`, `name`, `human` / `reason` | Someone sat down or got up. The `reason` for standing can be `inactive` (sat out 3 hands), `left` or `backed_off` (the pit, at Blackjack). |
 | `bet_changed` | `seat`, `bets`, `queued`? | A seat's chips changed during betting. With `queued: true`, they're for the next hand, put down during this one. At `betting_open` the queued bets go on as ordinary `bet_changed` events, and the countdown starts. |
 | `queued_dropped` | `seat`, `reason` | Bets queued during the last hand that couldn't go on (for example, the balance no longer covers them). |
 | `bet_under_min` | `seat`, `spots`, `main`, `text` | Betting closed with bets under the card table's minimum (its limits: `world` items' `limits`). They go back, not played: with `main` true the seat's main bet was short, so all its bets go back and it sits the hand out; otherwise just the short side bets (`spots`). `text` is what to tell the player. A `bet_changed` with what's left follows. A bet over a maximum never gets this far: the `bet` is refused ("The table maximum on main bets is £500."), as is Ready with a bet under its minimum. |
@@ -142,27 +142,30 @@ These are listed in the order a round produces them.
 Seating, betting, `bets_closed` (with the Jackpot lock), `say`, `round_end`,
 `betting_open` and `betting_reset` work exactly as at Three Card Poker. The
 shoe is 8 decks, dealt down across many hands; player cards are dealt face
-up, so they're public.
+up, so they're public. `count` {`running`, `true`, `decks`} is the Hi-Lo count of the cards seen since the
+shuffle (the hole card only once it's turned over): in `table_state`, and on every event that shows cards, as it
+stands after them.
 
 | kind | fields | meaning |
 |---|---|---|
-| `dealt` | `order`, `interval`, `cards` {seat: [two codes]}, `labels` {seat: total}, `dealer_up`, `shoe` | One card at a time out of the shoe, `interval` seconds apart: a card to each box from first base, the dealer's up-card, a second card each, then the hole card face down (`order` lists them, e.g. [[0, 0], ["dealer", 0], [0, 1], ["dealer", 1]]). `shoe` {`remaining`, `total`, `cut`, `cut_out`} is the shoe after the deal. |
+| `dealt` | `order`, `interval`, `cards` {seat: [two codes]}, `labels` {seat: total}, `dealer_up`, `shoe`, `count` | One card at a time out of the shoe, `interval` seconds apart: a card to each box from first base, the dealer's up-card, a second card each, then the hole card face down (`order` lists them, e.g. [[0, 0], ["dealer", 0], [0, 1], ["dealer", 1]]). `shoe` {`remaining`, `total`, `cut`, `cut_out`} is the shoe after the deal. |
 | `cut_card` | | The cut card came out: this is the last hand before the shuffle. |
 | `side_bets` | `seats[]` {`seat`, `steps[]` {`spot`, `action`, `amount`, `payout`}, `hand`, `returned`}, `pause`, `step`, `sweep_gap` | Super Pairs, 21+3, Top 3 and the Jackpot settle straight after the deal off the first two cards and the up-card, `pause` seconds in: each box's losers (`collect`, listed first) swept together, `sweep_gap` apart, in one `step`, then its winners paid (`pay`) a `step` each beside their spots, where stake and winnings stay until `round_end`. |
 | `insurance_open` | `seconds`, `seats`, `costs` {seat: pence} | An Ace showing: everyone may insure, at once, for half their bet. Ends early once all have decided; anyone undecided declines. |
 | `insurance` | `seat`, `take`, `amount`, `reason` | A seat's insurance decision. |
 | `peek` | | An Ace or 10 showing: the dealer checks the hole card. |
-| `dealer_reveal` | `cards`, `label`, `blackjack` | The hole card is turned over: after the peek if it's a Dealer Blackjack (every box then settles), or once every box has played. |
+| `dealer_reveal` | `cards`, `label`, `blackjack`, `count` | The hole card is turned over: after the peek if it's a Dealer Blackjack (every box then settles), or once every box has played. |
 | `insurance_settled` | `seats[]` {`seat`, `action`, `amount`, `payout`} | Insurance pays 2:1 on a Dealer Blackjack, otherwise it's taken. |
 | `blackjacks_paid` | `seats[]` {`seat`, `hand`, `amount`, `payout`}, `say`, `pause` | Once the dealer can't have Blackjack (after the peek, or straight after the deal with a 2-9 showing), every player Blackjack is paid 3:2 at once; the winnings stay beside the bet until `round_end` and the cards go to the discard rack. |
 | `turn` | `seat`, `hand`, `seconds`, `options`, `total` | Whose decision it is (each box in turn from first base, each hand in turn after a split), what they may do, and their time. Out of time stands. |
-| `action` | `seat`, `hand`, `action`, `total`, `done`, plus `card`, `amount`, `hands`, `labels`, `reason` | A Hit (`card`), Stand, Double (`amount` added, one `card` dealt sideways) or Split (`amount` added; `hands` are the two new hands' cards, each dealt a second card). `reason` can be `timeout`. |
+| `action` | `seat`, `hand`, `action`, `total`, `done`, `count`, plus `card`, `amount`, `hands`, `labels`, `reason` | A Hit (`card`), Stand, Double (`amount` added, one `card` dealt sideways) or Split (`amount` added; `hands` are the two new hands' cards, each dealt a second card). `reason` can be `timeout`. |
 | `bust` | `seat`, `hand`, `amount` | Over 21: the dealer takes the hand's bet and cards straight away. |
-| `dealer_draw` | `card`, `label` | The dealer draws to 17 (standing on all 17s); no draws if every hand has bust. |
+| `dealer_draw` | `card`, `label`, `count` | The dealer draws to 17 (standing on all 17s); no draws if every hand has bust. |
 | `dealer_done` | `total`, `bust` | The dealer stands or busts. A `say` follows. |
 | `settle_seat` | `seat`, `hands[]` {`hand`, `outcome`, `label`, `action`, `amount`, `payout`}, `say`, `pause`, `total_returned` | One box settled, third base back to first, hand by hand: losers swept, pushes left, winners paid beside the bet (Blackjack 3:2). The cards go to the discard rack last. When a Dealer Blackjack beats every box, they all come at once with `sweep` (the seconds between boxes) in place of `pause`, and an empty `say`: each box's stake and cards go straight in. |
 | `shuffle` | `seconds` | After a hand in which the cut card came out: the discards and the rest of the shoe go through the shuffler. |
-| `shoe_loaded` | `shoe` | A freshly shuffled shoe with a new cut card. Betting opens. |
+| `shoe_loaded` | `shoe`, `count` | A freshly shuffled shoe with a new cut card. Betting opens. |
+| `heat` | `seat` (null if they've left), `entity`, `name`, `stage` (`warned` \| `backed_off`), `minutes` | After a round, the pit (`heat.py`) has noticed someone spreading their bets with the count: a warning to keep them level, or a back-off (`minutes` off Blackjack; 0 for an NPC, the rest of its visit). A `say` follows; a backed-off player is then stood up (`stood`, `reason` `backed_off`), and a warned one gets a `notice`. A backed-off player's `sit` at a Blackjack table, or asking a Master Table for Blackjack, is an `error` saying how long is left. |
 
 ### Pai Gow table events (`event.kind`)
 Fortune Pai Gow (`pgf_1`) and Face Up Pai Gow (`pgu_1`). Seating, betting

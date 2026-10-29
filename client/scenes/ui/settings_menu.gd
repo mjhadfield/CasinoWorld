@@ -74,6 +74,7 @@ func _ready() -> void:
 
 	_heading(box, "Cards")
 	_switch_row(box, "Four-colour suits", "hcf_four_colour", true, false, "At High Card Flush: blue diamonds, green clubs")
+	_switch_row(box, "Card count at Blackjack", "show_card_count", true, false, "The Hi-Lo running and true count, left of the shoe")
 	Settings.changed.connect(func(_k, _v): _refresh())
 
 	var foot := _label("Saved on this device as you change them.", 15, MUTED)

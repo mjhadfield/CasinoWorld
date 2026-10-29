@@ -1,5 +1,6 @@
 // Settings: how the floors run (NPCs on or off, each casino's punters, cooldowns, dealer shifts), the Default seating style, and
-// the Bank (the lobby ATM's rules and what new players start with), and this browser's admin preferences, side by side.
+// the Bank (the lobby ATM's rules and what new players start with) with Blackjack back-off under it, and this browser's admin
+// preferences, side by side.
 import { ZOOM_STEP } from "/admin-ui/plan/plan.js";
 let H;
 
@@ -39,6 +40,7 @@ export function init(h) {
         <p class="hint">Every table and slot cabinet uses this style; saving updates the floor straight away. The card tables and Roulette take their chairs' frame and upholstery from their table style (Tables tab); these colour the slot stools.</p>
       </div>
     </form>
+    <div style="display:flex; flex-direction:column; gap:12px; min-width:0">
     <form class="panel" id="bank-form">
       <div class="ph">Bank <span class="grow"></span><button type="submit" class="primary">Save</button></div>
       <div class="pb padded">
@@ -57,6 +59,19 @@ export function init(h) {
         <p class="hint">The lobby's ATM moves money between a player's bank and the cash they play with. Withdrawals come in £50 notes, so the limit and rounding are multiples of £50. With a bank at the threshold or more, one withdrawal per wait may be up to half the bank, rounded down (£2,000 → £1,000, £6,700 → £3,000); between them the usual limit applies. The bank can go overdrawn without limit; the wait applies only while it is. A new character's bank depends on the difficulty picked for it; the ATM's rules are the same for every difficulty. Changes apply to the next use of the ATM, and the starting amounts to characters made from now on.</p>
       </div>
     </form>
+    <form class="panel" id="heat-form">
+      <div class="ph">Blackjack back-off <span class="grow"></span><button type="submit" class="primary">Save</button></div>
+      <div class="pb padded">
+        <label class="controls" style="margin-bottom:12px"><input type="checkbox" id="h-on"> The pit watches for card counters</label>
+        <div class="grid2">
+          <label class="field"><span>Warn at (heat)</span><input type="number" id="h-warn_at" min="1" max="100" step="1"></label>
+          <label class="field"><span>Back off at (heat)</span><input type="number" id="h-back_off_at" min="1" max="100" step="1"></label>
+          <label class="field"><span>A player's back-off (min)</span><input type="number" id="h-bar_min" min="1" step="1"></label>
+        </div>
+        <p class="hint">Players and NPCs alike. Each round at Blackjack, a main bet of twice their usual or more on a true count of +2 or better adds 1 heat (2 at four times); a big bet on a count under +1 takes 1 off, and anything else takes off a quarter. Heat halves every 10 minutes too. At Warn at the dealer asks for level bets; at Back off at, once warned, they're stood up and kept off every Blackjack table (a Master Table's too) for the back-off, an NPC for the rest of its visit. Kept in memory: a restart forgives everyone.</p>
+      </div>
+    </form>
+    </div>
     <div class="panel">
       <div class="ph">This browser</div>
       <div class="pb padded">
@@ -100,6 +115,15 @@ export function init(h) {
       H.status("Bank settings saved.", "ok");
     } catch (err) { H.status(err.message, "warn"); }
   });
+  $("#heat-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = {on: $("#h-on").checked};
+    for (const k of HEAT) body[k] = +$("#h-" + k).value;
+    try {
+      await H.api("PUT", "/api/heat-settings", body);
+      H.status("Back-off settings saved.", "ok");
+    } catch (err) { H.status(err.message, "warn"); }
+  });
   $("#seating-form").addEventListener("submit", async e => {
     e.preventDefault();
     const body = {};
@@ -112,6 +136,7 @@ export function init(h) {
 }
 
 const BANK = ["start_bank_easy", "start_bank", "start_bank_hard", "start_hand", "hand_under", "cooldown_min", "low_cap", "threshold", "big_wait_min", "big_step"];
+const HEAT = ["warn_at", "back_off_at", "bar_min"];
 const SEATING = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
 const NUMBERS = ["back", "size", "sit_speed"];
 
@@ -133,6 +158,9 @@ export async function load() {
     for (const k of SEATING) $("#st-" + k).value = st[k];
     const b = await H.api("GET", "/api/bank-settings");
     for (const k of BANK) $("#b-" + k).value = b[k];
+    const heat = await H.api("GET", "/api/heat-settings");
+    $("#h-on").checked = heat.on;
+    for (const k of HEAT) $("#h-" + k).value = heat[k];
     H.status("Settings loaded.");
   } catch (e) { H.status("Couldn't load settings: " + e.message, "warn"); }
 }

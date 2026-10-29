@@ -23,6 +23,7 @@ from pathlib import Path
 
 from casino_server import PROTOCOL_VERSION, art, bank, casinos, plan, roster
 from casino_server.casino import Casino, look_of
+from casino_server.heat import HeatWatch
 from casino_server.jackpot import Jackpot
 from casino_server.session import Session
 from casino_server.slots.jackpots import SlotProgressives
@@ -55,6 +56,7 @@ class Resort:
         self.slot_jackpots = SlotProgressives(store, clock=clock)
         self.slot_stats = SlotStats(store)
         self.claims = casinos.Claims()
+        self.heat = HeatWatch(store, clock=wall)   # the pit's view of who's counting cards, in every casino
         self.registry = registry if registry is not None else casinos.migrate(data_dir, store)
         self.sessions: set[Session] = set()
         self.boards: dict[str, plan.PlanBoard] = {}
@@ -74,7 +76,7 @@ class Resort:
             board.on_reload = lambda _floor: self.reload(cid)
         casino = Casino(self.store, board.floor, jackpot=self.jackpot, board=board, casino_id=cid, resort=self,
                         slot_jackpots=self.slot_jackpots, slot_stats=self.slot_stats, claims=self.claims,
-                        **self._casino_args)
+                        heat=self.heat, **self._casino_args)
         self.casinos[cid] = casino
         return casino
 

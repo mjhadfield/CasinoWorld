@@ -103,6 +103,7 @@ class Shoe:
     def shuffle(self):
         self.deck = self.deck_factory()
         self.total = self.deck.cards_remaining()
+        self.running = 0   # the Hi-Lo count of every card drawn since (BlackjackMachine.count: what's been seen)
         lo, hi = CUT_FROM_BACK
         self.cut_at = self.rng.randint(int(self.total * lo), int(self.total * hi)) if self.total > 52 else 0
         self.cut_out = False
@@ -115,6 +116,7 @@ class Shoe:
         if self.remaining == 0:  # only a rigged test shoe can run dry
             self.shuffle()
         card = self.deck.deal(1)[0]
+        self.running += bj.hilo(card)
         if not self.cut_out and self.remaining <= self.cut_at:
             self.cut_out = True
         return card
@@ -160,6 +162,7 @@ class BlackjackMachine(TableMachine):
     CANT_COVER = "Not enough balance for that."
     SECOND_BOX = True
     HIDE_BOX = False   # (every hand is dealt face up, and played in turn)
+    heat = None        # the pit's HeatWatch (heat.py), set by the Casino; None: nobody's watching
 
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None,
                  jackpot=None, deck_factory=None, lines: DealerLines | None = None, rng=None):
@@ -174,6 +177,8 @@ class BlackjackMachine(TableMachine):
         self._settle_queue: list[int] = []
         self._sweep = False
         self._cut_announced = False
+        self._watched: list = []            # this round's main bets for the pit, [(participant, bet)]...
+        self._watched_count = 0.0           # ...and the true count they were placed on
 
     @property
     def deck_factory(self):
@@ -188,6 +193,12 @@ class BlackjackMachine(TableMachine):
     def rules(self) -> dict:
         return {**bj.rules(), "chips": CHIPS, "min_bet": CHIPS[0], "seats": len(self.seats)}
 
+    def sit(self, seat: int, participant, now: float) -> list:
+        refusal = self.heat.refusal(participant) if self.heat is not None else None
+        if refusal:
+            raise TableError(refusal)
+        return super().sit(seat, participant, now)
+
     def _validate_bets(self, bets: dict):
         if bets["top_three"] and not bets["twenty_one_plus_three"]:
             raise TableError("Top 3 needs a 21+3 bet alongside it.")
@@ -195,6 +206,17 @@ class BlackjackMachine(TableMachine):
     # ------------------------------------------------------------------ shoe
     def _draw(self):
         return self.shoe.draw()
+
+    def count(self) -> dict:
+        """The Hi-Lo count of the cards seen since the shuffle -- the hole card only once it's turned over: the
+        running count, the true count (over the decks still to come, as anyone watching would reckon them) and
+        those decks."""
+        running, unseen = self.shoe.running, self.shoe.remaining
+        if len(self.dealer_cards) > 1 and not self.hole_shown:
+            running -= bj.hilo(self.dealer_cards[1])
+            unseen += 1
+        decks = unseen / 52
+        return {"running": running, "true": round(running / max(decks, 0.5), 1), "decks": round(decks, 1)}
 
     def _cut_event(self) -> list:
         """The cut card has come out of the shoe: this is the last hand before the shuffle."""
@@ -241,7 +263,7 @@ class BlackjackMachine(TableMachine):
         if self.phase == "shuffling":
             self.shoe.shuffle()
             self._cut_announced = False
-            return [{"kind": "shoe_loaded", "shoe": self.shoe.state()}] + self._open_betting(now)
+            return [{"kind": "shoe_loaded", "shoe": self.shoe.state(), "count": self.count()}] + self._open_betting(now)
         return []
 
     # ------------------------------------------------------------------ the deal
@@ -251,6 +273,8 @@ class BlackjackMachine(TableMachine):
             return events
         self.round = {i: Box(self.seats[i].participant, bets) for i, bets in taken.items()}
         seats = sorted(self.round)
+        self._watched = [(self.round[i].participant, self.round[i].bets["bet"]) for i in seats]
+        self._watched_count = self.count()["true"]
         order, cards = [], {i: [] for i in seats}
         self.dealer_cards = []
         for k in range(2):  # a card to each box, then the dealer; twice
@@ -274,7 +298,7 @@ class BlackjackMachine(TableMachine):
         events.append({"kind": "dealt", "order": order, "interval": self.timings.deal_card,
                        "cards": {str(i): _codes(cards[i]) for i in seats},
                        "labels": {str(i): self.round[i].hands[0].label() for i in seats},
-                       "dealer_up": self.dealer_cards[0].code, "shoe": self.shoe.state()})
+                       "dealer_up": self.dealer_cards[0].code, "shoe": self.shoe.state(), "count": self.count()})
         return events + self._cut_event()
 
     @property
@@ -386,7 +410,7 @@ class BlackjackMachine(TableMachine):
         if self.dealer_blackjack:
             self.hole_shown = True
             events.append({"kind": "dealer_reveal", "cards": _codes(self.dealer_cards), "label": "Blackjack",
-                           "blackjack": True})
+                           "blackjack": True, "count": self.count()})
             events += say(self.lines.say("blackjack", "dealer_blackjack"))
         else:
             events += say(self.lines.say("blackjack", "no_blackjack"))
@@ -511,6 +535,7 @@ class BlackjackMachine(TableMachine):
             event["labels"] = [a.label(), b.label()]
         event["total"] = box.hands[idx].label()
         event["done"] = box.hands[idx].done
+        event["count"] = self.count()
         events.append(event)
         events += self._cut_event()
         if action in ("hit", "double") and hand.bust:
@@ -556,7 +581,7 @@ class BlackjackMachine(TableMachine):
         self.hole_shown = True
         self.deadline = now + self.timings.dealer_reveal
         return [{"kind": "dealer_reveal", "cards": _codes(self.dealer_cards),
-                 "label": bj.Hand(list(self.dealer_cards), 0).label(), "blackjack": False}]
+                 "label": bj.Hand(list(self.dealer_cards), 0).label(), "blackjack": False, "count": self.count()}]
 
     def _dealer_step(self, now: float) -> list:
         """Draw to 17 -- but only if someone still has a hand to beat."""
@@ -565,7 +590,7 @@ class BlackjackMachine(TableMachine):
             self.dealer_cards.append(self._draw())
             self.deadline = now + self.timings.dealer_card
             return [{"kind": "dealer_draw", "card": self.dealer_cards[-1].code,
-                     "label": bj.Hand(list(self.dealer_cards), 0).label()}] + self._cut_event()
+                     "label": bj.Hand(list(self.dealer_cards), 0).label(), "count": self.count()}] + self._cut_event()
         total, _ = bj.hand_value(self.dealer_cards)
         key = "dealer_bust" if total > 21 else "dealer_total"
         events = [{"kind": "dealer_done", "total": total, "bust": total > 21}]
@@ -581,7 +606,7 @@ class BlackjackMachine(TableMachine):
         if not self._settle_queue:
             self.phase = "clearing"
             self.deadline = now + self.timings.clear
-            return [{"kind": "round_end"}]
+            return [{"kind": "round_end"}] + self._pit_check(now)
         if self._sweep:  # a Dealer Blackjack beat everyone, or the dealer bust: no need to look at each box
             seats, self._settle_queue = self._settle_queue, []
             t = self.timings
@@ -634,6 +659,23 @@ class BlackjackMachine(TableMachine):
         return {"kind": "settle_seat", "seat": seat, "hands": hands, "say": line, "pause": t.settle_pause,
                 "total_returned": returned, "_paid": [box.participant]}
 
+    # ------------------------------------------------------------------ the pit
+    def _pit_check(self, now: float) -> list:
+        """The pit's view of the round just played (heat.py): the dealer passes on a request for level bets, or
+        backs someone off -- a player is stood up there and then (an NPC's director sees to its own)."""
+        watched, self._watched = self._watched, []
+        if self.heat is None or not watched:
+            return []
+        events = []
+        for owner, stage, minutes in self.heat.observe(watched, self._watched_count):
+            seat = self.seat_of(owner)
+            events.append({"kind": "heat", "seat": seat, "entity": owner.entity_id, "name": owner.name,
+                           "stage": stage, "minutes": minutes})
+            events += say(self.lines.say("backoff", "warn" if stage == "warned" else "bar", name=owner.name))
+            if stage == "backed_off" and owner.is_human and seat is not None:
+                events += self.stand(seat, now, "backed_off")
+        return events
+
     def _open_betting(self, now: float) -> list:
         self.round = {}
         self.dealer_cards = []
@@ -676,5 +718,5 @@ class BlackjackMachine(TableMachine):
         dealt = self.shoe.total - self.shoe.remaining
         return {"game": self.game, "phase": self.phase, "seats": seats, "dealer": dealer,
                 "turn": {"seat": self.turn[0], "hand": self.turn[1]} if self.turn else None,
-                "shoe": self.shoe.state(), "discards": max(0, dealt - on_felt) if self.phase != "shuffling" else 0,
+                "shoe": self.shoe.state(), "count": self.count(), "discards": max(0, dealt - on_felt) if self.phase != "shuffling" else 0,
                 "timer": self._timer(now, ("betting", "insurance", "playing")), "my_seat": viewer}

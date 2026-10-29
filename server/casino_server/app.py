@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.resort import Resort
 from casino_server.session import Session
-from casino_server import bank, casinos, plan, plan_assets, slot_builds, slot_design_art
+from casino_server import bank, casinos, heat, plan, plan_assets, slot_builds, slot_design_art
 from casino_server.slot_art import SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -1323,6 +1323,23 @@ async def bank_settings_put(request: Request):
         raise HTTPException(400, str(e) or "Those settings don't make sense.")
     store.set_json("bank_settings", {**store.get_json("bank_settings", {}), **new})
     return bank.settings(store)
+
+
+@app.get("/api/heat-settings")
+async def heat_settings_get(request: Request):
+    return heat.settings(request.app.state.resort.store)
+
+
+@app.put("/api/heat-settings")
+async def heat_settings_put(request: Request):
+    data = await _body(request)
+    store = request.app.state.resort.store
+    try:
+        new = heat.clean_settings({**heat.settings(store), **data})
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e) or "Those settings don't make sense.")
+    store.set_json("heat_settings", new)
+    return heat.settings(store)
 
 
 # ------------------------------------------------------------------ seating

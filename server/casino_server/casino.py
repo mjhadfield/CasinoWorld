@@ -15,6 +15,7 @@ from datetime import datetime
 
 from casino_server import art, bank, casinos, plan, seating, table_styles
 from casino_server.floor import Floor
+from casino_server.heat import HeatWatch
 from casino_server.jackpot import Jackpot
 from casino_server import roster
 from casino_server.dealers import DealerRoster
@@ -62,7 +63,8 @@ class Casino:
                  npc_population: int | None = 6, npc_pace: float = 1.0, deck_factory=None, rng=None,
                  clock=time.monotonic, wall=time.time, looks=None, board: plan.PlanBoard | None = None,
                  casino_id: str = casinos.DEMO, resort=None, slot_jackpots: SlotProgressives | None = None,
-                 slot_stats: SlotStats | None = None, claims: casinos.Claims | None = None):
+                 slot_stats: SlotStats | None = None, claims: casinos.Claims | None = None,
+                 heat: HeatWatch | None = None):
         self.id = casino_id
         self.resort = resort          # the Resort it's one of (None: a casino on its own, in tests)
         self.store = store
@@ -74,6 +76,7 @@ class Casino:
         self.slot_jackpots = slot_jackpots or SlotProgressives(store, clock=clock)   # the slots' Mini/Minor/Major/Grand
         self.slot_stats = slot_stats or SlotStats(store)                             # each machine's figures
         self.claims = claims or casinos.Claims()   # which casino each NPC is in
+        self.heat = heat or HeatWatch(store, clock=wall)   # Blackjack back-off (heat.py)
         self.clock = clock
         self.wall = wall              # unix time (the ATM's overdrawn wait)
         self.sessions: set[Session] = set()
@@ -114,6 +117,8 @@ class Casino:
             game_timings = sys.modules[machine_class.__module__].Timings().scaled(self._speed)
         extra = {"deck_factory": self._deck_factory} if self._deck_factory and game != master.GAME_KEY else {}
         machine = machine_class(table_id, seats, game_timings, self.jackpot, **extra, **self._machine_extras(table_id, game, cfg or {}))
+        if game in (blackjack.BlackjackMachine.game, master.GAME_KEY):   # (the pit watches a Master Table playing blackjack too)
+            machine.heat = self.heat
         if cfg and "limits" in cfg:   # (a card table's, from the floor plan; a Master Table hands them to each game)
             machine.limits = {k: tuple(v) for k, v in cfg["limits"].items()}
         return machine
@@ -287,8 +292,20 @@ class Casino:
                 session.table = session.seat = None
                 if reason == "inactive":
                     session.push({"type": "notice", "message": "You sat out three hands at a busy table, so you've been stood up."})
+                elif reason == "backed_off":
+                    session.push({"type": "notice", "message": "The pit boss has backed you off blackjack. Any other game is fine."})
                 elif reason == "idle":
                     session.push({"type": "notice", "message": "You left the machine idle for five minutes, so you've been stood up."})
+
+    def on_heat(self, entity_id: str, stage: str):
+        """The pit has noticed someone's betting (heat.py): a player hears about a warning from the pit boss as well
+        as the dealer (a back-off comes with being stood up, on_stood)."""
+        if stage != "warned":
+            return
+        for session in self.sessions:
+            if session.entity_id == entity_id:
+                session.push({"type": "notice", "message": "The pit boss is watching your betting. Keep your bets "
+                              "level at blackjack, or you'll be asked to leave the game."})
 
     # ------------------------------------------------------------------ inbound
     def handle(self, session: Session, msg: dict):

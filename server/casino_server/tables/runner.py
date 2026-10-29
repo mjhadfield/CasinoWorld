@@ -203,6 +203,8 @@ class TableRunner:
             self.casino.on_stood(event["entity"], self.table_id, event.get("reason", ""))
         elif kind == "master_change":   # a Master Table's new game: everyone keeps their order, maybe in another seat
             self.casino.on_reseated(self.table_id, event["_remap"], event["map"])
+        elif kind == "heat":
+            self.casino.on_heat(event["entity"], event["stage"])
         elif kind == "jackpot_won":   # (naming the table, whose sign holds the old amount until the win's shown there)
             self.casino.broadcast_resort(self.casino.jackpot.snapshot(), table=self.table_id)
         elif kind == "slot_jackpot_won":

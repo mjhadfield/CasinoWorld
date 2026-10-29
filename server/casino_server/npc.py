@@ -73,7 +73,9 @@ BET_LEAD = 0.6  # seconds: NPC bets go down at least this long before betting cl
 LEAVE_CHANCE = 0.22
 MOST_LEAVE = 2
 KICKED_GO_HOME = 0.25   # asked for their seat, this often an NPC calls it a day instead of finding another table
-HILO = {"2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 0, "8": 0, "9": 0, "10": -1, "J": -1, "Q": -1, "K": -1, "A": -1}
+WONG_OUT = -2          # a Card counter on this true count or worse at a betting window...
+WONG_CHANCE = 0.4      # ...gets up and finds another table this often
+HEED_WARNING = 0.5     # warned by the pit (heat.py), a Card counter flat-bets out the shoe this often, else moves on
 
 
 def reserved_seats(game: str, n: int) -> set[int]:
@@ -135,6 +137,8 @@ class Npc:
     in_round: bool = False           # has bets riding in the round under way
     round_start: int = 0             # bankroll as that round's betting opened
     chase: float = 1.0               # a Chaser's stake multiplier
+    heeded: bool = False             # has answered the pit's warning (heat.py)...
+    flat_deck: int | None = None     # ...by flat-betting until this shoe (id of its deck) is shuffled
     ended: str | None = None         # why the visit ended (it's logged once)
 
 
@@ -344,6 +348,7 @@ class NpcDirector:
                   if t == only or (only is None and t != npc.snubbed)]
         self.rng.shuffle(tables)
         prof = npc.prof
+        backed_off = npc.participant is not None and self.casino.heat.barred(npc.participant)
 
         def liking(item):   # favourite games first (a Card counter's is Blackjack), a bust table last
             table_id, runner = item
@@ -364,6 +369,8 @@ class NpcDirector:
         self.rng.shuffle(games)
         games.sort(key=lambda g: min(liking(item) for item in by_game[g]))
         for game in games:
+            if game == bj.GAME_KEY and backed_off:
+                continue
             options = sorted(by_game[game], key=liking)
             if game == slots.GAME_KEY:
                 # Slots: one seat each, so NPCs leave cabinets free across the bank instead.
@@ -391,6 +398,8 @@ class NpcDirector:
             return
         npc._logged = True
         npc.ended = npc.ended or reason
+        if npc.participant is not None:
+            self.casino.heat.forget(npc.participant)   # (backed off for the visit: the next one's a fresh start)
         s = roster.settings(self.casino.store)
         lo, hi = s["bust_cooldown_min"] if reason == "bust" else s["cooldown_min"]
         minutes = self.rng.uniform(lo, hi) * (s["regular_cooldown"] if npc.prof.regular else 1.0)
@@ -635,19 +644,16 @@ class NpcDirector:
         """Their stake this round, in pence: a share of the budget, chased up after losses,
         spread with the count at Blackjack."""
         target = npc.prof.budget * npc.prof.unit_share * npc.chase
-        if npc.prof.card_counter and m is not None and m.game == bj.GAME_KEY:
+        if npc.prof.card_counter and m is not None and m.game == bj.GAME_KEY and npc.flat_deck != id(m.shoe.deck):
             tc = self._true_count(m)
             target *= 1 if tc < 2 else min(8, 2 ** (tc - 1))
         return roster.nice_unit(min(target, npc.bankroll * 0.5 if npc.prof.archetype != "gambler" else npc.bankroll))
 
     @staticmethod
     def _true_count(m) -> float:
-        """Hi-Lo true count of the cards dealt from the shoe so far (the whole shoe sums to 0)."""
-        left = m.shoe.deck.cards
-        if not left:
-            return 0.0
-        running = -sum(HILO.get(c.rank, 0) for c in left)
-        return running / max(len(left) / 52, 0.5)
+        """The Hi-Lo true count of what's been seen at the table (BlackjackMachine.count: never the hole card
+        before it's turned over). A counter has been watching from behind before sitting down."""
+        return m.count()["true"]
 
     def _side(self, npc: Npc, base: float) -> bool:
         return self.rng.random() < min(0.9, base * npc.prof.side_appetite)
@@ -690,6 +696,8 @@ class NpcDirector:
                 if npc.seat in reserved_seats(m.game, len(m.seats)):   # a Master Table's new game keeps it for players
                     npc.plan.insert(0, "play")
                     return self._leave_table(npc, now)
+                if m.game == bj.GAME_KEY and self._leaves_the_shoe(npc, m, now):
+                    return
                 npc.bet_at = now + self.rng.uniform(1.0, 4.0) * self.pace
             npc.bet_at = self._before_close(npc.bet_at, m)
             if now >= npc.bet_at:
@@ -744,6 +752,38 @@ class NpcDirector:
         else:
             npc.decide_at = None
 
+    def _leaves_the_shoe(self, npc: Npc, m, now: float) -> bool:
+        """At a Blackjack betting window: backed off by the pit, they go (to another game, or home if Blackjack's
+        all they came for); warned, a Card counter flat-bets out the shoe or moves to another table; and on a bad
+        count a Card counter sometimes wongs out. True: they've got up."""
+        heat = self.casino.heat
+        if heat.barred(npc.participant):
+            if npc.prof.card_counter and not npc.prof.favourite_games:
+                self._leave_table(npc, now, "backed_off")
+            else:
+                self._move_on(npc, now)
+            return True
+        if not npc.prof.card_counter:
+            return False
+        if heat.warned(npc.participant) and not npc.heeded:
+            npc.heeded = True
+            if self.rng.random() < HEED_WARNING:
+                npc.flat_deck = id(m.shoe.deck)
+            else:
+                self._move_on(npc, now)
+                return True
+        if npc.flat_deck != id(m.shoe.deck) and self._true_count(m) <= WONG_OUT and self.rng.random() < WONG_CHANCE:
+            self._move_on(npc, now)
+            return True
+        return False
+
+    def _move_on(self, npc: Npc, now: float):
+        """Up from this table to find another (not this one again this visit)."""
+        npc.snubbed = npc.table
+        npc.seat_attempts = 0
+        npc.plan.insert(0, "play")
+        self._leave_table(npc, now)
+
     def _play_blackjack(self, npc: Npc, m, runner, now: float):
         box = m.round.get(npc.seat)
         if box is None or box.participant is not npc.participant:
@@ -780,6 +820,8 @@ class NpcDirector:
             can_double = hand.can_double and npc.bankroll >= hand.bet
             can_split = hand.can_split(len(box.hands) - 1) and npc.bankroll >= hand.bet
             action = bj.recommend(hand.cards, m.up_card, can_double, can_split)
+            if npc.prof.card_counter:   # the count changes a few plays (the Illustrious 18)
+                action = bj.deviation(hand.cards, m.up_card, self._true_count(m), can_double, can_split) or action
             if npc.prof.aggressive and action == "hit" and can_double and 9 <= hand.total <= 11:
                 action = "double"      # a Gambler doubles whenever it's anywhere near right
             action = self._slip(npc, action, npc_slips.blackjack(hand.cards, m.up_card, action, can_double,

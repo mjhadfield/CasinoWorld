@@ -146,7 +146,6 @@ def test_sessions_follow_the_archetype():
 
 def test_a_card_counter_bets_up_on_a_good_count(tmp_path):
     from types import SimpleNamespace
-    from casino_server.engines.cards import Card
     store = Store(tmp_path / "t.sqlite")
     casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
     rec = store.npcs("punter")[0]
@@ -154,11 +153,11 @@ def test_a_card_counter_bets_up_on_a_good_count(tmp_path):
     d = casino.npcs
     npc = d.spawn(store.npc(rec["id"]), 0.0)
     npc.prof.budget = npc.bankroll = 200_000
-    neutral = SimpleNamespace(game="blackjack", shoe=SimpleNamespace(deck=SimpleNamespace(cards=[Card.from_code(c) for c in ["2h", "Ks"] * 52])))
-    rich = SimpleNamespace(game="blackjack", shoe=SimpleNamespace(deck=SimpleNamespace(cards=[Card.from_code(c) for c in ["Ks"] * 60 + ["7h"] * 44])))
-    assert d._true_count(neutral) == 0
-    assert d._true_count(rich) >= 2   # the small cards are gone: tens and aces left
+    neutral = SimpleNamespace(game="blackjack", count=lambda: {"true": 0.0}, shoe=SimpleNamespace(deck=object()))
+    rich = SimpleNamespace(game="blackjack", count=lambda: {"true": 3.0}, shoe=SimpleNamespace(deck=object()))
     assert d._unit(npc, rich) > d._unit(npc, neutral)
+    npc.flat_deck = id(rich.shoe.deck)   # heeding the pit's warning: level bets until the shuffle
+    assert d._unit(npc, rich) == d._unit(npc, neutral)
 
 
 def test_regulars_come_back_sooner(tmp_path):
@@ -368,3 +367,23 @@ def test_walking_away_from_a_kick_leaves_the_npc_where_they_are(tmp_path):
     _run(casino, now, 2)
     assert me.table is None and npc.kicked_by is None
     assert m.seats[seat].participant is npc.participant or npc.ended   # (unless their visit was over anyway)
+
+
+def test_a_backed_off_counter_gets_up_and_keeps_away_from_blackjack(tmp_path):
+    casino, now = _kick_casino(tmp_path, seed=5)
+    for rec in casino.store.npcs("punter"):
+        casino.store.update_npc(rec["id"], {"traits": ["card_counter"]})
+
+    def at_blackjack():
+        return next((n for n in casino.npcs.npcs.values()
+                     if n.state == "seated" and casino.tables[n.table].machine.game == "blackjack"), None)
+    assert _run(casino, now, 900, at_blackjack)
+    npc = at_blackjack()
+    rec = casino.heat._record(("npc", npc.npc_id), now[0], make=True)
+    rec.warned, rec.barred_until = True, float("inf")
+    first = npc.table
+    assert _run(casino, now, 120, lambda: npc.table != first)   # up and away once their hand's done
+    back = []
+    _run(casino, now, 600, lambda: npc.state == "seated" and npc.table is not None
+         and casino.tables[npc.table].machine.game == "blackjack" and back.append(npc.table))
+    assert not back

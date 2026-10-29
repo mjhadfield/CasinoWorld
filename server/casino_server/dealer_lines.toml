@@ -167,3 +167,10 @@ stay = ["We'll stay on {game}, then.", "Staying on {game}."]
 changing = ["{game} it is.", "{game} coming up.", "One {game} table, coming right up."]
 blank = ["That's the table closed for now.", "I'll clear the table, then."]
 no_room = ["Sorry -- {game} seats five, and every seat's taken now."]
+
+# ---------------------------------------------------------------- the pit (heat.py)
+# Blackjack back-off: {name} is the player's or NPC's. `warn` passes on the pit boss's request for level bets; `bar`
+# backs them off blackjack.
+[backoff]
+warn = ["{name}, the pit boss asks that you keep your bets level, please.", "A word from the pit, {name}: flat bets from here, please.", "{name} -- the pit boss would like your bets kept level."]
+bar = ["Sorry, {name} -- you're welcome to play anything but blackjack.", "{name}, the pit boss asks that you don't play blackjack tonight. Anything else, you're very welcome.", "I'm afraid that's it at blackjack for you, {name}. Any other game, of course."]

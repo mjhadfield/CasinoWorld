@@ -620,7 +620,7 @@ function layout(game, T, D) {
         sp.push({ shape: "box", at: s.play.at, w: 21, h: 12, rad: 1.2, ring: "ink", lines: ["PLAY"], size: 4 }); });
       break;
     case "bj":
-      title("BLACKJACK PAYS 3 TO 2"); small("STANDS ON 17s", 69, -1.5); small("INSURANCE 2:1", 69, 3.5);
+      title("BLACKJACK PAYS 3 TO 2"); small("STANDS ON 17s", -33, -12.5); small("INSURANCE 2:1", -33, -7.5);
       S.forEach(s => { jp.push(s.jackpot.at);
         sp.push({ shape: "diamond", at: s.top_three.at, hw: 8.5, hh: 7.5, ring: "side", lines: ["TOP 3"], size: 2 });
         circle(s.super_pairs.at, "side", ["SUPER", "PAIRS"]); circle(s.twenty_one_plus_three.at, "side", ["21+3"]);

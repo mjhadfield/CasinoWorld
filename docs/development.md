@@ -331,7 +331,9 @@ sections:
   characters start with (the bank for each difficulty, Easy, Normal and Hard, and cash in hand) and the lobby ATM's rules: withdrawals only while holding under a limit,
   the most a withdrawal can be (a multiple of £50: it pays in £50 notes), the bank at which one withdrawal per wait
   may be up to half the bank rounded down to a step (£2,000, every 60 min, to £1,000), and the wait between
-  withdrawals while overdrawn (`/api/bank-settings`). Players lists each player's cash and bank. **This browser**: the Floor
+  withdrawals while overdrawn (`/api/bank-settings`). **Blackjack back-off**: whether the pit watches for card
+  counters, the heat that gets a warning and a back-off, and how long a player's back-off lasts
+  (`/api/heat-settings`; docs/games/blackjack.md). Players lists each player's cash and bank. **This browser**: the Floor
   plan's scroll zoom per wheel notch (2–25%, default 8%), saved as you move it, in this browser's storage only.
 
 ## Money
@@ -453,7 +455,7 @@ looks, limits, floors and walls are stand-ins for Mike to finish.
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
   - `npc.py`: the NPC director; `npc_slips.py`: their believable mistakes; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
-  - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `admin.py`: the command-line admin. `admin_web/`: the admin page.
+  - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `heat.py`: the pit's Blackjack back-off. `admin.py`: the command-line admin. `admin_web/`: the admin page.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `table_styles.py`: the table styles for each kind of table (card tables, Roulette, Craps: House, the
     built-ins, saved designs) and which table uses which;
@@ -477,7 +479,7 @@ looks, limits, floors and walls are stand-ins for Mike to finish.
   - `scenes/table/`: `floor_game` and `casino_table` (the bases), `chair_back`, each game's `*_table` and `*_felt`,
     `felt_cache` (a felt shown as one picture), `table_felt` (every felt's base), `styled_felt` (a table drawn in
     its table style, Roulette's and Craps' too), `chip_face` (chips in a style), the shoe, shuffler, discard rack, cards and chips,
-    the roulette wheel and the craps dice. The Master Table: `master_table` and `master_felt` (blank, the crest) and
+    the roulette wheel and the craps dice, `count_overlay` (Blackjack's card count). The Master Table: `master_table` and `master_felt` (blank, the crest) and
     `master_swap` (a change of game animated over the felt); its menu and vote card are `scenes/ui/master_panel.gd`.
   - `scenes/slots/`: the cabinet, the full-screen `slot_screen` and `skin_draw` (a scene's LCARS shapes and glass).
   - `scenes/ui/`: the `front_door` (the loading screen, the character select, the casino chooser and the designer, with the

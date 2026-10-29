@@ -79,6 +79,8 @@ class MasterMachine:
     label = GAME_LABEL
     DEALER = True
 
+    heat = None   # the pit's HeatWatch (heat.py), set by the Casino: the backed-off don't get blackjack here either
+
     def __init__(self, table_id: str, seats: int = 6, timings: Timings | None = None, jackpot=None, *,
                  make=None, lines=None, anim: str = DEFAULT_ANIM, speed: float = DEFAULT_SPEED,
                  leavers=None, on_seats=None):
@@ -231,6 +233,8 @@ class MasterMachine:
             raise TableError("The dealer can't set that game up here.")
         if game == self.current:
             raise TableError("That's the game already.")
+        if game == "blackjack" and self.heat is not None and (refusal := self.heat.refusal(s.participant)):
+            raise TableError(refusal)
         if self.vote is not None:
             raise TableError("A change is already being asked about.")
         if self.changing_until is not None:
@@ -301,6 +305,9 @@ class MasterMachine:
             for i, s in enumerate(old):
                 if s.participant is not None and id(s.participant) in going:
                     events += self._unseat(i, now, "game_change")
+                elif s.participant is not None and game == "blackjack" and self.heat is not None \
+                        and self.heat.barred(s.participant):   # (backed off blackjack: they can't stay for it)
+                    events += self._unseat(i, now, "backed_off")
         n = SEATS[game] if game else 6
         occupied = [s.participant is not None for s in self.seats]
         if n < len(occupied) and all(occupied):
