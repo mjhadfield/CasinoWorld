@@ -32,7 +32,7 @@ def test_three_card_poker_nets_every_seat_best_first_and_calls_out_side_bets():
     assert summary["rows"][1]["lines"] == [] and summary["rows"][2]["lines"] == []
 
 
-def test_the_breakdown_adds_up_with_losing_side_bets_and_a_jackpot_first():
+def test_the_breakdown_adds_up_with_losing_side_bets_largest_first():
     m = machine(CODES)
     ann, _, _ = seat_three(m)
     m.round_start = {0: (ann, ann.balance + 800)}   # (her stakes: ante, Pair Plus, Prime, Jackpot)
@@ -42,9 +42,9 @@ def test_the_breakdown_adds_up_with_losing_side_bets_and_a_jackpot_first():
     m._credit(ann, 1_000, "win", returns_detail([("ante", 500, 1_000)]))
     summary = m.round_summary()
     assert summary["rows"] == [{"seat": 0, "name": "Ann", "net": 100_800, "lines": [
-        {"text": "Ante & Play", "amount": 500, "jackpot": False},
         {"text": "Jackpot · Mini Royal", "amount": 99_900, "jackpot": True},
         {"text": "Pair Plus · Straight", "amount": 500, "jackpot": False},
+        {"text": "Ante & Play", "amount": 500, "jackpot": False},
         {"text": "Prime", "amount": -100, "jackpot": False}]}]
     assert sum(b["amount"] for b in summary["rows"][0]["lines"]) == 100_800
 
@@ -58,8 +58,8 @@ def test_a_second_box_is_one_entry_with_its_player():
     summary = m._summary([{"seat": 1, "participant": box, "net": 1_500}, {"seat": 0, "participant": ann, "net": -500},
                           {"seat": 2, "participant": bob, "net": 200}], "Last hand")
     assert summary["rows"] == [
-        {"seat": 0, "name": "Ann", "net": 1_000, "lines": [{"text": "Ante & Play", "amount": 400, "jackpot": False},
-                                                           {"text": "Pair Plus · Straight", "amount": 600, "jackpot": False}]},
+        {"seat": 0, "name": "Ann", "net": 1_000, "lines": [{"text": "Pair Plus · Straight", "amount": 600, "jackpot": False},
+                                                           {"text": "Ante & Play", "amount": 400, "jackpot": False}]},
         {"seat": 2, "name": "Bob", "net": 200, "lines": []}]
 
 
@@ -122,4 +122,4 @@ def test_a_bet_that_pays_on_something_other_than_the_hand_names_no_hand():
     m._credit(ann, 1_100, "win", returns_detail([("ante", 500, 1_000), ("prime", 100, 400), ("pair_plus", 100, 0)],
                                                  hand="Pair"))
     lines = m.round_summary()["rows"][0]["lines"]
-    assert [b["text"] for b in lines] == ["Ante & Play", "Prime", "Pair Plus"]   # (Prime pays on colour)
+    assert [(b["text"], b["amount"]) for b in lines] == [("Prime", 300), ("Ante & Play", 200), ("Pair Plus", -100)]

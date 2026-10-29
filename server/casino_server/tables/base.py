@@ -169,8 +169,8 @@ class TableMachine:
 
     def _breakdown(self, participants: list, net: int) -> list:
         """A player's net bet by bet, when one of their bonus bets won (else []): each bonus bet they had down, won or
-        lost, then the main bets as whatever's left, so the lines add up to the net. A second box's are in with
-        their player's, spot by spot."""
+        lost, and the main bets as whatever's left, so the lines add up to the net; largest first. A second box's are
+        in with their player's, spot by spot."""
         spots = {}
         for p in participants:
             for spot, e in self.round_book.get(id(p), {}).items():
@@ -185,8 +185,8 @@ class TableMachine:
         lines = [{"text": self.spot_name(spot) + (f" · {line['hand']}" if line["won"] and line["hand"] else ""),
                   "amount": line["amount"], "jackpot": spot == "jackpot" and line["amount"] > 0}
                  for spot, line in spots.items()]
-        lines.sort(key=lambda b: (not b["jackpot"], -b["amount"]))
-        return [{"text": self.MAIN_NAME, "amount": net - sum(b["amount"] for b in lines), "jackpot": False}] + lines
+        lines.append({"text": self.MAIN_NAME, "amount": net - sum(b["amount"] for b in lines), "jackpot": False})
+        return sorted(lines, key=lambda b: -b["amount"])   # (largest first)
 
     def _summary(self, rows: list, title: str) -> dict | None:
         """The round summary from its rows ({seat, participant, net}): one per player, a second box folded into its

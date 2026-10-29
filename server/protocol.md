@@ -377,9 +377,10 @@ after a seven-out carries one for the shooter's whole hand. The client shows it 
   and paid-for bets on the layout since the player's first roll of the hand).
 - `lines`, shown under the player in small print (`amount` in pence, + or −; `jackpot` a Jackpot that won):
   - **At a card table** (`BREAKDOWN`), only when one of the player's `BONUS_SPOTS` (side bets, bonuses, the Jackpot)
-    won: their net bet by bet, adding up to it. The game's `MAIN_NAME` line ("Ante & Play", "Hand") comes first and is
+    won: their net bet by bet, adding up to it, largest first. The game's `MAIN_NAME` line ("Ante & Play", "Hand") is
     whatever's left once each bonus bet they had down is counted, won or lost; a winning one names the hand it paid on
-    ("Pair Plus · Straight"). A second box's bets are counted in with its player's, spot by spot. Otherwise empty.
+    ("Pair Plus · Straight"; not Prime, which pays on colour). A second box's bets are counted in with its player's,
+    spot by spot. Otherwise empty.
   - **At Roulette and Craps:** the wins only, at most three: inside bets of four numbers or fewer, or the hardways and
     props, with "×N" for repeat hits. Jackpots come first, then the biggest.
 
