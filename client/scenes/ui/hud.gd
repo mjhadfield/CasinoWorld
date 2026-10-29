@@ -281,6 +281,11 @@ func ask(text: String, yes: String, no: String, on_yes: Callable) -> void:
 	asker.ask(text, yes, no)
 
 
+## Something to read and close, on the same card (the pit boss's warning at Blackjack).
+func tell(text: String, ok := "OK") -> void:
+	ask(text, ok, "", Callable())
+
+
 # ------------------------------------------------------------------ seated
 ## Called once when you sit: the bar's chips (in `design`, the table's chip style; {}: the game's own) and the
 ## paytable, from the server's rules.

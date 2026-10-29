@@ -1293,6 +1293,8 @@ func _on_message(msg: Dictionary) -> void:
 			hud.sorter.on_suggest(msg)
 		"notice":
 			hud.show_toast(msg.get("message", ""), 4.0)
+		"pit_warning":   # (a popup, not a toast: another toast can't wipe it before it's read)
+			hud.tell(msg.get("message", ""), "Understood")
 		"barred":   # the admin page banned, timed out or removed you (Net holds off reconnecting)
 			hud.atm.close_atm()
 			hud.barred.open(msg)

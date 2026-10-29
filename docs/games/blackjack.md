@@ -84,13 +84,21 @@ the cards land; it reads SHUFFLING through a shuffle, then starts again at 0.
 
 The pit watches everyone at Blackjack, players and NPCs alike (`heat.py`, a Master Table playing it too). Each
 round, a main bet (both boxes together) of twice their usual (the smallest of their last 20) or more on a true
-count of +2 or better adds 1 heat, 2 at four times; a big bet on a count under +1 takes 1 off, as raising into a
-bad count looks like gambling; anything else takes off a quarter. Heat halves every 10 minutes too.
+count of +2 or better adds 1 heat, 1.5 at four times; a big bet on a count under +1 takes 1 off, as raising into a
+bad count looks like gambling; anything else takes off a half. Heat halves every 10 minutes too. A steady 1-4x
+spread is warned after about six hot hands, so one short run at a good count isn't enough.
 
-- **At 6 heat** the dealer passes on the pit boss's request for level bets (a player gets a notice too).
-- **At 10 heat, once warned,** they're backed off: the dealer says so after the round, a player is stood up, and
-  no Blackjack table (or a Master Table asked for Blackjack, or changing to it) will seat them for 60 minutes; an
-  NPC, for the rest of its visit.
+- **At 8 heat** the dealer passes on the pit boss's request for level bets. A player also gets a popup they have
+  to close, saying what that means, and their Auto rebet goes off so the bet that drew the warning doesn't go
+  straight back down. The pit then forgets the bets before the warning: their usual is now the smallest since,
+  so a level bet of any size (the raised one too) cools them down, and the first hand after a warning can't add
+  heat. The warning lapses 30 minutes on, or once heat's down to 4.
+- **At 14 heat, warned at least two rounds before,** they're backed off. That takes about five more real spreads
+  after the warning (dropping on bad counts and raising on good ones). The dealer says so after the round, a
+  player is stood up, and no Blackjack table (or a Master Table asked for Blackjack, or changing to it) will seat
+  them for 60 minutes; an NPC, for the rest of its visit.
 
-The admin page's Settings tune it (on/off, the two thresholds, the back-off's length). It's held in memory, so a
+The admin page's Settings tune it (on/off, the two thresholds, the back-off's length), and its Players tab shows
+each player's heat now (**Pit**). Every warning, back-off and lapsed warning is logged (`casino.heat`: the live
+server's journal, `journalctl --user -u hub-proj-casino-world | grep casino.heat`). It's held in memory, so a
 restart forgives everyone.

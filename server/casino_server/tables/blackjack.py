@@ -661,8 +661,9 @@ class BlackjackMachine(TableMachine):
 
     # ------------------------------------------------------------------ the pit
     def _pit_check(self, now: float) -> list:
-        """The pit's view of the round just played (heat.py): the dealer passes on a request for level bets, or
-        backs someone off -- a player is stood up there and then (an NPC's director sees to its own)."""
+        """The pit's view of the round just played (heat.py): the dealer passes on a request for level bets (a
+        player's Auto rebet goes off, so the bet that drew it doesn't go straight back down), or backs someone off
+        -- a player is stood up there and then (an NPC's director sees to its own)."""
         watched, self._watched = self._watched, []
         if self.heat is None or not watched:
             return []
@@ -672,6 +673,8 @@ class BlackjackMachine(TableMachine):
             events.append({"kind": "heat", "seat": seat, "entity": owner.entity_id, "name": owner.name,
                            "stage": stage, "minutes": minutes})
             events += say(self.lines.say("backoff", "warn" if stage == "warned" else "bar", name=owner.name))
+            if stage == "warned" and seat is not None:
+                events += self._auto_rebet_off(seat, "the pit boss asked for level bets")
             if stage == "backed_off" and owner.is_human and seat is not None:
                 events += self.stand(seat, now, "backed_off")
         return events

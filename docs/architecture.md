@@ -130,7 +130,8 @@ game result and every penny is decided on the server; the client only renders an
   Master Table machine as `machine.heat`) scores each Blackjack round's main bets against the true count before
   the deal (`BlackjackMachine.count`), warns, then backs off players and NPCs alike. The machine refuses a
   backed-off `sit`, stands a backed-off player after the round and sends `heat`; the Master Table won't change to
-  Blackjack for one; the NPC director moves its own on. Held in memory, keyed by character or NPC id.
+  Blackjack for one; the NPC director moves its own on. Held in memory, keyed by character or NPC id. Its
+  warnings and back-offs are logged (`casino.heat`; `__main__` sends the `casino.*` loggers to stderr).
 - **Dealers (`dealers.py`)** come from the same roster and work staggered shifts, relieved only between
   hands. One archived or deleted while dealing is relieved at the next betting window (`stand_down`), by the house's
   generic Dealer if nobody's free. Their lines are in `dealer_lines.toml` (`dealer.py`), reread on every line.

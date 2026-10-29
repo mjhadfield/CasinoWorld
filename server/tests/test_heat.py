@@ -1,5 +1,6 @@
 """Card counting at Blackjack: the count anyone watching would keep, a counter's plays, and the pit backing off
 whoever spreads their bets with it (heat.py)."""
+import logging
 import math
 import random
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ import pytest
 
 from casino_server.engines import blackjack as bj
 from casino_server.engines.cards import Card
-from casino_server.heat import HeatWatch, clean_settings
+from casino_server.heat import WARNING_MIN, HeatWatch, clean_settings
 from casino_server.tables.base import TableError
 
 from test_blackjack_machine import deal, kinds, machine, timings
@@ -92,17 +93,77 @@ def spread(watch, p, rounds, bet, tc):
     return out
 
 
+def keep_spreading(watch, p, pairs=6):
+    """Warned, they carry on: £5 on a bad count, £40 on a good one."""
+    out = []
+    for _ in range(pairs):
+        out += watch.observe([(p, 500)], 0) + watch.observe([(p, 4_000)], 3)
+    return out
+
+
 def test_spreading_with_the_count_gets_a_warning_then_a_back_off():
     clock = Clock()
     watch, p = HeatWatch(clock=clock), player()
     assert spread(watch, p, 3, 500, 0) == []                  # the base: £5
-    reached = spread(watch, p, 3, 4_000, 3)                   # 8x on +3: +2 a round
+    assert spread(watch, p, 5, 4_000, 3) == []                # 8x on +3: +1.5 a round
+    reached = spread(watch, p, 1, 4_000, 3)
     assert reached == [(p, "warned", 0)] and watch.warned(p) and not watch.barred(p)
-    reached = spread(watch, p, 2, 4_000, 3)
+    reached = keep_spreading(watch, p)
     assert reached == [(p, "backed_off", 60)] and watch.barred(p)
     assert "60 min" in watch.refusal(p)
     clock.t += 61 * 60
     assert not watch.barred(p) and watch.refusal(p) is None
+
+
+def test_raising_on_a_good_count_for_a_few_hands_is_at_most_a_warning():
+    watch, p = HeatWatch(clock=Clock()), player()
+    spread(watch, p, 5, 500, 0)
+    assert spread(watch, p, 5, 2_000, 2.5) == []              # 4x on +2.5 for five hands: not even a warning yet
+    assert [r[1] for r in spread(watch, p, 10, 2_000, 2.5)] == ["warned"]   # ...and never more, kept level
+
+
+def test_a_level_bet_after_the_warning_cools_at_any_size_and_stays_cool():
+    watch, p = HeatWatch(clock=Clock()), player()
+    spread(watch, p, 3, 500, 0)
+    assert spread(watch, p, 6, 4_000, 3)[-1][1] == "warned"
+    rng = random.Random(5)
+    reached = []
+    for _ in range(40):                                       # the raised bet, kept level whatever the count
+        reached += watch.observe([(p, 4_000)], rng.uniform(-3, 5))
+    assert reached == [] and not watch.warned(p) and watch.status(p)["heat"] == 0
+    assert spread(watch, p, 10, 4_000, 4) == []               # (the £5 bets before the warning are forgotten)
+
+
+def test_no_back_off_on_the_round_straight_after_a_warning():
+    watch, p = HeatWatch(clock=Clock()), player()
+    rec = watch._record(("player", 1), 1_000.0, make=True)
+    rec.heat, rec.warned, rec.warned_at = 30.0, True, 1_000.0  # (red hot, and only just warned)
+    assert watch.observe([(p, 500)], 0) == []
+    assert watch.observe([(p, 500)], 0) == [(p, "backed_off", 60)]
+
+
+def test_a_warning_runs_out_so_the_next_hot_run_only_warns_again():
+    clock = Clock()
+    watch, p = HeatWatch(clock=clock), player()
+    spread(watch, p, 3, 500, 0)
+    spread(watch, p, 6, 4_000, 3)
+    assert watch.warned(p)
+    clock.t += (WARNING_MIN + 1) * 60
+    assert not watch.warned(p)
+    spread(watch, p, 3, 500, 0)
+    assert [r[1] for r in spread(watch, p, 8, 4_000, 3)] == ["warned"]
+
+
+def test_warnings_and_back_offs_are_logged(caplog):
+    watch, p = HeatWatch(clock=Clock()), player()
+    with caplog.at_level(logging.INFO, logger="casino.heat"):
+        spread(watch, p, 3, 500, 0)
+        spread(watch, p, 6, 4_000, 3)
+        keep_spreading(watch, p)
+    lines = [r.getMessage() for r in caplog.records if r.name == "casino.heat"]
+    assert len(lines) == 2
+    assert lines[0].startswith("player 1 (Mike): warned") and "bet £40 on a base of £5 at TC +3.0" in lines[0]
+    assert lines[1].startswith("player 1 (Mike): backed off for 60 min")
 
 
 def test_flat_betting_and_chasing_losses_stay_cool():
@@ -124,8 +185,8 @@ def test_heat_cools_with_time_and_an_npcs_back_off_lasts_their_visit():
     spread(watch, npc, 2, 4_000, 3)
     clock.t += 3 * 600                                        # half, three times over
     watch._record(("npc", 7), clock.t)
-    assert watch._records[("npc", 7)].heat == pytest.approx(4 * 0.125)
-    reached = spread(watch, npc, 6, 4_000, 3)
+    assert watch._records[("npc", 7)].heat == pytest.approx(3 * 0.125)
+    reached = spread(watch, npc, 6, 4_000, 3) + keep_spreading(watch, npc)
     assert [r[1] for r in reached] == ["warned", "backed_off"] and reached[1][2] == 0
     assert watch._records[("npc", 7)].barred_until == math.inf and "today" in watch.refusal(npc)
     watch.forget(npc)
@@ -137,7 +198,7 @@ def test_a_second_box_counts_as_its_owners():
     box = SimpleNamespace(owner=p)
     watch.observe([(p, 500), (box, 500)], 0)                  # base: £10 across both
     reached = []
-    for _ in range(5):
+    for _ in range(6):
         reached += watch.observe([(p, 2_000), (box, 2_000)], 3)
     assert reached and reached[0][0] is p
 
@@ -177,15 +238,29 @@ def test_the_table_warns_then_stands_a_backed_off_player_and_wont_seat_them():
     events, now = play_round(m, p, 500, 0)
     m.count = lambda: {"running": 20, "true": 4.0, "decks": 5.0}   # a hot shoe from here on
     seen = []
-    for _ in range(6):
+    for bet in [4_000] * 6 + [500, 4_000] * 6:                      # warned on the sixth, then carrying on spreading
         if m.seat_of(p) is None:
             break
-        events, now = play_round(m, p, 4_000, now)
+        events, now = play_round(m, p, bet, now)
         seen += [e for e in events if e["kind"] in ("heat", "stood")]
     assert [e.get("stage", e["kind"]) for e in seen] == ["warned", "backed_off", "stood"]
     assert seen[1]["minutes"] == 60 and seen[2]["reason"] == "backed_off"
     with pytest.raises(TableError, match="pit boss"):
         m.sit(0, p, now)
+
+
+def test_a_warning_turns_auto_rebet_off():
+    m = machine(["10h", "6c", "9d", "Ks"] * 100, timings=timings(insurance=0.0))
+    m.heat = HeatWatch(clock=Clock())
+    p = player()
+    m.sit(0, p, 0)
+    m.seats[0].auto_rebet = True
+    rec = m.heat._record(("player", 1), 1_000.0, make=True)
+    rec.heat, rec.bets = 7.5, type(rec.bets)([500], maxlen=rec.bets.maxlen)
+    m._watched, m._watched_count = [(p, 4_000)], 3.0
+    events = m._pit_check(0)
+    assert [e["kind"] for e in events if e["kind"] in ("heat", "auto_rebet")] == ["heat", "auto_rebet"]
+    assert not m.seats[0].auto_rebet
 
 
 def test_a_master_table_wont_deal_blackjack_to_the_backed_off():
@@ -207,7 +282,7 @@ def test_a_master_table_wont_deal_blackjack_to_the_backed_off():
 
 
 def test_the_admin_page_reads_and_saves_the_settings(client):
-    assert client.get("/api/heat-settings").json() == {"on": True, "warn_at": 6, "back_off_at": 10, "bar_min": 60}
+    assert client.get("/api/heat-settings").json() == {"on": True, "warn_at": 8, "back_off_at": 14, "bar_min": 60}
     assert client.put("/api/heat-settings", json={"bar_min": 30, "on": False}).json()["bar_min"] == 30
-    assert client.put("/api/heat-settings", json={"warn_at": 12}).status_code == 400   # (over Back off at)
-    assert client.get("/api/heat-settings").json() == {"on": False, "warn_at": 6, "back_off_at": 10, "bar_min": 30}
+    assert client.put("/api/heat-settings", json={"warn_at": 20}).status_code == 400   # (over Back off at)
+    assert client.get("/api/heat-settings").json() == {"on": False, "warn_at": 8, "back_off_at": 14, "bar_min": 30}

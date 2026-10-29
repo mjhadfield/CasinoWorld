@@ -1453,6 +1453,7 @@ async def players_stats(request: Request):
     for p in players:
         p["online"] = p["id"] in online
         p["casino"] = resort.where(p["id"])
+        p["pit"] = resort.heat.status(("player", p["id"]))   # (Blackjack back-off, heat.py)
         if p["timeout_until"] and p["timeout_until"] <= now:   # (a timeout that's run out)
             p["timeout_until"] = None
     return {"players": players, "games": roster.GAMES, "now": now, "casinos": {c["id"]: c["name"] for c in resort.registry}}

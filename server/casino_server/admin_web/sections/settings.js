@@ -68,7 +68,7 @@ export function init(h) {
           <label class="field"><span>Back off at (heat)</span><input type="number" id="h-back_off_at" min="1" max="100" step="1"></label>
           <label class="field"><span>A player's back-off (min)</span><input type="number" id="h-bar_min" min="1" step="1"></label>
         </div>
-        <p class="hint">Players and NPCs alike. Each round at Blackjack, a main bet of twice their usual or more on a true count of +2 or better adds 1 heat (2 at four times); a big bet on a count under +1 takes 1 off, and anything else takes off a quarter. Heat halves every 10 minutes too. At Warn at the dealer asks for level bets; at Back off at, once warned, they're stood up and kept off every Blackjack table (a Master Table's too) for the back-off, an NPC for the rest of its visit. Kept in memory: a restart forgives everyone.</p>
+        <p class="hint">Players and NPCs alike. Each round at Blackjack, a main bet of twice their usual or more on a true count of +2 or better adds 1 heat (1.5 at four times); a big bet on a count under +1 takes 1 off, and anything else takes off a half. Heat halves every 10 minutes too. At Warn at the dealer asks for level bets (a player gets a popup and Auto rebet goes off) and the pit forgets their earlier bets, so a level bet of any size cools them; the warning lapses after 30 minutes or once heat's down to half of Warn at. At Back off at, warned at least two rounds before, they're stood up and kept off every Blackjack table (a Master Table's too) for the back-off, an NPC for the rest of its visit. Kept in memory: a restart forgives everyone.</p>
       </div>
     </form>
     </div>

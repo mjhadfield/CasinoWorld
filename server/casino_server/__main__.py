@@ -17,6 +17,7 @@ connections to close.
 
 import asyncio
 import contextlib
+import logging
 import os
 import signal
 import socket
@@ -100,7 +101,19 @@ async def serve(host: str, port: int):
         stop.cancel()
 
 
+def log_to_output():
+    """The server's own log lines (`casino.*`: the pit's warnings and back-offs) go to stderr, which the live unit's
+    journal keeps (journalctl --user -u hub-proj-casino-world) and tools/dev.sh tees into .dev/server.log."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+    casino = logging.getLogger("casino")
+    casino.addHandler(handler)
+    casino.setLevel(logging.INFO)
+    casino.propagate = False
+
+
 def main():
+    log_to_output()
     host = os.environ.get("CASINO_HOST", "0.0.0.0")
     port = int(os.environ.get("CASINO_PORT", "8660"))
     asyncio.run(serve(host, port))

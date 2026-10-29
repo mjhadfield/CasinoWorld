@@ -1,8 +1,9 @@
 class_name AskPanel
 extends Control
 ## A question with two answers on UiKit's card, centred over a dimmed screen: Play second box?, Stand up anyway?,
-## a table's question when you sit. Enter picks the first answer, Esc the second; it takes every key while it's
-## open, so nothing under it (the Pai Gow sorter, the floor) acts on one. The HUD opens it (HUD.ask).
+## a table's question when you sit. With no second answer it's something to read and close (the pit's warning,
+## HUD.tell). Enter picks the first answer, Esc the second; it takes every key while it's open, so nothing under it
+## (the Pai Gow sorter, the floor) acts on one. The HUD opens it (HUD.ask).
 
 ## The first answer was picked.
 signal yes
@@ -47,6 +48,7 @@ func ask(question: String, yes_words: String, no_words: String) -> void:
 	_text.text = question
 	_yes.setup(yes_words, "Enter", "primary")
 	_no.setup(no_words, "Esc", "normal")
+	_no.visible = no_words != ""
 	show()
 	_place.call_deferred()
 

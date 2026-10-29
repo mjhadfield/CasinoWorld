@@ -48,6 +48,13 @@ function statusOf(p) {   // [text, class]
   return p.online ? ["Playing" + (p.casino && Object.keys(data.casinos || {}).length > 1 ? " · " + (data.casinos[p.casino] || p.casino) : ""), "pos"] : ["", ""];
 }
 
+function pitOf(p) {   // [text, class]: what the Blackjack pit thinks of them (heat.py; held in memory, a restart forgives)
+  const pit = p.pit || {heat: 0};
+  if (pit.backed_off_min != null) return [`Backed off · ${pit.backed_off_min} min`, "neg"];
+  if (pit.warned) return [`Warned · heat ${pit.heat}`, "neg"];
+  return [pit.heat ? `Heat ${pit.heat}` : "Cool", ""];
+}
+
 function draw() {
   const {el, money, signed} = H;
   const box = H.view.querySelector("#players");
@@ -126,7 +133,7 @@ function card() {
     el("div", {className: "ph"}, el("b", {textContent: p.name}), p.protected ? el("span", {className: "tag gold", textContent: "Protected"}) : null),
     el("div", {className: "pb padded", style: "display: grid; gap: var(--gap); align-content: start"},
       el("div", {className: "stats"}, stat("Now", statusOf(p)[0] || "Not playing", statusOf(p)[1]), stat("Cash", money(p.balance)), stat("Bank", money(p.bank), p.bank < 0 ? "neg" : ""),
-        stat("Net", signed(p.net), p.net > 0 ? "pos" : p.net < 0 ? "neg" : ""), stat("Difficulty", DIFFICULTY[p.difficulty] || p.difficulty),
+        stat("Net", signed(p.net), p.net > 0 ? "pos" : p.net < 0 ? "neg" : ""), stat("Pit", ...pitOf(p)), stat("Difficulty", DIFFICULTY[p.difficulty] || p.difficulty),
         stat("Made", p.created_at ? when(p.created_at) : "—"), stat("Player no.", p.id), stat("Account no.", p.account_id)),
       el("p", {className: "hint", style: "margin: 0", textContent: others.length ? "Also on this device: " + others.map(o => o.name).join(", ") : "The only character on this device."}),
       stats,

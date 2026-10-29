@@ -114,7 +114,8 @@ sections:
   - **Stats** per NPC, and **Bring in now**, **Send home**, **Reset stats** and **Archive**.
   - Staff other than dealers can be designed, but don't work the floor yet.
 - **Players:** every character's difficulty, cash, bank and lifetime staked, returned and net from the ledger, and
-  who's playing now (and in which casino). A device's account holds up to three characters (players have no logins). Pick a character to
+  who's playing now (and in which casino); a character's card also shows the Blackjack pit's view of them now (**Pit**:
+  Cool, their heat, Warned or Backed off). A device's account holds up to three characters (players have no logins). Pick a character to
   manage it: **Protected** (nothing here can delete, ban or time out the account until it's unticked), **Time out**
   (15 minutes to a week) and **Ban**, each with an optional reason they're shown, **Let them back in**, **Delete
   character** (it and its ledger) and **Delete the whole account** (every character on the device). Protected, bans

@@ -299,13 +299,14 @@ class Casino:
 
     def on_heat(self, entity_id: str, stage: str):
         """The pit has noticed someone's betting (heat.py): a player hears about a warning from the pit boss as well
-        as the dealer (a back-off comes with being stood up, on_stood)."""
+        as the dealer, in a popup they have to close (a back-off comes with being stood up, on_stood)."""
         if stage != "warned":
             return
         for session in self.sessions:
             if session.entity_id == entity_id:
-                session.push({"type": "notice", "message": "The pit boss is watching your betting. Keep your bets "
-                              "level at blackjack, or you'll be asked to leave the game."})
+                session.push({"type": "pit_warning", "message": "The pit boss has noticed your bets going up with "
+                              "the count. Keep your bets level from here (any size, just the same each hand), or "
+                              "you'll be asked to leave blackjack. Auto rebet is off."})
 
     # ------------------------------------------------------------------ inbound
     def handle(self, session: Session, msg: dict):
