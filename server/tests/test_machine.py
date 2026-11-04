@@ -37,7 +37,7 @@ class FakeParticipant:
         if detail:
             self.details.append((note, detail))
 
-    def refund(self, amount, note):
+    def refund(self, amount, note, detail=None):
         self._balance += amount
         self.log.append((amount, note))
 

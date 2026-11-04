@@ -6,6 +6,7 @@
 // they can be deleted for good); and Staff & uniforms (staff roles, and the uniforms each wears). In the roster and
 // the archive, tick several (multi.js) to archive, restore or delete them all at once from the bar over the table.
 import { Picker, each, report } from "/admin-ui/sections/multi.js";
+import { betsTable } from "/admin-ui/sections/bets.js";
 let H, $, el, money, signed, picker;
 let opts = null, list = [], archived = [], selected = null, draft = null, pollTimer = null, previewTimer = null, tab = "design";
 let previewUrl = null, animStart = performance.now(), sort = {key: "role", dir: 1}, view = "roster";
@@ -494,22 +495,32 @@ function traitsEditor(d) {
   box.append(el("span", {className: "hint", style: "margin-top: 6px", textContent: "Budget for a visit (what they're willing to lose; blank for their style's usual)"}),
     el("div", {className: "grid2", style: "grid-template-columns: 1fr 1fr"}, pounds("budget_min", "Least (£)", "usual"), pounds("budget_max", "Most (£)", "usual")));
   if (d.traits.includes("hit_and_run")) {
-    const i = el("input", {type: "number", min: 5, max: 500, step: 5, value: s.hit_and_run_pct || 50});
-    i.addEventListener("input", () => { s.hit_and_run_pct = +i.value; });
-    box.append(el("label", {className: "field"}, el("span", {textContent: "Hit-and-run: leave once up (% of budget)"}), i));
+    const i = el("input", {type: "number", min: 5, max: 500, step: 5, value: s.hit_and_run_pct || "", placeholder: "10-30"});
+    i.addEventListener("input", () => { if (i.value) s.hit_and_run_pct = +i.value; else delete s.hit_and_run_pct; });
+    box.append(el("label", {className: "field"}, el("span", {textContent: "Hit-and-run: leave once up (% of budget; blank: 10-30% each visit)"}), i));
   }
   if (d.traits.includes("superstitious")) {
     const i = el("input", {value: (s.lucky_numbers || []).join(", "), placeholder: "e.g. 7, 17, 23"});
     i.addEventListener("input", () => { s.lucky_numbers = i.value.split(/[ ,]+/).filter(Boolean).map(Number).filter(n => Number.isInteger(n)); });
     box.append(el("label", {className: "field"}, el("span", {textContent: "Lucky numbers (Roulette, 0-36)"}), i));
   }
+  // Tastes: click a game to go none → favourite → dabble → never (roster.py; old favourite_games count as favourites)
+  const tastes = {...Object.fromEntries((s.favourite_games || []).map(g => [g, "fav"])), ...(s.tastes || {})};
+  const NEXT = {undefined: "fav", fav: "dabble", dabble: "never", never: undefined};
+  const MARK = {fav: " ★", dabble: " ·", never: " ✕"};
   const games = el("div", {className: "seg wrap"}, ...Object.entries(opts.games).map(([k, v]) => {
-    const on = (s.favourite_games || []).includes(k);
-    const b = el("button", {type: "button", textContent: v, ariaPressed: String(on)});
-    b.addEventListener("click", () => { const g = new Set(s.favourite_games || []); on ? g.delete(k) : g.add(k); s.favourite_games = [...g]; renderEditor(); });
+    const t = tastes[k];
+    const b = el("button", {type: "button", textContent: v + (MARK[t] || ""), ariaPressed: String(t === "fav"),
+      className: t === "dabble" ? "on" : "", title: {fav: "Favourite", dabble: "Dabbles in it", never: "Won't play it"}[t] || "No feeling either way",
+      style: t === "never" ? "text-decoration: line-through; opacity: 0.6" : (t === "dabble" ? "font-weight: 400" : "")});
+    b.addEventListener("click", () => {
+      const next = {...tastes};
+      if (NEXT[t]) next[k] = NEXT[t]; else delete next[k];
+      s.tastes = next; delete s.favourite_games; renderEditor();
+    });
     return b;
   }));
-  box.append(el("span", {className: "hint", style: "margin-top: 6px", textContent: "Favourite games (they head for these first)"}), games);
+  box.append(el("span", {className: "hint", style: "margin-top: 6px", textContent: "Tastes: ★ a favourite (picked most, and played longest), · a game they dabble in, ✕ one they won't play. Click to change."}), games);
   return box;
 }
 
@@ -529,18 +540,36 @@ function renderStatus() {
     stat("Last seen", n.last_seen ? new Date(n.last_seen * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"}) : "—")));
   const visitsBox = el("div", {}, el("p", {className: "hint", textContent: "Loading visits…"}));
   box.append(visitsBox);
+  const betsBox = el("div", {});
+  box.append(betsBox);
   H.api("GET", "/api/npcs/" + n.id).then(full => {
-    if (!full.visits.length) { visitsBox.replaceChildren(el("p", {className: "hint", textContent: "No visits yet."})); return; }
-    const REASONS = {bust: "went bust", done: "done for the day", hit_and_run: "left while ahead", riches: "doubled up", admin: "sent home", shutdown: "closing time", npcs_off: "NPCs switched off", kicked: "lost their seat"};
-    visitsBox.replaceChildren(el("table", {}, el("thead", {}, el("tr", {}, ...["When", "Stayed", "Budget", "Left with", "Net", "Rounds", "Why"].map((h, i) => el("th", {className: i >= 2 && i <= 5 ? "num" : "", textContent: h})))),
-      el("tbody", {}, ...full.visits.map(v => el("tr", {},
-        el("td", {textContent: new Date(v.arrived * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"})}),
-        el("td", {textContent: Math.max(1, Math.round((v.left_at - v.arrived) / 60)) + " min"}),
-        el("td", {className: "num", textContent: money(v.budget)}), el("td", {className: "num", textContent: money(v.end_bankroll)}),
-        el("td", {className: "num " + (v.net > 0 ? "pos" : v.net < 0 ? "neg" : ""), textContent: signed(v.net)}),
-        el("td", {className: "num", textContent: v.rounds}), el("td", {textContent: REASONS[v.reason] || v.reason}))))));
+    if (selected?.id !== n.id) return;
+    const gameName = g => opts?.games?.[g] || g;
+    const mins = s => Math.max(1, Math.round(s / 60)) + " min";
+    const played = v => v.by_game ? Object.entries(v.by_game).sort((a, b) => b[1].seconds - a[1].seconds)
+        .map(([g, f]) => `${gameName(g)} ${mins(f.seconds)}`).join(", ")
+      : Object.keys(v.games).map(gameName).join(", ");
+    if (!full.visits.length) visitsBox.replaceChildren(el("p", {className: "hint", textContent: "No visits yet."}));
+    else {
+      const REASONS = {bust: "went bust", done: "done for the day", hit_and_run: "left while ahead", riches: "doubled up", admin: "sent home", shutdown: "closing time", npcs_off: "NPCs switched off", kicked: "lost their seat", backed_off: "backed off by the pit", stop_loss: "hit their stop-loss"};
+      visitsBox.replaceChildren(el("table", {}, el("thead", {}, el("tr", {}, ...["When", "Stayed", "Budget", "Left with", "Net", "Rounds", "Games", "Why"].map((h, i) => el("th", {className: i >= 2 && i <= 5 ? "num" : "", textContent: h})))),
+        el("tbody", {}, ...full.visits.map(v => el("tr", {},
+          el("td", {textContent: new Date(v.arrived * 1000).toLocaleString([], {dateStyle: "short", timeStyle: "short"})}),
+          el("td", {textContent: mins(v.left_at - v.arrived)}),
+          el("td", {className: "num", textContent: money(v.budget)}), el("td", {className: "num", textContent: money(v.end_bankroll)}),
+          el("td", {className: "num " + (v.net > 0 ? "pos" : v.net < 0 ? "neg" : ""), textContent: signed(v.net)}),
+          el("td", {className: "num", textContent: v.rounds}), el("td", {className: "wrap", textContent: played(v)}),
+          el("td", {textContent: REASONS[v.reason] || v.reason}))))));
+    }
+    // Lifetime by game and bet (tracked since the overhaul), with their time at each game
+    const time = Object.entries(full.game_time || {}).filter(([, t]) => t.seconds || t.rounds)
+      .sort((a, b) => b[1].seconds - a[1].seconds).map(([g, t]) => `${gameName(g)}: ${t.rounds} rounds, ${mins(t.seconds)}`);
+    const draw = () => betsBox.replaceChildren(el("div", {className: "hint", style: "margin-top: 10px", textContent: "By game and bet" + (time.length ? " · " + time.join(" · ") : "")}),
+      betsTable(H, full.bets || [], {open: npcOpen, redraw: draw, empty: "No bets tracked yet."}));
+    draw();
   }).catch(() => {});
 }
+const npcOpen = new Set();
 
 // ------------------------------------------------------------ bulk create
 // Generate a batch of random drafts (names, looks; a style and traits if seeded), review and tweak them, then create

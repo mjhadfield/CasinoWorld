@@ -59,7 +59,9 @@ CREATE TABLE IF NOT EXISTS ledger (
     game          TEXT,
     note          TEXT,
     account       TEXT    NOT NULL DEFAULT 'hand', -- 'hand' | 'bank'
-    detail        TEXT               -- JSON, a game's bet and payout rows: what's on each spot (see adjust())
+    detail        TEXT,              -- JSON, a game's bet and payout rows: what's on each spot (see adjust())
+    casino        TEXT,              -- where a table's money moved (casinos.py; NULL before 4 Nov 2026, and off the tables)
+    table_id      TEXT
 );
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -97,7 +99,10 @@ CREATE TABLE IF NOT EXISTS npc_visits (
     returned     INTEGER NOT NULL,
     rounds       INTEGER NOT NULL,
     games        TEXT    NOT NULL DEFAULT '{}',  -- JSON: game -> rounds
-    reason       TEXT    NOT NULL                -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown' | 'npcs_off'
+    reason       TEXT    NOT NULL,               -- 'bust' | 'done' | 'hit_and_run' | 'riches' | 'admin' | 'shutdown' | 'npcs_off'
+                                                 -- | 'kicked' | 'backed_off' | 'stop_loss'
+    casino       TEXT,
+    by_game      TEXT                            -- JSON: game -> {rounds, seconds, wagered, returned, expected}
 );
 CREATE TABLE IF NOT EXISTS stakes (     -- money down on a table that it hasn't settled (the table's runner keeps it)
     player_id INTEGER NOT NULL REFERENCES players(id),
@@ -107,6 +112,67 @@ CREATE TABLE IF NOT EXISTS stakes (     -- money down on a table that it hasn't 
     returned  INTEGER NOT NULL DEFAULT 0,  -- 1: handed back after a stop, and they've not been told yet
     PRIMARY KEY (player_id, table_id, returned)
 );
+-- The Tracker's figures (tracking.py): staked, returned, the house's expected win (EV) and the variance of the
+-- bettor's net (for a ±2σ band), by bet spot.
+CREATE TABLE IF NOT EXISTS bet_stats (       -- the daily rollup
+    day      TEXT    NOT NULL,               -- local date, YYYY-MM-DD
+    casino   TEXT    NOT NULL,
+    game     TEXT    NOT NULL,
+    spot     TEXT    NOT NULL,
+    who      TEXT    NOT NULL,               -- 'human' | 'npc'
+    bets     INTEGER NOT NULL DEFAULT 0,
+    staked   INTEGER NOT NULL DEFAULT 0,
+    returned INTEGER NOT NULL DEFAULT 0,
+    expected REAL    NOT NULL DEFAULT 0,
+    var      REAL    NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, casino, game, spot, who)
+);
+CREATE TABLE IF NOT EXISTS npc_game_stats (  -- each NPC's lifetime, by game and spot (spot '': rounds and time)
+    npc_id   INTEGER NOT NULL,
+    game     TEXT    NOT NULL,
+    spot     TEXT    NOT NULL,
+    bets     INTEGER NOT NULL DEFAULT 0,
+    staked   INTEGER NOT NULL DEFAULT 0,
+    returned INTEGER NOT NULL DEFAULT 0,
+    expected REAL    NOT NULL DEFAULT 0,
+    var      REAL    NOT NULL DEFAULT 0,
+    rounds   INTEGER NOT NULL DEFAULT 0,
+    seconds  REAL    NOT NULL DEFAULT 0,
+    PRIMARY KEY (npc_id, game, spot)
+);
+CREATE TABLE IF NOT EXISTS player_game_stats (   -- each character's lifetime, by game and spot
+    player_id INTEGER NOT NULL,
+    game     TEXT    NOT NULL,
+    spot     TEXT    NOT NULL,
+    bets     INTEGER NOT NULL DEFAULT 0,
+    staked   INTEGER NOT NULL DEFAULT 0,
+    returned INTEGER NOT NULL DEFAULT 0,
+    expected REAL    NOT NULL DEFAULT 0,
+    var      REAL    NOT NULL DEFAULT 0,
+    PRIMARY KEY (player_id, game, spot)
+);
+CREATE TABLE IF NOT EXISTS npc_ledger (      -- the NPC bet log: a row per money move, like `ledger`, kept bet_log_days
+    id            INTEGER PRIMARY KEY,
+    npc_id        INTEGER NOT NULL,
+    visit         TEXT,                      -- the visit's key (Npc.visit_key)
+    at            REAL    NOT NULL,          -- unix time
+    kind          TEXT    NOT NULL,          -- 'bet' | 'payout'
+    amount        INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,          -- their bankroll
+    game          TEXT,
+    note          TEXT,
+    detail        TEXT,
+    casino        TEXT,
+    table_id      TEXT
+);
+CREATE INDEX IF NOT EXISTS npc_ledger_at ON npc_ledger(at);
+CREATE TABLE IF NOT EXISTS npc_open_visits ( -- a visit the server stopped in the middle of, to carry on when it starts
+    npc_id   INTEGER PRIMARY KEY,
+    casino   TEXT    NOT NULL,
+    saved_at REAL    NOT NULL,               -- unix time
+    data     TEXT    NOT NULL                -- JSON: the NpcDirector's (npc.py hold_all)
+);
+CREATE INDEX IF NOT EXISTS npc_ledger_npc ON npc_ledger(npc_id, at);
 CREATE TABLE IF NOT EXISTS slot_stats (
     variant  TEXT    NOT NULL,
     who      TEXT    NOT NULL,             -- 'human' | 'npc'
@@ -156,7 +222,8 @@ class Store:
         self.db.execute("PRAGMA synchronous = NORMAL")
         self.db.executescript(SCHEMA)
         self._add_bank()
-        added = {"npcs": {"archived_at": "TEXT"}, "ledger": {"detail": "TEXT"}}
+        added = {"npcs": {"archived_at": "TEXT"}, "ledger": {"detail": "TEXT", "casino": "TEXT", "table_id": "TEXT"},
+                 "npc_visits": {"casino": "TEXT", "by_game": "TEXT"}}
         if "token" in self._columns("players"):   # (from before accounts: its columns that came later, for the move)
             added["players"] = {"last_big_at": "REAL", "protected": "INTEGER NOT NULL DEFAULT 0",
                                 "banned": "INTEGER NOT NULL DEFAULT 0", "timeout_until": "REAL", "bar_reason": "TEXT"}
@@ -315,7 +382,7 @@ class Store:
         return self.db.execute("SELECT last_big_at FROM players WHERE id = ?", (player_id,)).fetchone()[0]
 
     def adjust(self, player_id: int, amount: int, kind: str, game: str | None = None, note: str | None = None,
-               detail: dict | None = None) -> int:
+               detail: dict | None = None, casino: str | None = None, table_id: str | None = None) -> int:
         """Changes cash in hand by `amount` (signed pence) and records it. Raises
         InsufficientFunds rather than ever going below zero. Returns the new balance.
 
@@ -323,11 +390,12 @@ class Store:
         row: {"spots": {spot: {"stake": ..., "returned": ...}}} for the bets it settled, `returned` being stake and
         winnings (0 if it lost); a settlement that returned nothing is still a row (0) when it has a detail. A stake
         on a bet row that never turns up on a payout row was lost (a fold, a Roulette sweep). Some games add a
-        "hand" label, Blackjack its "hands", Craps "stays"/"vig" on a spot, and slots just the "machine"."""
+        "hand" label, Blackjack its "hands", Craps "stays"/"vig" on a spot, and slots just the "machine".
+        `casino` and `table_id` say where (a table's money moves; the ATM and the admin page have none)."""
         with self.db:
-            return self._adjust(player_id, amount, kind, game, note, detail)
+            return self._adjust(player_id, amount, kind, game, note, detail, casino, table_id)
 
-    def _adjust(self, player_id, amount, kind, game, note, detail=None) -> int:
+    def _adjust(self, player_id, amount, kind, game, note, detail=None, casino=None, table_id=None) -> int:
         """adjust() inside a transaction the caller holds."""
         if self.db.execute("SELECT 1 FROM players WHERE id = ?", (player_id,)).fetchone() is None:
             return 0   # (deleted)
@@ -336,10 +404,10 @@ class Store:
             raise InsufficientFunds()
         self.db.execute("UPDATE players SET balance = ? WHERE id = ?", (balance, player_id))
         self.db.execute(
-            "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note, detail)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO ledger (player_id, at, kind, amount, balance_after, game, note, detail, casino, table_id)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (player_id, _now(), kind, amount, balance, game, note,
-             json.dumps(detail, separators=(",", ":")) if detail else None))
+             json.dumps(detail, separators=(",", ":")) if detail else None, casino, table_id))
         return balance
 
     # ------------------------------------------------------------------ stakes riding (a stop mid-hand)
@@ -488,6 +556,7 @@ class Store:
         with self.db:
             self.db.execute("DELETE FROM ledger WHERE player_id = ?", (player_id,))
             self.db.execute("DELETE FROM stakes WHERE player_id = ?", (player_id,))
+            self.db.execute("DELETE FROM player_game_stats WHERE player_id = ?", (player_id,))
             self.db.execute("DELETE FROM players WHERE id = ?", (player_id,))
 
     def delete_account(self, account_id: int):
@@ -496,6 +565,8 @@ class Store:
             self.db.execute("DELETE FROM ledger WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
                             (account_id,))
             self.db.execute("DELETE FROM stakes WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
+                            (account_id,))
+            self.db.execute("DELETE FROM player_game_stats WHERE player_id IN (SELECT id FROM players WHERE account_id = ?)",
                             (account_id,))
             self.db.execute("DELETE FROM players WHERE account_id = ?", (account_id,))
             self.db.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
@@ -585,9 +656,12 @@ class Store:
                 vals[k] = json.dumps(v) if k in self._NPC_JSON else int(v) if k == "enabled" else v
         return vals
 
+    _NPC_FIGURES = ("npc_visits", "npc_game_stats", "npc_ledger", "npc_open_visits")
+
     def delete_npc(self, npc_id: int):
         with self.db:
-            self.db.execute("DELETE FROM npc_visits WHERE npc_id = ?", (npc_id,))
+            for table in self._NPC_FIGURES:
+                self.db.execute(f"DELETE FROM {table} WHERE npc_id = ?", (npc_id,))
             self.db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
 
     def set_npc_cooldown(self, npc_id: int, until: float | None):
@@ -599,10 +673,11 @@ class Store:
         net = visit["returned"] - visit["wagered"]
         with self.db:
             self.db.execute(
-                "INSERT INTO npc_visits (npc_id, arrived, left_at, budget, end_bankroll, wagered, returned, rounds, games, reason)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO npc_visits (npc_id, arrived, left_at, budget, end_bankroll, wagered, returned, rounds, games, reason,"
+                " casino, by_game) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (npc_id, visit["arrived"], visit["left_at"], visit["budget"], visit["end_bankroll"], visit["wagered"],
-                 visit["returned"], visit["rounds"], json.dumps(visit.get("games", {})), visit["reason"]))
+                 visit["returned"], visit["rounds"], json.dumps(visit.get("games", {})), visit["reason"],
+                 visit.get("casino"), json.dumps(visit["by_game"]) if visit.get("by_game") is not None else None))
             self.db.execute(
                 "UPDATE npcs SET visits = visits + 1, rounds = rounds + ?, wagered = wagered + ?, returned = returned + ?,"
                 " net = net + ?, biggest_win = MAX(biggest_win, ?), busts = busts + ?, last_seen = ?, cooldown_until = ?"
@@ -610,15 +685,55 @@ class Store:
                 (visit["rounds"], visit["wagered"], visit["returned"], net, max(net, 0),
                  1 if visit["reason"] == "bust" else 0, visit["left_at"], cooldown_until, npc_id))
 
+    def hold_npc_visit(self, npc_id: int, casino: str, saved_at: float, data: dict):
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO npc_open_visits (npc_id, casino, saved_at, data) VALUES (?, ?, ?, ?)",
+                            (npc_id, casino, saved_at, json.dumps(data)))
+
+    def take_npc_visits(self, casino: str) -> list[dict]:
+        """The visits a casino put aside when it stopped (taken: they're gone from the table)."""
+        with self.db:
+            rows = self.db.execute("SELECT * FROM npc_open_visits WHERE casino = ?", (casino,)).fetchall()
+            self.db.execute("DELETE FROM npc_open_visits WHERE casino = ?", (casino,))
+        return [{"npc_id": r["npc_id"], "saved_at": r["saved_at"], **json.loads(r["data"])} for r in rows]
+
     def npc_visits(self, npc_id: int, limit: int = 20) -> list[dict]:
         rows = self.db.execute("SELECT * FROM npc_visits WHERE npc_id = ? ORDER BY id DESC LIMIT ?", (npc_id, limit))
-        return [{**dict(r), "games": json.loads(r["games"]), "net": r["returned"] - r["wagered"]} for r in rows]
+        return [{**dict(r), "games": json.loads(r["games"]), "by_game": json.loads(r["by_game"]) if r["by_game"] else None,
+                 "net": r["returned"] - r["wagered"]} for r in rows]
 
     def reset_npc_stats(self, npc_id: int):
         with self.db:
-            self.db.execute("DELETE FROM npc_visits WHERE npc_id = ?", (npc_id,))
+            for table in self._NPC_FIGURES:
+                self.db.execute(f"DELETE FROM {table} WHERE npc_id = ?", (npc_id,))
             self.db.execute("UPDATE npcs SET visits = 0, rounds = 0, wagered = 0, returned = 0, net = 0, biggest_win = 0,"
                             " busts = 0, last_seen = NULL, cooldown_until = NULL WHERE id = ?", (npc_id,))
+
+    def wipe_npc_stats(self) -> dict:
+        """Every NPC's figures gone (admin wipe-npc-stats, which backs up and archives first): their visits, the ones
+        put aside over a restart, the bet log, their game and spot figures, their rows of the daily rollup and the
+        slots' figures, and the roster's lifetime counters and cooldowns. Players' stats, wallets and the ledger are
+        untouched. Sets meta npc_stats_since. Returns how many rows went from each table."""
+        gone = {}
+        with self.db:
+            for table in ("npc_visits", "npc_open_visits", "npc_ledger", "npc_game_stats"):
+                gone[table] = self.db.execute(f"DELETE FROM {table}").rowcount
+            for table in ("bet_stats", "slot_stats"):
+                gone[table] = self.db.execute(f"DELETE FROM {table} WHERE who = 'npc'").rowcount
+            gone["npcs"] = self.db.execute(
+                "UPDATE npcs SET visits = 0, rounds = 0, wagered = 0, returned = 0, net = 0, biggest_win = 0, busts = 0,"
+                " last_seen = NULL, cooldown_until = NULL").rowcount
+            self.db.execute("INSERT INTO meta (key, value) VALUES ('npc_stats_since', ?) "
+                            "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (_now(),))
+        return gone
+
+    def backup(self, dest: Path):
+        """A copy of the whole database (SQLite's backup API: safe while it's in use)."""
+        out = sqlite3.connect(dest)
+        try:
+            self.db.backup(out)
+        finally:
+            out.close()
 
     def get_json(self, key: str, default):
         raw = self.get_meta(key)
@@ -629,6 +744,88 @@ class Store:
 
     def set_json(self, key: str, value):
         self.set_meta(key, json.dumps(value))
+
+    # ------------------------------------------------------------------ the Tracker's figures (tracking.py)
+    _FIELDS = "bets, staked, returned, expected, var"
+    _ADD = ("bets = bets + excluded.bets, staked = staked + excluded.staked, returned = returned + excluded.returned, "
+            "expected = expected + excluded.expected, var = var + excluded.var")
+
+    def add_tracking(self, rollup: dict, npc_spots: dict, player_spots: dict, npc_games: dict, log: list):
+        """Adds what the Tracker's built up, in one transaction: {(day, casino, game, spot, who): [bets, staked, returned,
+        expected, var]}, {(npc_id, game, spot): ...}, {(player_id, game, spot): ...}, {(npc_id, game): [rounds,
+        seconds]} and the bet log's new rows."""
+        with self.db:
+            self.db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('bet_stats_since', ?)", (_now(),))
+            self.db.executemany(
+                f"INSERT INTO bet_stats (day, casino, game, spot, who, {self._FIELDS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                f" ON CONFLICT(day, casino, game, spot, who) DO UPDATE SET {self._ADD}",
+                [(*k, *v) for k, v in rollup.items()])
+            self.db.executemany(
+                f"INSERT INTO npc_game_stats (npc_id, game, spot, {self._FIELDS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                f" ON CONFLICT(npc_id, game, spot) DO UPDATE SET {self._ADD}",
+                [(*k, *v) for k, v in npc_spots.items()])
+            self.db.executemany(
+                "INSERT INTO npc_game_stats (npc_id, game, spot, rounds, seconds) VALUES (?, ?, '', ?, ?)"
+                " ON CONFLICT(npc_id, game, spot) DO UPDATE SET rounds = rounds + excluded.rounds,"
+                " seconds = seconds + excluded.seconds",
+                [(*k, *v) for k, v in npc_games.items()])
+            self.db.executemany(
+                f"INSERT INTO player_game_stats (player_id, game, spot, {self._FIELDS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                f" ON CONFLICT(player_id, game, spot) DO UPDATE SET {self._ADD}",
+                [(*k, *v) for k, v in player_spots.items()])
+            self.db.executemany(
+                "INSERT INTO npc_ledger (npc_id, visit, at, kind, amount, balance_after, game, note, detail, casino, table_id)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", log)
+
+    def bet_stats(self, since_day: str | None = None, who: str | None = None, casino: str | None = None) -> list[dict]:
+        """The daily rollup summed by game and spot, from `since_day` on (None: all), for 'human' | 'npc' | both
+        (None), in one casino or all."""
+        where, args = [], []
+        for col, val, op in (("day", since_day, ">="), ("who", who, "="), ("casino", casino, "=")):
+            if val is not None:
+                where.append(f"{col} {op} ?")
+                args.append(val)
+        q = (f"SELECT game, spot, SUM(bets) bets, SUM(staked) staked, SUM(returned) returned, SUM(expected) expected,"
+             f" SUM(var) var FROM bet_stats" + (" WHERE " + " AND ".join(where) if where else "") + " GROUP BY game, spot")
+        return [dict(r) for r in self.db.execute(q, args)]
+
+    def bet_days(self, who: str | None = None, casino: str | None = None) -> list[dict]:
+        """The rollup by day and game (for the House page's chart)."""
+        where, args = [], []
+        for col, val in (("who", who), ("casino", casino)):
+            if val is not None:
+                where.append(f"{col} = ?")
+                args.append(val)
+        q = ("SELECT day, game, SUM(staked) staked, SUM(returned) returned, SUM(expected) expected FROM bet_stats"
+             + (" WHERE " + " AND ".join(where) if where else "") + " GROUP BY day, game ORDER BY day")
+        return [dict(r) for r in self.db.execute(q, args)]
+
+    def npc_game_spots(self, npc_id: int) -> list[dict]:
+        return [dict(r) for r in self.db.execute(
+            f"SELECT game, spot, {self._FIELDS} FROM npc_game_stats WHERE npc_id = ? AND spot != ''", (npc_id,))]
+
+    def npc_games(self, npc_id: int) -> list[dict]:
+        return [dict(r) for r in self.db.execute(
+            "SELECT game, rounds, seconds FROM npc_game_stats WHERE npc_id = ? AND spot = ''", (npc_id,))]
+
+    def player_game_spots(self, player_id: int) -> list[dict]:
+        return [dict(r) for r in self.db.execute(
+            f"SELECT game, spot, {self._FIELDS} FROM player_game_stats WHERE player_id = ?", (player_id,))]
+
+    def npc_bet_log(self, npc_id: int, limit: int = 100) -> list[dict]:
+        rows = self.db.execute("SELECT * FROM npc_ledger WHERE npc_id = ? ORDER BY id DESC LIMIT ?", (npc_id, limit))
+        return [{**dict(r), "detail": json.loads(r["detail"]) if r["detail"] else None} for r in rows]
+
+    def prune_npc_ledger(self, before: float, chunk: int = 10_000) -> int:
+        """Drop bet log rows older than `before` (unix time), `chunk` at a time so the write lock's never held long."""
+        gone = 0
+        while True:
+            with self.db:
+                n = self.db.execute("DELETE FROM npc_ledger WHERE id IN (SELECT id FROM npc_ledger WHERE at < ? LIMIT ?)",
+                                    (before, chunk)).rowcount
+            gone += n
+            if n < chunk:
+                return gone
 
     # ------------------------------------------------------------------ slot machines' figures (slots/stats.py)
     def add_slot_stats(self, counts: dict):

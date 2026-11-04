@@ -1,6 +1,10 @@
 // Player stats: the game-by-game figures behind the Players table. Pick a player on the left (or Everyone, every
-// player added together) to see what they've staked and got back at each game. #stats/<player id> opens one.
+// player added together) to see what they've staked and got back at each game, and (one player) each bet line and
+// spot against the house's EV (bets.js; tracked since the NPC overhaul). #stats/<player id> opens one.
+import {betsTable} from "./bets.js";
+
 let H, data = null, pick = "all", whoSort = {key: "wagered", dir: -1}, gameSort = {key: "wagered", dir: -1};
+const bets = {}, open = new Set();   // player id -> their /bets, once fetched
 
 export function init(h) {
   H = h;
@@ -14,6 +18,7 @@ export function init(h) {
 export async function load() {
   try {
     data = await H.api("GET", "/api/players");
+    for (const k of Object.keys(bets)) delete bets[k];
     fromHash(); draw();
     H.status("Player stats loaded.");
   } catch (e) { H.status("Couldn't load player stats: " + e.message, "warn"); }
@@ -83,5 +88,20 @@ function draw() {
           head([["Game", "name"], ["Staked", "wagered", "num"], ["Returned", "returned", "num"], ["Net", "net", "num"], ["Bets", "bets", "num"],
             ["Returned %", "pct", "num"]], gameSort, s => gameSort = s),
           el("tbody", {}, ...games.map(([g, s]) => line(data.games[g] || g, s)), line("All games", chosen, true)))
-      : el("p", {className: "empty", textContent: "No bets yet."})));
+      : el("p", {className: "empty", textContent: "No bets yet."})),
+    ...(chosen.id === "all" ? [] : [el("div", {className: "ph"}, el("b", {textContent: "By bet"}),
+      el("span", {className: "hint", textContent: "each line and spot against the house's EV"})), el("div", {className: "pb", id: "stats-bets"})]));
+  if (chosen.id !== "all") drawBets(chosen.id);
+}
+
+async function drawBets(id) {
+  const box = () => H.view.querySelector("#stats-bets");
+  if (!bets[id]) {
+    box()?.replaceChildren(H.el("p", {className: "hint", textContent: "Loading…"}));
+    try { bets[id] = await H.api("GET", `/api/players/${id}/bets`); }
+    catch (e) { box()?.replaceChildren(H.el("p", {className: "hint", textContent: "Couldn't load: " + e.message})); return; }
+  }
+  if (pick !== id || !box()) return;
+  const redraw = () => box().replaceChildren(betsTable(H, bets[id].games, {open, redraw, empty: "No bets tracked yet."}));
+  redraw();
 }

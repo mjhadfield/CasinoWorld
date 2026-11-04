@@ -38,6 +38,7 @@ the tests: every bet's exact house edge against the published one).
 """
 import math
 import random
+from fractions import Fraction
 from dataclasses import dataclass
 
 GAME_KEY = "craps"
@@ -58,6 +59,24 @@ SPOTS = (("pass", "pass_odds", "dont_pass", "dont_odds", "come", "dont_come", "f
          + HARDWAYS + PROPS)
 WORDS = {2: "Aces", 3: "Ace-deuce", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine",
          10: "Ten", 11: "Yo-leven", 12: "Twelve"}
+
+
+# Each bet's house edge per decision (its expected loss per pound staked, rolling until it's won or lost), as
+# published; tests/test_craps.py works each one out from resolve(). The line bets (Pass 7/495, Don't Pass 3/220,
+# the same for Come and Don't Come) and the free odds (0) are in tools/edges.py, which builds edges.json from these.
+EDGES = {
+    "place_4": Fraction(1, 15), "place_10": Fraction(1, 15), "place_5": Fraction(1, 25), "place_9": Fraction(1, 25),
+    "place_6": Fraction(1, 66), "place_8": Fraction(1, 66),
+    "buy_4": Fraction(1, 60), "buy_10": Fraction(1, 60), "buy_5": Fraction(1, 50), "buy_9": Fraction(1, 50),
+    "buy_6": Fraction(1, 44), "buy_8": Fraction(1, 44),
+    # Lay vig up front: of the bet, 1/40, 1/30, 1/24 (2.44%, 3.23%, 4.00% of the bet and vig together).
+    "lay_4": Fraction(1, 40), "lay_10": Fraction(1, 40), "lay_5": Fraction(1, 30), "lay_9": Fraction(1, 30),
+    "lay_6": Fraction(1, 24), "lay_8": Fraction(1, 24),
+    "field": Fraction(1, 36), "big6": Fraction(1, 11), "big8": Fraction(1, 11),
+    "hard4": Fraction(1, 9), "hard10": Fraction(1, 9), "hard6": Fraction(1, 11), "hard8": Fraction(1, 11),
+    "any7": Fraction(1, 6), "any_craps": Fraction(1, 9), "two": Fraction(5, 36), "twelve": Fraction(5, 36),
+    "three": Fraction(1, 9), "eleven": Fraction(1, 9), "horn": Fraction(1, 8), "ce": Fraction(1, 9),
+}
 
 
 def money(pence: int) -> str:

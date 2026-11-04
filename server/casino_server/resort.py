@@ -28,6 +28,7 @@ from casino_server.jackpot import Jackpot
 from casino_server.session import Session
 from casino_server.slots.jackpots import SlotProgressives
 from casino_server.slots.stats import SlotStats
+from casino_server.tracking import Tracker
 from casino_server.store import DIFFICULTIES, MAX_CHARACTERS, Player, Store
 
 MAX_NAME = 16
@@ -50,11 +51,13 @@ class Resort:
         self.looks = looks            # art.LookCache: builds the characters' and the cast's looks
         self.clock, self.wall = clock, wall
         roster.seed(store)            # the starting cast, the first time
+        roster.ensure_tastes(store)   # (punters from before tastes get theirs)
         if returned := store.return_stakes():   # (a crash left money riding: back before any table deals)
             print(f"handed back {returned} stake(s) left riding when the server last stopped", flush=True)
         self.jackpot = Jackpot(store)
         self.slot_jackpots = SlotProgressives(store, clock=clock)
         self.slot_stats = SlotStats(store)
+        self.tracker = Tracker(store, jackpot=self.jackpot, wall=wall, clock=clock)   # every bet spot, against its EV
         self.claims = casinos.Claims()
         self.heat = HeatWatch(store, clock=wall)   # the pit's view of who's counting cards, in every casino
         self.registry = registry if registry is not None else casinos.migrate(data_dir, store)
@@ -75,7 +78,7 @@ class Resort:
             board.on_publish = lambda floor: self.casinos[cid].broadcast_world(floor)
             board.on_reload = lambda _floor: self.reload(cid)
         casino = Casino(self.store, board.floor, jackpot=self.jackpot, board=board, casino_id=cid, resort=self,
-                        slot_jackpots=self.slot_jackpots, slot_stats=self.slot_stats, claims=self.claims,
+                        slot_jackpots=self.slot_jackpots, slot_stats=self.slot_stats, tracker=self.tracker, claims=self.claims,
                         heat=self.heat, **self._casino_args)
         self.casinos[cid] = casino
         return casino

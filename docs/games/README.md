@@ -124,7 +124,13 @@ NPCs, Settings).
 ## NPCs
 
 NPCs come in at the floor plan's arrival points, wander between its wander points (by their weights, lingering
-as long as each says), sit for a while, and leave the way they came. Nobody comes in while there's no free seat. Each game's file says how they play it. They never take a
+as long as each says), and leave the way they came. Nobody comes in while there's no free seat. A visit lasts a
+while (about 90 minutes across the mix: Settings › Floor sets each style's), over several tables: they pick a game by
+their tastes (a favourite far more often than a game they dabble in, a game they've no feeling about now and then,
+one they won't play never), stay a while (20-60 minutes at a favourite, 8-20 elsewhere), and move on to another,
+sometimes after a stroll. They leave when their time's up, or sooner: bust, a Gambler doubled up, a Casual down
+60-80% of the budget, a Hit-and-run (who comes for half as long) once up; a Chaser who's down stays on a while
+longer. A server restart doesn't end a visit: they come back in and carry on. Each game's file says how they play it. They never take a
 seat kept for real players (the middle seat at a five-seat table, the middle two at a six-seater, the second
 place from the left on each side of the craps table, and the last two free slot cabinets in a bank), so a real
 player can always sit down. Their budgets, styles and traits are on the admin page (README › Admin page). At a card table they bet within its limits (up to its
@@ -141,6 +147,5 @@ visit log).
 
 ## Money
 
-Each device is remembered as its own player and starts with £1,000. If you go broke, **Top up** appears
-while you're walking. Balances are whole pence in `server/data/casino.sqlite`; change them with the admin
-command, never by hand (README › Money).
+Each character has cash in hand (what they bet with) and a bank, which the lobby's ATM draws on. Balances are whole
+pence in `server/data/casino.sqlite`; change them with the admin command, never by hand (docs/development.md, Money).

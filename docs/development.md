@@ -108,10 +108,15 @@ sections:
     cached in `server/lpc_cache/`, `python -m casino_server.art prefetch` fetches the lot).
   - **How punters play:** a style (Grinder, Casual or Gambler), traits (Whale, Chaser, Hit-and-run,
     Superstitious, Regular, Card counter, VIP; see `casino_server/roster.py`), a budget range, lucky numbers
-    and favourite games. Bulk create generates a batch to review before accepting.
-  - **Visits:** each visit brings a budget they're willing to lose. They leave bust, done for the day, while
-    ahead (Hit-and-run) or doubled up (a Gambler), then sit out a cooldown while others take their place.
-  - **Stats** per NPC, and **Bring in now**, **Send home**, **Reset stats** and **Archive**.
+    and tastes: click a game for ★ a favourite, · a game they dabble in, ✕ one they won't play, or none. Bulk create
+    generates a batch to review before accepting (each with tastes of their own).
+  - **Visits:** each visit lasts a while (Settings: by style) over several tables, a stint at each (longer at a
+    favourite), with a budget they're willing to lose. They leave when their time's up, or sooner: bust, ahead
+    (Hit-and-run), doubled up (a Gambler) or at a Casual's stop-loss; then sit out a cooldown while others take their
+    place. A server restart puts their visits aside and they come back in to carry on.
+  - **Stats** per NPC: lifetime figures, each visit with the games it played and how long at each, and **By game and
+    bet** (every line and spot against the house's EV, the same table as House; tracked since the overhaul; their raw
+    money moves are `GET /api/npcs/<id>/bet-log`). **Bring in now**, **Send home**, **Reset stats** and **Archive**.
   - Staff other than dealers can be designed, but don't work the floor yet.
 - **Players:** every character's difficulty, cash, bank and lifetime staked, returned and net from the ledger, and
   who's playing now (and in which casino); a character's card also shows the Blackjack pit's view of them now (**Pit**:
@@ -125,7 +130,13 @@ sections:
   A ban, timeout or delete sends them out at once if they're playing; a new browser comes in as a new account. A hand
   they were in plays out, and money for a deleted character is dropped.
 - **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added
-  together: staked, returned, net, bets and returned %.
+  together: staked, returned, net, bets and returned %; for one player, **By bet**, each line and spot against the
+  house's EV (as House).
+- **House** (`#house`): every game's bet lines (a decision game's main line, then each side bet), opening to their
+  spots: bets, staked, what the house won, its EV, hold and EV hold, and luck (won less EV) with its ±2σ band (red
+  outside it). Over today, 7 days, 30 days or all; for everyone, NPCs or humans; in one casino or all; and a chart
+  of each day's house win against its EV. From the Tracker (`tracking.py`), edges from `edges.json` (`tools/edges.py`,
+  see Money); a spot without one shows as unpriced.
 - **Stats archive** (`#archive`, `#archive/<id>`, under Setup): frozen copies of the figures, taken before NPC stats are
   wiped, so what they showed is kept. Each is a JSON file in `<data>/stats_archive/`, never changed once written
   (`stats_archive.py`): totals, NPC and human money by game, slots by machine, NPC archetypes, traits, how visits
@@ -360,6 +371,38 @@ cd ~/Projects/CasinoWorld/server
 .venv/bin/python -m casino_server.admin archive-stats "Before the wipe"   # a Stats archive of the figures as they are
 ```
 
+**Bet tracking** (docs/architecture.md, Bet tracking). The house edges come from `server/casino_server/edges.json`,
+made by `.venv/bin/python ../tools/edges.py` (from `server/`; about 45 minutes, or name the games to redo, e.g.
+`tools/edges.py craps slots`). Run it after changing a paytable, an NPC strategy or a slot's maths, or building a
+slot (until then a new slot is unpriced on House), and commit the file. The NPC bet log (`npc_ledger`) keeps
+Settings' **NPC bet log keeps** days (30), pruned daily: about 110,000 rows a day, settling at roughly 700 MB.
+
+**Wiping NPC stats** (players' stats, wallets and the ledger are left alone):
+```fish
+systemctl --user stop hub-proj-casino-world
+cd ~/Projects/CasinoWorld/server
+.venv/bin/python -m casino_server.admin wipe-npc-stats      # --keep-tastes keeps every punter's tastes
+systemctl --user start hub-proj-casino-world
+```
+It refuses while 8660's listening, then backs up to `server/data/casino.pre-npc-wipe-<time>.sqlite`, takes a Stats
+archive ("Before the NPC stats wipe"), and deletes the NPC visits (and any put aside over a restart), the bet log,
+the NPC game figures and their rows of `bet_stats` and `slot_stats`, zeroes the roster's counters and cooldowns,
+sets `meta.npc_stats_since` and gives every punter new tastes. **Rollback:** stop the server, then in
+`sqlite3 server/data/casino.sqlite`:
+```sql
+ATTACH 'server/data/casino.pre-npc-wipe-<time>.sqlite' AS old;
+INSERT INTO npc_visits SELECT * FROM old.npc_visits;
+INSERT INTO npc_ledger SELECT * FROM old.npc_ledger;
+INSERT INTO npc_game_stats SELECT * FROM old.npc_game_stats;
+INSERT INTO bet_stats SELECT * FROM old.bet_stats WHERE who = 'npc';
+DELETE FROM slot_stats WHERE who = 'npc'; INSERT INTO slot_stats SELECT * FROM old.slot_stats WHERE who = 'npc';
+UPDATE npcs SET (visits, rounds, wagered, returned, net, biggest_win, busts, last_seen, cooldown_until, settings) =
+  (SELECT visits, rounds, wagered, returned, net, biggest_win, busts, last_seen, cooldown_until, settings
+   FROM old.npcs o WHERE o.id = npcs.id);
+DELETE FROM meta WHERE key = 'npc_stats_since';
+```
+then start it again (copy rows from before the wipe only: anything since then would be doubled).
+
 Before a change to the stats, back the database up beside it (`server/data/casino.pre-<what>-<date>.sqlite`, with
 sqlite's backup, which is safe while the server's writing). `tools/restore_ledger_rows.py` put back the four ledger
 rows the 25 Oct master-table relabel deleted; it's kept as the pattern for copying rows back from a backup.
@@ -468,6 +511,7 @@ looks, limits, floors and walls are stand-ins for Mike to finish.
   - `npc.py`: the NPC director; `npc_slips.py`: their believable mistakes; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
   - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `heat.py`: the pit's Blackjack back-off. `admin.py`: the command-line admin. `admin_web/`: the admin page. `stats_archive.py`: the Stats archive.
+  - `tracking.py`: the Tracker, every bet spot against its EV; `edges.py` reads `edges.json`, which `tools/edges.py` makes.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `table_styles.py`: the table styles for each kind of table (card tables, Roulette, Craps: House, the
     built-ins, saved designs) and which table uses which;

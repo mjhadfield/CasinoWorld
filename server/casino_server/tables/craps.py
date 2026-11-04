@@ -164,7 +164,7 @@ class CrapsMachine(TableMachine):
                     if cr.removable(spot, self.point)}
             back = sum(down.values()) + cr.vig_up_front(down)
             if back:
-                s.participant.refund(back, "taken down")
+                s.participant.refund(back, "taken down", {"spots": {k: v for k, v in down.items() if v}})
                 events.append({"kind": "bets_back", "seat": seat, "amount": back, "_paid": [s.participant]})
         self.locked[seat] = {}
         self.working[seat] = False
@@ -230,7 +230,8 @@ class CrapsMachine(TableMachine):
             raise TableError(self.CANT_COVER)
         events = [{"kind": "bet_changed", "seat": seat, "bets": self._bets_view(new)}]
         if refund:
-            s.participant.refund(refund, "taken down")
+            s.participant.refund(refund, "taken down", {"spots": {spot: amount - new[spot] for spot, amount in paid.items()
+                                                                  if amount > new[spot]}})
             events[0]["_paid"] = [s.participant]
         if vig_back:
             events[0]["vig_back"] = vig_back

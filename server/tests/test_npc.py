@@ -11,13 +11,17 @@ from casino_server.store import Store
 from conftest import classic_floor
 
 
+# Visits of a few minutes, so these tests see NPCs come and go (test_npc_visits.py has the real lengths).
+SHORT_VISITS = {"visit_min_grinder": [4, 8], "visit_min_casual": [3, 6], "visit_min_gambler": [4, 8],
+                "stint_fav_min": [2, 4], "stint_dabble_min": [1, 2]}
+
+
 def simulate(tmp_path, seconds, population=6, seed=3, settings=None, until=None, punters=None):
-    """A casino with NPCs on a fake clock (real time and wall time both fake). Returns
-    (casino, stats). `until(casino)` can stop it early."""
+    """A casino with NPCs on a fake clock (real time and wall time both fake), on SHORT_VISITS unless `settings` says
+    otherwise. Returns (casino, stats). `until(casino)` can stop it early."""
     now = [1_000_000.0]
     store = Store(tmp_path / "npc.sqlite")
-    if settings:
-        store.set_json("npc_settings", settings)
+    store.set_json("npc_settings", {**SHORT_VISITS, **(settings or {})})
     if punters:   # change every punter (after the roster's seeded)
         from casino_server import roster as _roster
         _roster.seed(store)
@@ -105,13 +109,19 @@ def test_hit_and_run_leaves_once_up(tmp_path):
     store = Store(tmp_path / "t.sqlite")
     casino = Casino(store, classic_floor(), npc_population=0, rng=random.Random(1), clock=lambda: 0.0, wall=lambda: 0.0)
     rec = store.npcs("punter")[0]
-    store.update_npc(rec["id"], {"traits": ["hit_and_run"], "settings": {"hit_and_run_pct": 50}})
+    store.update_npc(rec["id"], {"archetype": "grinder", "traits": ["hit_and_run"], "settings": {"hit_and_run_pct": 50}})
     npc = casino.npcs.spawn(store.npc(rec["id"]), 0.0)
-    npc.bankroll = npc.prof.budget + npc.prof.budget // 2
+    assert npc.prof.hit_and_run == 0.5
+    npc.bankroll = npc.prof.budget * 2          # twice as far up as they wanted: off they go
     assert casino.npcs._time_to_go(npc) == "hit_and_run"
+    npc.bankroll = npc.prof.budget + npc.prof.budget // 2   # just up their share: sometimes, not always
+    went = sum(casino.npcs._time_to_go(npc) == "hit_and_run" for _ in range(400))
+    assert 50 < went < 160
     npc.bankroll = npc.prof.budget
-    npc.rounds = 0
     assert casino.npcs._time_to_go(npc) is None
+    store.update_npc(rec["id"], {"settings": {}})   # with no share set: 10-30%
+    shares = [casino.npcs.spawn(store.npc(rec["id"]), 0.0).prof.hit_and_run for _ in range(30)]
+    assert all(0.1 <= x <= 0.3 for x in shares)
 
 
 def test_a_chaser_raises_after_losses_and_resets_when_even(tmp_path):
@@ -135,11 +145,16 @@ def test_a_chaser_raises_after_losses_and_resets_when_even(tmp_path):
 
 def test_sessions_follow_the_archetype():
     rng = random.Random(5)
-    grind = [roster.profile({"archetype": "grinder", "traits": []}, rng).rounds for _ in range(200)]
-    gamble = [roster.profile({"archetype": "gambler", "traits": []}, rng).rounds for _ in range(200)]
+    minutes = lambda arch, traits=(): [roster.profile({"archetype": arch, "traits": list(traits)}, rng).visit_seconds / 60
+                                       for _ in range(300)]
+    for arch in ("grinder", "casual", "gambler"):
+        lo, hi = roster.DEFAULT_SETTINGS[f"visit_min_{arch}"]
+        assert all(lo <= m <= hi for m in minutes(arch))
+    assert max(minutes("grinder", ["hit_and_run"])) <= roster.DEFAULT_SETTINGS["visit_min_grinder"][1] / 2
+    assert sum(minutes("casual")) < sum(minutes("gambler"))
     whale = roster.profile({"archetype": "casual", "traits": ["whale"]}, rng)
     casual = roster.profile({"archetype": "casual", "traits": []}, rng)
-    assert min(grind) > max(gamble)
+    assert 0.6 <= casual.stop_loss <= 0.8 and roster.profile({"archetype": "grinder", "traits": []}, rng).stop_loss is None
     assert whale.budget > casual.budget
     assert roster.profile({"archetype": "grinder", "traits": []}, rng).mistakes == 0
 

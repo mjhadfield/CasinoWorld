@@ -64,25 +64,12 @@ def test_line_bets_have_the_published_edges():
     assert _line_ev("dont_pass") == Fraction(-3, 220)     # 1.36%
 
 
-EDGES = {
-    "place_4": Fraction(1, 15), "place_10": Fraction(1, 15), "place_5": Fraction(1, 25), "place_9": Fraction(1, 25),
-    "place_6": Fraction(1, 66), "place_8": Fraction(1, 66),
-    "buy_4": Fraction(1, 60), "buy_10": Fraction(1, 60), "buy_5": Fraction(1, 50), "buy_9": Fraction(1, 50),
-    "buy_6": Fraction(1, 44), "buy_8": Fraction(1, 44),
-    # Lay vig up front: of the bet, 1/40, 1/30, 1/24 (2.44%, 3.23%, 4.00% of the bet and vig together).
-    "lay_4": Fraction(1, 40), "lay_10": Fraction(1, 40), "lay_5": Fraction(1, 30), "lay_9": Fraction(1, 30),
-    "lay_6": Fraction(1, 24), "lay_8": Fraction(1, 24),
-    "field": Fraction(1, 36), "big6": Fraction(1, 11), "big8": Fraction(1, 11),
-    "hard4": Fraction(1, 9), "hard10": Fraction(1, 9), "hard6": Fraction(1, 11), "hard8": Fraction(1, 11),
-    "any7": Fraction(1, 6), "any_craps": Fraction(1, 9), "two": Fraction(5, 36), "twelve": Fraction(5, 36),
-    "three": Fraction(1, 9), "eleven": Fraction(1, 9), "horn": Fraction(1, 8), "ce": Fraction(1, 9),
-}
 
 
-@pytest.mark.parametrize("spot", sorted(EDGES))
+@pytest.mark.parametrize("spot", sorted(cr.EDGES))
 def test_every_bet_has_its_published_edge(spot):
     stake = LAY_STAKE[cr.number_of(spot)] if spot.startswith("lay_") else STAKE
-    assert _ev(spot, point=4 if cr.number_of(spot) != 4 else 5, stake=stake) == -EDGES[spot]
+    assert _ev(spot, point=4 if cr.number_of(spot) != 4 else 5, stake=stake) == -cr.EDGES[spot]
 
 
 @pytest.mark.parametrize("n", cr.NUMBERS)

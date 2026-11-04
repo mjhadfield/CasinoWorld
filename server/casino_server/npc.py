@@ -1,10 +1,12 @@
 """
 NPCs: the casino's regulars, from the roster on the admin page (roster.py). They
-arrive with a budget they're willing to lose, wander the floor, sit down and
-play, and leave -- bust, done for the day, or (some of them) while they're
-ahead -- then stay away for a cooldown while others take their place, so the
-floor keeps changing. Every visit is logged and folded into their lifetime
-figures.
+arrive for a visit of a while (about 90 minutes) with a budget they're willing to
+lose, wander the floor, and play a stint at one table after another, picking games
+by their tastes; they leave when their time's up or sooner (bust, ahead, a
+stop-loss: _time_to_go), then stay away for a cooldown while others take their
+place, so the floor keeps changing. Every visit is logged and folded into their
+lifetime figures; one the server stops in the middle of carries on when it starts
+again (hold_all, _resume_visits).
 
 The NpcDirector runs as one task in the Casino's lifespan. At a table an NPC
 uses the same machine actions as a player, at a human pace, and plays by its
@@ -41,7 +43,7 @@ short, and if it stays short an idle NPC is sent over. Dealers are rostered too
 import asyncio
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 from casino_server import casinos, floor, npc_slips, plan, roster
 from casino_server.engines import baccarat as bac
@@ -58,6 +60,7 @@ from casino_server.participants import NpcParticipant
 from casino_server.slots import base as slot_base
 from casino_server.slots.bonuses import expedition_auto, voyage_options
 from casino_server.slots.outcome import presentation_seconds
+from casino_server.tables import master
 from casino_server.tables import slot_machine as slots
 from casino_server.tables.base import DEFAULT_LIMITS, TableError, say
 from casino_server.world import Entity
@@ -76,6 +79,16 @@ KICKED_GO_HOME = 0.25   # asked for their seat, this often an NPC calls it a day
 WONG_OUT = -2          # a Card counter on this true count or worse at a betting window...
 WONG_CHANCE = 0.4      # ...gets up and finds another table this often
 HEED_WARNING = 0.5     # warned by the pit (heat.py), a Card counter flat-bets out the shoe this often, else moves on
+# Picking a game (_game_weight): how much likelier a favourite or a dabble is than a game they've no feeling about, and
+# the game they've just left (moving on from it); the craps table short of NPCs (MIN_CRAPS_NPCS) pulls harder still.
+TASTE_WEIGHT = {"fav": 12.0, "dabble": 3.0, None: 1.0, "never": 0.0}
+JUST_LEFT = 0.25
+CRAPS_SHORT = 50.0   # (everyone's first choice while it's short, bar those who won't play it)
+SEAT_TRIES = 15        # tables full this many times running, they give up for the day
+WANDER_BETWEEN = 0.4   # a stint over, they have a stroll before the next table this often
+HIT_AND_RUN_CHANCE = 0.25   # up their share, a Hit-and-run goes at a betting window this often (more, the further up)
+CHASE_ON = 0.5         # a Chaser who's down stays up to this share of their visit past its end
+RESUME_WITHIN = 2 * 3600   # a visit the server stopped in the middle of resumes if it's back within this (seconds)
 
 
 def reserved_seats(game: str, n: int) -> set[int]:
@@ -140,6 +153,22 @@ class Npc:
     heeded: bool = False             # has answered the pit's warning (heat.py)...
     flat_deck: int | None = None     # ...by flat-betting until this shoe (id of its deck) is shuffled
     ended: str | None = None         # why the visit ended (it's logged once)
+    visit_key: str = ""              # the bet log's name for this visit (tracking.py)
+    by_game: dict = field(default_factory=dict)   # game -> {rounds, seconds, wagered, returned, expected[, spins]}
+    sat_at: float | None = None      # wall time they sat down at the table they're at (the stint's start)
+    sat_game: str = ""               # ...and its game then
+    visit_end: float = 0.0           # wall time their visit's up (a Chaser who's down stays on a while)
+    stint_end: float | None = None   # ...and their stint at this table
+    left_game: str = ""              # the game they last got up from to try another (picked less often next)
+    stint_left: float | None = None  # a resumed visit: what was left of the stint they were in (seconds)...
+    resume_game: str = ""            # ...and its game, which they head back to
+
+    def game_figures(self, game: str) -> dict:
+        """This visit's figures at a game (NpcParticipant adds the money)."""
+        g = self.by_game.get(game)
+        if g is None:
+            g = self.by_game[game] = {"rounds": 0, "seconds": 0.0, "wagered": 0, "returned": 0, "expected": 0.0}
+        return g
 
 
 class NpcDirector:
@@ -156,6 +185,7 @@ class NpcDirector:
         self._serial = 0
         self._craps_short_since: float | None = None
         self.on = True   # the admin page's switch, read each tick
+        self._resumed = False
 
     async def run(self):
         while True:
@@ -182,6 +212,9 @@ class NpcDirector:
 
     # ------------------------------------------------------------------ lifecycle
     def tick(self, now: float):
+        if not self._resumed:   # (the first tick: visits the last stop put aside come back in first)
+            self._resumed = True
+            self._resume_visits(now)
         dealers = getattr(self.casino, "dealers", None)
         if dealers is not None:
             dealers.tick(now)
@@ -236,10 +269,15 @@ class NpcDirector:
             return
         if now - self._craps_short_since < CRAPS_TOP_UP_AFTER * self.pace:
             return
+        # Someone standing about (not mid-walk: a walk starts from where they're going), preferring those who like
+        # craps, and never one who won't play it
         idle = [n for n in self.npcs.values()
-                if n.state in ("loitering", "walking") and n.table is None and not n.ended]
-        if idle and self._head_for_seat(self.rng.choice(idle), now, only=table_id):
-            self._craps_short_since = now
+                if n.state == "loitering" and n.table is None and not n.ended
+                and n.prof.taste(cr.GAME_KEY) != "never"]
+        if idle:
+            weights = [TASTE_WEIGHT[n.prof.taste(cr.GAME_KEY)] for n in idle]
+            if self._head_for_seat(self.rng.choices(idle, weights)[0], now, only=table_id):
+                self._craps_short_since = now
 
     def _craps_style(self, prof: roster.Profile) -> str:
         if prof.superstitious and self.rng.random() < 0.5:
@@ -259,22 +297,28 @@ class NpcDirector:
         weights = [3.0 if "regular" in r["traits"] else 1.0 for r in free]
         return self.rng.choices(free, weights)[0]
 
-    def spawn(self, record: dict, now: float) -> Npc:
+    def spawn(self, record: dict, now: float, resume: dict | None = None) -> Npc:
+        """In through a door: a new visit, or (`resume`) one the server stopped in the middle of (npc_open_visits)."""
         doors = self.casino.floor.arrivals()
         if not doors:
             raise ValueError("NPCs have nowhere to come in: the floor plan has no arrival point.")
         self._serial += 1
-        prof = roster.profile(record, self.rng)
+        prof = roster.Profile(**resume["prof"]) if resume else roster.profile(record, self.rng, roster.settings(self.casino.store))
         look = self._look(record)
         npc = Npc(f"n{record['id']}_{self.casino.id}_{self._serial}", record["id"], record["name"], look, prof,
                   bankroll=prof.budget)
         self.casino.claims.take(record["id"], self.casino.id)
         npc.participant = NpcParticipant(npc)
-        npc.arrived = self.wall()
+        wall = self.wall()
+        npc.arrived = wall
+        npc.visit_key = f"{record['id']}-{int(npc.arrived)}"
+        npc.visit_end = wall + prof.visit_seconds * self.pace
         npc.habit = self._roulette_habit(prof)
         npc.craps_style = self._craps_style(prof)
         npc.favourites = prof.lucky or tuple(self.rng.sample(range(37), self.rng.randint(2, 4)))
         npc.plan = ["wander"] * self.rng.randint(0, 2) + ["play"] + ["wander"] * self.rng.randint(0, 1) + ["leave"]
+        if resume:
+            self._resume(npc, resume, wall)
         self.npcs[npc.entity_id] = npc
         npc.door = self._weighted(doors)
         npc.at = self.casino.floor.position(f"point:{npc.door}")
@@ -324,7 +368,8 @@ class NpcDirector:
             if self._head_for_seat(npc, now):
                 return
             npc.seat_attempts += 1
-            if npc.seat_attempts < 3:  # tables full -- have a wander and try again
+            # Tables full: a wander and try again (all visit long; at most SEAT_TRIES in a row)
+            if npc.seat_attempts < SEAT_TRIES and (npc.seat_attempts < 3 or self.wall() < npc.visit_end):
                 npc.plan.insert(0, "play")
             step = "wander"
         if step == "wander":
@@ -342,54 +387,60 @@ class NpcDirector:
                 doors, key=lambda k: self.casino.floor.distance(npc.at, self.casino.floor.position(f"point:{k}")) or 0.0)
             self._walk(npc, f"point:{door}", now, state="leaving")
 
+    def _game_weight(self, npc: Npc, game: str) -> float:
+        """How likely they are to pick a game: a favourite far more than a dabble, a dabble more than one they've no
+        feeling about, "never" not at all; the game they've just left less (they're moving on to something else)."""
+        if game == master.GAME_KEY:   # (a Master Table with no game yet)
+            return 0.5
+        prof = npc.prof
+        w = TASTE_WEIGHT[prof.taste(game)]
+        if prof.card_counter and game == bj.GAME_KEY and prof.taste(game) != "never":
+            w = max(w, TASTE_WEIGHT["fav"])
+        if w and game == npc.left_game:
+            w *= JUST_LEFT
+        if w and npc.stint_left is not None and game == npc.resume_game:   # (a resumed visit: back to that game)
+            w *= 20
+        return w
+
     def _head_for_seat(self, npc: Npc, now: float, only: str | None = None) -> bool:
+        """Pick a game by taste (weighted at random: _game_weight), then a free seat at one of its tables, and walk
+        there. `only`: that table (the craps table, short of players)."""
         claimed = {(n.table, n.seat) for n in self.npcs.values() if n.state == "walking" and n.table}
-        tables = [(t, r) for t, r in self.casino.tables.items()
-                  if t == only or (only is None and t != npc.snubbed)]
-        self.rng.shuffle(tables)
         prof = npc.prof
         backed_off = npc.participant is not None and self.casino.heat.barred(npc.participant)
-
-        def liking(item):   # favourite games first (a Card counter's is Blackjack), a bust table last
-            table_id, runner = item
-            game = runner.machine.game
-            score = 0
-            if game in prof.favourite_games or (prof.card_counter and game == bj.GAME_KEY):
-                score -= 2
-            if prof.superstitious and casinos.qualify(self.casino.id, table_id) == prof.avoid_table:
-                score += 5
-            if game == cr.GAME_KEY and self.npcs_at(table_id) < MIN_CRAPS_NPCS:
-                score -= 10   # the craps table wants a couple of NPCs at it
-            return score
-        # Choose a game first, then a seat at it -- else the ten slot cabinets would swamp the draw.
-        by_game: dict[str, list] = {}
-        for item in tables:
-            by_game.setdefault(item[1].machine.game, []).append(item)
-        games = list(by_game)
-        self.rng.shuffle(games)
-        games.sort(key=lambda g: min(liking(item) for item in by_game[g]))
-        for game in games:
-            if game == bj.GAME_KEY and backed_off:
+        seats: dict[str, list] = {}   # game -> [(table, seat)] they could take
+        for table_id, runner in self.casino.tables.items():
+            if (only is not None and table_id != only) or (only is None and table_id == npc.snubbed):
                 continue
-            options = sorted(by_game[game], key=liking)
-            if game == slots.GAME_KEY:
-                # Slots: one seat each, so NPCs leave cabinets free across the bank instead.
-                free = [(t, s) for t, r in options for s in r.machine.free_seats() if (t, s) not in claimed]
-                if only is not None or len(free) - 1 >= floor.SLOTS_FOR_HUMANS:
-                    if free:
-                        npc.table, npc.seat = self.rng.choice(free)
-                        self._walk(npc, f"seat:{npc.table}:{npc.seat}", now)
-                        return True
+            if prof.superstitious and only is None and casinos.qualify(self.casino.id, table_id) == prof.avoid_table:
                 continue
-            for table_id, runner in options:
-                if _table_min(runner.machine) * MIN_HANDS > npc.bankroll:   # (a card table they can't afford)
-                    continue
-                free = [s for s in _open_seats(runner.machine) if (table_id, s) not in claimed]
-                if free:
-                    npc.table, npc.seat = table_id, self.rng.choice(free)
-                    self._walk(npc, f"seat:{table_id}:{npc.seat}", now)
-                    return True
-        return False
+            m = runner.machine
+            if m.game == bj.GAME_KEY and backed_off:
+                continue
+            if m.game == slots.GAME_KEY:
+                free = [(table_id, s) for s in m.free_seats() if (table_id, s) not in claimed]
+            elif _table_min(m) * MIN_HANDS > npc.bankroll:   # (a card table they can't afford)
+                continue
+            else:
+                free = [(table_id, s) for s in _open_seats(m) if (table_id, s) not in claimed]
+            if free:
+                seats.setdefault(m.game, []).extend(free)
+        if slots.GAME_KEY in seats and only is None and len(seats[slots.GAME_KEY]) - 1 < floor.SLOTS_FOR_HUMANS:
+            del seats[slots.GAME_KEY]   # (slots: one seat each, so NPCs leave cabinets free across the bank)
+        weights = {}
+        for game in seats:
+            w = self._game_weight(npc, game) if only is None else 1.0
+            if (game == cr.GAME_KEY and only is None and w and not prof.card_counter
+                    and self.npcs_at(self._craps_table() or "") < MIN_CRAPS_NPCS):
+                w *= CRAPS_SHORT   # the craps table wants a couple of NPCs at it (a Card counter's here for Blackjack)
+            if w > 0:
+                weights[game] = w
+        if not weights:
+            return False
+        game = self.rng.choices(list(weights), list(weights.values()))[0]
+        npc.table, npc.seat = self.rng.choice(seats[game])
+        self._walk(npc, f"seat:{npc.table}:{npc.seat}", now)
+        return True
 
     # ------------------------------------------------------------------ the visit
     def end_visit(self, npc: Npc, reason: str):
@@ -398,6 +449,7 @@ class NpcDirector:
             return
         npc._logged = True
         npc.ended = npc.ended or reason
+        self._end_stint(npc)
         if npc.participant is not None:
             self.casino.heat.forget(npc.participant)   # (backed off for the visit: the next one's a fresh start)
         s = roster.settings(self.casino.store)
@@ -412,12 +464,71 @@ class NpcDirector:
         self.casino.store.record_npc_visit(npc.npc_id, {
             "arrived": npc.arrived, "left_at": now, "budget": npc.prof.budget, "end_bankroll": npc.bankroll,
             "wagered": npc.wagered, "returned": npc.returned, "rounds": npc.rounds, "games": npc.games,
-            "reason": npc.ended}, cooldown)
+            "reason": npc.ended, "casino": self.casino.id,
+            "by_game": {g: {**f, "seconds": round(f["seconds"]), "expected": round(f["expected"])}
+                        for g, f in npc.by_game.items()}}, cooldown)
 
     def close_all(self, reason: str = "shutdown"):
-        """The server's stopping: everyone's visit ends where it is."""
+        """Everyone's visit ends where it is."""
         for npc in list(self.npcs.values()):
             self.end_visit(npc, reason)
+
+    # ------------------------------------------------------------------ a visit across a restart
+    def hold_all(self):
+        """The server's stopping (Casino.halt, once the tables have handed back what was riding): each visit under way
+        is put aside (npc_open_visits) to carry on when the casino starts again, with what's left of it and of the stint
+        they were in. Anyone on their way out has their visit logged as it ends."""
+        wall = self.wall()
+        for npc in list(self.npcs.values()):
+            if npc.ended:
+                self.end_visit(npc, npc.ended)
+                continue
+            stint = npc.sat_game if npc.sat_at is not None else ""
+            stint_left = max(0.0, npc.stint_end - wall) if stint and npc.stint_end is not None else None
+            self._end_stint(npc)
+            npc._logged = True   # (it's not over: no visit row, no cooldown)
+            if npc.participant is not None:
+                self.casino.heat.forget(npc.participant)
+            self.casino.store.hold_npc_visit(npc.npc_id, self.casino.id, wall, {
+                "prof": asdict(npc.prof), "bankroll": npc.bankroll, "wagered": npc.wagered, "returned": npc.returned,
+                "rounds": npc.rounds, "games": npc.games, "by_game": npc.by_game, "arrived": npc.arrived,
+                "visit_key": npc.visit_key, "visit_left": max(0.0, npc.visit_end - wall), "chase": npc.chase,
+                "habit": npc.habit, "craps_style": npc.craps_style, "favourites": list(npc.favourites),
+                "stint_game": stint, "stint_left": stint_left})
+
+    def _resume_visits(self, now: float):
+        """Starting up: the visits put aside when the casino last stopped come back in first, the time it was down left
+        out. One put aside more than RESUME_WITHIN ago, or whose NPC can't come back (gone, off, elsewhere), is logged
+        as having ended then ("shutdown")."""
+        store, wall = self.casino.store, self.wall()
+        for data in store.take_npc_visits(self.casino.id):
+            rec = store.npc(data["npc_id"])
+            ok = (rec is not None and rec["role"] == "punter" and rec["enabled"] and not rec.get("archived_at")
+                  and self.on and wall - data["saved_at"] <= RESUME_WITHIN and self.casino.floor.arrivals()
+                  and not self.casino.claims.elsewhere(rec["id"], self.casino.id) and self.on_floor(rec["id"]) is None)
+            if ok:
+                self.spawn(rec, now, resume=data)
+            elif rec is not None:
+                store.record_npc_visit(rec["id"], {
+                    "arrived": data["arrived"], "left_at": data["saved_at"], "budget": data["prof"]["budget"],
+                    "end_bankroll": data["bankroll"], "wagered": data["wagered"], "returned": data["returned"],
+                    "rounds": data["rounds"], "games": data["games"], "reason": "shutdown", "casino": self.casino.id,
+                    "by_game": {g: {**f, "seconds": round(f["seconds"]), "expected": round(f["expected"])}
+                                for g, f in data["by_game"].items()}}, None)
+
+    def _resume(self, npc: Npc, data: dict, wall: float):
+        """A visit carried on (spawn): its money and figures so far, its clock with the downtime left out, and back
+        to the game they were at if they can."""
+        down = max(0.0, wall - data["saved_at"])
+        npc.bankroll, npc.wagered, npc.returned = data["bankroll"], data["wagered"], data["returned"]
+        npc.rounds, npc.games, npc.by_game = data["rounds"], data["games"], data["by_game"]
+        npc.arrived, npc.visit_key = data["arrived"] + down, data["visit_key"]
+        npc.visit_end = wall + data["visit_left"]
+        npc.chase, npc.habit, npc.craps_style = data["chase"], data["habit"], data["craps_style"]
+        npc.favourites = tuple(data["favourites"])
+        if data.get("stint_game"):
+            npc.resume_game, npc.stint_left = data["stint_game"], data["stint_left"]
+        npc.plan = ["play", "leave"]
 
     def bring_in(self, npc_id: int, now: float) -> Npc:
         """Admin: in through the door now, cooldown or not."""
@@ -450,6 +561,7 @@ class NpcDirector:
             runner = self.casino.tables[npc.table]
             if runner.machine.seats[npc.seat].participant is npc.participant:
                 runner.act("stand", npc.seat)
+            self._end_stint(npc)
             npc.table = npc.seat = None
         npc.plan = ["leave"]
         if npc.state != "leaving":
@@ -513,16 +625,17 @@ class NpcDirector:
     # ------------------------------------------------------------------ a Master Table changing game
     def leavers(self, participants: list, game: str) -> list:
         """Which of the NPCs sitting at a Master Table get up for `game`: a Card counter always unless it's
-        Blackjack, a favourite never, anyone else LEAVE_CHANCE of the time; MOST_LEAVE at most."""
+        Blackjack, anyone who won't play it ("never") always, a favourite never, anyone else LEAVE_CHANCE of the time
+        (half that for a game they dabble in); MOST_LEAVE at most."""
         must, rolled = [], []
         for p in participants:
             npc = getattr(p, "npc", None)
             if npc is None:
                 continue
-            if npc.prof.card_counter:
-                if game != bj.GAME_KEY:
-                    must.append(p)
-            elif game not in npc.prof.favourite_games and self.rng.random() < LEAVE_CHANCE:
+            taste = "fav" if npc.prof.card_counter and game == bj.GAME_KEY else npc.prof.taste(game)
+            if (npc.prof.card_counter and game != bj.GAME_KEY) or taste == "never":
+                must.append(p)
+            elif taste != "fav" and self.rng.random() < LEAVE_CHANCE * (0.5 if taste == "dabble" else 1.0):
                 rolled.append(p)
         self.rng.shuffle(rolled)
         return (must + rolled)[:MOST_LEAVE]
@@ -540,10 +653,12 @@ class NpcDirector:
                 continue
             if npc.state == "seated":
                 seat = machine.seat_of(npc.participant)
+                self._end_stint(npc)   # (the old game's time ends here)
                 if seat is not None:
                     npc.seat = seat
                     npc.bet_at = npc.decide_at = npc.decide_for = None
                     npc.in_round = False
+                    self._start_stint(npc, machine.game)
                 else:   # got up for the new game
                     npc.table = npc.seat = None
                     npc.bet_at = npc.decide_at = None
@@ -580,6 +695,7 @@ class NpcDirector:
             return
         npc.state = "seated"
         npc.slot_spins = 0
+        self._start_stint(npc, runner.machine.game)
         if npc.prof.vip and getattr(runner.machine, "DEALER", True):   # a friend of the casino: the dealer knows them
             line = runner.machine.lines.say("vip", "greet", name=npc.name)
             if line:
@@ -590,6 +706,7 @@ class NpcDirector:
         runner = self.casino.tables[npc.table]
         if runner.machine.seats[npc.seat].participant is npc.participant:
             runner.act("stand", npc.seat)
+        self._end_stint(npc)
         kicker, table, seat = self._kicker(npc), npc.table, npc.seat
         npc.kicked_by = None
         npc.table = npc.seat = None
@@ -612,6 +729,17 @@ class NpcDirector:
             self.casino.seat_kicker(kicker, table, seat)
         self._next_step(npc, now)
 
+    def _end_stint(self, npc: Npc):
+        """Up from a table (or the visit's over while sitting): the time there goes to its game."""
+        if npc.sat_at is None:
+            return
+        seconds = max(0.0, self.wall() - npc.sat_at)
+        npc.game_figures(npc.sat_game)["seconds"] += seconds
+        tracker = getattr(self.casino, "tracker", None)
+        if tracker is not None:
+            tracker.played(npc.npc_id, npc.sat_game, seconds=seconds)
+        npc.sat_at = None
+
     def _round_over(self, npc: Npc, game: str):
         """The round they had bets in has finished: count it, and how it went."""
         if not npc.in_round:
@@ -619,6 +747,10 @@ class NpcDirector:
         npc.in_round = False
         npc.rounds += 1
         npc.games[game] = npc.games.get(game, 0) + 1
+        npc.game_figures(game)["rounds"] += 1
+        tracker = getattr(self.casino, "tracker", None)
+        if tracker is not None:
+            tracker.played(npc.npc_id, game, rounds=1)
         result = npc.bankroll - npc.round_start
         if npc.prof.chaser:
             if npc.bankroll >= npc.prof.budget:
@@ -626,19 +758,53 @@ class NpcDirector:
             elif result < 0:
                 npc.chase = min(8.0, npc.chase * self.rng.uniform(1.5, 2.0))
 
+    def _start_stint(self, npc: Npc, game: str):
+        """Sat down (or the Master Table's changed game): a stint at this game, longer at a favourite."""
+        npc.sat_at, npc.sat_game = self.wall(), game
+        left, npc.stint_left = npc.stint_left, None
+        if left is not None and game == npc.resume_game:   # (a resumed visit, back at the game it was at)
+            npc.stint_end = npc.sat_at + left
+            return
+        lo, hi = npc.prof.stints.get("fav" if npc.prof.taste(game) == "fav" else "dabble") or (8, 20)
+        npc.stint_end = npc.sat_at + self.rng.uniform(lo, hi) * 60 * self.pace
+
     def _time_to_go(self, npc: Npc) -> str | None:
+        """At a betting window: why they'd get up now, if they would. "switch": their stint here's over (they'll find
+        another table); anything else ends the visit."""
         if not self.on:
             return "npcs_off"
         p, b = npc.prof, npc.prof.budget
         if p.riches and npc.bankroll >= b * p.riches:
             return "riches"
         if p.hit_and_run is not None and npc.bankroll - b >= b * p.hit_and_run:
-            return "hit_and_run"
-        if npc.rounds >= p.rounds:
-            return "done"
+            over = (npc.bankroll - b) / (b * p.hit_and_run) - 1   # (the further up, the likelier they go)
+            if self.rng.random() < min(1.0, HIT_AND_RUN_CHANCE + over):
+                return "hit_and_run"
+        if p.stop_loss is not None and b - npc.bankroll >= b * p.stop_loss:
+            return "stop_loss"
         if self._kicker(npc) is not None:
             return "kicked"
+        wall = self.wall()
+        if wall >= npc.visit_end:
+            chasing = p.chaser and npc.bankroll < b and wall < npc.visit_end + CHASE_ON * p.visit_seconds * self.pace
+            if not chasing:
+                return "done"
+        if npc.stint_end is not None and wall >= npc.stint_end:
+            return "switch"
         return None
+
+    def _go(self, npc: Npc, now: float, reason: str):
+        """Up for `reason` (_time_to_go): to another table at the end of a stint (sometimes after a stroll), else
+        their visit's over."""
+        if reason != "switch":
+            return self._leave_table(npc, now, reason)
+        npc.left_game = npc.sat_game
+        npc.snubbed = npc.table
+        npc.seat_attempts = 0
+        npc.plan.insert(0, "play")
+        if self.rng.random() < WANDER_BETWEEN:
+            npc.plan.insert(0, "wander")
+        self._leave_table(npc, now)
 
     def _unit(self, npc: Npc, m=None) -> int:
         """Their stake this round, in pence: a share of the budget, chased up after losses,
@@ -678,6 +844,7 @@ class NpcDirector:
         runner = self.casino.tables[npc.table]
         seat = m.seats[npc.seat]
         if seat.participant is not npc.participant:  # stood up by the table
+            self._end_stint(npc)
             npc.table = npc.seat = None
             return self._next_step(npc, now)
         if m.game == rou.GAME_KEY:
@@ -692,7 +859,7 @@ class NpcDirector:
                 self._round_over(npc, m.game)
                 reason = self._time_to_go(npc)
                 if reason:
-                    return self._leave_table(npc, now, reason)
+                    return self._go(npc, now, reason)
                 if npc.seat in reserved_seats(m.game, len(m.seats)):   # a Master Table's new game keeps it for players
                     npc.plan.insert(0, "play")
                     return self._leave_table(npc, now)
@@ -969,7 +1136,7 @@ class NpcDirector:
                 self._round_over(npc, m.game)
                 reason = self._time_to_go(npc)
                 if reason:
-                    return self._leave_table(npc, now, reason)
+                    return self._go(npc, now, reason)
                 chips = self._roulette_chips(npc, m.history[0])
                 if not chips:
                     return self._leave_table(npc, now, "bust")
@@ -1007,7 +1174,7 @@ class NpcDirector:
             free_to_go = self._craps_free(m, seat)
             reason = self._time_to_go(npc)
             if reason and free_to_go:
-                return self._leave_table(npc, now, reason)
+                return self._go(npc, now, reason)
             wants = [] if reason else self._craps_wants(npc, m)   # (on their way out: nothing new)
             if not wants and free_to_go and not any(mine.values()) and npc.bankroll < cr.MIN_MAIN:
                 return self._leave_table(npc, now, "bust")
@@ -1085,7 +1252,7 @@ class NpcDirector:
                 self._round_over(npc, m.game)
             reason = self._time_to_go(npc)
             if reason:
-                return self._leave_table(npc, now, reason)
+                return self._go(npc, now, reason)
             shown = m.spun_at + (presentation_seconds(m.last) * m.timings.present if m.last else 0)
             npc.bet_at = max(now, shown) + self.rng.uniform(0.5, 2.5) * self.pace
         if now < npc.bet_at:

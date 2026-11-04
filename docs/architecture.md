@@ -90,7 +90,7 @@ game result and every penny is decided on the server; the client only renders an
   change. `Casino.halt` (the server stopping, or a reload) cancels the tasks, lets each table pay what needs no
   decision (`wind_up`: a slot's bonus plays out), and hands back everything still riding (`TableRunner.hand_back`):
   into a player's hand with a ledger row noted "handed back", told at once with a `notice` if they're there, or
-  when they next enter; into an NPC's bankroll before their visit's logged. A halted casino doesn't stand anyone
+  when they next enter; into an NPC's bankroll before their visit's put aside (below). A halted casino doesn't stand anyone
   up, so leaving can't fold a hand that's no longer dealt. After a crash, the next start hands back whatever the
   `stakes` table still says was riding (`Store.return_stakes`, from `Resort`), before any table deals.
 - **Participants (`participants.py`).** A seat holds a participant, human or NPC, with the same `debit`,
@@ -116,9 +116,16 @@ game result and every penny is decided on the server; the client only renders an
   traits and seeding) and is edited on the admin page. Archived NPCs (`archived_at` set) are left out of
   `store.npcs()` by default, so neither the director nor the dealer roster ever picks them. Roles and uniforms are
   `staff.py`: the built-in roles and uniforms with the admin page's additions and changes laid over them.
-- **The NPC director (`npc.py`)** brings punters in to fill the floor population. Each visit has a budget
-  they're willing to lose, and they leave bust, done for the day, or ahead depending on their traits, then sit
-  out a cooldown. They pick games by preference, play each game's published strategy (with style-dependent
+- **The NPC director (`npc.py`)** brings punters in to fill the floor population. A visit lasts a time
+  (`roster.profile`: the Settings' `visit_min_<archetype>`, about 90 minutes across the mix, half that for a
+  Hit-and-run) with a budget they're willing to lose, and is made of stints: sitting down starts one (`stint_fav_min`
+  at a favourite game, `stint_dabble_min` elsewhere), and when it's up `_time_to_go` says `switch` and they move on
+  to another table, sometimes after a stroll. Every game's betting window asks `_time_to_go`; anything but `switch`
+  ends the visit: bust, `done` (their time's up; a Chaser who's down stays up to half as long again), `riches` (a
+  Gambler at twice the budget), `hit_and_run` (up 10-30% of the budget, or their own share; likelier the further up),
+  `stop_loss` (a Casual down 60-80%), then a cooldown. Which game is a weighted draw on their tastes (`settings.tastes`,
+  game -> `fav` | `dabble` | `never`; `roster.make_tastes` leans by archetype and trait, `ensure_tastes` gives any
+  punter without them a set at start), the game they've just left drawn less. They play each game's published strategy (with style-dependent
   side bets and believable slips on close calls from `npc_slips.py`, each side bet a share of their main bet that they keep for the visit), and leave
   the seats kept for real players free (`reserved_seats`: the middle seat of a five-seater, the middle two of
   a six-seater, the second place from the left on each side at Craps). A player can ask one for their seat
@@ -126,6 +133,11 @@ game result and every penny is decided on the server; the client only renders an
   `kicked` while `Session.kick` still names them), and `_leave_table` sits the player straight down. The craps table is kept to at least two NPCs. The admin page's NPC switch
   (`npcs_on`, read each tick) turns them off: they leave at their next round boundary (the same check as being
   done for the day) with no cooldown, and come back one at a time when it's turned on.
+- **A visit across a restart.** `Casino.halt` (after the tables have handed back what was riding) puts each visit
+  under way aside (`NpcDirector.hold_all` -> the store's `npc_open_visits`: the profile, bankroll and figures, the time
+  left of the visit and of the stint they were in) instead of ending it. On the casino's first tick the director
+  brings those NPCs back in first (`_resume_visits`), the downtime left out of the visit's clock; one put aside more
+  than two hours ago, or whose NPC can't come back, is logged as having ended then (`shutdown`).
 - **Back-off (`heat.py`)**: one `HeatWatch` on the Resort (shared by its casinos, handed to every Blackjack and
   Master Table machine as `machine.heat`) scores each Blackjack round's main bets against the true count before
   the deal (`BlackjackMachine.count`), warns, then backs off players and NPCs alike. The machine refuses a
@@ -137,6 +149,34 @@ game result and every penny is decided on the server; the client only renders an
   generic Dealer if nobody's free. Their lines are in `dealer_lines.toml` (`dealer.py`), reread on every line.
 - **Looks** are built server-side from LPC layers (`art.py`, shared with `tools/build_art.py`) and fetched by
   the client as it meets them.
+
+### Storage and money
+
+### Bet tracking: every spot against its EV
+
+The **Tracker** (`tracking.py`) lives on the Resort (shared by its casinos, like the slots' figures) and counts every
+bet spot's money for NPCs and players alike. A participant learns where it is as it sits down (`TableRunner.place`:
+the tracker, casino, table and game; a Master Table updates the game as it changes), and its `debit`, `credit` and
+`refund` pass each move's ledger `detail` on (`Tracker.stake` / `settle` / `hand_back`). Per spot it adds the
+stake, what came back, the house's **expected** win (stake x the spot's edge from `edges.py`, the pool's share of a
+Jackpot bet worked out from the pool at the time, a Craps bet that wins and stays up charged again) and the variance
+of the bettor's net (for a ±2σ band). A refund comes off the spot it was staked on, EV and all. A decision game's main
+line is charged its whole EV on the Ante; Play, Raise, Double and Split add stake at 0, so a line's actual against
+its EV is skill and luck together.
+
+The figures build up in memory and are written in one transaction every 30 seconds (on the next move after) and at
+halt (`Store.add_tracking`): the daily rollup `bet_stats` (day x casino x game x spot x human/NPC), the lifetimes
+`npc_game_stats` (and each NPC's rounds and time per game, spot `''`) and `player_game_stats`, and the NPC bet log
+`npc_ledger` (a row per NPC money move, like the players' `ledger`, with the visit, casino and table), pruned past
+`bet_log_days` once a day in 10,000-row chunks. NPC visits record their casino and a per-game breakdown
+(`npc_visits.by_game`: rounds, seconds sat down, staked, returned, expected). The players' ledger rows now carry
+their `casino` and `table_id` too. The House section, the NPC panel and Player stats read the Tracker (saved plus
+pending), grouped into lines by `tracking.lines`.
+
+**Edges** (`edges.json`, made by `tools/edges.py` from the engines; `edges.py` reads it): each spot's edge, spread and
+line, exact (Roulette, Craps' per-decision edges in `engines/craps.py` `EDGES`), counted hand by hand (Baccarat, the
+3-, 5- and 7-card side bets, Blackjack's from the 8-deck shoe) or simulated on the real table machine with the NPCs'
+optimal strategy (the main lines, Trips, Fortune); a slot's is 1 - RTP. A spot with no figure is counted unpriced.
 
 ### Storage and money
 
@@ -155,8 +195,8 @@ the ATM's rules are the admin page's Bank settings: new players' starting bank a
 only while holding under a limit, the usual per-withdrawal limit, the bigger withdrawal a bank over a threshold
 allows (half the bank rounded down to a step, once per wait; `players.last_big_at`), and the wait between
 withdrawals while overdrawn. An ATM is any library piece with `"interact": "atm"`: the server checks a player is
-standing at one (by their last `move`) before it'll serve them. NPCs keep their own in-memory bankrolls and never
-touch the store.
+standing at one (by their last `move`) before it'll serve them. NPCs keep their own in-memory bankrolls; their money
+moves reach the store only through the Tracker (above).
 
 A game's bet and payout rows carry `ledger.detail`, JSON for the stats: a bet row has what went on each spot
 (`{"spots": {"bet": 1000, "super_pairs": 300}}`), a payout row each bet it settled with its stake and what came back

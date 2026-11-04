@@ -1,0 +1,1862 @@
+{
+ "about": "Made by tools/edges.py (see casino_server/edges.py). Don't edit by hand.",
+ "games": {
+  "baccarat": {
+   "lines": {
+    "banker": "Banker",
+    "banker_dragon": "Banker Dragon",
+    "player": "Player",
+    "player_dragon": "Player Dragon",
+    "tie": "Tie"
+   },
+   "spots": {
+    "banker": {
+     "edge": 0.0105791,
+     "line": "banker",
+     "sd": 0.92737,
+     "source": "enumerated"
+    },
+    "banker_dragon": {
+     "edge": 0.0937307,
+     "line": "banker_dragon",
+     "sd": 2.30455,
+     "source": "enumerated"
+    },
+    "player": {
+     "edge": 0.0123508,
+     "line": "player",
+     "sd": 0.95115,
+     "source": "enumerated"
+    },
+    "player_dragon": {
+     "edge": 0.0265167,
+     "line": "player_dragon",
+     "sd": 2.47361,
+     "source": "enumerated"
+    },
+    "tie": {
+     "edge": 0.1435963,
+     "line": "tie",
+     "sd": 2.64087,
+     "source": "enumerated"
+    }
+   }
+  },
+  "blackjack": {
+   "lines": {
+    "insurance": "Insurance",
+    "jackpot": "Jackpot",
+    "main": "Bet, doubles and splits",
+    "super_pairs": "Super Pairs",
+    "top_three": "Top 3",
+    "twenty_one_plus_three": "21+3"
+   },
+   "spots": {
+    "bet": {
+     "edge": 0.0060867,
+     "line": "main",
+     "n": 300000,
+     "sd": 1.16252,
+     "se": 0.0021225,
+     "source": "simulated"
+    },
+    "double": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "insurance": {
+     "edge": 0.0746988,
+     "line": "insurance",
+     "sd": 1.38554,
+     "source": "exact"
+    },
+    "jackpot": {
+     "edge": -1.4090744,
+     "line": "jackpot",
+     "pool": {
+      "bet": 100,
+      "fixed": 240.907442,
+      "fixed2": 1911113.3497,
+      "share": 5.641294274086311e-05,
+      "share2": 5.641294274086311e-05
+     },
+     "sd": 13.61278,
+     "source": "enumerated"
+    },
+    "split": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "super_pairs": {
+     "edge": 0.1119609,
+     "line": "super_pairs",
+     "sd": 3.84771,
+     "source": "enumerated"
+    },
+    "top_three": {
+     "edge": 0.0899974,
+     "line": "top_three",
+     "sd": 11.29224,
+     "source": "enumerated"
+    },
+    "twenty_one_plus_three": {
+     "edge": 0.0273603,
+     "line": "twenty_one_plus_three",
+     "sd": 2.96317,
+     "source": "enumerated"
+    }
+   }
+  },
+  "craps": {
+   "lines": {
+    "big": "Big 6 and 8",
+    "buy": "Buy bets",
+    "come": "Come",
+    "dont_come": "Don't come",
+    "dont_pass": "Don't pass",
+    "field": "Field",
+    "hardways": "Hardways",
+    "lay": "Lay bets",
+    "odds": "Odds",
+    "other": "Other",
+    "pass": "Pass line",
+    "place": "Place bets",
+    "props": "One-roll bets"
+   },
+   "spots": {
+    "any7": {
+     "edge": 0.1666667,
+     "line": "props",
+     "sd": 1.86339,
+     "source": "exact"
+    },
+    "any_craps": {
+     "edge": 0.1111111,
+     "line": "props",
+     "sd": 2.51416,
+     "source": "exact"
+    },
+    "big6": {
+     "edge": 0.0909091,
+     "line": "big",
+     "sd": 0.99586,
+     "source": "exact"
+    },
+    "big8": {
+     "edge": 0.0909091,
+     "line": "big",
+     "sd": 0.99586,
+     "source": "exact"
+    },
+    "buy_10": {
+     "edge": 0.0166667,
+     "line": "buy",
+     "sd": 1.39064,
+     "source": "exact"
+    },
+    "buy_4": {
+     "edge": 0.0166667,
+     "line": "buy",
+     "sd": 1.39064,
+     "source": "exact"
+    },
+    "buy_5": {
+     "edge": 0.02,
+     "line": "buy",
+     "sd": 1.20025,
+     "source": "exact"
+    },
+    "buy_6": {
+     "edge": 0.0227273,
+     "line": "buy",
+     "sd": 1.07055,
+     "source": "exact"
+    },
+    "buy_8": {
+     "edge": 0.0227273,
+     "line": "buy",
+     "sd": 1.07055,
+     "source": "exact"
+    },
+    "buy_9": {
+     "edge": 0.02,
+     "line": "buy",
+     "sd": 1.20025,
+     "source": "exact"
+    },
+    "ce": {
+     "edge": 0.1111111,
+     "line": "props",
+     "sd": 2.13148,
+     "source": "exact"
+    },
+    "come": {
+     "edge": 0.0141414,
+     "line": "come",
+     "sd": 0.9999,
+     "source": "exact"
+    },
+    "come_10": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_4": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_5": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_6": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_8": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_9": {
+     "edge": 0.0,
+     "line": "come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "come_odds_10": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.41421,
+     "source": "exact"
+    },
+    "come_odds_4": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.41421,
+     "source": "exact"
+    },
+    "come_odds_5": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.22474,
+     "source": "exact"
+    },
+    "come_odds_6": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.09545,
+     "source": "exact"
+    },
+    "come_odds_8": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.09545,
+     "source": "exact"
+    },
+    "come_odds_9": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.22474,
+     "source": "exact"
+    },
+    "dcome_10": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_4": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_5": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_6": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_8": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_9": {
+     "edge": 0.0,
+     "line": "dont_come",
+     "sd": 1.0,
+     "source": "exact"
+    },
+    "dcome_odds_10": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.70711,
+     "source": "exact"
+    },
+    "dcome_odds_4": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.70711,
+     "source": "exact"
+    },
+    "dcome_odds_5": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.8165,
+     "source": "exact"
+    },
+    "dcome_odds_6": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.91287,
+     "source": "exact"
+    },
+    "dcome_odds_8": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.91287,
+     "source": "exact"
+    },
+    "dcome_odds_9": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.8165,
+     "source": "exact"
+    },
+    "dont_come": {
+     "edge": 0.0136364,
+     "line": "dont_come",
+     "sd": 0.98592,
+     "source": "exact"
+    },
+    "dont_odds": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 0.70711,
+     "source": "exact"
+    },
+    "dont_pass": {
+     "edge": 0.0136364,
+     "line": "dont_pass",
+     "sd": 0.98592,
+     "source": "exact"
+    },
+    "eleven": {
+     "edge": 0.1111111,
+     "line": "props",
+     "sd": 3.66498,
+     "source": "exact"
+    },
+    "field": {
+     "edge": 0.0277778,
+     "line": "field",
+     "sd": 1.14227,
+     "source": "exact"
+    },
+    "hard10": {
+     "edge": 0.1111111,
+     "line": "hardways",
+     "sd": 2.51416,
+     "source": "exact"
+    },
+    "hard4": {
+     "edge": 0.1111111,
+     "line": "hardways",
+     "sd": 2.51416,
+     "source": "exact"
+    },
+    "hard6": {
+     "edge": 0.0909091,
+     "line": "hardways",
+     "sd": 2.8748,
+     "source": "exact"
+    },
+    "hard8": {
+     "edge": 0.0909091,
+     "line": "hardways",
+     "sd": 2.8748,
+     "source": "exact"
+    },
+    "horn": {
+     "edge": 0.125,
+     "line": "props",
+     "sd": 2.08542,
+     "source": "exact"
+    },
+    "lay_10": {
+     "edge": 0.025,
+     "line": "lay",
+     "sd": 0.70711,
+     "source": "exact"
+    },
+    "lay_4": {
+     "edge": 0.025,
+     "line": "lay",
+     "sd": 0.70711,
+     "source": "exact"
+    },
+    "lay_5": {
+     "edge": 0.0333333,
+     "line": "lay",
+     "sd": 0.8165,
+     "source": "exact"
+    },
+    "lay_6": {
+     "edge": 0.0416667,
+     "line": "lay",
+     "sd": 0.91287,
+     "source": "exact"
+    },
+    "lay_8": {
+     "edge": 0.0416667,
+     "line": "lay",
+     "sd": 0.91287,
+     "source": "exact"
+    },
+    "lay_9": {
+     "edge": 0.0333333,
+     "line": "lay",
+     "sd": 0.8165,
+     "source": "exact"
+    },
+    "pass": {
+     "edge": 0.0141414,
+     "line": "pass",
+     "sd": 0.9999,
+     "source": "exact"
+    },
+    "pass_odds": {
+     "edge": 0.0,
+     "line": "odds",
+     "sd": 1.41421,
+     "source": "exact"
+    },
+    "place_10": {
+     "edge": 0.0666667,
+     "line": "place",
+     "sd": 1.31993,
+     "source": "exact"
+    },
+    "place_4": {
+     "edge": 0.0666667,
+     "line": "place",
+     "sd": 1.31993,
+     "source": "exact"
+    },
+    "place_5": {
+     "edge": 0.04,
+     "line": "place",
+     "sd": 1.17576,
+     "source": "exact"
+    },
+    "place_6": {
+     "edge": 0.0151515,
+     "line": "place",
+     "sd": 1.07885,
+     "source": "exact"
+    },
+    "place_8": {
+     "edge": 0.0151515,
+     "line": "place",
+     "sd": 1.07885,
+     "source": "exact"
+    },
+    "place_9": {
+     "edge": 0.04,
+     "line": "place",
+     "sd": 1.17576,
+     "source": "exact"
+    },
+    "three": {
+     "edge": 0.1111111,
+     "line": "props",
+     "sd": 3.66498,
+     "source": "exact"
+    },
+    "twelve": {
+     "edge": 0.1388889,
+     "line": "props",
+     "sd": 5.0944,
+     "source": "exact"
+    },
+    "two": {
+     "edge": 0.1388889,
+     "line": "props",
+     "sd": 5.0944,
+     "source": "exact"
+    }
+   }
+  },
+  "high_card_flush": {
+   "lines": {
+    "flush": "Flush",
+    "jackpot": "Jackpot",
+    "main": "Ante and Raise",
+    "straight_flush": "Straight Flush"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0257867,
+     "line": "main",
+     "n": 300000,
+     "sd": 1.63298,
+     "se": 0.0029814,
+     "source": "simulated"
+    },
+    "flush": {
+     "edge": 0.0806369,
+     "line": "flush",
+     "sd": 5.19908,
+     "source": "enumerated"
+    },
+    "jackpot": {
+     "edge": 0.3495927,
+     "line": "jackpot",
+     "pool": {
+      "bet": 100,
+      "fixed": 65.040734,
+      "fixed2": 329190.7003,
+      "share": 6.189055000068727e-06,
+      "share2": 3.2141227657361747e-06
+     },
+     "sd": 5.70053,
+     "source": "enumerated"
+    },
+    "raise": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "straight_flush": {
+     "edge": 0.0775742,
+     "line": "straight_flush",
+     "sd": 5.17465,
+     "source": "enumerated"
+    }
+   }
+  },
+  "let_it_ride": {
+   "lines": {
+    "bonus": "Bonus",
+    "jackpot": "Jackpot",
+    "main": "Bets 1, 2 and $",
+    "three_card": "3 Card Bonus"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0382733,
+     "line": "main",
+     "n": 300000,
+     "sd": 2.83659,
+     "se": 0.0051789,
+     "source": "simulated"
+    },
+    "bet1": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "bet2": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "bonus": {
+     "edge": 0.2420091,
+     "line": "bonus",
+     "sd": 17.72457,
+     "source": "enumerated"
+    },
+    "jackpot": {
+     "edge": 0.4694308,
+     "line": "jackpot",
+     "pool": {
+      "bet": 100,
+      "fixed": 53.056915,
+      "fixed2": 335983.1317,
+      "share": 2.9242466217256137e-06,
+      "share2": 1.6775941145689045e-06
+     },
+     "sd": 5.77207,
+     "source": "enumerated"
+    },
+    "three_card": {
+     "edge": 0.0231674,
+     "line": "three_card",
+     "sd": 2.91065,
+     "source": "enumerated"
+    }
+   }
+  },
+  "mississippi_stud": {
+   "lines": {
+    "bonus": "3 Card Bonus",
+    "jackpot": "Jackpot",
+    "main": "Ante and streets"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0462852,
+     "line": "main",
+     "n": 10000000,
+     "sd": 10.02224,
+     "se": 0.0031693,
+     "source": "simulated"
+    },
+    "bonus": {
+     "edge": 0.0709502,
+     "line": "bonus",
+     "sd": 2.87804,
+     "source": "enumerated"
+    },
+    "fifth": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "fourth": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "jackpot": {
+     "edge": 0.6236367,
+     "line": "jackpot",
+     "n": 300000,
+     "pool": {
+      "bet": 100,
+      "fixed": 37.636333,
+      "fixed2": 272877.3667,
+      "share": 2.4317419275402466e-06,
+      "share2": 1.6283436451503678e-06
+     },
+     "sd": 5.21019,
+     "source": "simulated"
+    },
+    "third": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    }
+   }
+  },
+  "pai_gow_face_up": {
+   "lines": {
+    "fortune": "Fortune",
+    "jackpot": "Jackpot",
+    "main": "Ante"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0196533,
+     "line": "main",
+     "n": 300000,
+     "sd": 0.7175,
+     "se": 0.00131,
+     "source": "simulated"
+    },
+    "envy": {
+     "edge": 0.0,
+     "line": "fortune",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "fortune": {
+     "edge": 0.08804,
+     "line": "fortune",
+     "n": 300000,
+     "sd": 3.88247,
+     "se": 0.0070884,
+     "source": "simulated"
+    },
+    "jackpot": {
+     "edge": 0.53669,
+     "line": "jackpot",
+     "n": 300000,
+     "pool": {
+      "bet": 100,
+      "fixed": 46.331,
+      "fixed2": 710411.1,
+      "share": 5.644106761069001e-07,
+      "share2": 3.065333844373682e-07
+     },
+     "sd": 8.41585,
+     "source": "simulated"
+    }
+   }
+  },
+  "pai_gow_fortune": {
+   "lines": {
+    "fortune": "Fortune",
+    "jackpot": "Jackpot",
+    "main": "Ante (less commission)"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0279697,
+     "line": "main",
+     "n": 300000,
+     "sd": 0.74739,
+     "se": 0.0013645,
+     "source": "simulated"
+    },
+    "envy": {
+     "edge": 0.0,
+     "line": "fortune",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "fortune": {
+     "edge": 0.07982,
+     "line": "fortune",
+     "n": 300000,
+     "sd": 3.82908,
+     "se": 0.0069909,
+     "source": "simulated"
+    },
+    "jackpot": {
+     "edge": 0.52513,
+     "line": "jackpot",
+     "n": 300000,
+     "pool": {
+      "bet": 100,
+      "fixed": 47.487,
+      "fixed2": 319053.0333,
+      "share": 5.644106761069001e-07,
+      "share2": 3.065333844373682e-07
+     },
+     "sd": 5.62848,
+     "source": "simulated"
+    }
+   }
+  },
+  "roulette": {
+   "lines": {
+    "corner": "Corners",
+    "dozen_column": "Dozens and columns",
+    "even": "Even chances",
+    "first_four": "First four",
+    "line": "Six lines",
+    "split": "Splits",
+    "straight": "Straight up",
+    "street": "Streets",
+    "trio": "Trios"
+   },
+   "spots": {
+    "black": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "co_10_14": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_11_15": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_13_17": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_14_18": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_16_20": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_17_21": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_19_23": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_1_5": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_20_24": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_22_26": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_23_27": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_25_29": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_26_30": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_28_32": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_29_33": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_2_6": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_31_35": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_32_36": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_4_8": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_5_9": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_7_11": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "co_8_12": {
+     "edge": 0.027027,
+     "line": "corner",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "col1": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "col2": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "col3": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "doz1": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "doz2": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "doz3": {
+     "edge": 0.027027,
+     "line": "dozen_column",
+     "sd": 1.40437,
+     "source": "exact"
+    },
+    "even": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "ff": {
+     "edge": 0.027027,
+     "line": "first_four",
+     "sd": 2.79465,
+     "source": "exact"
+    },
+    "high": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "ln_1": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_10": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_13": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_16": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_19": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_22": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_25": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_28": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_31": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_4": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "ln_7": {
+     "edge": 0.027027,
+     "line": "line",
+     "sd": 2.2116,
+     "source": "exact"
+    },
+    "low": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "n0": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n1": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n10": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n11": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n12": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n13": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n14": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n15": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n16": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n17": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n18": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n19": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n2": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n20": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n21": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n22": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n23": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n24": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n25": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n26": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n27": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n28": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n29": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n3": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n30": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n31": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n32": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n33": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n34": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n35": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n36": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n4": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n5": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n6": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n7": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n8": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "n9": {
+     "edge": 0.027027,
+     "line": "straight",
+     "sd": 5.83784,
+     "source": "exact"
+    },
+    "odd": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "red": {
+     "edge": 0.0135135,
+     "line": "even",
+     "sd": 0.98972,
+     "source": "exact"
+    },
+    "sp_0_1": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_0_2": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_0_3": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_10_11": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_10_13": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_11_12": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_11_14": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_12_15": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_13_14": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_13_16": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_14_15": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_14_17": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_15_18": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_16_17": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_16_19": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_17_18": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_17_20": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_18_21": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_19_20": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_19_22": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_1_2": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_1_4": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_20_21": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_20_23": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_21_24": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_22_23": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_22_25": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_23_24": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_23_26": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_24_27": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_25_26": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_25_28": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_26_27": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_26_29": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_27_30": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_28_29": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_28_31": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_29_30": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_29_32": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_2_3": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_2_5": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_30_33": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_31_32": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_31_34": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_32_33": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_32_35": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_33_36": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_34_35": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_35_36": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_3_6": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_4_5": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_4_7": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_5_6": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_5_8": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_6_9": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_7_10": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_7_8": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_8_11": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_8_9": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "sp_9_12": {
+     "edge": 0.027027,
+     "line": "split",
+     "sd": 4.07024,
+     "source": "exact"
+    },
+    "st_1": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_10": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_13": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_16": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_19": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_22": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_25": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_28": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_31": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_34": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_4": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "st_7": {
+     "edge": 0.027027,
+     "line": "street",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "tr_0_1_2": {
+     "edge": 0.027027,
+     "line": "trio",
+     "sd": 3.27552,
+     "source": "exact"
+    },
+    "tr_0_2_3": {
+     "edge": 0.027027,
+     "line": "trio",
+     "sd": 3.27552,
+     "source": "exact"
+    }
+   }
+  },
+  "three_card_poker": {
+   "lines": {
+    "jackpot": "Jackpot",
+    "main": "Ante and Play",
+    "pair_plus": "Pair Plus",
+    "prime": "Prime"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0335,
+     "line": "main",
+     "n": 300000,
+     "sd": 1.63623,
+     "se": 0.0029873,
+     "source": "simulated"
+    },
+    "ante_bonus": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "jackpot": {
+     "edge": 0.3963801,
+     "line": "jackpot",
+     "pool": {
+      "bet": 100,
+      "fixed": 60.361991,
+      "fixed2": 634895.9276,
+      "share": 4.524886877828054e-05,
+      "share2": 4.524886877828054e-05
+     },
+     "sd": 7.94514,
+     "source": "enumerated"
+    },
+    "pair_plus": {
+     "edge": 0.0269683,
+     "line": "pair_plus",
+     "sd": 2.84638,
+     "source": "enumerated"
+    },
+    "play": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "prime": {
+     "edge": 0.036206,
+     "line": "prime",
+     "sd": 1.74338,
+     "source": "enumerated"
+    }
+   }
+  },
+  "ultimate_texas_holdem": {
+   "lines": {
+    "jackpot": "Jackpot",
+    "main": "Ante, Blind and Play",
+    "trips": "Trips"
+   },
+   "spots": {
+    "ante": {
+     "edge": 0.0215475,
+     "line": "main",
+     "n": 2000000,
+     "sd": 5.05318,
+     "se": 0.0035731,
+     "source": "simulated"
+    },
+    "blind": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "jackpot": {
+     "edge": 0.4694308,
+     "line": "jackpot",
+     "pool": {
+      "bet": 100,
+      "fixed": 53.056915,
+      "fixed2": 335983.1317,
+      "share": 2.9242466217256137e-06,
+      "share2": 1.6775941145689045e-06
+     },
+     "sd": 5.77207,
+     "source": "enumerated"
+    },
+    "play": {
+     "edge": 0.0,
+     "line": "main",
+     "sd": 0.0,
+     "source": "simulated"
+    },
+    "trips": {
+     "edge": 0.0873167,
+     "line": "trips",
+     "n": 300000,
+     "sd": 2.44477,
+     "se": 0.0044635,
+     "source": "simulated"
+    }
+   }
+  }
+ },
+ "made": "2026-11-04",
+ "slots": {
+  "armadillo": {
+   "buy_edge": 0.060334,
+   "buy_sd": 2.851,
+   "edge": 0.05578,
+   "name": "Armadillo Goes West",
+   "rtp": 94.422,
+   "sd": 19.128,
+   "source": "slots"
+  },
+  "pirates_of_the_carribean": {
+   "buy_edge": -0.000175,
+   "buy_sd": 1.096,
+   "edge": 0.050991,
+   "name": "Pirates Of The Carribean",
+   "rtp": 94.901,
+   "sd": 7.354,
+   "source": "slots"
+  },
+  "startrek": {
+   "buy_edge": 0.047219,
+   "buy_sd": 1.153,
+   "edge": 0.041771,
+   "name": "TNG",
+   "rtp": 95.823,
+   "sd": 7.737,
+   "source": "slots"
+  },
+  "voyager": {
+   "buy_edge": 0.014539,
+   "buy_sd": 1.081,
+   "edge": 0.036042,
+   "name": "Voyager",
+   "rtp": 96.396,
+   "sd": 7.253,
+   "source": "slots"
+  }
+ }
+}

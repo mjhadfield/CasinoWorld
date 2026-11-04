@@ -46,9 +46,17 @@ class TableRunner:
     def act(self, method: str, *args, **kwargs):
         """Run a machine action now; raises TableError for a rejected one."""
         events = getattr(self.machine, method)(*args, now=self.clock(), **kwargs)
+        if method == "sit":
+            self.place(args[1])
         self.publish(events)
         self._wake.set()
         return events
+
+    def place(self, participant):
+        """Tell someone sitting down where they are, so the Tracker counts their bets here (tracking.py)."""
+        if hasattr(participant, "place"):   # (a test's stand-in may not be a Participant)
+            participant.place(getattr(self.casino, "tracker", None), getattr(self.casino, "id", casinos.DEMO),
+                              self.table_id, self.machine.game)
 
     async def run(self):
         while True:
@@ -171,6 +179,8 @@ class TableRunner:
                 humans.setdefault(self._player_id(p), [owner, 0])[1] += amount
         for pid, (owner, amount) in humans.items():
             store.return_stake(pid, self._key, game, amount)
+            if getattr(owner, "tracker", None) is not None:   # (the store wrote the ledger row: the Tracker counts it)
+                owner.tracker.hand_back(owner, amount, store.RETURN_NOTE)
             if owner.here:
                 store.stakes_returned(pid)
                 owner.session.push({"type": "notice", "message": returned_message(game, amount, now=True)})

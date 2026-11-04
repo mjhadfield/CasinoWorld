@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.resort import Resort
 from casino_server.session import Session
-from casino_server import bank, casinos, heat, plan, plan_assets, slot_builds, slot_design_art, stats_archive
+from casino_server import bank, casinos, heat, plan, plan_assets, slot_builds, slot_design_art, stats_archive, tracking
 from casino_server.slot_art import SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -1126,7 +1126,20 @@ def _get_npc(request: Request, npc_id: int) -> dict:
 async def npcs_get(npc_id: int, request: Request):
     rec = _get_npc(request, npc_id)
     store = request.app.state.resort.store
-    return {**_npc_view(request, rec), "visits": store.npc_visits(npc_id, 25)}
+    tracker = request.app.state.resort.tracker
+    figures = tracker.npc_figures(npc_id)
+    return {**_npc_view(request, rec), "visits": store.npc_visits(npc_id, 25),
+            "bets": tracking.lines(tracker.edges, figures["spots"], roster.GAMES), "game_time": figures["games"],
+            "stats_since": store.get_meta("npc_stats_since")}
+
+
+@app.get("/api/npcs/{npc_id}/bet-log")
+async def npcs_bet_log(npc_id: int, request: Request, limit: int = 100):
+    """Their latest money moves (the NPC bet log, kept bet_log_days)."""
+    _get_npc(request, npc_id)
+    resort = request.app.state.resort
+    resort.tracker.save()   # (so the log's up to the moment)
+    return {"rows": resort.store.npc_bet_log(npc_id, max(1, min(limit, 1000)))}
 
 
 @app.put("/api/npcs/{npc_id}")
@@ -1460,6 +1473,41 @@ async def players_stats(request: Request):
 
 
 # The Stats archive (admin, Setup): frozen copies of the figures, taken before a wipe (stats_archive.py).
+@app.get("/api/players/{player_id}/bets")
+async def player_bets(player_id: int, request: Request):
+    """A character's lifetime figures by game, bet line and spot, against the house's EV (tracking.py)."""
+    resort = request.app.state.resort
+    if resort.store.player(player_id) is None:
+        raise HTTPException(404, "No such player.")
+    return {"games": tracking.lines(resort.tracker.edges, resort.tracker.player_figures(player_id), roster.GAMES),
+            "since": resort.store.get_meta("bet_stats_since")}
+
+
+HOUSE_DAYS = {"1d": 1, "7d": 7, "30d": 30, "all": None}
+
+
+@app.get("/api/house")
+async def house(request: Request, period: str = "7d", who: str = "all", casino: str = "all"):
+    """The House section: every game's bet lines and spots over a period (today, the last 7 or 30 days, or all), for
+    everyone, NPCs or humans, in one casino or all: staked, returned, the house's actual win against its EV, and the
+    variance for a ±2σ band. Also each day's figures by game, for the chart."""
+    if period not in HOUSE_DAYS or who not in ("all", "npc", "human"):
+        raise HTTPException(400, "period is 1d, 7d, 30d or all; who is all, npc or human.")
+    resort = request.app.state.resort
+    days = HOUSE_DAYS[period]
+    since = tracking.day_of(time.time() - (days - 1) * 86400) if days else None
+    who_ = None if who == "all" else who
+    casino_ = None if casino == "all" else casino
+    tracker = resort.tracker
+    tracker.save()   # (the last half-minute's moves, so the page and the chart agree)
+    daily = [r for r in resort.store.bet_days(who_, casino_) if since is None or r["day"] >= since]
+    return JSONResponse({"games": tracking.lines(tracker.edges, tracker.house(since, who_, casino_), roster.GAMES),
+                         "days": daily, "since": since, "tracking_since": resort.store.get_meta("bet_stats_since"),
+                         "npc_stats_since": resort.store.get_meta("npc_stats_since"),
+                         "edges_made": tracker.edges.made, "unpriced": sorted(f"{g}/{s}" for g, s in tracker.unpriced),
+                         "casinos": {c["id"]: c["name"] for c in resort.registry}}, headers=NO_STORE)
+
+
 @app.get("/api/stats/archives")
 async def stats_archives(request: Request):
     return {"archives": stats_archive.listing(request.app.state.resort.data_dir)}

@@ -348,8 +348,9 @@ def test_about_one_npc_gets_up_at_a_change_and_never_more_than_two(tmp_path):
 
     casino, *_ = npc_master(tmp_path)
 
-    def npc(name, favourites=(), counter=False):
-        prof = SimpleNamespace(favourite_games=list(favourites), card_counter=counter)
+    def npc(name, favourites=(), counter=False, never=()):
+        tastes = {**{g: "fav" for g in favourites}, **{g: "never" for g in never}}
+        prof = SimpleNamespace(card_counter=counter, taste=tastes.get)
         return SimpleNamespace(name=name, npc=SimpleNamespace(prof=prof))
 
     five = [npc(f"n{i}") for i in range(5)]
@@ -360,6 +361,8 @@ def test_about_one_npc_gets_up_at_a_change_and_never_more_than_two(tmp_path):
     assert all(fan not in casino.npcs.leavers([fan, counter], "baccarat") for _ in range(200))
     assert casino.npcs.leavers([counter], "baccarat") == [counter]
     assert casino.npcs.leavers([counter], "blackjack") == []
+    refuser = npc("refuser", never=["baccarat"])
+    assert casino.npcs.leavers([refuser], "baccarat") == [refuser]
 
 
 def test_npcs_keep_their_seats_through_six_to_five_and_back(tmp_path):

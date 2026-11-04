@@ -21,27 +21,34 @@ is below.
 ## Done when
 - [x] Step 1: a backup (`server/data/casino.pre-npc-overhaul-20261104.sqlite`), the Stats archive page and
   `admin archive-stats`, the live archive "Before the NPC overhaul", and the 4 ledger rows put back (3eba437)
-- [ ] Step 2: per-spot tracking with EV for NPCs and humans, the 30-day NPC bet log, and the House section
-- [ ] Step 3: time-based visits with tastes, stints and leaving rules; visits resume after a restart
+- [x] Step 2: per-spot tracking with EV for NPCs and humans, the 30-day NPC bet log, and the House section
+- [x] Step 3: time-based visits with tastes, stints and leaving rules; visits resume after a restart
 - [ ] Step 4: `admin wipe-npc-stats` run on live (it takes a second archive and backup first)
-- [ ] A simulated day on the dev instance (`--live-data`) matches the targets: visits ~90 min, >1 game a visit,
-  hold vs EV in its band, DB growth near the estimate
-- [ ] `tools/dev.sh test` passes. `test_stop_mid_hand.py::test_every_stake_is_counted_off_by_the_end_of_its_hand`
-  was already flaky before this work (about 1 run in 6 fails on clean main)
+- [x] A simulated day on a copy of the live data (the real Resort on a fake clock, a quarter pace, 24 hours'
+  worth): 388 visits, mean 90 min, median 90, 2.9 games a visit, 8% on one game; hold vs EV inside ±2σ on every
+  game but slots (unpriced at the time); every flush under 50 ms. DB growth was **~300k bet log rows a day, about
+  47 MB a day, so ~1.4 GB at 30 days** (twice the plan's estimate: craps' chip-by-chip bets and 90-minute visits)
+- [x] `tools/dev.sh test` passes
 
 ## Handoff
-- **State:** step 1 is done, committed and live. Steps 2–4 haven't started.
-- **Changed:**
-  - `stats_archive.py`
-  - `admin_web/sections/archive.js` (Setup › Stats archive)
-  - `/api/stats/archives[/{id}]`
-  - `admin archive-stats`
-  - `tools/restore_ledger_rows.py`
-- **Checked:**
-  - `tests/test_stats_archive.py`
-  - the live page in a headless browser: no console errors, and the figures match
-    docs/npc-data-analysis-2026-11-04.md (plus the restored £25)
-- **Questions for Mike:** none open. His decisions are in the plan's Context.
+- **State:** steps 2 and 3 built and tested; step 4's command built and tested on scratch data.
+- **Changes from the plan, my calls:**
+  - Budgets: the archetypes' default budgets are 3x (a Gambler's 5x) with the stake share cut to match, so the
+    stakes on the felt are the same but a budget lasts a 90-minute visit (with the old budgets visits averaged
+    44 min: casuals hit their stop-loss and gamblers bust within half an hour). Phil Ivey's hand-set budget now
+    stakes a third of what it did.
+  - Casual visits are 55-115 min, not 40-100: casuals are half the roster and visit most often, so 40-100 couldn't
+    average 90.
+  - The variance is stored as `var` (stake² x σ², summed) rather than `stake_sq`, so a Jackpot bet's spread can
+    follow the pool.
+  - Craps charges its edge per decision: a bet that wins and stays up is charged again.
+- **Found on the way:**
+  - The Blackjack £1 Jackpot pays back about £2.41 per £1 (house edge −141%): its fixed prizes (£10 flush, £30
+    straight, £100 trips, £125 straight flush) are big for how often three cards hit. Not changed; Mike to decide.
+  - `_keep_craps_busy` could redirect an NPC mid-walk, making them jump to where they were heading: it now only sends
+    NPCs who are standing about.
+- **Questions for Mike:** the Blackjack Jackpot paytable; whether 30 days of bet log (~1.4 GB) is fine or Settings
+  should keep fewer.
 
 ## The plan
 

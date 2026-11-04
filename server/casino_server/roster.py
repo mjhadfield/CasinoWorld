@@ -6,16 +6,21 @@ Every punter has one archetype -- how they play a session -- and any number of
 modifiers. profile() turns those into the numbers npc.py plays by, so behaviour
 lives in one place:
 
-  Grinder    long sessions at optimal lines, small units, rare side bets
-  Casual     medium sessions, the odd mistake, side bets now and then
-  Gambler    a few hands on high-variance lines, big units; riches or bust
+  Grinder    long visits at optimal lines, small units, rare side bets
+  Casual     shorter visits, the odd mistake, side bets now and then; stops once they've lost 60-80% of the budget
+  Gambler    long visits on high-variance lines, big units; riches or bust
   Whale      plays much higher stakes (a budget 10-30x the usual)
-  Chaser     raises the stake after a loss, trying to claw it back
-  Hit-and-run  leaves once they're up a set share of their budget
+  Chaser     raises the stake after a loss, trying to claw it back; stays on past their time while down
+  Hit-and-run  half the usual visit, and leaves once they're up a share of their budget (10-30%, or as set)
   Superstitious  lucky numbers, a favourite table; avoids where they last went bust
   Regular    comes back far sooner (a short cooldown), and is picked more often
   Card counter  Blackjack: bets up when the count is good
   VIP        a friend of the casino: known to the dealers (perks to come)
+
+A visit lasts a while (visit_min by archetype, on the admin page's Settings) and is made of stints: sitting down
+starts one, longer at a favourite game than at another, and when it's up they move on to another table. Which game
+is down to their tastes (settings.tastes: game -> "fav" | "dabble" | "never"; make_tastes() gives a punter one or
+two favourites and a few to dabble in, leaning by archetype).
 """
 import random
 from dataclasses import dataclass, field
@@ -28,30 +33,43 @@ ROLES = {k: r["label"] for k, r in staff.BUILTIN_ROLES.items()}
 ON_THE_FLOOR = ("punter", "dealer")
 
 ARCHETYPES = {
-    "grinder": {"label": "Grinder", "about": "Long sessions at optimal lines; small, steady stakes."},
-    "casual": {"label": "Casual", "about": "Medium sessions, plays a bit loosely; side bets now and then."},
-    "gambler": {"label": "Gambler", "about": "A few hands on high-variance lines, big stakes. Riches or bust."},
+    "grinder": {"label": "Grinder", "about": "Long visits at optimal lines; small, steady stakes."},
+    "casual": {"label": "Casual", "about": "Shorter visits, plays a bit loosely; side bets now and then. Stops once down 60-80%."},
+    "gambler": {"label": "Gambler", "about": "Long visits on high-variance lines, big stakes. Riches or bust."},
 }
 MODIFIERS = {
     "whale": {"label": "Whale", "about": "Plays much higher stakes."},
-    "chaser": {"label": "Chaser", "about": "Raises the stake after a loss to claw it back."},
-    "hit_and_run": {"label": "Hit-and-run", "about": "Leaves as soon as they're up a set share of their budget."},
+    "chaser": {"label": "Chaser", "about": "Raises the stake after a loss to claw it back, and stays on past their time while down."},
+    "hit_and_run": {"label": "Hit-and-run", "about": "Half the usual visit, and leaves once up a share of their budget."},
     "superstitious": {"label": "Superstitious", "about": "Lucky numbers and a favourite table; avoids where they last went bust."},
     "regular": {"label": "Regular", "about": "Comes back far sooner, and more often."},
     "card_counter": {"label": "Card counter", "about": "Blackjack: bets up when the count is good."},
     "vip": {"label": "VIP", "about": "A friend of the casino, known to the staff. (Perks to come.)"},
 }
 
-# Archetype -> session rounds, mistake rate, unit as a share of the budget, side-bet appetite, side-bet size
-# as a share of the main bet, budget (pence).
+# Archetype -> mistake rate, unit as a share of the budget, side-bet appetite, side-bet size as a share of the main
+# bet, budget (pence). How long a visit lasts is a setting (DEFAULT_SETTINGS visit_min_<archetype>). The budgets are
+# three times what they were when a visit was a few hands (a Gambler's five), and the units that much smaller a share,
+# so the stakes on the felt are the same but a budget lasts a visit of an hour or two.
 _SESSIONS = {
-    "grinder": {"rounds": (40, 120), "mistakes": 0.0, "unit": (0.01, 0.02), "side": 0.4, "side_size": (0.05, 0.1),
-                "budget": (30_000, 150_000)},
-    "casual": {"rounds": (10, 30), "mistakes": 0.15, "unit": (0.02, 0.04), "side": 1.0, "side_size": (0.05, 0.2),
-               "budget": (10_000, 60_000)},
-    "gambler": {"rounds": (3, 10), "mistakes": 0.15, "unit": (0.08, 0.15), "side": 1.6, "side_size": (0.1, 0.3),
-                "budget": (20_000, 200_000)},
+    "grinder": {"mistakes": 0.0, "unit": (0.0033, 0.0067), "side": 0.4, "side_size": (0.05, 0.1),
+                "budget": (90_000, 450_000)},
+    "casual": {"mistakes": 0.15, "unit": (0.0067, 0.0133), "side": 1.0, "side_size": (0.05, 0.2),
+               "budget": (30_000, 180_000)},
+    "gambler": {"mistakes": 0.15, "unit": (0.016, 0.03), "side": 1.6, "side_size": (0.1, 0.3),
+                "budget": (100_000, 1_000_000)},
 }
+HIT_AND_RUN_VISIT = 0.5        # x the usual visit
+HIT_AND_RUN_UP = (0.10, 0.30)  # they leave once up this share of the budget (unless hit_and_run_pct says otherwise)
+CASUAL_STOP_LOSS = (0.6, 0.8)  # a Casual stops once they've lost this share of the budget
+
+# Tastes: the games each archetype leans towards (make_tastes), and how much more often a favourite or a dabble is
+# picked than a game they've no feeling about (npc.py). "never": they won't play it.
+TASTES = ("fav", "dabble", "never")
+LEANS = {"grinder": ("blackjack", "craps", "baccarat", "pai_gow", "ultimate_texas_holdem"),
+         "casual": ("slots", "roulette", "three_card_poker", "let_it_ride", "mississippi_stud", "high_card_flush"),
+         "gambler": ("craps", "roulette", "baccarat", "slots", "mississippi_stud")}
+PAI_GOW = ("pai_gow_fortune", "pai_gow_face_up")   # ("pai_gow" in LEANS: either)
 WHALE_BUDGET = (10, 30)       # x the archetype's budget
 NICE_UNITS = (100, 200, 500, 1_000, 1_500, 2_000, 2_500, 5_000, 7_500, 10_000, 15_000, 20_000, 25_000, 50_000)
 
@@ -63,14 +81,21 @@ DEFAULT_SETTINGS = {
     "regular_cooldown": 0.3,    # x for Regulars
     "dealer_shift_min": 20,     # minutes before a dealer is relieved
     "dealer_stagger_min": 2,    # between tables' reliefs
+    "bet_log_days": 30,         # how long the NPC bet log (npc_ledger) keeps each money move (tracking.py)
+    "visit_min_grinder": (75, 165),   # minutes a visit lasts, by archetype (about 90 across the mix, with the early
+    "visit_min_casual": (55, 115),    # leavers: hit-and-run, busts, stop-losses)
+    "visit_min_gambler": (70, 180),
+    "stint_fav_min": (20, 60),        # minutes at a table of a favourite game before moving on
+    "stint_dabble_min": (8, 20),      # ...and of any other
 }
+VISIT_KEYS = ("visit_min_grinder", "visit_min_casual", "visit_min_gambler", "stint_fav_min", "stint_dabble_min")
 
 
 @dataclass
 class Profile:
     """How a punter plays this visit (from their archetype and modifiers)."""
     archetype: str
-    rounds: int
+    visit_seconds: float          # how long this visit lasts (before the pace: npc.py)
     mistakes: float
     unit_share: float
     side_appetite: float
@@ -88,6 +113,13 @@ class Profile:
     vip: bool
     budget: int = 0
     traits: tuple = field(default_factory=tuple)
+    tastes: dict = field(default_factory=dict)    # game -> "fav" | "dabble" | "never"
+    stop_loss: float | None = None   # a Casual leaves once they've lost this share of the budget
+    stints: dict = field(default_factory=dict)    # "fav" / "dabble" -> (min, max) minutes at a table
+
+    def taste(self, game: str) -> str | None:
+        """How they feel about a game: "fav" | "dabble" | "never", or None (no feeling either way)."""
+        return self.tastes.get(game)
 
 
 def budget_range(npc: dict) -> tuple[int, int]:
@@ -98,23 +130,87 @@ def budget_range(npc: dict) -> tuple[int, int]:
     return int(s.get("budget_min") or lo), int(s.get("budget_max") or hi)
 
 
-def profile(npc: dict, rng: random.Random) -> Profile:
+def profile(npc: dict, rng: random.Random, settings: dict | None = None) -> Profile:
+    """How they'll play this visit. `settings`: the admin page's (visit and stint lengths; else the defaults)."""
     arch = npc.get("archetype") or "casual"
     base = _SESSIONS.get(arch, _SESSIONS["casual"])
     traits = tuple(npc.get("traits", []))
     s = npc.get("settings") or {}
+    cfg = {**DEFAULT_SETTINGS, **(settings or {})}
     lo, hi = budget_range(npc)
+    minutes = rng.uniform(*cfg.get(f"visit_min_{arch}", cfg["visit_min_casual"]))
+    hit_and_run = None
+    if "hit_and_run" in traits:
+        minutes *= HIT_AND_RUN_VISIT
+        hit_and_run = float(s["hit_and_run_pct"]) / 100 if s.get("hit_and_run_pct") else rng.uniform(*HIT_AND_RUN_UP)
+    tastes = tastes_of(npc)
     return Profile(
-        archetype=arch, rounds=rng.randint(*base["rounds"]), mistakes=base["mistakes"],
+        archetype=arch, visit_seconds=minutes * 60, mistakes=base["mistakes"],
         unit_share=rng.uniform(*base["unit"]), side_appetite=base["side"],
         side_share=rng.uniform(*base["side_size"]), aggressive=arch == "gambler",
-        chaser="chaser" in traits,
-        hit_and_run=float(s.get("hit_and_run_pct", 50)) / 100 if "hit_and_run" in traits else None,
+        chaser="chaser" in traits, hit_and_run=hit_and_run,
         riches=2.0 if arch == "gambler" else None,
         superstitious="superstitious" in traits, lucky=tuple(s.get("lucky_numbers") or ()),
-        favourite_games=tuple(s.get("favourite_games") or ()), avoid_table=s.get("avoid_table"),
+        favourite_games=tuple(g for g, t in tastes.items() if t == "fav"), avoid_table=s.get("avoid_table"),
         card_counter="card_counter" in traits, regular="regular" in traits, vip="vip" in traits,
-        budget=rng.randrange(lo, hi + 1, 100) if hi > lo else lo, traits=traits)
+        budget=rng.randrange(lo, hi + 1, 100) if hi > lo else lo, traits=traits, tastes=tastes,
+        stop_loss=rng.uniform(*CASUAL_STOP_LOSS) if arch == "casual" else None,
+        stints={"fav": tuple(cfg["stint_fav_min"]), "dabble": tuple(cfg["stint_dabble_min"])})
+
+
+def tastes_of(npc: dict) -> dict:
+    """Their tastes as saved, with any old favourite_games as favourites (and a Card counter's Blackjack)."""
+    s = npc.get("settings") or {}
+    tastes = {g: t for g, t in (s.get("tastes") or {}).items() if g in GAMES and t in TASTES}
+    for g in s.get("favourite_games") or ():
+        if g in GAMES:
+            tastes.setdefault(g, "fav")
+    if "card_counter" in (npc.get("traits") or ()):
+        tastes.setdefault("blackjack", "fav")   # (unless they've been told never)
+    return tastes
+
+
+def make_tastes(npc: dict, rng: random.Random) -> dict:
+    """New tastes for a punter: one or two favourites and up to three games to dabble in, leaning towards their
+    archetype's games (LEANS). A Card counter's favourite is Blackjack; a Superstitious one's Roulette or Craps; old
+    favourite_games stay favourites."""
+    arch = npc.get("archetype") or "casual"
+    traits = npc.get("traits") or ()
+    lean = [g for name in LEANS.get(arch, LEANS["casual"]) for g in ([rng.choice(PAI_GOW)] if name == "pai_gow" else [name])]
+    every = [g for g in GAMES if g not in PAI_GOW] + [rng.choice(PAI_GOW)]
+    tastes = {g: "fav" for g in (npc.get("settings") or {}).get("favourite_games") or () if g in GAMES}
+    if "card_counter" in traits:
+        tastes["blackjack"] = "fav"
+    if "superstitious" in traits and not any(tastes.get(g) == "fav" for g in ("roulette", "craps")):
+        tastes[rng.choice(["roulette", "craps"])] = "fav"
+
+    def pick(lean_share: float) -> str | None:
+        pool = [g for g in (lean if rng.random() < lean_share else every) if g not in tastes]
+        return rng.choice(pool) if pool else None
+    while sum(t == "fav" for t in tastes.values()) < rng.choice([1, 1, 2]):
+        g = pick(0.8)
+        if g is None:
+            break
+        tastes[g] = "fav"
+    for _ in range(rng.randint(0, 3)):
+        g = pick(0.6)
+        if g is not None:
+            tastes[g] = "dabble"
+    return tastes
+
+
+def ensure_tastes(store, rng: random.Random | None = None, everyone: bool = False) -> int:
+    """Give every punter without tastes a set (all of them, `everyone`: the NPC stats wipe). Returns how many."""
+    rng = rng or random.Random()
+    n = 0
+    for rec in store.npcs("punter", archived=None):
+        s = rec["settings"] or {}
+        if "tastes" in s and not everyone:
+            continue
+        keep = {k: v for k, v in s.items() if k not in ("tastes", "favourite_games")}
+        store.update_npc(rec["id"], {"settings": {**keep, "tastes": make_tastes(rec, rng)}})
+        n += 1
+    return n
 
 
 def nice_unit(pence: float) -> int:
@@ -191,6 +287,7 @@ def seed(store, rng: random.Random | None = None):
         settings = {}
         if "superstitious" in traits:
             settings["lucky_numbers"] = sorted(rng.sample(range(37), rng.randint(2, 4)))
+        settings["tastes"] = make_tastes({"archetype": arch, "traits": traits}, rng)
         body = "female" if name in FEMALE else "male"
         store.create_npc({"name": name, "role": "punter", "look": random_look(rng, body), "archetype": arch,
                           "traits": traits, "settings": settings, "enabled": True})
@@ -269,6 +366,7 @@ def generate(count: int, role: str = "punter", archetype: str = "mix", body: str
             rec["traits"] = list(traits)
             if "superstitious" in traits:
                 rec["settings"]["lucky_numbers"] = lucky_numbers(rng)
+            rec["settings"]["tastes"] = make_tastes(rec, rng)
         out.append(rec)
     return out
 
@@ -324,9 +422,13 @@ def clean(data: dict, existing: dict | None = None, roles: dict | None = None) -
         if any(n < 0 or n > 36 for n in nums) or len(nums) > 8:
             raise ValueError("Lucky numbers are 0-36, up to eight of them.")
         clean_s["lucky_numbers"] = nums
-    if s.get("favourite_games"):
-        games = [g for g in s["favourite_games"] if g in GAMES]
-        clean_s["favourite_games"] = games
+    if "tastes" in s or s.get("favourite_games"):   # (favourite_games: from before tastes, as favourites)
+        tastes = {g: "fav" for g in s.get("favourite_games") or () if g in GAMES}
+        for g, t in (s.get("tastes") or {}).items():
+            if g not in GAMES or t not in TASTES:
+                raise ValueError(f"A taste is fav, dabble or never for a game ({g!r}: {t!r}).")
+            tastes[g] = t
+        clean_s["tastes"] = tastes   # (even none: they've no feelings, and keep it that way)
     if s.get("hit_and_run_pct") not in (None, ""):
         pct = int(s["hit_and_run_pct"])
         if not 5 <= pct <= 500:
@@ -362,4 +464,15 @@ def clean_settings(data: dict) -> dict:
             if not 0.5 <= v <= 240:
                 raise ValueError("Dealer shifts and staggers are 0.5-240 minutes.")
             out[key] = v
+    for key in VISIT_KEYS:
+        if key in data:
+            lo, hi = (float(x) for x in data[key])
+            if lo < 1 or hi < lo or hi > 600:
+                raise ValueError("Visits and stints are 1-600 minutes, the longest not below the shortest.")
+            out[key] = [lo, hi]
+    if "bet_log_days" in data:
+        n = int(data["bet_log_days"])
+        if not 1 <= n <= 366:
+            raise ValueError("The NPC bet log keeps 1-366 days.")
+        out["bet_log_days"] = n
     return out

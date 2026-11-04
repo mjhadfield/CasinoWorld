@@ -19,8 +19,15 @@ export function init(h) {
           <label class="field"><span>Cooldown after going bust (min)</span><span class="controls"><input type="number" id="s-bust-lo" min="0" step="1" style="width:6em"> to <input type="number" id="s-bust-hi" min="0" step="1" style="width:6em"></span></label>
           <label class="field"><span>Dealer shift (min)</span><input type="number" id="s-shift" min="0.5" max="240" step="0.5"></label>
           <label class="field"><span>Between tables' reliefs (min)</span><input type="number" id="s-stagger" min="0.5" max="240" step="0.5"></label>
+          <label class="field"><span>A Grinder's visit (min)</span><span class="controls"><input type="number" id="s-v-grinder-lo" min="1" max="600" step="1" style="width:6em"> to <input type="number" id="s-v-grinder-hi" min="1" max="600" step="1" style="width:6em"></span></label>
+          <label class="field"><span>A Casual's visit (min)</span><span class="controls"><input type="number" id="s-v-casual-lo" min="1" max="600" step="1" style="width:6em"> to <input type="number" id="s-v-casual-hi" min="1" max="600" step="1" style="width:6em"></span></label>
+          <label class="field"><span>A Gambler's visit (min)</span><span class="controls"><input type="number" id="s-v-gambler-lo" min="1" max="600" step="1" style="width:6em"> to <input type="number" id="s-v-gambler-hi" min="1" max="600" step="1" style="width:6em"></span></label>
+          <label class="field"><span>At a favourite game's table (min)</span><span class="controls"><input type="number" id="s-st-fav-lo" min="1" max="600" step="1" style="width:6em"> to <input type="number" id="s-st-fav-hi" min="1" max="600" step="1" style="width:6em"></span></label>
+          <label class="field"><span>At any other table (min)</span><span class="controls"><input type="number" id="s-st-dabble-lo" min="1" max="600" step="1" style="width:6em"> to <input type="number" id="s-st-dabble-hi" min="1" max="600" step="1" style="width:6em"></span></label>
+          <label class="field"><span>NPC bet log keeps (days)</span><input type="number" id="s-betlog" min="1" max="366" step="1"></label>
         </div>
-        <p class="hint">Changes apply straight away; cooldowns from the next visit that ends. Switching NPCs off (no Save needed) sends them home: anyone at a table finishes the round they're in first. Back on, they arrive one at a time.</p>
+        <p class="hint">A visit lasts its time unless they leave sooner: bust, a Gambler doubling up, a Casual's stop-loss, a Hit-and-run (half the visit) once up, or a Chaser staying on while down. They stay at a table a while (longer at a favourite game) and then move on to another. The bet log is every NPC money move, for the NPCs' panel; older rows are deleted once a day.</p>
+        <p class="hint">Changes apply straight away; cooldowns from the next visit that ends, visit and table times from the next visit that starts. Switching NPCs off (no Save needed) sends them home: anyone at a table finishes the round they're in first. Back on, they arrive one at a time.</p>
       </div>
     </form>
     <form class="panel" id="seating-form">
@@ -102,7 +109,8 @@ export function init(h) {
       }
       await H.api("PUT", "/api/npc-settings", {regular_cooldown: +$("#s-regular").value,
         cooldown_min: [+$("#s-cool-lo").value, +$("#s-cool-hi").value], bust_cooldown_min: [+$("#s-bust-lo").value, +$("#s-bust-hi").value],
-        dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value});
+        dealer_shift_min: +$("#s-shift").value, dealer_stagger_min: +$("#s-stagger").value, bet_log_days: +$("#s-betlog").value,
+        ...Object.fromEntries(VISITS.map(([id, k]) => [k, [+$("#" + id + "-lo").value, +$("#" + id + "-hi").value]]))});
       H.status("Settings saved.", "ok");
     } catch (err) { H.status(err.message, "warn"); }
   });
@@ -135,6 +143,8 @@ export function init(h) {
   });
 }
 
+const VISITS = [["s-v-grinder", "visit_min_grinder"], ["s-v-casual", "visit_min_casual"], ["s-v-gambler", "visit_min_gambler"],
+  ["s-st-fav", "stint_fav_min"], ["s-st-dabble", "stint_dabble_min"]];
 const BANK = ["start_bank_easy", "start_bank", "start_bank_hard", "start_hand", "hand_under", "cooldown_min", "low_cap", "threshold", "big_wait_min", "big_step"];
 const HEAT = ["warn_at", "back_off_at", "bar_min"];
 const SEATING = ["chair", "upholstery", "frame", "back", "size", "sit", "sit_speed", "slot_screen", "craps_spot"];
@@ -154,6 +164,8 @@ export async function load() {
     $("#s-cool-lo").value = s.cooldown_min[0]; $("#s-cool-hi").value = s.cooldown_min[1];
     $("#s-bust-lo").value = s.bust_cooldown_min[0]; $("#s-bust-hi").value = s.bust_cooldown_min[1];
     $("#s-shift").value = s.dealer_shift_min; $("#s-stagger").value = s.dealer_stagger_min;
+    $("#s-betlog").value = s.bet_log_days;
+    for (const [id, k] of VISITS) { $("#" + id + "-lo").value = s[k][0]; $("#" + id + "-hi").value = s[k][1]; }
     const st = (await H.api("GET", "/api/seating")).styles.default;
     for (const k of SEATING) $("#st-" + k).value = st[k];
     const b = await H.api("GET", "/api/bank-settings");

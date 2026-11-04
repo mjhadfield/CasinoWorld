@@ -29,6 +29,7 @@ from casino_server.tables import (baccarat, blackjack, craps, high_card_flush, l
                                   pai_gow, roulette, slot_machine, three_card_poker, ultimate_texas_holdem)
 from casino_server.tables.base import TableError
 from casino_server.tables.runner import TableRunner, returned_message
+from casino_server.tracking import Tracker
 from casino_server.world import Entity, World
 
 LOOK_STEP = 64   # walked this far, a player's tables in view are worked out again (Casino.look)
@@ -63,7 +64,7 @@ class Casino:
                  npc_population: int | None = 6, npc_pace: float = 1.0, deck_factory=None, rng=None,
                  clock=time.monotonic, wall=time.time, looks=None, board: plan.PlanBoard | None = None,
                  casino_id: str = casinos.DEMO, resort=None, slot_jackpots: SlotProgressives | None = None,
-                 slot_stats: SlotStats | None = None, claims: casinos.Claims | None = None,
+                 slot_stats: SlotStats | None = None, tracker: Tracker | None = None, claims: casinos.Claims | None = None,
                  heat: HeatWatch | None = None):
         self.id = casino_id
         self.resort = resort          # the Resort it's one of (None: a casino on its own, in tests)
@@ -75,6 +76,7 @@ class Casino:
         self.jackpot = jackpot or Jackpot(store)
         self.slot_jackpots = slot_jackpots or SlotProgressives(store, clock=clock)   # the slots' Mini/Minor/Major/Grand
         self.slot_stats = slot_stats or SlotStats(store)                             # each machine's figures
+        self.tracker = tracker or Tracker(store, jackpot=self.jackpot, wall=wall, clock=clock)   # every bet spot's
         self.claims = claims or casinos.Claims()   # which casino each NPC is in
         self.heat = heat or HeatWatch(store, clock=wall)   # Blackjack back-off (heat.py)
         self.clock = clock
@@ -170,11 +172,12 @@ class Casino:
             task.cancel()
         for runner in self.tables.values():
             runner.hand_back()
-        self.npcs.close_all("shutdown")
+        self.npcs.hold_all()   # (their visits carry on when it starts again)
         self.claims.release_all(self.id)
         self.jackpot.save()
         self.slot_jackpots.save()
         self.slot_stats.save()
+        self.tracker.save()
         return tasks
 
     # ------------------------------------------------------------------ outbound helpers
