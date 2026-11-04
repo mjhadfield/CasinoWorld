@@ -8,6 +8,7 @@ overdrawn).
     .venv/bin/python -m casino_server.admin list
     .venv/bin/python -m casino_server.admin set-balance Mike 1000      # cash in hand, pounds; 1000.50 works too
     .venv/bin/python -m casino_server.admin set-bank Mike -250         # the bank, pounds; may be negative
+    .venv/bin/python -m casino_server.admin archive-stats "Before the wipe"   # a Stats archive (stats_archive.py)
 
 Uses the same database as the server (CASINO_DATA_DIR, default server/data/).
 """
@@ -16,6 +17,7 @@ import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from casino_server import slot_builds, stats_archive
 from casino_server.store import Store
 
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -26,8 +28,14 @@ def _pounds(pence) -> str:
 
 
 def main(argv: list[str]) -> int:
-    store = Store(Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR)) / "casino.sqlite")
+    data_dir = Path(os.environ.get("CASINO_DATA_DIR", DEFAULT_DATA_DIR))
+    store = Store(data_dir / "casino.sqlite")
     try:
+        if argv[:1] == ["archive-stats"] and len(argv) == 2:
+            slot_builds.install(Path(os.environ.get("CASINO_SLOT_BUILDS_DIR") or slot_builds.DEFAULT_DIR))   # (their names)
+            aid = stats_archive.save(data_dir, stats_archive.build(store, argv[1]))
+            print(f"Archived as {aid} ({stats_archive.folder(data_dir) / aid}.json); it's on the admin page's Stats archive.")
+            return 0
         if argv[:1] == ["list"] or not argv:
             for p in store.players():
                 print(f"{p['id']:>4}  {p['name']:<20} {_pounds(p['balance'])} in hand, {_pounds(p['bank'])} in the bank")

@@ -126,6 +126,12 @@ sections:
   they were in plays out, and money for a deleted character is dropped.
 - **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added
   together: staked, returned, net, bets and returned %.
+- **Stats archive** (`#archive`, `#archive/<id>`, under Setup): frozen copies of the figures, taken before NPC stats are
+  wiped, so what they showed is kept. Each is a JSON file in `<data>/stats_archive/`, never changed once written
+  (`stats_archive.py`): totals, NPC and human money by game, slots by machine, NPC archetypes, traits, how visits
+  ended, visit lengths, every punter's lifetime figures and the NPCs day by day. NPC money by game comes from the
+  visits that played a single game (the card says how much of the stake that covers). Take one with
+  `admin archive-stats` (see Money).
 - **Slots:** the jackpot meters and their settings, each machine's figures (spins, staked, returned, bonuses; humans
   and NPCs apart, `slots/stats.py`), the cabinets on the floor now, and players' return on slots.
 - **Floor plan** (`#plan`): a casino's rooms and everything in them (`plan.py`; its UI in `admin_web/plan/`). The
@@ -351,7 +357,12 @@ cd ~/Projects/CasinoWorld/server
 .venv/bin/python -m casino_server.admin list
 .venv/bin/python -m casino_server.admin set-balance Mike 1000      # cash in hand, pounds
 .venv/bin/python -m casino_server.admin set-bank Mike -250         # the bank, pounds (may be negative)
+.venv/bin/python -m casino_server.admin archive-stats "Before the wipe"   # a Stats archive of the figures as they are
 ```
+
+Before a change to the stats, back the database up beside it (`server/data/casino.pre-<what>-<date>.sqlite`, with
+sqlite's backup, which is safe while the server's writing). `tools/restore_ledger_rows.py` put back the four ledger
+rows the 25 Oct master-table relabel deleted; it's kept as the pattern for copying rows back from a backup.
 
 ## Tests
 ```fish
@@ -456,7 +467,7 @@ looks, limits, floors and walls are stand-ins for Mike to finish.
   - `engines/`: the rules (ported from v2, plus Roulette and Craps). `slots/`: the slot engine and variants.
   - `npc.py`: the NPC director; `npc_slips.py`: their believable mistakes; `roster.py`: archetypes and traits; `dealer.py`, `dealers.py`: dealer lines
     and shifts.
-  - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `heat.py`: the pit's Blackjack back-off. `admin.py`: the command-line admin. `admin_web/`: the admin page.
+  - `store.py`, `jackpot.py`: storage and the progressive pool. `bank.py`: the bank and the lobby ATM's rules. `heat.py`: the pit's Blackjack back-off. `admin.py`: the command-line admin. `admin_web/`: the admin page. `stats_archive.py`: the Stats archive.
   - `seating.py`: the seating styles (chairs, sitting down, craps standing spots) and which table uses which.
   - `table_styles.py`: the table styles for each kind of table (card tables, Roulette, Craps: House, the
     built-ins, saved designs) and which table uses which;

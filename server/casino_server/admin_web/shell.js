@@ -58,6 +58,7 @@ const SECTIONS = {
   players: {title: "Players", src: "./sections/players.js"},
   stats: {title: "Player stats", src: "./sections/stats.js"},
   sounds: {title: "Sounds", src: "./sections/sounds.js"},
+  archive: {title: "Stats archive", src: "./sections/archive.js"},
   settings: {title: "Settings", src: "./sections/settings.js"},
 };
 const DEFAULT = "plan";

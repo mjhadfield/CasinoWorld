@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from casino_server.art import LookCache
 from casino_server.resort import Resort
 from casino_server.session import Session
-from casino_server import bank, casinos, heat, plan, plan_assets, slot_builds, slot_design_art
+from casino_server import bank, casinos, heat, plan, plan_assets, slot_builds, slot_design_art, stats_archive
 from casino_server.slot_art import SlotArtBoard
 from casino_server.slot_design import DEFAULT_DESIGNS_DIR, DesignBoard, DesignError
 from casino_server.slots import jackpots as slot_jackpots
@@ -1457,6 +1457,20 @@ async def players_stats(request: Request):
         if p["timeout_until"] and p["timeout_until"] <= now:   # (a timeout that's run out)
             p["timeout_until"] = None
     return {"players": players, "games": roster.GAMES, "now": now, "casinos": {c["id"]: c["name"] for c in resort.registry}}
+
+
+# The Stats archive (admin, Setup): frozen copies of the figures, taken before a wipe (stats_archive.py).
+@app.get("/api/stats/archives")
+async def stats_archives(request: Request):
+    return {"archives": stats_archive.listing(request.app.state.resort.data_dir)}
+
+
+@app.get("/api/stats/archives/{archive_id}")
+async def stats_archive_get(archive_id: str, request: Request):
+    archive = stats_archive.load(request.app.state.resort.data_dir, archive_id)
+    if archive is None:
+        raise HTTPException(404, "No such archive.")
+    return archive
 
 
 # Player management. Protected, bans and timeouts are the account's (the device's), so they cover all its characters;

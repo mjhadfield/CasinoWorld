@@ -214,8 +214,12 @@ The hold moves between −0.7% (23 Oct, the day the bank opened) and 7.7%, with 
    - id 3125: bet, −£5
    - id 3189: bet, −£1
 
-   That's +£25 net. The balance chain breaks at ids 3126 and 3190 because of it. All four rows are still in
-   `server/data/casino.pre-master-relabel.sqlite` and can be put back under their right game.
+   That's +£25 net. The balance chain breaks at ids 3126 and 3190 because of it.
+
+   **Fixed 2026-11-04:** `tools/restore_ledger_rows.py` copied the four rows back from
+   `server/data/casino.pre-master-relabel.sqlite`. 3123–3125 went back as Blackjack (one hand; "side bets" is
+   Blackjack's note) and 3189 as `master_table`. The ledger now adds up to Mike's cash in hand, with no chain
+   breaks.
 2. **335 visits staked money without any game being counted** (£28k between them). 279 of those were cut off
    by a restart before their first round finished. Their money is in the totals, but not in any game.
 
@@ -223,7 +227,7 @@ The hold moves between −0.7% (23 Oct, the day the bank opened) and 7.7%, with 
 
 In order of value:
 
-1. **Put the four deleted ledger rows back** from the backup, so the ledger reconciles again.
+1. ~~Put the four deleted ledger rows back~~ (done 2026-11-04).
 2. **Record NPC money per game.** Keep `{game: {rounds, wagered, returned}}` in `npc_visits.games` instead of
    round counts. It's a small change in `NpcDirector._round_over` and `NpcParticipant`, and it makes the
    per-game figures exact whatever NPCs do.
