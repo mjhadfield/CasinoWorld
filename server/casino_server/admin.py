@@ -57,7 +57,7 @@ def wipe_npc_stats(store: Store, data_dir: Path, keep_tastes: bool = False) -> i
     print("Wiped: " + ", ".join(f"{n:,} {t}" for t, n in gone.items()))
     if not keep_tastes:
         print(f"New tastes for {roster.ensure_tastes(store, everyone=True)} punters.")
-    print("Done. Start the server again: systemctl --user start hub-proj-casino-world")
+    print("Done. Start the server again from Citadel.")
     return 0
 
 

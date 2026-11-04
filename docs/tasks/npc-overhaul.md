@@ -23,7 +23,8 @@ is below.
   `admin archive-stats`, the live archive "Before the NPC overhaul", and the 4 ledger rows put back (3eba437)
 - [x] Step 2: per-spot tracking with EV for NPCs and humans, the 30-day NPC bet log, and the House section
 - [x] Step 3: time-based visits with tastes, stints and leaving rules; visits resume after a restart
-- [ ] Step 4: `admin wipe-npc-stats` run on live (it takes a second archive and backup first)
+- [x] Step 4: `admin wipe-npc-stats` run on live 4 Nov 02:25 UTC: backup `server/data/casino.pre-npc-wipe-20261104-022543.sqlite`,
+  archive "Before the NPC stats wipe"; 33,483 visits cleared, new tastes for 100 punters
 - [x] A simulated day on a copy of the live data (the real Resort on a fake clock, a quarter pace, 24 hours'
   worth): 388 visits, mean 90 min, median 90, 2.9 games a visit, 8% on one game; hold vs EV inside ±2σ on every
   game but slots (unpriced at the time); every flush under 50 ms. DB growth was **~300k bet log rows a day, about
@@ -31,7 +32,7 @@ is below.
 - [x] `tools/dev.sh test` passes
 
 ## Handoff
-- **State:** steps 2 and 3 built and tested; step 4's command built and tested on scratch data.
+- **State:** done and live (8093057, then the wipe). Left for Mike: the questions below.
 - **Changes from the plan, my calls:**
   - Budgets: the archetypes' default budgets are 3x (a Gambler's 5x) with the stake share cut to match, so the
     stakes on the felt are the same but a budget lasts a 90-minute visit (with the old budgets visits averaged

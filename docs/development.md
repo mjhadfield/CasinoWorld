@@ -382,8 +382,8 @@ Settings' **NPC bet log keeps** days (30), pruned daily: about 110,000 rows a da
 systemctl --user stop hub-proj-casino-world
 cd ~/Projects/CasinoWorld/server
 .venv/bin/python -m casino_server.admin wipe-npc-stats      # --keep-tastes keeps every punter's tastes
-systemctl --user start hub-proj-casino-world
 ```
+then start it from Citadel (its unit is transient: once stopped it's gone, so `systemctl start` can't bring it back).
 It refuses while 8660's listening, then backs up to `server/data/casino.pre-npc-wipe-<time>.sqlite`, takes a Stats
 archive ("Before the NPC stats wipe"), and deletes the NPC visits (and any put aside over a restart), the bet log,
 the NPC game figures and their rows of `bet_stats` and `slot_stats`, zeroes the roster's counters and cooldowns,
@@ -401,7 +401,7 @@ UPDATE npcs SET (visits, rounds, wagered, returned, net, biggest_win, busts, las
    FROM old.npcs o WHERE o.id = npcs.id);
 DELETE FROM meta WHERE key = 'npc_stats_since';
 ```
-then start it again (copy rows from before the wipe only: anything since then would be doubled).
+then start it from Citadel (copy rows from before the wipe only: anything since then would be doubled).
 
 Before a change to the stats, back the database up beside it (`server/data/casino.pre-<what>-<date>.sqlite`, with
 sqlite's backup, which is safe while the server's writing). `tools/restore_ledger_rows.py` put back the four ledger
