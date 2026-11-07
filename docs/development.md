@@ -132,11 +132,18 @@ sections:
 - **Player stats** (`#stats`, `#stats/<player id>`): the game-by-game breakdown for each player, or Everyone added
   together: staked, returned, net, bets and returned %; for one player, **By bet**, each line and spot against the
   house's EV (as House).
-- **House** (`#house`): every game's bet lines (a decision game's main line, then each side bet), opening to their
-  spots: bets, staked, what the house won, its EV, hold and EV hold, and luck (won less EV) with its ±2σ band (red
-  outside it). Over today, 7 days, 30 days or all; for everyone, NPCs or humans; in one casino or all; and a chart
-  of each day's house win against its EV. From the Tracker (`tracking.py`), edges from `edges.json` (`tools/edges.py`,
-  see Money); a spot without one shows as unpriced.
+- **House** (`#house`): every game, collapsed to its totals until clicked (or **Expand all**), opening to its bet
+  lines (a decision game's main line, then each side bet), which open to their spots: bets, staked, what the house
+  won, its EV, hold (house won ÷ staked: what it actually kept), EV hold (EV ÷ staked: the house edge, what it should
+  keep) and luck (won less EV) with its ±2σ band (red outside it), every amount to the nearest £. The table scrolls
+  with its heads fixed; its columns resize from the grip on each head's right edge (double-click one to reset it) and
+  the number columns reorder by dragging a head onto another (Game / bet stays first). Clicking a head sorts by it:
+  numbers biggest first, then smallest, then back to the usual order (Game / bet A–Z first); games sort, and so do the
+  lines and spots inside them. The layout and sort are remembered per browser, and **Reset columns** puts them back.
+  Over today, 7 days, 30 days or all; for everyone, NPCs or humans; in one casino or all; and a chart under it of each
+  day's house win against its EV. From the Tracker (`tracking.py`), edges from `edges.json` (`tools/edges.py`, see
+  Money); a spot without one shows as unpriced. The table is `sections/bets.js`'s `betsTable`, shared with the NPC
+  panel and Player stats (both also round to the £); `collapse` and `cols` turn the other extras on.
 - **Stats archive** (`#archive`, `#archive/<id>`, under Setup): frozen copies of the figures, taken before NPC stats are
   wiped, so what they showed is kept. Each is a JSON file in `<data>/stats_archive/`, never changed once written
   (`stats_archive.py`): totals, NPC and human money by game, slots by machine, NPC archetypes, traits, how visits

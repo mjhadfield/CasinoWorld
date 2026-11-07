@@ -1,7 +1,8 @@
 // House: how the house is doing at every game, bet line and spot, actual against EV (tracking.py, edges.py), over
-// today, the last 7 or 30 days, or all of it; for everyone, NPCs or humans; in one casino or all. A line opens to its
-// spots. The chart under it is each day's house win against its EV, every game together.
-import {betsTable} from "./bets.js";
+// today, the last 7 or 30 days, or all of it; for everyone, NPCs or humans; in one casino or all. Games start
+// collapsed to their totals and open to their lines, a line opens to its spots, and the columns resize and reorder. The
+// chart under it is each day's house win against its EV, every game together.
+import {betsTable, resetColumns, toPound} from "./bets.js";
 
 let H, data = null;
 const view = {period: "7d", who: "all", casino: "all"};
@@ -21,9 +22,11 @@ export function init(h) {
   h.top.append(seg("house-period", PERIODS, "period"), seg("house-who", WHO, "who"),
     el("select", {id: "house-casino", onchange: e => { view.casino = e.target.value; load(); }}),
     el("span", {className: "grow"}), el("button", {type: "button", textContent: "Refresh", onclick: load}));
-  h.view.append(el("div", {className: "panel"}, el("div", {className: "ph", id: "house-head"}), el("div", {className: "pb", id: "house-body"})),
-    el("div", {className: "panel"}, el("div", {className: "ph"}, el("b", {textContent: "By day"}),
-      el("span", {className: "hint", textContent: "the house's win (bars) against its EV (line), every game"})), el("div", {className: "pb padded", id: "house-days"})));
+  // The table panel takes the height left and scrolls (its heads stick); the By-day chart sits under it.
+  h.view.append(el("div", {className: "wb", style: "grid-auto-flow: row; grid-template-rows: minmax(0, 1fr) auto"},
+    el("div", {className: "panel"}, el("div", {className: "ph", id: "house-head"}), el("div", {className: "pb", id: "house-body"})),
+    el("div", {className: "panel", style: "border-left: 0; border-top: 1px solid var(--line)"}, el("div", {className: "ph"}, el("b", {textContent: "By day"}),
+      el("span", {className: "hint", textContent: "the house's win (bars) against its EV (line), every game"})), el("div", {className: "pb padded", id: "house-days"}))));
 }
 
 export async function load() {
@@ -48,11 +51,15 @@ function draw() {
     {staked: 0, net: 0, expected: 0, v: 0});
   const since = data.tracking_since ? new Date(data.tracking_since).toLocaleDateString("en-GB", {day: "numeric", month: "short", year: "numeric"}) : null;
   $("#house-head").replaceChildren(el("b", {textContent: "Every game"}),
-    el("span", {className: "hint", textContent: `staked ${money(t.staked)} · house won ${signed(t.net)} · EV ${money(Math.round(t.expected))}`
-      + ` · luck ${signed(Math.round(t.net - t.expected))} ±${money(Math.round(2 * Math.sqrt(t.v)))}` + (since ? ` · tracked since ${since}` : "")}),
+    el("span", {className: "hint", textContent: `staked ${money(toPound(t.staked))} · house won ${signed(toPound(t.net))} · EV ${money(toPound(t.expected))}`
+      + ` · luck ${signed(toPound(t.net - t.expected))} ±${money(toPound(2 * Math.sqrt(t.v)))}` + (since ? ` · tracked since ${since}` : "")}),
     el("span", {className: "grow"}),
-    el("span", {className: "hint", textContent: data.edges_made ? `edges from ${data.edges_made}` : "no edges.json: run tools/edges.py"}));
-  const body = [betsTable(H, data.games, {open, redraw: draw, empty: "No bets in this period."})];
+    el("span", {className: "hint", textContent: data.edges_made ? `edges from ${data.edges_made}` : "no edges.json: run tools/edges.py"}),
+    el("button", {type: "button", textContent: "Expand all", onclick: () => { for (const g of data.games) open.add("g:" + g.game); draw(); }}),
+    el("button", {type: "button", textContent: "Collapse all", onclick: () => { for (const k of [...open]) if (k.startsWith("g:")) open.delete(k); draw(); }}),
+    el("button", {type: "button", textContent: "Reset columns", title: "Back to the default column order, widths and sort",
+      onclick: () => { resetColumns(H, "house"); draw(); }}));
+  const body = [betsTable(H, data.games, {open, redraw: draw, empty: "No bets in this period.", collapse: true, cols: "house"})];
   if (data.unpriced.length)
     body.push(el("p", {className: "hint", textContent: "Unpriced (no edge yet; run tools/edges.py): " + data.unpriced.join(", ")}));
   $("#house-body").replaceChildren(...body);
@@ -89,7 +96,7 @@ function chart(rows) {
     const x = pad + i * step + (step - bw) / 2;
     add("rect", {x, width: bw, y: Math.min(y(0), y(d.net)), height: Math.max(1, Math.abs(y(d.net) - y(0))),
       fill: d.net >= 0 ? "var(--accent)" : "var(--warn, #c55)", "fill-opacity": 0.75},
-      `${day}: house won ${money(Math.round(d.net))}, EV ${money(Math.round(d.expected))}`);
+      `${day}: house won ${money(toPound(d.net))}, EV ${money(toPound(d.expected))}`);
     pts.push(`${x + bw / 2},${y(d.expected)}`);
     if (list.length <= 14 || i % Math.ceil(list.length / 10) === 0)
       add("text", {x: x + bw / 2, y: Hh + 14, "text-anchor": "middle", "font-size": 10, fill: "currentColor"}).textContent = day.slice(5);
