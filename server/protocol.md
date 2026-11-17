@@ -15,6 +15,12 @@ hear the casino you're in. A character's money and the jackpots are the same in 
 2. The client replies `join` {`token`}. On a device's first visit the token is `""`; after that it's the one saved
    from `account`. The reply is `account`: the character select. Nobody is on the floor yet. A banned or timed-out
    account gets `barred` instead.
+   - **In another page's frame** (Citadel's Casino page) the browser gives the game its own partitioned storage, so
+     its saved token isn't the device's. The game's own tab therefore also POSTs its token as JSON to
+     `/account-cookie` (204, or 404 for an unknown token), which sets the `casino_account` cookie (HttpOnly, Secure,
+     SameSite=None, 400 days, refreshed each visit). A framed client joins with `framed: true`, and then the account
+     in the cookie its socket brought comes before its own token. A frame never sets the cookie. Where third-party
+     cookies are blocked (private windows, Firefox) the frame keeps an account of its own.
 3. The client makes, changes or deletes characters (`create_character`, `edit_character`, `delete_character`, each
    answered with a fresh `account`) and picks one with `pick_character`. The reply is `casinos`: the casino chooser.
 4. The client enters one with `enter_casino`. The server then sends, in order:
@@ -38,7 +44,7 @@ body on the floor, isn't sent the casino's goings-on, and everything else it sen
 ## Client → server
 | type | fields | meaning |
 |---|---|---|
-| `join` | `token`, `preview` (optional room id), `casino` (with `preview`; default `demo`) | Identify the device's account, or make a new one (an empty or unknown token). Must come first. The reply is `account`. With `preview`, a look round that casino's floor plan draft instead (see Connecting). |
+| `join` | `token`, `framed` (optional: in another page's frame), `preview` (optional room id), `casino` (with `preview`; default `demo`) | Identify the device's account, or make a new one (an empty or unknown token). With `framed`, the `casino_account` cookie's account comes first (see Connecting). Must come first. The reply is `account`. With `preview`, a look round that casino's floor plan draft instead (see Connecting). |
 | `create_character` | `name`, `look`, `difficulty` | A new character (at most `account.max`). `name`: up to 16 characters, spaces squashed, not the same as another of yours. `look`: a look spec (art.py: `body`, `skin`, and each slot's [option, colour] or null). `difficulty`: `easy`, `normal` or `hard`, which sets the starting bank (`account.difficulties`). The reply is `character_made` {`id`} and `account`, or an `error` saying what's wrong. |
 | `edit_character` | `id`, `name`, `look` | Change one of your characters' name and look (checked as above). Refused while it's on the floor. The reply is `account`. |
 | `delete_character` | `id` | Delete one of your characters, its money and history. Refused while it's on the floor. The reply is `account`. |

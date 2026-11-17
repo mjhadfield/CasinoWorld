@@ -49,7 +49,9 @@ tools/dev.sh server         # a scratch instance on its own port (8670 up) with 
   warning once (Advanced › Proceed). The certificate is self-signed and the server generates it into
   `server/data/tls/`. Godot's web build only runs over HTTPS or on `localhost`. Citadel's Casino page frames
   the HTTPS address; inside a plain-HTTP page that isn't a secure context, which `tools/patch_web_frame.py`
-  works around at export (the loader's check and the sound effects' AudioWorklet).
+  works around at export (the loader's check and the sound effects' AudioWorklet). The frame's storage is partitioned, so it finds
+  the device's account through the `casino_account` cookie the game's own tab sets (server/protocol.md, Connecting):
+  open the game in its own tab once per device first.
 - **Desktop:** open `client/project.godot` in Godot and press **F5**. It connects to
   `ws://127.0.0.1:8660/ws`, or to `CASINO_SERVER_URL` if set.
 - **By hand:** `cd server; .venv/bin/python -m casino_server`.

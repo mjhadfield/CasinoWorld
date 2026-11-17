@@ -5,6 +5,9 @@ extends Node
 ##
 ## The server issues an account token on first join; it's kept in user://
 ## (IndexedDB on the web build), so each device or browser stays the same account.
+## In another page's frame (Citadel's Casino page) the browser hands the game separate,
+## partitioned storage, so the game's own tab also keeps the token as a cookie and a
+## framed join asks the server to use that (`framed`): the same characters either way.
 ## Joining gets the character select (`account`); picking a character gets the
 ## casino chooser (`casinos`); nobody is on a floor until they enter a casino.
 ## After a dropped connection the same character is picked again into the same
@@ -45,6 +48,9 @@ var want_casino := ""
 ## A floor-plan preview (the admin page's Preview: the page's address ends ?preview=<room>): the draft's floor to
 ## walk round alone. The server gives it no body and no tables to play.
 var preview := ""
+## Running inside another page's frame (web only).
+var framed := false
+var _cookie_sent := false   # the account cookie has been refreshed this page load
 var on_floor := false     # welcomed on this connection: until then the server refuses everything but join
 var balance := 0          # latest from the server
 var shown_balance := 0    # what the HUD shows: held back while a payout is still animating
@@ -67,6 +73,7 @@ func _ready() -> void:
 		preview = str(p) if p != null else ""
 		var c = JavaScriptBridge.eval("new URLSearchParams(location.search).get('casino') || ''")
 		want_casino = str(c) if c != null else ""
+		framed = bool(JavaScriptBridge.eval("window.top !== window.self"))
 	Net.message_received.connect(_on_message)
 	Net.disconnected.connect(func():
 		if on_floor:
@@ -86,6 +93,8 @@ func _on_message(msg: Dictionary) -> void:
 			if int(msg.get("protocol", -1)) != Net.PROTOCOL_VERSION:
 				push_warning("Server protocol %s != client %d" % [msg.get("protocol"), Net.PROTOCOL_VERSION])
 			var join := {"token": _load_token()}
+			if framed:
+				join["framed"] = true
 			if preview != "":
 				join["preview"] = preview
 				if want_casino != "":
@@ -99,6 +108,7 @@ func _on_message(msg: Dictionary) -> void:
 			account_ready = true
 			if preview == "":
 				_save_token(str(msg.get("token", "")))
+				_send_cookie(str(msg.get("token", "")))
 			if _resume >= 0 and not on_floor and pending_pick < 0:   # back after a dropped connection
 				pending_pick = _resume
 				_resume = -1
@@ -241,6 +251,16 @@ func _load_token() -> String:
 	if cfg.load(SAVE_PATH) != OK:
 		return ""
 	return str(cfg.get_value("player", "token", ""))
+
+
+## The game's own tab hands its token to the server to keep as a cookie, which a framed copy joins with. Never
+## from a frame: its partitioned token could be a stray account and would take over the device's real one.
+func _send_cookie(token: String) -> void:
+	if _cookie_sent or framed or token == "" or not OS.has_feature("web"):
+		return
+	_cookie_sent = true
+	JavaScriptBridge.eval("fetch('/account-cookie', {method: 'POST', headers: {'Content-Type': 'application/json'}, "
+		+ "body: JSON.stringify({token: %s})}).catch(() => {})" % JSON.stringify(token), true)
 
 
 func _save_token(token: String) -> void:

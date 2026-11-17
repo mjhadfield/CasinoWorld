@@ -44,6 +44,12 @@ mimetypes.add_type("application/octet-stream", ".pck")
 WEB_EXPORT_DIR = Path(os.environ.get("CASINO_WEB_DIR") or Path(__file__).resolve().parents[2] / "build" / "web")
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+# The device's account token as a cookie, set by the game in its own tab (POST /account-cookie). A browser gives a page
+# in a frame (Citadel's Casino page) its own partitioned storage, so the token the game keeps in user:// isn't there;
+# cookies aren't partitioned (where third-party cookies are allowed) and ignore the port, so the frame's socket
+# brings this one and a `framed` join uses it. SameSite=None: Citadel is http, so the frame is cross-site to it.
+ACCOUNT_COOKIE = "casino_account"
+ACCOUNT_COOKIE_AGE = 400 * 24 * 3600   # (the most Chrome keeps one; the game refreshes it on every visit)
 
 NOT_EXPORTED_PAGE = """<!doctype html><meta charset="utf-8"><title>Casino World</title>
 <body style="font-family:sans-serif;background:#111;color:#eee;padding:2rem">
@@ -128,6 +134,7 @@ async def ws_endpoint(ws: WebSocket):
     await ws.accept()
     resort: Resort = ws.app.state.resort
     session = Session()
+    session.cookie_token = ws.cookies.get(ACCOUNT_COOKIE, "")
     sender = asyncio.create_task(_sender(ws, session))
     resort.connect(session)
     try:
@@ -146,6 +153,26 @@ async def ws_endpoint(ws: WebSocket):
     finally:
         resort.disconnect(session)
         sender.cancel()
+
+
+@app.post("/account-cookie")
+async def account_cookie(request: Request):
+    """The game in its own tab hands over its account token to be kept as the cookie a framed copy joins with. Only a
+    real account's token is taken, and only as JSON: a form posted from another site can't send JSON without a CORS
+    preflight, which this server never answers, so no other page can swap a device onto someone else's account."""
+    if not request.headers.get("content-type", "").startswith("application/json"):
+        raise HTTPException(415, "Send JSON.")
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Send JSON.") from None
+    token = body.get("token") if isinstance(body, dict) else None
+    if not isinstance(token, str) or not token or request.app.state.resort.store.account_by_token(token) is None:
+        raise HTTPException(404, "No such account.")
+    response = Response(status_code=204)
+    response.set_cookie(ACCOUNT_COOKIE, token, max_age=ACCOUNT_COOKIE_AGE, path="/", secure=True, httponly=True,
+                        samesite="none")
+    return response
 
 
 # Checked per request, so a fresh Godot export is picked up without restarting the server.

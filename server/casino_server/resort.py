@@ -193,7 +193,7 @@ class Resort:
         if kind == "join":
             if msg.get("preview"):
                 return self._join_preview(session, msg)
-            return self._join(session, str(msg.get("token") or ""))
+            return self._join(session, str(msg.get("token") or ""), framed=bool(msg.get("framed")))
         if kind == "away":
             session.away = True
             return
@@ -230,12 +230,16 @@ class Resort:
         self._send_casinos(session)
 
     # ------------------------------------------------------------------ accounts and characters
-    def _join(self, session: Session, token: str):
+    def _join(self, session: Session, token: str, framed: bool = False):
         """Who's at the keyboard: the device's account (a new one for a new device), answered with `account` --
-        their characters to pick from. Nobody's on a floor until they pick one and a casino."""
+        their characters to pick from. Nobody's on a floor until they pick one and a casino. A game in another page's
+        frame has its own partitioned storage, so its saved token is a stranger's to this device: the account cookie
+        its own tab set (app.ACCOUNT_COOKIE) comes first there, and only the game's own tab ever sets that cookie."""
         if session.account is not None:
             return session.error("Already joined.")
-        account = self.store.account_by_token(token) if token else None
+        account = self.store.account_by_token(session.cookie_token) if framed and session.cookie_token else None
+        if account is None and token:
+            account = self.store.account_by_token(token)
         bar = account and self.store.barred(account["id"], time.time())
         if bar:
             return self._barred(session, bar)
