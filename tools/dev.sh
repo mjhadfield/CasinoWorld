@@ -128,6 +128,7 @@ export_web() {
     cd "$ROOT/client"
     godot --headless --export-release Web ../build/web/index.html
     python3 "$ROOT/tools/patch_web_gl.py" "$ROOT/build/web/index.js"   # (else the game freezes after ~50 minutes)
+    python3 "$ROOT/tools/patch_web_frame.py" "$ROOT/build/web"        # (else it won't start in Citadel's Casino page)
     compress_web "$ROOT/build/web"
 }
 

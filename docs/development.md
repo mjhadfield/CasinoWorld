@@ -38,7 +38,8 @@ back to its player, and after a crash the next start hands it back (docs/archite
 ```fish
 tools/dev.sh restart        # after server changes
 tools/dev.sh export         # after client changes, then reload the page (no restart needed); also patches
-                            # index.js to reuse GL ids (tools/patch_web_gl.py, docs/performance.md) and packs
+                            # index.js to reuse GL ids (tools/patch_web_gl.py, docs/performance.md), lets the
+                            # game run in Citadel's plain-HTTP frame (tools/patch_web_frame.py), and packs
                             # brotli/gzip copies of the engine (a minute when Godot's wasm has changed)
 tools/dev.sh server         # a scratch instance on its own port (8670 up) with .dev/data; --classic puts the
                             # classic floor and pit live there (the first run otherwise has just the lobby)
@@ -46,7 +47,9 @@ tools/dev.sh server         # a scratch instance on its own port (8670 up) with 
 
 - **Browser or phone:** open `https://192.168.0.66:8661`. Each device shows a "connection not private"
   warning once (Advanced › Proceed). The certificate is self-signed and the server generates it into
-  `server/data/tls/`. Godot's web build only runs over HTTPS or on `localhost`.
+  `server/data/tls/`. Godot's web build only runs over HTTPS or on `localhost`. Citadel's Casino page frames
+  the HTTPS address; inside a plain-HTTP page that isn't a secure context, which `tools/patch_web_frame.py`
+  works around at export (the loader's check and the sound effects' AudioWorklet).
 - **Desktop:** open `client/project.godot` in Godot and press **F5**. It connects to
   `ws://127.0.0.1:8660/ws`, or to `CASINO_SERVER_URL` if set.
 - **By hand:** `cd server; .venv/bin/python -m casino_server`.
