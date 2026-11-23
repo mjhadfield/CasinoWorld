@@ -14,7 +14,7 @@ Most of the time, one session works in the main folder on `main`. When you want 
   git worktree add .claude/worktrees/<id> -b task/<id>
   ```
 
-- **Run `tools/dev.sh setup` in the worktree.** Its own instance is `tools/dev.sh server`, on its own ports from 8670 up with its own `.dev/data`. Add `--live-data` to start from a copy of the real floor. `tools/dev.sh port` prints the port, and `tools/dev.sh list` shows every checkout's.
+- **Run `tools/dev.sh setup` in the worktree.** Its own instance is `tools/dev.sh server`, on its own ports from 8672 up (skipping other live apps' ports, `RESERVED` in dev.sh) with its own `.dev/data`. Add `--live-data` to start from a copy of the real floor. `tools/dev.sh port` prints the port, and `tools/dev.sh list` shows every checkout's.
 - **Client changes:** a worktree serves the main client until you run `tools/dev.sh export` there.
 
 ## If it will take more than one sitting

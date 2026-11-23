@@ -41,7 +41,7 @@ tools/dev.sh export         # after client changes, then reload the page (no res
                             # index.js to reuse GL ids (tools/patch_web_gl.py, docs/performance.md), lets the
                             # game run in Citadel's plain-HTTP frame (tools/patch_web_frame.py), and packs
                             # brotli/gzip copies of the engine (a minute when Godot's wasm has changed)
-tools/dev.sh server         # a scratch instance on its own port (8670 up) with .dev/data; --classic puts the
+tools/dev.sh server         # a scratch instance on its own port (8672 up, skipping other live apps' ports) with .dev/data; --classic puts the
                             # classic floor and pit live there (the first run otherwise has just the lobby)
 ```
 

@@ -87,7 +87,7 @@ texture memory in the bottom-left corner.
 
 **A desktop run** (`godot -s script.gd` in `client/`) can count draw calls node by node; hide a node and see what
 it saves. A desktop run connects to the live server unless `CASINO_SERVER_URL` says otherwise. Point it at the
-dev instance (`ws://127.0.0.1:8670/ws`).
+dev instance (`ws://127.0.0.1:8672/ws`).
 
 ## Measured (2026-10-21, 0 NPCs, 1280×720)
 

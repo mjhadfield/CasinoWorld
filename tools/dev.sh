@@ -17,7 +17,8 @@
 #   tools/dev.sh list                  every checkout's port, and whether it is running
 #
 # The live server is Citadel's unit hub-proj-casino-world on 8660/8661, run from the main
-# checkout with server/data/. Dev instances use ports from 8670 up and .dev/data;
+# checkout with server/data/. Dev instances use port pairs from 8672 up (skipping other live apps' ports,
+# RESERVED below) and .dev/data;
 # --live-data copies the live data in once. Delete .dev/data to start over.
 set -euo pipefail
 
@@ -28,12 +29,17 @@ LIVE_PORT=8660
 LIVE_UNIT=hub-proj-casino-world.service
 HOLD="$MAIN/.dev/live-hold"
 HOLD_HOURS=3   # an older hold was forgotten, not meant
-FIRST_PORT=8670
+FIRST_PORT=8672
 LAST_PORT=8698
+# Other live apps in that range, which aren't always running when a port is picked, so `listening` alone
+# can't protect them: Home Improvements 8670, Star Lab 8690/8691 (see ~/Projects/AGENTS.md).
+RESERVED=(8670 8690 8691)
 
 die() { echo "dev.sh: $*" >&2; exit 1; }
 
 listening() { ss -ltnH "sport = :$1" | grep -q .; }
+
+reserved() { local r; for r in "${RESERVED[@]}"; do [[ "$1" == "$r" ]] && return 0; done; return 1; }
 
 setup() {
     mkdir -p "$DEV"
@@ -55,15 +61,20 @@ claimed() {
 }
 
 port() {
+    local taken p
     if [[ -f "$DEV/port" ]]; then
-        cat "$DEV/port"
-        return
+        p=$(<"$DEV/port")
+        if ! reserved "$p" && ! reserved $((p + 1)); then
+            echo "$p"
+            return
+        fi
+        rm "$DEV/port"   # claimed before RESERVED existed: pick again
     fi
     mkdir -p "$DEV"
-    local taken p
     taken=$(claimed)
     for ((p = FIRST_PORT; p <= LAST_PORT; p += 2)); do
         grep -qx "$p" <<<"$taken" && continue
+        reserved "$p" || reserved $((p + 1)) && continue
         listening "$p" || listening $((p + 1)) || { echo "$p" >"$DEV/port"; echo "$p"; return; }
     done
     die "no free port pair in $FIRST_PORT-$((LAST_PORT + 1))"
