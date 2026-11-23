@@ -35,3 +35,6 @@ server/slot_designs/*/chars/
 /docs/home-hosting-security-plan-2026-10-25.md
 /docs/github-pages-demo-plan-2026-10-25.md
 /docs/cloud-hosting-plan-2026-10-25.md
+# agent instruction files: local only, never committed
+/CLAUDE.md
+/GEMINI.md

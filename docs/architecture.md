@@ -364,7 +364,7 @@ A Godot 4.7 project exported to the web.
 
 - **Checks:** the server tests (`tools/dev.sh test`) cover the machines, engines, NPCs and the socket. The
   client has the layout audit (`docs/tables.md`) and `tools/shot.py` for screenshots against a dev instance.
-  See CLAUDE.md for how much checking a change needs.
+  See AGENTS.md for how much checking a change needs.
 - **Never use the live data for tests:** dev instances use `.dev/data`, and the tests a scratch directory.
 
 ## Not done yet
