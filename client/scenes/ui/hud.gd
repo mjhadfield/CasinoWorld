@@ -4,7 +4,8 @@ extends CanvasLayer
 ## Walking: the interact prompt under your feet (Use ATM, Play) and the ATM itself (AtmPanel). Choosing a seat: a hint and Cancel. Seated: the betting bar (BettingBar: the
 ## table's name and seats, the table's chips, Ready/Repeat Bet, Undo/Clear/Auto rebet/Sit out, the game's decisions
 ## when you have one, the line saying what's happening), Paytable and Stand up.
-## Before you're on the floor, the front door covers it all (FrontDoor: loading, the character select, the designer).
+## Before you're on the floor, the front door covers it all (FrontDoor: loading, the character select, the designer)
+## except the Settings cog and its panel, which stay over it.
 ## The floor scene drives it (set_mode / update_seated) and listens to its signals.
 
 signal interact_pressed
@@ -99,11 +100,14 @@ func _ready() -> void:
 	add_child(PerfOverlay.new())
 	move_child(settings_menu, -1)  # the panel opens over everything, its button included
 	front_door = FrontDoor.new()
-	add_child(front_door)   # over the settings panel (it's the whole screen until you're in)
+	add_child(front_door)   # (it's the whole screen until you're in)
 	wallet.pressed.connect(switch_pressed.emit)
 	asker = AskPanel.new()
 	add_child(asker)
-	move_child(asker, settings_menu.get_index())   # over the table's panels, under the Settings panel
+	move_child(asker, settings_menu.get_index())   # over the table's panels, under the front door and Settings
+	# Settings and its cog over the front door too, so sound can be turned down before picking a character.
+	move_child(settings_button, -1)
+	move_child(settings_menu, -1)
 	asker.yes.connect(func():
 		if _on_yes.is_valid():
 			_on_yes.call())

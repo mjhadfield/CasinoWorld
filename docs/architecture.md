@@ -319,7 +319,7 @@ A Godot 4.7 project exported to the web.
   a new epoch, which cancels every step still pending. Nothing on the client decides an outcome.
   Each says what a click on it would use (`clickable_at()`: a free chair while you walk, your bet spots
   when you're sat), and the floor shows the pointing hand over those and the ATM (`_update_cursor()`).
-- **The front door (`scenes/ui/front_door.gd`)** covers everything until you're on the floor: the loading screen
+- **The front door (`scenes/ui/front_door.gd`)** covers everything but the Settings cog (and its panel) until you're on the floor: the loading screen
   while connecting, then the character select (`Session.characters` from `account`) and the designer (its look
   controls are `look_editor.gd`, a port of the admin page's NPC designer; the preview is built by the server's
   `POST /api/looks/preview` and fetched by `LookLoader`), then the casino chooser (`Session.casinos` from `casinos`:
